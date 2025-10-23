@@ -38,10 +38,12 @@ import {
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export function ChatView({
     withInboxBanner,
     chat,
+    initialCheckpoint,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
@@ -49,6 +51,7 @@ export function ChatView({
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
+    initialCheckpoint: ServerSynchronizationCheckpoint;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
@@ -63,6 +66,7 @@ export function ChatView({
             />
             <ChatMessagingView
                 chat={chat}
+                initialCheckpoint={initialCheckpoint}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={initialScrollToMessageIndex}
@@ -240,11 +244,13 @@ function AccountFullName({account}: {account: AccountModel}) {
 
 function ChatMessagingView({
     chat,
+    initialCheckpoint,
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
 }: {
     chat: ChatModel;
+    initialCheckpoint: ServerSynchronizationCheckpoint;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
@@ -252,7 +258,7 @@ function ChatMessagingView({
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
 
-    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+    const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChannelRealtimeService",
         ChatRealtimeProtocol,
         `/api/durable-objects/chat/${chat.id}`,
@@ -285,10 +291,10 @@ function ChatMessagingView({
             ref={messagingRef}
             initialScrollOffset="bottom"
             initialMessagesResult={{
+                checkpoint: initialCheckpoint,
                 messageCount: chat.messageCount,
                 messages: initialMessages,
                 otherReferencedMessages: initialOtherReferencedMessages,
-                lastMessageChangeTime: chat.lastMessageChangeTime,
             }}
             header={chatMessagingViewHeaderItem}
             randomSeedForShimmer={chat.id}
@@ -320,6 +326,7 @@ function ChatMessagingView({
             // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
             // @ts-ignore
             subscribeToEvents={subscribeToEvents}
+            subscribeToPongs={subscribeToPongs}
             getMessageUrl={useCallback(
                 messageIndex =>
                     new URL(

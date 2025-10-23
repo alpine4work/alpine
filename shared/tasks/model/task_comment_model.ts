@@ -10,6 +10,7 @@ export class TaskCommentModel
         Schema.object({
             taskId: Schema.id<TaskId>(),
             index: Schema.integer,
+            version: Schema.integer,
             author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,

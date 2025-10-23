@@ -168,6 +168,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         route: "/api/durable-objects/documents/:documentId/broadcast-new-message/:commentThreadId",
                         body: MessagingRealtimeBroadcastNewMessageRequestSchema.serialize({
                             index,
+                            version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
                             payload,
@@ -182,6 +183,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     spaceId,
                     message: await intoApiMessage(context, spaceId, {
                         index,
+                        version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
                         payload: payload,

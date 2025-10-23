@@ -526,7 +526,7 @@ function PostListView(
                             endIndex: renderedPostCommentRangeEndIndex,
                         },
                         loadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {commentCount, comments, otherReferencedComments} =
+                            const {checkpoint, commentCount, comments, otherReferencedComments} =
                                 await getPostCommentsFromStart(context, {
                                     postId: item.post.id,
                                     afterCommentIndex: afterMessageIndex,
@@ -534,13 +534,14 @@ function PostListView(
                                     limit,
                                 });
                             return {
+                                checkpoint,
                                 messageCount: commentCount,
                                 messages: comments,
                                 otherReferencedMessages: otherReferencedComments,
                             };
                         },
                         loadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {commentCount, comments, otherReferencedComments} =
+                            const {checkpoint, commentCount, comments, otherReferencedComments} =
                                 await getPostCommentsFromEnd(context, {
                                     postId: item.post.id,
                                     afterCommentIndex: afterMessageIndex,
@@ -548,6 +549,7 @@ function PostListView(
                                     limit,
                                 });
                             return {
+                                checkpoint,
                                 messageCount: commentCount,
                                 messages: comments,
                                 otherReferencedMessages: otherReferencedComments,
@@ -560,7 +562,9 @@ function PostListView(
                             isLoading: true,
                             promise: result.promise.then(result => {
                                 onUpdatePostComments(item.post.id, postComments =>
-                                    postComments.loadMessages(result),
+                                    postComments
+                                        .initializeCheckpointIfNeeded(result.checkpoint)
+                                        .loadMessages(result),
                                 );
                             }),
                         };
@@ -631,7 +635,7 @@ function PostListView(
                     item.postComments.getLastLoadedMessageBeforeIfExists(limit);
 
                 if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
-                    const {commentCount, comments, otherReferencedComments} =
+                    const {checkpoint, commentCount, comments, otherReferencedComments} =
                         await getPostCommentsFromStart(context, {
                             postId: item.post.id,
                             afterCommentIndex: lastLoadedMessage?.index ?? null,
@@ -643,7 +647,7 @@ function PostListView(
                         });
 
                     onUpdatePostComments(item.post.id, postComments =>
-                        postComments.loadMessages({
+                        postComments.initializeCheckpointIfNeeded(checkpoint).loadMessages({
                             messageCount: commentCount,
                             messages: comments,
                             otherReferencedMessages: otherReferencedComments,

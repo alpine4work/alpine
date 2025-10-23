@@ -13,18 +13,21 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export type PostViewInitialScroll =
     | PostContentViewInitialScroll
     | {readonly type: "Comment"; readonly commentIndex: number};
 
 export function PostView({
+    initialCheckpoint,
     initialPost,
     initialPostComments,
     initialOtherReferencedPostComments,
     initialScroll,
     initialParent,
 }: {
+    initialCheckpoint: ServerSynchronizationCheckpoint;
     initialPost: DynamoGeneralRealtimeItem<PostModel>;
     initialPostComments: ReadonlyArray<PostCommentModel>;
     initialOtherReferencedPostComments: ReadonlyArray<PostCommentModel>;
@@ -61,6 +64,7 @@ export function PostView({
     const [postsFromState, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostBasicList.new({
             type: "One",
+            checkpoint: initialCheckpoint,
             post: initialPost,
             postCommentsState: "AlwaysOpen",
             postComments: {
@@ -76,6 +80,7 @@ export function PostView({
     if (!postResult) {
         const newPosts = PostBasicList.new({
             type: "One",
+            checkpoint: initialCheckpoint,
             post: initialPost,
             postCommentsState: "AlwaysOpen",
             postComments: {

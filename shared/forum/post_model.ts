@@ -39,11 +39,6 @@ export class PostModel extends Model(
         commentCount: Schema.integer,
 
         /**
-         * The last time a comment on this post changed.
-         */
-        lastCommentChangeTime: Schema.date.nullable(),
-
-        /**
          * The number of accounts who authored a comment on this post.
          */
         commentAuthorCount: Schema.integer,
@@ -70,6 +65,7 @@ export class PostCommentModel
         Schema.object({
             postId: Schema.id<PostId>(),
             index: Schema.integer,
+            version: Schema.integer,
             author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,

@@ -4491,12 +4491,12 @@ testMessagingImplementation<ChatId>(context, {
     },
     async backfillMessages(
         context,
-        {roomKey: chatId, clientMessageCount, clientLastMessageChangeTime, newMessageLimit},
+        {roomKey: chatId, checkpoint, clientMessageCount, newMessageLimit},
     ) {
         return backfillChatMessages(context, {
             chatId,
+            checkpoint,
             clientMessageCount,
-            clientLastMessageChangeTime,
             newMessageLimit,
         });
     },

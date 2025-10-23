@@ -40,8 +40,13 @@ import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_defini
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    checkpoint: ServerSynchronizationCheckpointSchema,
     channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
     bucketGeneration: Schema.integer,
     postsResult: Schema.object({
@@ -85,6 +90,10 @@ export async function loader({params, request, context: unauthenticatedContext}:
 
     const clientInfo = context.loader.getClientInfo();
 
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
+
     const [channel, postsResult, inboxEntry] = await runAllPromises([
         getChannel(context, channelId),
         getInboxChannelPostsEntryPosts(context, {
@@ -114,7 +123,7 @@ export async function loader({params, request, context: unauthenticatedContext}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {channel, bucketGeneration, postsResult, inboxEntry},
+        {checkpoint, channel, bucketGeneration, postsResult, inboxEntry},
         {propagateEventData},
     );
 }
@@ -136,7 +145,12 @@ export const meta = createMetaFunction(
 );
 
 export default function ChannelPostsRouteWrapper() {
-    const {channel, postsResult, inboxEntry} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        checkpoint: initialCheckpoint,
+        channel,
+        postsResult,
+        inboxEntry,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     // While you're viewing new posts in a channel, this accrues affinity points to
     // the channel. Since you're taking time to pay attention to what's new in a
@@ -152,6 +166,7 @@ export default function ChannelPostsRouteWrapper() {
             <PostView
                 // Remount when navigating to a different post.
                 key={post.model.id}
+                initialCheckpoint={initialCheckpoint}
                 initialPost={post}
                 initialPostComments={
                     postsResult.initialCommentsByPostId.get(post.model.id)?.comments ?? emptyArray

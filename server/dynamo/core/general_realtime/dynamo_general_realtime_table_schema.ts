@@ -256,7 +256,7 @@ const dynamoGeneralRealtimePrivatePartitionEventExpirationDays = 7;
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
  */
-export const dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes = 3;
+export const dynamoGeneralRealtimeBackfillSafetyWindowMinutes = 3;
 
 type DynamoGeneralRealtimeInternalIndex = {
     readonly canReuseTablePartitionKeyForRealtimeKey: boolean;
@@ -756,6 +756,11 @@ export class DynamoGeneralRealtimeTableSchema<
                         expirationTime,
                         eventTransaction: dynamoEventTransaction,
                     };
+
+                    // TODO(calebmer): `createOrReplaceItem()` isn't safe here! We may override an
+                    // event that happens to have the same `eventTime` which would be bad. Either we
+                    // should switch this call to `createItem()` or (ideally) we should switch
+                    // `eventTime` to a `ChronologicalId` to guarantee uniqueness.
                     return this._table.createOrReplaceItem(context, item);
                 }),
             );
@@ -3188,10 +3193,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // events before the checkpoint.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
-        checkpoint = subMinutes(
-            checkpoint,
-            dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes,
-        );
+        checkpoint = subMinutes(checkpoint, dynamoGeneralRealtimeBackfillSafetyWindowMinutes);
 
         // We have deleted events before this time to reduce our storage needs. That
         // means we can't backfill reads that ocurred before this time.

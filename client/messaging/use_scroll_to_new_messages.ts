@@ -21,7 +21,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef: RefObject<VirtualizedScrollViewRef>;
     inputRef: RefObject<MessageInputRef>;
     isInputStickyPositioned: boolean;
-    messages: MessageList<Message>;
+    messages: MessageList<Message> | null;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
 }) {
     // When new messages are added and the user is near the end of the scroll
@@ -33,9 +33,14 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     //    they can see it.
     // 2. The user is actively having a conversation at the end of the messaging
     //    view and another person in the conversation sends a message.
-    const lastItemCountRef = useRef(messages.getItemCount());
+    const lastItemCountRef = useRef(messages?.getItemCount() ?? null);
     const lastHasTypingIndicatorsItemRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (messages === null) return;
+
+        // If this ref was previously null, set it to the current item count.
+        lastItemCountRef.current ??= messages.getItemCount();
+
         const lastItemCount = lastItemCountRef.current;
         const itemCount = messages.getItemCount();
         lastItemCountRef.current = itemCount;

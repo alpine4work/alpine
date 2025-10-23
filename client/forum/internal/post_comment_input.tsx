@@ -130,7 +130,7 @@ function usePostCommentInputRealtime({
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
     // realtime when comments are open so works out.
-    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+    const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "PostRealtimeService",
         PostRealtimeProtocol,
         `/api/durable-objects/posts/${post.id}`,
@@ -143,34 +143,32 @@ function usePostCommentInputRealtime({
     );
 
     useMessagingRealtime({
+        isConnected,
         messages: postComments,
         onUpdateMessages: onUpdatePostComments,
-        isConnected,
         backfillMessages: useCallback(
             async ({
+                checkpoint,
                 clientMessageCount: clientCommentCount,
-                clientLastMessageChangeTime: clientLastCommentChangeTime,
                 newMessageLimit: newCommentLimit,
             }) => {
                 const {
                     commentCount: messageCount,
-                    lastCommentChangeTime: lastMessageChangeTime,
                     newComments: newMessages,
                     newOtherReferencedComments: newOtherReferencedMessages,
-                    commentChangesResult: messageChangesResult,
+                    commentUpdatesResult: messageUpdatesResult,
                     typingStateByConnectionId,
                 } = await procedures.backfillComments({
+                    checkpoint,
                     clientCommentCount,
-                    clientLastCommentChangeTime,
                     newCommentLimit,
                 });
 
                 return {
                     messageCount,
-                    lastMessageChangeTime,
                     newMessages,
                     newOtherReferencedMessages,
-                    messageChangesResult,
+                    messageUpdatesResult,
                     typingStateByConnectionId,
                 };
             },
@@ -201,6 +199,7 @@ function usePostCommentInputRealtime({
             },
             [onPostRealtimeEventTransaction, shouldBeConnectedToChannelRealtime, subscribeToEvents],
         ),
+        subscribeToPongs,
     });
 
     return {isConnected, procedures};
@@ -272,12 +271,12 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
             },
         );
     }, [
-        isConnected,
         post.id,
         onPostRealtimeEventTransaction,
         shouldBeConnectedToChannelRealtime,
         context,
         reporter,
+        isConnected,
     ]);
 
     // We perform the scroll adjustment for new messages in the

@@ -69,6 +69,12 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
     readonly index: number;
 
     /**
+     * The version of the message object. A message with the same index and higher
+     * version has the latest data.
+     */
+    readonly version: number;
+
+    /**
      * Get a key for the room the message is in.
      *
      * Room keys are not available in optimistic messages since we may be
@@ -197,34 +203,4 @@ export function areMessagePayloadModelsEqual(
         default:
             throw exhaustive(payload1);
     }
-}
-
-function getMessagePayloadChangeTime(payload: MessagePayloadModel): Date | null {
-    switch (payload.type) {
-        case "Content":
-            return payload.contentUpdate?.time ?? null;
-        case "Deleted":
-            return payload.deletedTime;
-        default:
-            throw exhaustive(payload);
-    }
-}
-
-/**
- * Get the last message to be changed between the two messages. The last message to
- * be changed is the most up-to-date.
- */
-export function getLastChangedMessage<Message extends MessageModel>(
-    message1: Message,
-    message2: Message,
-): Message {
-    const changeTime1 = getMessagePayloadChangeTime(message1.payload);
-    const changeTime2 = getMessagePayloadChangeTime(message2.payload);
-
-    if (changeTime1 === null && changeTime2 === null) return message1;
-    if (changeTime1 === null) return message2;
-    if (changeTime2 === null) return message1;
-
-    if (changeTime2 > changeTime1) return message2;
-    return message1;
 }

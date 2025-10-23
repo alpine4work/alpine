@@ -54,11 +54,6 @@ export class DocumentCommentThreadModel extends Model(
         commentCount: Schema.integer,
 
         /**
-         * The last time a comment in this thread changed.
-         */
-        lastCommentChangeTime: Schema.date.nullable(),
-
-        /**
          * The author of the first comment on the thread. The thread creator. There's
          * a whole list of comment authors in document content references.
          */
@@ -75,6 +70,7 @@ export class DocumentCommentModel
             documentId: Schema.id<DocumentId>(),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
             index: Schema.integer,
+            version: Schema.integer,
             author: AccountModel.schema,
             createdTime: Schema.date,
             payload: MessagePayloadModelSchema,

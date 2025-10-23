@@ -147,6 +147,7 @@ export function TaskDetailAndCommentsView({
         reconnect: reconnectNotesClient,
         procedures: notesProcedures,
         subscribeToCommentsEvents,
+        subscribeToPongs,
     } = useTaskDetailNotesContentEditorWebSocketClient({
         taskId,
         taskSubscription,
@@ -423,6 +424,7 @@ export function TaskDetailAndCommentsView({
                             isConnected={isConnected}
                             procedures={notesProcedures}
                             subscribeToEvents={subscribeToCommentsEvents}
+                            subscribeToPongs={subscribeToPongs}
                         />
                     </ContentBlockWidthContextProvider>
                 </Box>

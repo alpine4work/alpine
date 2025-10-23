@@ -10,6 +10,7 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
@@ -34,6 +35,7 @@ import {
     backfillPostComments,
     createPostComment,
     deletePostComment,
+    getPostCommentAtVersion,
     getPostCommentReferences,
     getPostRealtimeEvent,
     updatePostCommentContent,
@@ -91,6 +93,7 @@ export class PostRealtimeConnection {
             updateMessageContent,
             deleteMessage,
             backfillMessages,
+            getMessageAtVersion,
             getMessageReferences,
             createMessageModel,
         });
@@ -111,31 +114,25 @@ export class PostRealtimeConnection {
     > = {
         backfillComments: async (
             context,
-            {
-                clientCommentCount: clientMessageCount,
-                clientLastCommentChangeTime: clientLastMessageChangeTime,
-                newCommentLimit: newMessageLimit,
-            },
+            {checkpoint, clientCommentCount: clientMessageCount, newCommentLimit: newMessageLimit},
         ) => {
             const {
                 messageCount: commentCount,
-                lastMessageChangeTime: lastCommentChangeTime,
                 newMessages: newComments,
                 newOtherReferencedMessages: newOtherReferencedComments,
-                messageChangesResult: commentChangesResult,
+                messageUpdatesResult: commentUpdatesResult,
                 typingStateByConnectionId,
             } = await this._connection.backfillMessages(context, {
+                checkpoint,
                 clientMessageCount,
-                clientLastMessageChangeTime,
                 newMessageLimit,
             });
 
             return {
                 commentCount,
-                lastCommentChangeTime,
                 newComments,
                 newOtherReferencedComments,
-                commentChangesResult,
+                commentUpdatesResult,
                 typingStateByConnectionId,
             };
         },
@@ -252,32 +249,34 @@ const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = asy
     context,
     {
         roomKey: postId,
+        checkpoint,
         clientMessageCount: clientCommentCount,
-        clientLastMessageChangeTime: clientLastCommentChangeTime,
         newMessageLimit: newCommentLimit,
     },
 ) => {
-    const {
-        commentCount,
-        lastCommentChangeTime,
-        newComments,
-        newOtherReferencedComments,
-        commentChangesResult,
-    } = await backfillPostComments(context, {
-        postId,
-        clientCommentCount,
-        clientLastCommentChangeTime,
-        newCommentLimit,
-    });
+    const {commentCount, newComments, newOtherReferencedComments, commentUpdatesResult} =
+        await backfillPostComments(context, {
+            postId,
+            checkpoint,
+            clientCommentCount,
+            newCommentLimit,
+        });
 
     return {
         messageCount: commentCount,
-        lastMessageChangeTime: lastCommentChangeTime,
         newMessages: newComments,
         newOtherReferencedMessages: newOtherReferencedComments,
-        messageChangesResult: commentChangesResult,
+        messageUpdatesResult: commentUpdatesResult,
         extra: null,
     };
+};
+
+const getMessageAtVersion: GetMessageAtVersionFunction<PostId, PostCommentModel> = async (
+    context,
+    {roomKey: postId, messageIndex: commentIndex, version},
+) => {
+    const {comment} = await getPostCommentAtVersion(context, {postId, commentIndex, version});
+    return comment;
 };
 
 const getMessageReferences: GetMessageReferencesFunction<PostId> = async (
@@ -296,6 +295,7 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
     return new PostCommentModel({
         postId,
         index: message.index,
+        version: message.version,
         createdTime: message.createdTime,
         author: references.author,
         payload: {

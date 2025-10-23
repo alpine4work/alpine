@@ -634,28 +634,26 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             getConnection: () => connection.connection.getConnectionForTest(),
             procedures: {
                 backfillMessages: async ({
+                    checkpoint,
                     clientMessageCount: clientCommentCount,
-                    clientLastMessageChangeTime: clientLastCommentChangeTime,
                     newMessageLimit: newCommentLimit,
                 }) => {
                     const {
                         commentCount: messageCount,
-                        lastCommentChangeTime: lastMessageChangeTime,
                         newComments: newMessages,
                         newOtherReferencedComments: newOtherReferencedMessages,
-                        commentChangesResult: messageChangesResult,
+                        commentUpdatesResult: messageUpdatesResult,
                         typingStateByConnectionId,
                     } = await connection.procedures.backfillComments({
+                        checkpoint,
                         clientCommentCount,
-                        clientLastCommentChangeTime,
                         newCommentLimit,
                     });
                     return {
                         messageCount,
-                        lastMessageChangeTime,
                         newMessages,
                         newOtherReferencedMessages,
-                        messageChangesResult,
+                        messageUpdatesResult,
                         typingStateByConnectionId,
                     };
                 },
@@ -682,10 +680,11 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             },
         };
     },
-    createMessageModel({roomKey: taskId, index, createdTime, author, payload}) {
+    createMessageModel({roomKey: taskId, index, version, createdTime, author, payload}) {
         return new TaskCommentModel({
             taskId,
             index,
+            version,
             createdTime,
             author,
             payload,

@@ -15,7 +15,6 @@ import {
     DocumentCommentThreadId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -23,10 +22,12 @@ import {
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
+    createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
@@ -127,25 +128,18 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
         backfillComments: {
             input: {
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                checkpoint: ServerSynchronizationCheckpointSchema,
                 clientCommentCount: Schema.integer,
-                clientLastCommentChangeTime: Schema.date.nullable(),
                 newCommentLimit: Schema.integer,
             },
             output: {
                 commentThread: DocumentCommentThreadModel.schema(),
                 commentCount: Schema.integer,
-                lastCommentChangeTime: Schema.date.nullable(),
                 newComments: Schema.array(DocumentCommentModel.schema()),
                 newOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-                commentChangesResult: Schema.union({
-                    Available: Schema.object({
-                        type: Schema.value("Available"),
-                        changes: Schema.array(MessageChangeSchema),
-                    }),
-                    Unavailable: Schema.object({
-                        type: Schema.value("Unavailable"),
-                    }),
-                }),
+                commentUpdatesResult: createMessageUpdatesBackfillResultSchema(
+                    DocumentCommentModel.schema(),
+                ),
                 typingStateByConnectionId: Schema.map(
                     Schema.id<WebSocketConnectionId>(),
                     MessagingTypingStateSchema,
@@ -213,6 +207,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 limit: Schema.integer,
             },
             output: {
+                checkpoint: ServerSynchronizationCheckpointSchema,
                 commentThread: DocumentCommentThreadModel.schema().nullable(),
                 initialComments: Schema.array(DocumentCommentModel.schema()),
                 initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
@@ -237,7 +232,6 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentCount: Schema.integer,
                 comments: Schema.array(DocumentCommentModel.schema()),
                 otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-                lastCommentChangeTime: Schema.date.nullable(),
             },
         },
 
@@ -259,7 +253,6 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentCount: Schema.integer,
                 comments: Schema.array(DocumentCommentModel.schema()),
                 otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-                lastCommentChangeTime: Schema.date.nullable(),
             },
         },
 

@@ -10,7 +10,6 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -19,10 +18,8 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {
-    MessageContentPayloadContentUpdateSchema,
-    MessageContentPayloadParentSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -37,6 +34,7 @@ import {
 } from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
@@ -163,7 +161,6 @@ export const getTaskCommentsFromStart = defineRpc({
         commentCount: Schema.integer,
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -176,10 +173,10 @@ export const getTaskCommentsFromEnd = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentCount: Schema.integer,
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -206,8 +203,7 @@ export const updateTaskCommentContent = defineRpc({
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        content: MessageContentSchema,
-        contentUpdate: MessageContentPayloadContentUpdateSchema,
+        version: Schema.integer,
     },
 });
 
@@ -218,7 +214,7 @@ export const deleteTaskComment = defineRpc({
         commentIndex: Schema.integer,
     },
     output: {
-        deletedTime: Schema.date,
+        version: Schema.integer,
     },
 });
 
@@ -226,24 +222,27 @@ export const backfillTaskComments = defineRpc({
     name: "backfillTaskComments",
     input: {
         taskId: Schema.id<TaskId>(),
+        checkpoint: ServerSynchronizationCheckpointSchema,
         clientCommentCount: Schema.integer,
-        clientLastCommentChangeTime: Schema.date.nullable(),
         newCommentLimit: Schema.integer,
     },
     output: {
         commentCount: Schema.integer,
-        lastCommentChangeTime: Schema.date.nullable(),
         newComments: Schema.array(TaskCommentModel.schema()),
         newOtherReferencedComments: Schema.array(TaskCommentModel.schema()),
-        commentChangesResult: Schema.union({
-            Available: Schema.object({
-                type: Schema.value("Available"),
-                changes: Schema.array(MessageChangeSchema),
-            }),
-            Unavailable: Schema.object({
-                type: Schema.value("Unavailable"),
-            }),
-        }),
+        commentUpdatesResult: createMessageUpdatesBackfillResultSchema(TaskCommentModel.schema()),
+    },
+});
+
+export const getTaskCommentAtVersion = defineRpc({
+    name: "getTaskCommentAtVersion",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+        version: Schema.integer,
+    },
+    output: {
+        comment: TaskCommentModel.schema(),
     },
 });
 

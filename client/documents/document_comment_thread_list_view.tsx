@@ -91,6 +91,8 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 const documentCommentThreadListViewMarginY: Spacing = "24";
 
@@ -227,6 +229,7 @@ function DocumentCommentThreadListView(
         isConnected,
         procedures,
         subscribeToCommentThreadEvents,
+        subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId: allUnpersistedResolutionStateByCommentThreadId,
         withoutCommentThreadPreview = false,
         withCommentInputMobileMaxHeight = false,
@@ -247,6 +250,7 @@ function DocumentCommentThreadListView(
          * to construct a `DocumentCommentThreadTree` class.
          */
         initialCommentThreadResults: ReadonlyArray<{
+            checkpoint: ServerSynchronizationCheckpoint;
             commentThread: DocumentCommentThreadModel;
             comments: ReadonlyArray<DocumentCommentModel>;
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
@@ -257,6 +261,7 @@ function DocumentCommentThreadListView(
         isConnected: boolean;
         procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
         subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+        subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
         unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
             DocumentCommentThreadId,
             {readonly isResolved: boolean; readonly version: number}
@@ -346,9 +351,8 @@ function DocumentCommentThreadListView(
 
         for (const initialCommentThreadResult of initialCommentThreadResults) {
             let comments = MessageList.new<DocumentCommentModel>({
+                checkpoint: initialCommentThreadResult.checkpoint,
                 messageCount: initialCommentThreadResult.commentThread.commentCount,
-                lastMessageChangeTime:
-                    initialCommentThreadResult.commentThread.lastCommentChangeTime,
             }).loadMessages({
                 messageCount: initialCommentThreadResult.commentThread.commentCount,
                 messages: initialCommentThreadResult.comments,
@@ -1062,6 +1066,7 @@ function DocumentCommentThreadListView(
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                            subscribeToPongs={subscribeToPongs}
                             withMobileMaxHeight={withCommentInputMobileMaxHeight}
                         />
                     );
@@ -1166,6 +1171,7 @@ function DocumentCommentThreadListView(
             inputRefByCommentThreadId,
             isConnected,
             subscribeToCommentThreadEvents,
+            subscribeToPongs,
             withCommentInputMobileMaxHeight,
             platform,
         ],
@@ -1328,6 +1334,7 @@ function DocumentCommentThreadListView(
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                subscribeToPongs={subscribeToPongs}
                                 withMobileMaxHeight={withCommentInputMobileMaxHeight}
                                 onBeforeFocusFromReplyOrEditingChange={
                                     onBeforePinnedCommentInputFocusFromReplyOrEditingChange

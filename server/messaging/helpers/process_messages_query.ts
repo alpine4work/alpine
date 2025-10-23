@@ -12,6 +12,7 @@ type MessageQueryItem = {
     readonly createdTime: Date;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
+    readonly updateLockVersion?: number;
 };
 
 type MessageQueryStreamItem = {
@@ -31,6 +32,7 @@ type MessageQueryStreamPartItem = {
 
 export type MessageItem = {
     readonly index: number;
+    readonly version: number;
     readonly createdTime: Date;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
@@ -102,6 +104,7 @@ export async function* processMessagesQuery(
 
         const message: MessageItem = {
             index: currentItem.messageIndex,
+            version: currentItem.updateLockVersion ?? 0,
             createdTime: currentItem.createdTime,
             authorId: currentItem.authorId,
             payload: currentItem.payload,

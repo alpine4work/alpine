@@ -292,6 +292,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * An escape hatch if your type is complicated and you'd like to manage it
      * yourself.
      */
+    public static unknown(): Schema<SchemaSerializedValue>;
+    public static unknown<Value extends SchemaSerializedValue>(): Schema<Value>;
     public static unknown<Value extends SchemaSerializedValue>(): Schema<Value> {
         return this._unknown as any;
     }

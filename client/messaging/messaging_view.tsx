@@ -60,6 +60,8 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 type MessagingViewStateItem<Message extends MessageModel> =
     | {
@@ -203,6 +205,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         stopTypingInMessageInput,
         isConnected,
         subscribeToEvents,
+        subscribeToPongs,
         getMessageUrl,
         inputRestoreStateRef,
         roomDisplayedCreatedTime,
@@ -238,10 +241,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * messages with the `getMessagesFromStart` and `getMessagesFromEnd` function.
          */
         initialMessagesResult: {
+            readonly checkpoint: ServerSynchronizationCheckpoint;
             readonly messageCount: number;
             readonly messages: ReadonlyArray<Message>;
             readonly otherReferencedMessages: ReadonlyArray<Message>;
-            readonly lastMessageChangeTime: Date | null;
         };
 
         /**
@@ -354,6 +357,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         >;
 
         /**
+         * Subscribe to any pong messages from our realtime WebSocket connection.
+         */
+        subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
+
+        /**
          * Copies a link to a message. Opening this link should scroll the messaging
          * view to this message and highlight it.
          */
@@ -412,8 +420,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
+            checkpoint: initialMessagesResult.checkpoint,
             messageCount: initialMessagesResult.messageCount,
-            lastMessageChangeTime: initialMessagesResult.lastMessageChangeTime,
         });
         return messages.loadMessages({
             messageCount: initialMessagesResult.messageCount,
@@ -519,11 +527,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     );
 
     useMessagingRealtime({
+        isConnected,
         messages: state.messages,
         onUpdateMessages: setMessages,
-        isConnected,
         backfillMessages,
         subscribeToEvents,
+        subscribeToPongs,
     });
 
     // Manages the editable message.

@@ -27,8 +27,13 @@ import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js"
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    checkpoint: ServerSynchronizationCheckpointSchema,
     post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
     initialPostComments: Schema.array(PostCommentModel.schema()),
     initialOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
@@ -44,6 +49,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const commentLimit = getInitialLoadMessageCount(context.loader.getClientInfo());
 
     const url = new URL(request.url);
+
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [{post, initialComments, initialOtherReferencedComments}, inboxEntry] =
         await runAllPromises([
@@ -69,6 +78,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     return jsonWithSchema(
         LoaderSchema,
         {
+            checkpoint,
             post,
             initialPostComments: initialComments,
             initialOtherReferencedPostComments: initialOtherReferencedComments,
@@ -113,7 +123,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export default function PostRoute() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const {post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
+    const {checkpoint, post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
 
     const commentIndexString = searchParams.get("comment");
@@ -177,6 +187,7 @@ export default function PostRoute() {
         <PostView
             // Remount when navigating to a different post.
             key={post.model.id}
+            initialCheckpoint={checkpoint}
             initialPost={post}
             initialPostComments={initialPostComments}
             initialOtherReferencedPostComments={initialOtherReferencedPostComments}

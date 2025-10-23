@@ -1,5 +1,5 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {addDays, addHours} from "date-fns";
+import {addDays, addHours, addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
@@ -112,6 +112,7 @@ import {
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {testClock} from "~/shared/test_helpers/test_clock.js";
+import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 let jobs: Array<JobDescription> = [];
 
@@ -19989,13 +19990,14 @@ test("returns null for users that only have view access when trying to get initi
             },
         },
         initialComments: {
+            checkpoint: expect.any(Date),
             commentCount: 3,
             otherReferencedComments: [],
-            lastCommentChangeTime: null,
             comments: [
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 0,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
                     payload: {
@@ -20013,6 +20015,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 1,
+                    version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
                     payload: {
@@ -20030,6 +20033,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 2,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
                     payload: {
@@ -20085,13 +20089,14 @@ test("returns null for users that only have view access when trying to get initi
             },
         },
         initialComments: {
+            checkpoint: expect.any(Date),
             commentCount: 3,
             otherReferencedComments: [],
-            lastCommentChangeTime: null,
             comments: [
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 0,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
                     payload: {
@@ -20109,6 +20114,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 1,
+                    version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
                     payload: {
@@ -20126,6 +20132,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 2,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
                     payload: {
@@ -20158,13 +20165,14 @@ test("returns null for users that only have view access when trying to get initi
             },
         },
         initialComments: {
+            checkpoint: expect.any(Date),
             commentCount: 3,
             otherReferencedComments: [],
-            lastCommentChangeTime: null,
             comments: [
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 0,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
                     payload: {
@@ -20182,6 +20190,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 1,
+                    version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
                     payload: {
@@ -20199,6 +20208,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 2,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
                     payload: {
@@ -20231,13 +20241,14 @@ test("returns null for users that only have view access when trying to get initi
             },
         },
         initialComments: {
+            checkpoint: expect.any(Date),
             commentCount: 3,
             otherReferencedComments: [],
-            lastCommentChangeTime: null,
             comments: [
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 0,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
                     payload: {
@@ -20255,6 +20266,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 1,
+                    version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
                     payload: {
@@ -20272,6 +20284,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 2,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
                     payload: {
@@ -20304,13 +20317,14 @@ test("returns null for users that only have view access when trying to get initi
             },
         },
         initialComments: {
+            checkpoint: expect.any(Date),
             commentCount: 3,
             otherReferencedComments: [],
-            lastCommentChangeTime: null,
             comments: [
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 0,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
                     payload: {
@@ -20328,6 +20342,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 1,
+                    version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
                     payload: {
@@ -20345,6 +20360,7 @@ test("returns null for users that only have view access when trying to get initi
                 new TaskCommentModel({
                     taskId: task.id,
                     index: 2,
+                    version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
                     payload: {
@@ -20414,90 +20430,102 @@ test("throws error for users that only have view access when trying to get task 
     expect(
         await backfillTaskComments(creatorSession.action(), {
             taskId: task.id,
+            checkpoint: generateServerSynchronizationCheckpointForTest(),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: null,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
     });
 
     const updatedMessageContent1 = createSimpleMessageContent("updated test1");
 
-    const updatedCreatorTaskComment = await creatorTaskComment.updateContent(
-        creatorSession,
-        updatedMessageContent1,
-    );
+    await creatorTaskComment.updateContent(creatorSession, updatedMessageContent1);
 
     expect(
         await backfillTaskComments(assigneeSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
     });
 
     expect(
         await backfillTaskComments(manageSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
     });
 
     expect(
         await backfillTaskComments(editorSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
     });
 
     expect(
         await backfillTaskComments(commenterSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).toEqual({
         commentCount: 3,
-        lastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
     });
 
     await expect(
         backfillTaskComments(viewerSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow(PermissionDeniedError);
@@ -20505,8 +20533,8 @@ test("throws error for users that only have view access when trying to get task 
     await expect(
         backfillTaskComments(unauthorizedSession.action(), {
             taskId: task.id,
+            checkpoint: addMinutes(generateServerSynchronizationCheckpointForTest(), 5),
             clientCommentCount: 3,
-            clientLastCommentChangeTime: updatedCreatorTaskComment.contentUpdate.time,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow(PermissionDeniedError);

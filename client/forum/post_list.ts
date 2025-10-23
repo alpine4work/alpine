@@ -34,6 +34,7 @@ import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 // All this post list code is the result of incremental evolution over time
 // which means it's not as clean as it could be. It's gone through a couple
@@ -598,6 +599,7 @@ export class PostBasicList extends PostListBase<number> {
               }
             | {
                   type: "One";
+                  checkpoint: ServerSynchronizationCheckpoint;
                   post: DynamoGeneralRealtimeItem<PostModel>;
                   postCommentsState?: PostCommentsState;
                   postComments?: {
@@ -626,14 +628,12 @@ export class PostBasicList extends PostListBase<number> {
                             postCommentsState: result.postCommentsState ?? "Closed",
                             postComments: !result.postComments
                                 ? MessageList.new<PostCommentModel>({
+                                      checkpoint: result.checkpoint,
                                       messageCount: result.post.model.commentCount,
-                                      lastMessageChangeTime:
-                                          result.post.model.lastCommentChangeTime,
                                   })
                                 : MessageList.new<PostCommentModel>({
+                                      checkpoint: result.checkpoint,
                                       messageCount: result.post.model.commentCount,
-                                      lastMessageChangeTime:
-                                          result.post.model.lastCommentChangeTime,
                                   }).loadMessages({
                                       messageCount: result.post.model.commentCount,
                                       messages: result.postComments.comments,
@@ -1063,7 +1063,7 @@ export class PostQueryList extends PostListBase<DynamoIndexCursor> {
     }
 
     public updateQuery(
-        query: SetStateAction<PostQueryListDynamoGeneralRealtimeIndexQuery>,
+        query: SetStateAction<DynamoGeneralRealtimeIndexQuery<PostModel, PostListItemExtra>>,
     ): PostQueryList {
         const newPosts = this._posts.updateQuery(query);
         if (newPosts === this._posts) return this;
@@ -1233,8 +1233,8 @@ const initialPostModelCommentsCache = new DefaultWeakMap(createInitialPostModelC
 
 function createInitialPostModelComments(post: PostModel): MessageList<PostCommentModel> {
     return MessageList.new({
+        checkpoint: null,
         messageCount: post.commentCount,
-        lastMessageChangeTime: post.lastCommentChangeTime,
     });
 }
 
@@ -1304,11 +1304,13 @@ export type PostListPostContentItem = {
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
     readonly postCommentsState: PostCommentsState;
+
     /**
      * The index of the `PostContent` item for this comment input in the full
      * `PostList`.
      */
     readonly postContentItemIndex: number;
+
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.
@@ -1323,12 +1325,14 @@ export type PostListLoadedPostCommentItem = {
     readonly type: "LoadedPostComment";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
+
     /**
      * The index the loaded post comment is at in the `MessageList`. The
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: PostCommentModel;
+
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.
@@ -1343,11 +1347,13 @@ export type PostListUnloadedPostCommentItem = {
     readonly type: "UnloadedPostComment";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
+
     /**
      * The index the unloaded post comment is at in the `MessageList`. The
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
+
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.
@@ -1363,17 +1369,20 @@ export type PostListOptimisticPostCommentItem = {
     readonly type: "OptimisticPostComment";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
+
     /**
      * The index the loaded post comment is at in the `MessageList`. The
      * post index may move but this will stay stable.
      */
     readonly postCommentIndex: number;
     readonly postComment: OptimisticMessageModel;
+
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.
      */
     readonly postCommentInputItemIndex: number;
+
     /**
      * What is the index of this optimistic post comment in the optimistic post
      * comment list?
@@ -1390,6 +1399,7 @@ export type PostListPostCommentsTypingIndicator = {
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
     readonly typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
+
     /**
      * If the comment section is open, this will be the index of the post comment
      * input in the full `PostList`.
@@ -1404,6 +1414,7 @@ export type PostListPostCommentInputItem = {
     readonly type: "PostCommentInput";
     readonly post: PostModel;
     readonly postComments: MessageList<PostCommentModel>;
+
     /**
      * The index of the `PostContent` item for this comment input in the full
      * `PostList`.

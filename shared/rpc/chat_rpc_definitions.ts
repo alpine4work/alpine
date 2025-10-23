@@ -1,7 +1,6 @@
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -10,12 +9,11 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {
-    MessageContentPayloadContentUpdateSchema,
-    MessageContentPayloadParentSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getChatMessagesFromStart = defineRpc({
     name: "getChatMessagesFromStart",
@@ -29,7 +27,6 @@ export const getChatMessagesFromStart = defineRpc({
         messageCount: Schema.integer,
         messages: Schema.array(ChatMessageModel.schema()),
         otherReferencedMessages: Schema.array(ChatMessageModel.schema()),
-        lastMessageChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -45,7 +42,6 @@ export const getChatMessagesFromEnd = defineRpc({
         messageCount: Schema.integer,
         messages: Schema.array(ChatMessageModel.schema()),
         otherReferencedMessages: Schema.array(ChatMessageModel.schema()),
-        lastMessageChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -82,8 +78,7 @@ export const updateChatMessageContent = defineRpc({
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        content: MessageContentSchema,
-        contentUpdate: MessageContentPayloadContentUpdateSchema,
+        version: Schema.integer,
     },
 });
 
@@ -94,7 +89,7 @@ export const deleteChatMessage = defineRpc({
         messageIndex: Schema.integer,
     },
     output: {
-        deletedTime: Schema.date,
+        version: Schema.integer,
     },
 });
 
@@ -102,24 +97,27 @@ export const backfillChatMessages = defineRpc({
     name: "backfillChatMessages",
     input: {
         chatId: Schema.id<ChatId>(),
+        checkpoint: ServerSynchronizationCheckpointSchema,
         clientMessageCount: Schema.integer,
-        clientLastMessageChangeTime: Schema.date.nullable(),
         newMessageLimit: Schema.integer,
     },
     output: {
         messageCount: Schema.integer,
-        lastMessageChangeTime: Schema.date.nullable(),
         newMessages: Schema.array(ChatMessageModel.schema()),
         newOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
-        messageChangesResult: Schema.union({
-            Available: Schema.object({
-                type: Schema.value("Available"),
-                changes: Schema.array(MessageChangeSchema),
-            }),
-            Unavailable: Schema.object({
-                type: Schema.value("Unavailable"),
-            }),
-        }),
+        messageUpdatesResult: createMessageUpdatesBackfillResultSchema(ChatMessageModel.schema()),
+    },
+});
+
+export const getChatMessageAtVersion = defineRpc({
+    name: "getChatMessageAtVersion",
+    input: {
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+        version: Schema.integer,
+    },
+    output: {
+        message: ChatMessageModel.schema(),
     },
 });
 

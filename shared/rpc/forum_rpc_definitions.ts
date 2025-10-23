@@ -19,7 +19,6 @@ import {PostContentSchema, PostContentStepSchema} from "~/shared/forum/post_cont
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {DynamoGeneralRealtimePostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -28,10 +27,8 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {
-    MessageContentPayloadContentUpdateSchema,
-    MessageContentPayloadParentSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -268,10 +265,10 @@ export const getPostCommentsFromStart = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
         otherReferencedComments: Schema.array(PostCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -284,10 +281,10 @@ export const getPostCommentsFromEnd = defineRpc({
         beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentCount: Schema.integer,
         comments: Schema.array(PostCommentModel.schema()),
         otherReferencedComments: Schema.array(PostCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -335,8 +332,7 @@ export const updatePostCommentContent = defineRpc({
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        content: MessageContentSchema,
-        contentUpdate: MessageContentPayloadContentUpdateSchema,
+        version: Schema.integer,
     },
 });
 
@@ -347,7 +343,7 @@ export const deletePostComment = defineRpc({
         commentIndex: Schema.integer,
     },
     output: {
-        deletedTime: Schema.date,
+        version: Schema.integer,
     },
 });
 
@@ -355,24 +351,27 @@ export const backfillPostComments = defineRpc({
     name: "backfillPostComments",
     input: {
         postId: Schema.id<PostId>(),
+        checkpoint: ServerSynchronizationCheckpointSchema,
         clientCommentCount: Schema.integer,
-        clientLastCommentChangeTime: Schema.date.nullable(),
         newCommentLimit: Schema.integer,
     },
     output: {
         commentCount: Schema.integer,
-        lastCommentChangeTime: Schema.date.nullable(),
         newComments: Schema.array(PostCommentModel.schema()),
         newOtherReferencedComments: Schema.array(PostCommentModel.schema()),
-        commentChangesResult: Schema.union({
-            Available: Schema.object({
-                type: Schema.value("Available"),
-                changes: Schema.array(MessageChangeSchema),
-            }),
-            Unavailable: Schema.object({
-                type: Schema.value("Unavailable"),
-            }),
-        }),
+        commentUpdatesResult: createMessageUpdatesBackfillResultSchema(PostCommentModel.schema()),
+    },
+});
+
+export const getPostCommentAtVersion = defineRpc({
+    name: "getPostCommentAtVersion",
+    input: {
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+        version: Schema.integer,
+    },
+    output: {
+        comment: PostCommentModel.schema(),
     },
 });
 

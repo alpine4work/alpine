@@ -9,6 +9,7 @@ import {
     createDocumentComment,
     deleteDocumentComment,
     getDocument,
+    getDocumentCommentAtVersion,
     getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
@@ -205,12 +206,8 @@ export default implementRpcs(definitions, {
 
     updateDocumentCommentContent: {
         visibility: ["DocumentCollaborationService"],
-        execute: async (context, input) => {
-            const {content, contentUpdate} = await updateDocumentCommentContent(
-                context.actor.authorizeSession(),
-                input,
-            );
-            return {content, contentUpdate};
+        execute: (context, input) => {
+            return updateDocumentCommentContent(context.actor.authorizeSession(), input);
         },
     },
 
@@ -225,6 +222,17 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: (context, input) => {
             return backfillDocumentComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getDocumentCommentAtVersion: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const comment = await getDocumentCommentAtVersion(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {comment};
         },
     },
 

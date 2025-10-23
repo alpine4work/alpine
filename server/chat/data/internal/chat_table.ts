@@ -2,14 +2,11 @@ import {authorizeChatAccess} from "~/server/chat/data/chat_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
-import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const ChatTable = DynamoTableSchema.new({
@@ -61,12 +58,6 @@ export const ChatTable = DynamoTableSchema.new({
                              * The index of the next message.
                              */
                             nextMessageIndex: Schema.integer.min(0),
-
-                            /**
-                             * The last time a message was changed. This should equal the `changeTime` of
-                             * the highest item in `MessageChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
 
                             /**
                              * The total number of messages in the chat.
@@ -173,21 +164,40 @@ export const ChatTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * We keep a log of changes to messages so that when backfilling for realtime
-                 * we can send any missed updates between the last time data was loaded and
-                 * the backfill.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when
+                 * clients need to backfill realtime events they missed while disconnected from
+                 * a WebSocket server they can query this sort range to catch up.
                  *
-                 * `changeTime` should be monotonically increasing which is managed by
-                 * `lastChangeTime` in `messagesSummary`.
+                 * The event includes the `messageIndex` and the new `version` of the message.
+                 * During backfill we load the new version of the item.
                  *
-                 * This log does not include when messages are created, only updated or
-                 * deleted. Because message indexes are dense we can take the last seen message
-                 * index and load messages after that to backfill.
+                 * This sort range has a similar design to the `Events` sort range in
+                 * `DynamoGeneralRealtimeTableSchema`.
                  *
-                 * Log items will expire after a certain amount of time. If a client hasn't
-                 * backfilled in a long time it will need to fully reload since we won't know
-                 * what changed.
+                 * IMPORTANT: This does not include realtime events for streaming messages!
+                 * Streaming messages are updated with a different realtime system that's more
+                 * efficient for the streaming use case.
                  */
+                {
+                    name: "MessageUpdates",
+                    sortKeyAttributes: {
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
+                        // could. Through a query that starts at the client's last `messageIndex` and
+                        // ends at the checkpoint's `eventTime`.
+                        eventTime: DynamoKeyAttributeSchema.date.reverse(),
+                        // All the data is in the key so we can safely use create-or-replace to add
+                        // items to the table without worrying we're overriding some other data.
+                        messageIndex: DynamoKeyAttributeSchema.integer,
+                        version: DynamoKeyAttributeSchema.integer,
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
+                // events to a new sort range: `MessageUpdates`. Leaving this around until all
+                // old `MessageChangeLog` items expire. At which point we can remove this from
+                // the DynamoDB schema.
                 {
                     name: "MessageChangeLog",
                     sortKeyAttributes: {
@@ -196,21 +206,7 @@ export const ChatTable = DynamoTableSchema.new({
                     withExpirationTime: "Required",
                     attributes: Schema.object({
                         messageIndex: Schema.integer,
-                        change: Schema.union({
-                            UpdateContent: Schema.object({
-                                type: Schema.value("UpdateContent"),
-                                content: MessageContentSchema,
-                                contentUpdateMappings:
-                                    Schema.array(ProsemirrorMappingSchema).default(emptyArray),
-                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                            Delete: Schema.object({
-                                type: Schema.value("Delete"),
-                                // `deletedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                        }),
+                        change: Schema.unknown(),
                     }),
                 },
             ],

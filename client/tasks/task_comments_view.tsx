@@ -26,10 +26,12 @@ import {
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 export type TaskCommentsViewInitialComments = {
+    checkpoint: ServerSynchronizationCheckpoint;
     commentCount: number;
-    lastCommentChangeTime: Date | null;
     comments: ReadonlyArray<TaskCommentModel>;
     otherReferencedComments: ReadonlyArray<TaskCommentModel>;
 };
@@ -46,6 +48,7 @@ export function TaskCommentsView({
     isConnected,
     procedures,
     subscribeToEvents,
+    subscribeToPongs,
 }: {
     taskId: TaskId;
     initialScrollToCommentIndex: number | null;
@@ -60,6 +63,7 @@ export function TaskCommentsView({
     subscribeToEvents: Memo<
         (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => () => void
     >;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
 }) {
     const context = useAppContext();
     const routeLayout = useRouteLayout();
@@ -92,14 +96,9 @@ export function TaskCommentsView({
             afterCommentIndex: null,
             beforeCommentIndex: null,
         }).then(
-            taskComment => {
+            output => {
                 isLoadingInitialCommentsRef.current = false;
-                setInitialComments({
-                    commentCount: taskComment.commentCount,
-                    lastCommentChangeTime: taskComment.lastCommentChangeTime,
-                    comments: taskComment.comments,
-                    otherReferencedComments: taskComment.otherReferencedComments,
-                });
+                setInitialComments(output);
             },
             error => {
                 isLoadingInitialCommentsRef.current = false;
@@ -160,7 +159,7 @@ export function TaskCommentsView({
             afterMessageIndex: number | null;
             beforeMessageIndex: number | null;
         }) => {
-            const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+            const {commentCount, comments, otherReferencedComments} =
                 await getTaskCommentsFromStart(context, {
                     taskId,
                     limit: input.limit,
@@ -171,7 +170,6 @@ export function TaskCommentsView({
                 messageCount: commentCount,
                 messages: comments,
                 otherReferencedMessages: otherReferencedComments,
-                lastMessageChangeTime: lastCommentChangeTime,
             };
         },
         [taskId, context],
@@ -183,18 +181,19 @@ export function TaskCommentsView({
             afterMessageIndex: number | null;
             beforeMessageIndex: number | null;
         }) => {
-            const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-                await getTaskCommentsFromEnd(context, {
+            const {commentCount, comments, otherReferencedComments} = await getTaskCommentsFromEnd(
+                context,
+                {
                     taskId,
                     limit: input.limit,
                     afterCommentIndex: input.afterMessageIndex,
                     beforeCommentIndex: input.beforeMessageIndex,
-                });
+                },
+            );
             return {
                 messageCount: commentCount,
                 messages: comments,
                 otherReferencedMessages: otherReferencedComments,
-                lastMessageChangeTime: lastCommentChangeTime,
             };
         },
         [taskId, context],
@@ -202,33 +201,31 @@ export function TaskCommentsView({
 
     const backfillMessages = useCallback(
         async ({
+            checkpoint,
             clientMessageCount: clientCommentCount,
-            clientLastMessageChangeTime: clientLastCommentChangeTime,
             newMessageLimit: newCommentLimit,
         }: {
+            checkpoint: ServerSynchronizationCheckpoint;
             clientMessageCount: number;
-            clientLastMessageChangeTime: Date | null;
             newMessageLimit: number;
         }) => {
             const {
                 commentCount: messageCount,
-                lastCommentChangeTime: lastMessageChangeTime,
                 newComments: newMessages,
                 newOtherReferencedComments: newOtherReferencedMessages,
-                commentChangesResult: messageChangesResult,
+                commentUpdatesResult: messageUpdatesResult,
                 typingStateByConnectionId,
             } = await procedures.backfillComments({
+                checkpoint,
                 clientCommentCount,
-                clientLastCommentChangeTime,
                 newCommentLimit,
             });
 
             return {
                 messageCount,
-                lastMessageChangeTime,
                 newMessages,
                 newOtherReferencedMessages,
-                messageChangesResult,
+                messageUpdatesResult,
                 typingStateByConnectionId,
             };
         },
@@ -287,10 +284,10 @@ export function TaskCommentsView({
                 initialScrollOffset="bottom"
                 messageNoun="comment"
                 initialMessagesResult={{
+                    checkpoint: initialComments.checkpoint,
                     messageCount: initialComments.commentCount,
                     messages: initialComments.comments,
                     otherReferencedMessages: initialComments.otherReferencedComments,
-                    lastMessageChangeTime: initialComments.lastCommentChangeTime,
                 }}
                 header={header}
                 randomSeedForShimmer={taskId}
@@ -313,6 +310,7 @@ export function TaskCommentsView({
                 // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
                 // @ts-ignore
                 subscribeToEvents={subscribeToEvents}
+                subscribeToPongs={subscribeToPongs}
                 getMessageUrl={getCommentUrl}
             />
         );

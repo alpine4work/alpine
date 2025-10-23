@@ -28,8 +28,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    checkpoint: ServerSynchronizationCheckpointSchema,
     chat: ChatModel.schema(),
     initialMessages: Schema.array(ChatMessageModel.schema()),
     initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
@@ -45,6 +50,10 @@ export async function loader({context: unauthenticatedContext, request, params}:
     const url = new URL(request.url);
 
     const chatPromiseResolver = createPromiseResolver<ChatModel>();
+
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [{chat, initialMessages, initialOtherReferencedMessages}, inboxEntry, isFavorite] =
         await runAllPromises([
@@ -93,7 +102,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite},
+        {checkpoint, chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite},
         {propagateEventData},
     );
 }
@@ -126,8 +135,14 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentDa
 
 export default function ChatRoute() {
     const [searchParams] = useSearchParams();
-    const {chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        checkpoint,
+        chat,
+        initialMessages,
+        initialOtherReferencedMessages,
+        inboxEntry,
+        isFavorite,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
 
@@ -153,6 +168,7 @@ export default function ChatRoute() {
                 key={chat.id}
                 withInboxBanner={!!inboxEntry}
                 chat={chat}
+                initialCheckpoint={checkpoint}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={messageIndex}

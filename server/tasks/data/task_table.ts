@@ -1,11 +1,10 @@
 import {CalendarDate} from "@internationalized/date";
-import {addHours, addMonths, addSeconds, differenceInMonths} from "date-fns";
+import {addDays, addHours, addMonths, addSeconds, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
-import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
@@ -38,10 +37,13 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {
+    messagingEventExpirationDays,
+    runBackfillMessageUpdates,
+} from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
@@ -124,7 +126,6 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -151,12 +152,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
-import {
-    MessageContent,
-    MessageContentSchema,
-    isMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
@@ -165,7 +161,7 @@ import {
     MessageStreamPartPayloadSchema,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
-import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
+import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -207,6 +203,10 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {
+    ServerSynchronizationCheckpoint,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * The task actions table is the canonical representation of the data in our
@@ -702,12 +702,6 @@ const TaskTable = DynamoTableSchema.new({
                         nextCommentIndex: Schema.integer.min(0),
 
                         /**
-                         * The last time a comment was changed. This should equal the `changeTime` of
-                         * the highest item in `CommentChangeLog`.
-                         */
-                        lastChangeTime: Schema.date.nullable().default(null),
-
-                        /**
                          * All the accounts which have commented on the task and the number of comments
                          * they have made. The map is ordered by when the account first commented on
                          * the task.
@@ -885,21 +879,44 @@ const TaskTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * We keep a log of changes to comments so that when backfilling for realtime
-                 * we can send any missed updates between the last time data was loaded and
-                 * the backfill.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when
+                 * clients need to backfill realtime events they missed while disconnected from
+                 * a WebSocket server they can query this sort range to catch up.
                  *
-                 * `changeTime` should be monotonically increasing which is managed by
-                 * `lastChangeTime` in the `CommentsSummary` item.
+                 * The event includes the `messageIndex` and the new `version` of the message.
+                 * During backfill we load the new version of the item.
                  *
-                 * This log does not include when comments are created, only updated or
-                 * deleted. Because comment indexes are dense we can take the last seen comment
-                 * index and load comments after that to backfill.
+                 * This sort range has a similar design to the `Events` sort range in
+                 * `DynamoGeneralRealtimeTableSchema`.
                  *
-                 * Log items will expire after a certain amount of time. If a client hasn't
-                 * backfilled in a long time it will need to fully reload since we won't know
-                 * what changed.
+                 * IMPORTANT: This does not include realtime events for streaming messages!
+                 * Streaming messages are updated with a different realtime system that's more
+                 * efficient for the streaming use case.
+                 *
+                 * Named `MessageUpdates` instead of `CommentUpdates` so we can have shared
+                 * utilities for querying this sort range that work across all messaging
+                 * surfaces.
                  */
+                {
+                    name: "MessageUpdates",
+                    sortKeyAttributes: {
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
+                        // could. Through a query that starts at the client's last `messageIndex` and
+                        // ends at the checkpoint's `eventTime`.
+                        eventTime: DynamoKeyAttributeSchema.date.reverse(),
+                        // All the data is in the key so we can safely use create-or-replace to add
+                        // items to the table without worrying we're overriding some other data.
+                        messageIndex: DynamoKeyAttributeSchema.integer,
+                        version: DynamoKeyAttributeSchema.integer,
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
+                // events to a new sort range: `MessageUpdates`. Leaving this around until all
+                // old `CommentChangeLog` items expire. At which point we can remove this from
+                // the DynamoDB schema.
                 {
                     name: "CommentChangeLog",
                     sortKeyAttributes: {
@@ -908,22 +925,7 @@ const TaskTable = DynamoTableSchema.new({
                     withExpirationTime: "Required",
                     attributes: Schema.object({
                         commentIndex: Schema.integer,
-                        change: Schema.union({
-                            UpdateContent: Schema.object({
-                                type: Schema.value("UpdateContent"),
-                                content: MessageContentSchema,
-                                contentUpdateMappings: Schema.array(
-                                    ProsemirrorMappingSchema,
-                                ).default([]),
-                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                            Delete: Schema.object({
-                                type: Schema.value("Delete"),
-                                // `deletedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                        }),
+                        change: Schema.unknown(),
                     }),
                 },
             ],
@@ -5216,6 +5218,38 @@ export async function getTaskComment(
     return createTaskCommentModelFromItem(context, spaceId, taskId, item);
 }
 
+export async function getTaskCommentAtVersion(
+    context: ServerActionContext,
+    {taskId, commentIndex, version}: {taskId: TaskId; commentIndex: number; version: number},
+): Promise<TaskCommentModel> {
+    const [{spaceId}, item] = await runAllPromises([
+        authorizeTaskAccess(context, taskId, "View"),
+        (async () => {
+            let item = await getTaskCommentItemIfExists(context, taskId, commentIndex, {
+                consistency: "Eventual",
+            });
+
+            if (!item || item.version < version) {
+                item = await getTaskCommentItemIfExists(context, taskId, commentIndex, {
+                    consistency: "Strong",
+                });
+            }
+
+            if (!item) {
+                throw createTaskCommentNotFoundError(taskId, commentIndex);
+            }
+
+            if (item.version < version) {
+                throw new FailedPreconditionError("Can’t get message at a future version");
+            }
+
+            return item;
+        })(),
+    ]);
+
+    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
+}
+
 export async function getTaskCommentPayload(
     context: ServerActionContext,
     {
@@ -5258,6 +5292,7 @@ async function createTaskCommentModelFromItem(
     return new TaskCommentModel({
         taskId,
         index: item.index,
+        version: item.version,
         author,
         createdTime: item.createdTime,
         payload,
@@ -5340,6 +5375,7 @@ export function updateTaskCommentContent(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
     content: MessageContent;
     contentUpdate: MessageContentPayloadContentUpdate;
 }> {
@@ -5394,23 +5430,9 @@ export function updateTaskCommentContent(
         }
 
         const contentUpdate: MessageContentPayloadContentUpdate = {
-            time: new Date(
-                Math.max(
-                    (
-                        commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])
-                    ).getTime() + 1,
-                    Date.now(),
-                ),
-            ),
+            time: new Date(),
             mappings: [...(taskCommentItem.payload.contentUpdate?.mappings ?? []), mapping],
         };
-
-        // `lastChangeTime` should always be greater than or equal
-        // to `contentUpdatedTime`.
-        assert(
-            !taskCommentItem.payload.contentUpdate ||
-                contentUpdate.time > taskCommentItem.payload.contentUpdate.time,
-        );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             commentsSummaryItem.mentionCountByAccountId,
@@ -5418,36 +5440,37 @@ export function updateTaskCommentContent(
             content,
         );
 
+        const transactionEntry = TaskTable.transactionDirectlyUpdateItem({
+            ...taskCommentItem,
+            payload: {
+                ...taskCommentItem.payload,
+                content,
+                contentUpdate,
+            },
+        });
+
         await DynamoTableSchema.executeTransaction(context, [
-            TaskTable.transactionDirectlyUpdateItem({
-                ...taskCommentItem,
-                payload: {
-                    ...taskCommentItem.payload,
-                    content,
-                    contentUpdate,
-                },
-            }),
+            transactionEntry,
+
             TaskTable.transactionDirectlyUpdateItem({
                 ...commentsSummaryItem,
                 taskId,
                 nextCommentIndex: commentsSummaryItem.nextCommentIndex,
-                lastChangeTime: contentUpdate.time,
                 commentCountByAuthorId: commentsSummaryItem.commentCountByAuthorId,
                 mentionCountByAccountId: newMentionCountByAccountId,
                 updateLockVersion: commentsSummaryItem.updateLockVersion,
             }),
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
-                sortRangeType: "CommentChangeLog",
+                sortRangeType: "MessageUpdates",
                 taskId,
-                changeTime: contentUpdate.time,
-                commentIndex: taskCommentItem.commentIndex,
-                change: {
-                    type: "UpdateContent",
-                    content,
-                    contentUpdateMappings: contentUpdate.mappings,
-                },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
+                eventTime: contentUpdate.time,
+                messageIndex: taskCommentItem.commentIndex,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(contentUpdate.time, messagingEventExpirationDays),
             }),
         ]);
 
@@ -5462,14 +5485,19 @@ export function updateTaskCommentContent(
             },
         });
 
-        return {spaceId: item.spaceId, content, contentUpdate};
+        return {
+            spaceId: item.spaceId,
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            content,
+            contentUpdate,
+        };
     });
 }
 
 export function deleteTaskComment(
     context: ServerAccountActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
-): Promise<{deletedTime: Date}> {
+): Promise<{version: number; deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [{item, commentsSummaryItem}, taskCommentItem] = await runAllPromises([
             authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
@@ -5492,19 +5520,7 @@ export function deleteTaskComment(
         if (taskCommentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t delete clerical comments");
 
-        const deletedTime = new Date(
-            Math.max(
-                (commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])).getTime() + 1,
-                Date.now(),
-            ),
-        );
-
-        // `lastChangeTime` should always be greater than or equal
-        // to `deletedTime`.
-        assert(
-            !taskCommentItem.payload.contentUpdate ||
-                deletedTime > taskCommentItem.payload.contentUpdate.time,
-        );
+        const deletedTime = new Date();
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             commentsSummaryItem.mentionCountByAccountId,
@@ -5512,30 +5528,33 @@ export function deleteTaskComment(
             null,
         );
 
+        const transactionEntry = TaskTable.transactionDirectlyUpdateItem({
+            ...taskCommentItem,
+            payload: {type: "Deleted", deletedTime},
+        });
+
         await DynamoTableSchema.executeTransaction(context, [
-            TaskTable.transactionDirectlyUpdateItem({
-                ...taskCommentItem,
-                payload: {type: "Deleted", deletedTime},
-            }),
+            transactionEntry,
+
             TaskTable.transactionDirectlyUpdateItem({
                 ...commentsSummaryItem,
                 taskId,
                 nextCommentIndex: commentsSummaryItem.nextCommentIndex,
-                lastChangeTime: deletedTime,
                 commentCountByAuthorId: commentsSummaryItem.commentCountByAuthorId,
                 mentionCountByAccountId: newMentionCountByAccountId,
                 updateLockVersion: commentsSummaryItem.updateLockVersion,
             }),
-            // Create-or-replace is safe because the change time is guaranteed to be unique
-            // and monotonically increasing.
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             TaskTable.transactionCreateOrReplaceItem({
                 partitionType: "Task",
-                sortRangeType: "CommentChangeLog",
+                sortRangeType: "MessageUpdates",
                 taskId,
-                changeTime: deletedTime,
-                commentIndex: taskCommentItem.commentIndex,
-                change: {type: "Delete"},
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
+                eventTime: deletedTime,
+                messageIndex: taskCommentItem.commentIndex,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(deletedTime, messagingEventExpirationDays),
             }),
         ]);
 
@@ -5550,7 +5569,10 @@ export function deleteTaskComment(
             },
         });
 
-        return {deletedTime};
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            deletedTime,
+        };
     });
 }
 
@@ -5690,7 +5712,6 @@ export async function createTaskComment(
                 ? TaskTable.transactionDirectlyUpdateItem({
                       ...commentsSummaryItem,
                       nextCommentIndex: commentsSummaryItem.nextCommentIndex + 1,
-                      lastChangeTime: commentsSummaryItem.lastChangeTime,
                       commentCountByAuthorId: newCommentCountByAuthorId,
                       mentionCountByAccountId: newMentionCountByAccountId,
                       updateLockVersion: commentsSummaryItem.updateLockVersion,
@@ -5700,7 +5721,6 @@ export async function createTaskComment(
                       sortRangeType: "CommentsSummary",
                       taskId,
                       nextCommentIndex: commentIndex + 1,
-                      lastChangeTime: null,
                       commentCountByAuthorId: newCommentCountByAuthorId,
                       mentionCountByAccountId: newMentionCountByAccountId,
                   }),
@@ -6059,7 +6079,6 @@ export async function getTaskCommentsFromStart(
     commentCount: number;
     comments: Array<TaskCommentModel>;
     otherReferencedComments: Array<TaskCommentModel>;
-    lastCommentChangeTime: Date | null;
 }> {
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
@@ -6088,7 +6107,6 @@ export async function getTaskCommentsFromStart(
         ),
         comments,
         otherReferencedComments,
-        lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
     };
 }
 
@@ -6304,16 +6322,20 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         content: TaskNotesContentWithReferences;
     };
     initialComments: {
+        checkpoint: ServerSynchronizationCheckpoint;
         commentCount: number;
         comments: ReadonlyArray<TaskCommentModel>;
         otherReferencedComments: ReadonlyArray<TaskCommentModel>;
-        lastCommentChangeTime: Date | null;
     } | null;
 }> {
     const authorizationPromiseResolver = createPromiseResolver<{
         item: {spaceId: SpaceId};
         commentsSummaryItem: TaskCommentsSummaryItem | null;
     }>();
+
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [{item, notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
         await runAllPromises([
@@ -6389,6 +6411,7 @@ export async function getTaskNotesContentAndOptionalInitialComments(
         // wasteful.
         initialComments: commentAuthorizationResult.ok
             ? {
+                  checkpoint,
                   commentCount: Math.max(
                       getTaskCommentCount(commentsSummaryItem), // Make sure `commentCount` is consistent with `comments` in case of eventual
                       // consistency race conditions.
@@ -6396,7 +6419,6 @@ export async function getTaskNotesContentAndOptionalInitialComments(
                   ),
                   comments,
                   otherReferencedComments,
-                  lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
               }
             : null,
     };
@@ -6419,7 +6441,6 @@ export async function getTaskCommentsFromEnd(
     commentCount: number;
     comments: Array<TaskCommentModel>;
     otherReferencedComments: Array<TaskCommentModel>;
-    lastCommentChangeTime: Date | null;
 }> {
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
@@ -6448,7 +6469,6 @@ export async function getTaskCommentsFromEnd(
         ),
         comments,
         otherReferencedComments,
-        lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
     };
 }
 
@@ -6676,41 +6696,31 @@ export async function getTaskCommentPayloadsFromEnd(
     };
 }
 
-export type TaskCommentChangesResult =
-    | {
-          type: "Available";
-          changes: Array<MessageChange>;
-      }
-    | {
-          type: "Unavailable";
-      };
-
 export async function backfillTaskComments(
     context: ServerActionContext,
     {
         taskId,
+        checkpoint,
         clientCommentCount,
-        clientLastCommentChangeTime,
         newCommentLimit,
     }: {
         taskId: TaskId;
+        checkpoint: ServerSynchronizationCheckpoint;
         clientCommentCount: number;
-        clientLastCommentChangeTime: Date | null;
         newCommentLimit: number;
     },
 ): Promise<{
     commentCount: number;
-    lastCommentChangeTime: Date | null;
     newComments: Array<TaskCommentModel>;
     newOtherReferencedComments: Array<TaskCommentModel>;
-    commentChangesResult: TaskCommentChangesResult;
+    commentUpdatesResult: MessageUpdatesBackfillResult<TaskCommentModel>;
 }> {
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
         "Comment",
     );
-    const [{commentsSummaryItem}, {comments, otherReferencedComments}, commentChangesResult] =
+    const [{commentsSummaryItem}, {comments, otherReferencedComments}, commentUpdatesResult] =
         await runAllPromises([
             authorizationPromise,
             getTaskCommentsFromStartAssumingAuthorizedTask(context, {
@@ -6725,34 +6735,25 @@ export async function backfillTaskComments(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
-            (async () => {
-                const {item, commentsSummaryItem} = await authorizationPromise;
-                if (!commentsSummaryItem) return null;
-
-                return queryTaskCommentChangeLogAssumingAuthorizedTask(context, {
-                    commentsSummaryItem,
-                    spaceId: item.spaceId,
-                    createdTime: item.createdTime,
-                    lastCommentChangeTime: clientLastCommentChangeTime,
-                    // Use a strong read consistency when backfilling. This guarantees the caller
-                    // will observe all realtime events before this function call. Realtime events
-                    // that happen during the function call may be missed. You should be subscribed
-                    // to new realtime events before starting to backfill.
-                    consistency: "Strong",
-                });
-            })(),
+            runBackfillMessageUpdates(context, {
+                checkpoint,
+                queryMessageUpdates: (context, options) =>
+                    TaskTable.query(context, {
+                        partitionKey: {partitionType: "Task", taskId},
+                        ...options,
+                    }),
+                getMessageIfExists: (context, messageIndex, options) =>
+                    getTaskCommentItemIfExists(context, taskId, messageIndex, options),
+                createMessageModelFromItem: async (context, item) => {
+                    const {
+                        item: {spaceId},
+                    } = await authorizationPromise;
+                    return createTaskCommentModelFromItem(context, spaceId, taskId, item);
+                },
+            }),
         ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
-
-    const lastCommentChangeTime =
-        commentChangesResult &&
-        commentChangesResult.type === "Available" &&
-        commentChangesResult.changes.length > 0
-            ? getMessageChangeTime(
-                  commentChangesResult.changes[commentChangesResult.changes.length - 1]!,
-              )
-            : null;
 
     return {
         commentCount: Math.max(
@@ -6765,122 +6766,10 @@ export async function backfillTaskComments(
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        lastCommentChangeTime:
-            lastCommentChangeTime &&
-            // Make sure `lastCommentChangeTime` is consistent with
-            // `commentChangesResult` in case of eventual consistency race conditions.
-            (!commentsSummaryItem?.lastChangeTime ||
-                lastCommentChangeTime > commentsSummaryItem.lastChangeTime)
-                ? lastCommentChangeTime
-                : commentsSummaryItem?.lastChangeTime ?? null,
         newComments: comments,
         newOtherReferencedComments: otherReferencedComments,
-        commentChangesResult: commentChangesResult ?? {type: "Available", changes: []},
+        commentUpdatesResult,
     };
-}
-
-async function queryTaskCommentChangeLogAssumingAuthorizedTask(
-    context: ServerActionContext,
-    {
-        commentsSummaryItem,
-        spaceId,
-        createdTime,
-        lastCommentChangeTime,
-        consistency = "Eventual",
-    }: {
-        commentsSummaryItem: Pick<
-            TaskCommentsSummaryItem,
-            | "taskId"
-            | "lastChangeTime"
-            | "nextCommentIndex"
-            | "commentCountByAuthorId"
-            | "mentionCountByAccountId"
-        >;
-        spaceId: SpaceId;
-        createdTime: HybridLogicalTime;
-        lastCommentChangeTime: Date | null;
-        consistency?: DynamoReadConsistency;
-    },
-): Promise<TaskCommentChangesResult> {
-    // No changes occurred during the backfill period, there is nothing we need
-    // to query.
-
-    if (commentsSummaryItem.lastChangeTime?.getTime() === lastCommentChangeTime?.getTime())
-        return {type: "Available", changes: []};
-
-    const lastCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
-        lastCommentChangeTime ?? new Date(createdTime[0]),
-    );
-
-    // If our last change item has expired then other relevant changelog entries
-    // may have also expired. The client will need to fully reset its state since
-    // we don't have the data necessary to backfill.
-    if (
-        isDatePossiblyLessThanWithUncertaintyWindow(
-            lastCommentChangeExpirationTime,
-            // Use `Date.now()` so tests can mock the `Date.now()` function.
-            new Date(Date.now()),
-        )
-    ) {
-        return {type: "Unavailable"};
-    }
-
-    const changes = await parallelMapAsyncIterableToArray(
-        TaskTable.query(context, {
-            partitionKey: {
-                partitionType: "Task",
-                taskId: commentsSummaryItem.taskId,
-            },
-            startSortKey: {
-                sortRangeType: "CommentChangeLog",
-                changeTime: new Date(
-                    (lastCommentChangeTime ?? new Date(createdTime[0])).getTime() + 1,
-                ),
-            },
-            endSortKey: {
-                sortRangeType: "CommentChangeLog",
-                changeTime: DynamoKeyAttributeSchema.date.maxValue,
-            },
-            limit: "All",
-            consistency,
-        }),
-        async (item): Promise<MessageChange> => {
-            switch (item.change.type) {
-                case "UpdateContent": {
-                    return {
-                        type: "UpdateContent",
-                        index: item.commentIndex,
-                        content: {
-                            doc: item.change.content,
-
-                            // Don't propagate `consistency` when loading content references. We
-                            // accept references can have eventual consistency.
-                            references: await getMessageContentReferencesForNode(
-                                context,
-                                spaceId,
-                                item.change.content,
-                            ),
-                        },
-                        contentUpdate: {
-                            time: item.changeTime,
-                            mappings: item.change.contentUpdateMappings,
-                        },
-                    };
-                }
-                case "Delete": {
-                    return {
-                        type: "Delete",
-                        index: item.commentIndex,
-                        deletedTime: item.changeTime,
-                    };
-                }
-                default:
-                    throw exhaustive(item.change);
-            }
-        },
-    );
-
-    return {type: "Available", changes};
 }
 
 /**

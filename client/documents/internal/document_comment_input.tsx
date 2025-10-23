@@ -23,6 +23,7 @@ import {
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 export function DocumentCommentInput({
     isStickyPositioned,
@@ -40,6 +41,7 @@ export function DocumentCommentInput({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
+    subscribeToPongs,
     withMobileMaxHeight,
     onFocus,
     onBeforeFocusFromReplyOrEditingChange,
@@ -67,6 +69,7 @@ export function DocumentCommentInput({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
     withMobileMaxHeight: boolean;
     onFocus?: () => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
@@ -90,6 +93,7 @@ export function DocumentCommentInput({
     // We connect to realtime in our `<DocumentCommentInput>` component. This
     // component is always mounted for a document comment thread.
     useMessagingRealtime({
+        isConnected,
         messages: comments,
         onUpdateMessages: (update, extra) => {
             onUpdateCommentThread(({commentThread, comments}) => ({
@@ -100,34 +104,31 @@ export function DocumentCommentInput({
                 comments: update(comments),
             }));
         },
-        isConnected,
         backfillMessages: useCallback(
             async ({
+                checkpoint,
                 clientMessageCount: clientCommentCount,
-                clientLastMessageChangeTime: clientLastCommentChangeTime,
                 newMessageLimit: newCommentLimit,
             }) => {
                 const {
                     commentThread: newCommentThread,
                     commentCount,
-                    lastCommentChangeTime,
                     newComments,
                     newOtherReferencedComments,
-                    commentChangesResult,
+                    commentUpdatesResult,
                     typingStateByConnectionId,
                 } = await procedures.backfillComments({
                     commentThreadId: commentThread.id,
+                    checkpoint,
                     clientCommentCount,
-                    clientLastCommentChangeTime,
                     newCommentLimit,
                 });
 
                 return {
                     messageCount: commentCount,
-                    lastMessageChangeTime: lastCommentChangeTime,
                     newMessages: newComments,
                     newOtherReferencedMessages: newOtherReferencedComments,
-                    messageChangesResult: commentChangesResult,
+                    messageUpdatesResult: commentUpdatesResult,
                     typingStateByConnectionId,
                     extra: {commentThread: newCommentThread},
                 };
@@ -160,6 +161,7 @@ export function DocumentCommentInput({
                 }),
             [commentThread.id, handlePersistedContentEvent, subscribeToCommentThreadEvents],
         ),
+        subscribeToPongs,
     });
 
     useScrollToNewMessages({

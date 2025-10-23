@@ -34,7 +34,6 @@ import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/not
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getSpellCheckIgnoredLints} from "~/server/spell_check/get_spell_check_ignored_lints.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {
@@ -52,9 +51,15 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpoint,
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     key: Schema.string,
+    checkpoint: ServerSynchronizationCheckpointSchema,
     document: DocumentModel.schema(),
     commentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     initialCommentsByCommentThreadId: Schema.map(
@@ -95,6 +100,10 @@ export async function loader({params, request, context: unauthenticatedContext}:
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
 
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
+
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
             getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
@@ -111,7 +120,6 @@ export async function loader({params, request, context: unauthenticatedContext}:
                       key: {type: "DocumentNewCommentThreads", documentId, bucketGeneration},
                   })
                 : null,
-            getSpellCheckIgnoredLints(context, `Document:${documentId}`),
         ]);
 
     const propagateEventData: TracerEventData = {
@@ -124,6 +132,7 @@ export async function loader({params, request, context: unauthenticatedContext}:
         LoaderSchema,
         {
             key: generateId(),
+            checkpoint,
             document,
             commentThreads,
             initialCommentsByCommentThreadId,
@@ -158,6 +167,7 @@ function DocumentNewCommentThreadsRouteInner() {
     const rootNavigate = useRootNavigate();
 
     const {
+        checkpoint: initialCheckpoint,
         document: initialDocument,
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
@@ -169,6 +179,7 @@ function DocumentNewCommentThreadsRouteInner() {
         content,
         procedures,
         subscribeToCommentThreadEvents,
+        subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
     } = useDocumentContentEditorWebSocket({
         documentId: initialDocument.id,
@@ -186,6 +197,7 @@ function DocumentNewCommentThreadsRouteInner() {
 
     const [initialCommentThreadResults, setInitialCommentThreadResults] = useState<
         ReadonlyArray<{
+            readonly checkpoint: ServerSynchronizationCheckpoint;
             readonly commentThread: DocumentCommentThreadModel;
             readonly comments: ReadonlyArray<DocumentCommentModel>;
             readonly otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
@@ -194,6 +206,7 @@ function DocumentNewCommentThreadsRouteInner() {
         }>
     >(() =>
         initialCommentThreads.map(commentThread => ({
+            checkpoint: initialCheckpoint,
             commentThread,
             comments: initialCommentsByCommentThreadId.get(commentThread.id)?.comments ?? [],
             otherReferencedComments:
@@ -260,7 +273,7 @@ function DocumentNewCommentThreadsRouteInner() {
             // have `loadMoreCommentsRef` to make sure there's only one promise per comment
             // thread at a time.
             initialCommentThreadResult.loadMoreCommentsRef.current ??= (async () => {
-                const {commentCount, lastCommentChangeTime, comments, otherReferencedComments} =
+                const {commentCount, comments, otherReferencedComments} =
                     await procedures.getCommentsFromStart({
                         commentThreadId: initialCommentThreadResult.commentThread.id,
                         limit: loadCommentCount - initialCommentThreadResult.comments.length,
@@ -280,9 +293,9 @@ function DocumentNewCommentThreadsRouteInner() {
                             return otherInitialCommentThreadResult;
 
                         return {
+                            checkpoint: initialCommentThreadResult.checkpoint,
                             commentThread: initialCommentThreadResult.commentThread.clone({
                                 commentCount,
-                                lastCommentChangeTime,
                             }),
                             comments: [...initialCommentThreadResult.comments, ...comments],
                             otherReferencedComments: [
@@ -356,6 +369,7 @@ function DocumentNewCommentThreadsRouteInner() {
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+            subscribeToPongs={subscribeToPongs}
             unpersistedResolutionStateByCommentThreadId={
                 unpersistedResolutionStateByCommentThreadId
             }

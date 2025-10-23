@@ -10,6 +10,7 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
@@ -47,6 +48,7 @@ import {
     backfillTaskComments,
     createTaskComment,
     deleteTaskComment,
+    getTaskCommentAtVersion,
     getTaskCommentReferences,
     getTaskNotesContentReferences,
     updateTaskCommentContent,
@@ -129,6 +131,7 @@ export class TaskNotesCollaborationConnection {
             updateMessageContent,
             deleteMessage,
             backfillMessages,
+            getMessageAtVersion,
             getMessageReferences,
             createMessageModel,
         });
@@ -243,31 +246,25 @@ export class TaskNotesCollaborationConnection {
 
         backfillComments: async (
             context,
-            {
-                clientCommentCount: clientMessageCount,
-                clientLastCommentChangeTime: clientLastMessageChangeTime,
-                newCommentLimit: newMessageLimit,
-            },
+            {checkpoint, clientCommentCount: clientMessageCount, newCommentLimit: newMessageLimit},
         ) => {
             const {
                 messageCount: commentCount,
-                lastMessageChangeTime: lastCommentChangeTime,
                 newMessages: newComments,
                 newOtherReferencedMessages: newOtherReferencedComments,
-                messageChangesResult: commentChangesResult,
+                messageUpdatesResult: commentUpdatesResult,
                 typingStateByConnectionId,
             } = await this._messagingConnection.backfillMessages(context, {
+                checkpoint,
                 clientMessageCount,
-                clientLastMessageChangeTime,
                 newMessageLimit,
             });
 
             return {
                 commentCount,
-                lastCommentChangeTime,
                 newComments,
                 newOtherReferencedComments,
-                commentChangesResult,
+                commentUpdatesResult,
                 typingStateByConnectionId,
             };
         },
@@ -422,32 +419,34 @@ const backfillMessages: BackfillMessagesFunction<TaskId, TaskCommentModel> = asy
     context,
     {
         roomKey: taskId,
+        checkpoint,
         clientMessageCount: clientCommentCount,
-        clientLastMessageChangeTime: clientLastCommentChangeTime,
         newMessageLimit: newCommentLimit,
     },
 ) => {
-    const {
-        commentCount,
-        lastCommentChangeTime,
-        newComments,
-        newOtherReferencedComments,
-        commentChangesResult,
-    } = await backfillTaskComments(context, {
-        taskId,
-        clientCommentCount,
-        clientLastCommentChangeTime,
-        newCommentLimit,
-    });
+    const {commentCount, newComments, newOtherReferencedComments, commentUpdatesResult} =
+        await backfillTaskComments(context, {
+            taskId,
+            clientCommentCount,
+            checkpoint,
+            newCommentLimit,
+        });
 
     return {
         messageCount: commentCount,
-        lastMessageChangeTime: lastCommentChangeTime,
         newMessages: newComments,
         newOtherReferencedMessages: newOtherReferencedComments,
-        messageChangesResult: commentChangesResult,
+        messageUpdatesResult: commentUpdatesResult,
         extra: null,
     };
+};
+
+const getMessageAtVersion: GetMessageAtVersionFunction<TaskId, TaskCommentModel> = async (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex, version},
+) => {
+    const {comment} = await getTaskCommentAtVersion(context, {taskId, commentIndex, version});
+    return comment;
 };
 
 const getMessageReferences: GetMessageReferencesFunction<TaskId> = async (
@@ -466,6 +465,7 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
     return new TaskCommentModel({
         taskId,
         index: message.index,
+        version: message.version,
         createdTime: message.createdTime,
         author: references.author,
         payload: {

@@ -30,6 +30,7 @@ import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 export type TaskDetailNotesContentEditorWebSocketClientState =
     | {
@@ -289,6 +290,13 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
             (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
                 if (clientState.type !== "Exists") return noop;
                 return clientState.client.subscribeToCommentEvents(subscriber);
+            },
+            [clientState],
+        ),
+        subscribeToPongs: useCallback(
+            (subscriber: (message: WebSocketPongMessage) => void) => {
+                if (clientState.type !== "Exists") return noop;
+                return clientState.client.subscribeToPongs(subscriber);
             },
             [clientState],
         ),

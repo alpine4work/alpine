@@ -24,6 +24,7 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
@@ -706,40 +707,40 @@ function PostCommentsAccountAvatarPile({
     const context = useAppContext();
     const platform = usePlatform();
 
-    const [_additionalCommentAuthors, setAdditionalCommentAuthors] = useState<{
-        endIndex: number;
-        accountById: ReadonlyMap<AccountId, AccountModel>;
-    }>(() => ({
-        // NOTE(calebmer): Intentionally using the `PostModel` comment count instead of
-        // `postComments.getMessageCountExcludingOptimisticMessages()` so that we use the
-        // comment count that `previewCommentAuthors` was loaded at.
-        endIndex: post.commentCount,
-        accountById: new Map(),
-    }));
+    const additionalCommentAuthors = useStateWithDependenciesWithoutDispatch<
+        {
+            readonly endIndex: number;
+            readonly accountById: ReadonlyMap<AccountId, AccountModel>;
+        },
+        [MessageList<PostCommentModel>]
+    >(
+        ([postComments], previousState) => {
+            previousState ??= {
+                endIndex: post.commentCount,
+                accountById: new Map(),
+            };
 
-    const additionalCommentAuthors = useMemo(
-        () =>
-            _additionalCommentAuthors.endIndex <
-            postComments.getMessageCountIncludingOptimisticMessages()
-                ? {
-                      endIndex: postComments.getMessageCountIncludingOptimisticMessages(),
-                      accountById: new Map(
-                          concatIterables(
-                              _additionalCommentAuthors.accountById,
-                              mapIterable(
-                                  postComments.iterateMessages(_additionalCommentAuthors.endIndex),
-                                  comment => [comment.message.author.id, comment.message.author],
-                              ),
-                          ),
-                      ),
-                  }
-                : _additionalCommentAuthors,
-        [_additionalCommentAuthors, postComments],
+            if (
+                previousState.endIndex >= postComments.getMessageCountIncludingOptimisticMessages()
+            ) {
+                return previousState;
+            }
+
+            return {
+                endIndex: postComments.getMessageCountIncludingOptimisticMessages(),
+                accountById: new Map(
+                    concatIterables(
+                        previousState.accountById,
+                        mapIterable(
+                            postComments.iterateMessages(previousState.endIndex),
+                            comment => [comment.message.author.id, comment.message.author],
+                        ),
+                    ),
+                ),
+            };
+        },
+        [postComments],
     );
-
-    useEffect(() => {
-        setAdditionalCommentAuthors(additionalCommentAuthors);
-    }, [additionalCommentAuthors]);
 
     const previewCommentAuthors = useMemo(
         () =>

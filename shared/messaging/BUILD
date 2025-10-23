@@ -11,5 +11,6 @@ ts_project(
         "//shared/error",
         "//shared/id",
         "//shared/schema",
+        "//shared/web_socket",
     ],
 )

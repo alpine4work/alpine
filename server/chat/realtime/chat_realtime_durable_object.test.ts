@@ -107,10 +107,11 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             takeEvents: () => connection.takeEvents(),
         };
     },
-    createMessageModel({roomKey: chatId, index, createdTime, author, payload}) {
+    createMessageModel({roomKey: chatId, index, version, createdTime, author, payload}) {
         return new ChatMessageModel({
             chatId,
             index,
+            version,
             createdTime,
             author,
             payload,

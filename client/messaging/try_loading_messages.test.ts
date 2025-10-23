@@ -7,6 +7,7 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const account = createTestAccountModel({
     id: generateId<AccountId>(),
@@ -102,8 +103,8 @@ test("will load messages when there are messages at the start", () => {
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -116,6 +117,7 @@ test("will load messages when there are messages at the start", () => {
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -207,8 +209,8 @@ test("will load messages when there are messages at the start from multiple load
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 20;
@@ -221,6 +223,7 @@ test("will load messages when there are messages at the start from multiple load
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -247,6 +250,7 @@ test("will load messages when there are messages at the start from multiple load
                 new ChatMessageModel({
                     chatId,
                     index: loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -273,6 +277,7 @@ test("will load messages when there are messages at the start from multiple load
                 new ChatMessageModel({
                     chatId,
                     index: loadMessageCount * 1.5 + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -366,8 +371,8 @@ test("will load messages when there are messages at the end", () => {
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -380,6 +385,7 @@ test("will load messages when there are messages at the end", () => {
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -473,8 +479,8 @@ test("will load messages when there are messages at the end from multiple loads"
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 20;
@@ -487,6 +493,7 @@ test("will load messages when there are messages at the end from multiple loads"
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -515,6 +522,7 @@ test("will load messages when there are messages at the end from multiple loads"
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount * 2 + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -543,6 +551,7 @@ test("will load messages when there are messages at the end from multiple loads"
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount * 2.5 + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -636,8 +645,8 @@ test("will load messages when there are messages at the start and end", () => {
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -650,6 +659,7 @@ test("will load messages when there are messages at the start and end", () => {
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -676,6 +686,7 @@ test("will load messages when there are messages at the start and end", () => {
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -819,8 +830,8 @@ test("will load messages when there are messages at the start, end, and middle",
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -833,6 +844,7 @@ test("will load messages when there are messages at the start, end, and middle",
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -859,6 +871,7 @@ test("will load messages when there are messages at the start, end, and middle",
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -887,6 +900,7 @@ test("will load messages when there are messages at the start, end, and middle",
                 new ChatMessageModel({
                     chatId,
                     index: 300 + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -1126,8 +1140,8 @@ test("will load messages when there are messages at the end when there are some 
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -1140,6 +1154,7 @@ test("will load messages when there are messages at the end when there are some 
                 new ChatMessageModel({
                     chatId,
                     index: messageCount - loadMessageCount + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -1166,6 +1181,7 @@ test("will load messages when there are messages at the end when there are some 
             new ChatMessageModel({
                 chatId,
                 index: 420,
+                version: 0,
                 author: account,
                 createdTime: new Date(),
                 payload: {
@@ -1183,6 +1199,7 @@ test("will load messages when there are messages at the end when there are some 
             new ChatMessageModel({
                 chatId,
                 index: 423,
+                version: 0,
                 author: account,
                 createdTime: new Date(),
                 payload: {
@@ -1274,8 +1291,8 @@ test("will load messages when there are messages at the start when there are som
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 54;
@@ -1288,6 +1305,7 @@ test("will load messages when there are messages at the start when there are som
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -1312,6 +1330,7 @@ test("will load messages when there are messages at the start when there are som
             new ChatMessageModel({
                 chatId,
                 index: 70,
+                version: 0,
                 author: account,
                 createdTime: new Date(),
                 payload: {
@@ -1329,6 +1348,7 @@ test("will load messages when there are messages at the start when there are som
             new ChatMessageModel({
                 chatId,
                 index: 73,
+                version: 0,
                 author: account,
                 createdTime: new Date(),
                 payload: {
@@ -1355,6 +1375,7 @@ test("will load messages when there are messages at the start when there are som
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -1446,8 +1467,8 @@ test("will load messages in the middle of two loaded ranges", () => {
     const messageCount = 500;
 
     let messages = MessageList.new<ChatMessageModel>({
+        checkpoint: generateServerSynchronizationCheckpointForTest(),
         messageCount,
-        lastMessageChangeTime: null,
     });
 
     const loadMessageCount = 100;
@@ -1460,6 +1481,7 @@ test("will load messages in the middle of two loaded ranges", () => {
                 new ChatMessageModel({
                     chatId,
                     index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {
@@ -1486,6 +1508,7 @@ test("will load messages in the middle of two loaded ranges", () => {
                 new ChatMessageModel({
                     chatId,
                     index: 110 + index,
+                    version: 0,
                     author: account,
                     createdTime: new Date(),
                     payload: {

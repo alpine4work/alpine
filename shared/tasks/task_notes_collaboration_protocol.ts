@@ -1,7 +1,6 @@
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -9,6 +8,7 @@ import {
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
+    createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -17,6 +17,7 @@ import {
     TaskNotesContentStepSchema,
     TaskNotesContentWithReferencesSchema,
 } from "~/shared/tasks/task_notes_content_schema.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
@@ -78,24 +79,17 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
 
         backfillComments: {
             input: {
+                checkpoint: ServerSynchronizationCheckpointSchema,
                 clientCommentCount: Schema.integer,
-                clientLastCommentChangeTime: Schema.date.nullable(),
                 newCommentLimit: Schema.integer,
             },
             output: {
                 commentCount: Schema.integer,
-                lastCommentChangeTime: Schema.date.nullable(),
                 newComments: Schema.array(TaskCommentModel.schema()),
                 newOtherReferencedComments: Schema.array(TaskCommentModel.schema()),
-                commentChangesResult: Schema.union({
-                    Available: Schema.object({
-                        type: Schema.value("Available"),
-                        changes: Schema.array(MessageChangeSchema),
-                    }),
-                    Unavailable: Schema.object({
-                        type: Schema.value("Unavailable"),
-                    }),
-                }),
+                commentUpdatesResult: createMessageUpdatesBackfillResultSchema(
+                    TaskCommentModel.schema(),
+                ),
                 typingStateByConnectionId: Schema.map(
                     Schema.id<WebSocketConnectionId>(),
                     MessagingTypingStateSchema,

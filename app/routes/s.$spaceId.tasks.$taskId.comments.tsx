@@ -33,11 +33,15 @@ import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     taskTitle: Schema.string,
+    checkpoint: ServerSynchronizationCheckpointSchema,
     commentCount: Schema.integer,
-    lastCommentChangeTime: Schema.date.nullable(),
     comments: Schema.array(TaskCommentModel.schema()),
     otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
@@ -50,25 +54,26 @@ export async function loader({context: unauthenticatedContext, params, request}:
 
     const url = new URL(request.url);
 
-    const [
-        task,
-        {commentCount, comments, otherReferencedComments, lastCommentChangeTime},
-        inboxEntry,
-    ] = await runAllPromises([
-        context.tasks.getTaskWithoutDependencies(spaceId, taskId),
-        getTaskCommentsFromEnd(context, {
-            taskId,
-            limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-            afterCommentIndex: null,
-            beforeCommentIndex: null,
-        }),
-        url.searchParams.get("inbox") === "show"
-            ? getInboxEntry(context, {
-                  spaceId,
-                  key: {type: "Task", taskId},
-              })
-            : null,
-    ]);
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
+
+    const [task, {commentCount, comments, otherReferencedComments}, inboxEntry] =
+        await runAllPromises([
+            context.tasks.getTaskWithoutDependencies(spaceId, taskId),
+            getTaskCommentsFromEnd(context, {
+                taskId,
+                limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            }),
+            url.searchParams.get("inbox") === "show"
+                ? getInboxEntry(context, {
+                      spaceId,
+                      key: {type: "Task", taskId},
+                  })
+                : null,
+        ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -80,8 +85,8 @@ export async function loader({context: unauthenticatedContext, params, request}:
         LoaderSchema,
         {
             taskTitle: addFallbackToTaskTitle(task.getTitle().getText()),
+            checkpoint,
             commentCount,
-            lastCommentChangeTime,
             comments,
             otherReferencedComments,
             inboxEntry,
@@ -96,14 +101,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [
 
 export default function TaskCommentsRoute() {
     const [searchParams] = useSearchParams();
-    const {
-        taskTitle,
-        commentCount,
-        lastCommentChangeTime,
-        comments,
-        otherReferencedComments,
-        inboxEntry,
-    } = useLoaderDataWithSchema(LoaderSchema);
+    const {taskTitle, checkpoint, commentCount, comments, otherReferencedComments, inboxEntry} =
+        useLoaderDataWithSchema(LoaderSchema);
 
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -143,7 +142,7 @@ export default function TaskCommentsRoute() {
 
     useSearchAffinityViewEntityInteraction(`Task:${taskId}`);
 
-    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+    const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "TaskNotesCollaborationService",
         TaskNotesCollaborationProtocol,
         `/api/durable-objects/task-notes/${taskId}`,
@@ -215,8 +214,8 @@ export default function TaskCommentsRoute() {
                 key={taskId}
                 taskId={taskId}
                 initialComments={{
+                    checkpoint,
                     commentCount,
-                    lastCommentChangeTime,
                     comments,
                     otherReferencedComments,
                 }}
@@ -232,6 +231,7 @@ export default function TaskCommentsRoute() {
                 isConnected={isConnected}
                 procedures={procedures}
                 subscribeToEvents={subscribeToCommentsEvents}
+                subscribeToPongs={subscribeToPongs}
             />
         </Box>
     );

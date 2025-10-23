@@ -1,10 +1,8 @@
 import {ContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageReferencedIds} from "~/shared/messaging/message_references.js";
 import {
     MessageContentPayload,
-    MessageContentPayloadContentUpdate,
     MessageStream,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
@@ -25,8 +23,9 @@ export type MessagingRealtimeEventStub =
           } | null;
       }
     | {
-          readonly type: "ChangeMessage";
-          readonly change: MessagingRealtimeEventStubChange;
+          readonly type: "UpdateMessage";
+          readonly messageIndex: number;
+          readonly version: number;
       }
     | {
           readonly type: "UpdateOtherTypingState";
@@ -51,26 +50,10 @@ export type MessagingRealtimeEventStub =
 
 export type MessagingRealtimeEventStubNewMessage = {
     readonly index: number;
+    readonly version: number;
     readonly authorId: AccountId;
     readonly createdTime: Date;
     readonly payload: MessageContentPayload;
     readonly stream: MessageStream | null;
     readonly referencedIds: MessageReferencedIds;
 };
-
-/**
- * A `MessageChange` but without loading any references. Specifically the
- * references in `content.references` (for the `UpdateContent` variant).
- */
-export type MessagingRealtimeEventStubChange =
-    | {
-          readonly type: "UpdateContent";
-          readonly index: number;
-          readonly content: MessageContent;
-          readonly contentUpdate: MessageContentPayloadContentUpdate;
-      }
-    | {
-          readonly type: "Delete";
-          readonly index: number;
-          readonly deletedTime: Date;
-      };

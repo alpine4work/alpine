@@ -3,7 +3,6 @@ import {ContentReferences, ContentReferencesSchema} from "~/shared/content/conte
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContent,
     MessageContentSchema,
@@ -20,6 +19,10 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    ServerSynchronizationCheckpoint,
+    ServerSynchronizationCheckpointSchema,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export type MessagingTypingState = SchemaType<typeof MessagingTypingStateSchema>;
 
@@ -33,24 +36,16 @@ export const MessagingTypingStateSchema = Schema.object({
 });
 
 export type BackfillMessagesProcedure<Message extends MessageModel> = (input: {
+    checkpoint: ServerSynchronizationCheckpoint;
     clientMessageCount: number;
-    clientLastMessageChangeTime: Date | null;
     newMessageLimit: number;
 }) => Promise<BackfillMessagesProcedureOutput<Message>>;
 
 export type BackfillMessagesProcedureOutput<Message extends MessageModel> = {
     messageCount: number;
-    lastMessageChangeTime: Date | null;
     newMessages: ReadonlyArray<Message>;
     newOtherReferencedMessages: ReadonlyArray<Message>;
-    messageChangesResult:
-        | {
-              type: "Available";
-              changes: ReadonlyArray<MessageChange>;
-          }
-        | {
-              type: "Unavailable";
-          };
+    messageUpdatesResult: MessageUpdatesBackfillResult<Message>;
     typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
 };
 
@@ -97,8 +92,8 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
          */
         backfillMessages: {
             input: {
+                checkpoint: ServerSynchronizationCheckpointSchema,
                 clientMessageCount: Schema.integer,
-                clientLastMessageChangeTime: Schema.date.nullable(),
                 newMessageLimit: Schema.integer,
             },
             /**
@@ -115,18 +110,9 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
              */
             output: {
                 messageCount: Schema.integer,
-                lastMessageChangeTime: Schema.date.nullable(),
                 newMessages: Schema.array(MessageSchema),
                 newOtherReferencedMessages: Schema.array(MessageSchema),
-                messageChangesResult: Schema.union({
-                    Available: Schema.object({
-                        type: Schema.value("Available"),
-                        changes: Schema.array(MessageChangeSchema),
-                    }),
-                    Unavailable: Schema.object({
-                        type: Schema.value("Unavailable"),
-                    }),
-                }),
+                messageUpdatesResult: createMessageUpdatesBackfillResultSchema(MessageSchema),
                 typingStateByConnectionId: Schema.map(
                     Schema.id<WebSocketConnectionId>(),
                     MessagingTypingStateSchema,
@@ -189,6 +175,29 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
     };
 }
 
+export type MessageUpdatesBackfillResult<Message extends MessageModel> =
+    | {readonly type: "Unavailable"}
+    | {
+          readonly type: "Available";
+          readonly checkpoint: ServerSynchronizationCheckpoint;
+          readonly messages: ReadonlyArray<Message>;
+      };
+
+export function createMessageUpdatesBackfillResultSchema<Message extends MessageModel>(
+    MessageSchema: Schema<Message>,
+) {
+    return Schema.union({
+        Unavailable: Schema.object({
+            type: Schema.value("Unavailable"),
+        }),
+        Available: Schema.object({
+            type: Schema.value("Available"),
+            checkpoint: ServerSynchronizationCheckpointSchema,
+            messages: Schema.array(MessageSchema),
+        }),
+    });
+}
+
 export type MessagingRealtimeEvent<Message extends MessageModel> =
     | {
           readonly type: "NewMessage";
@@ -199,8 +208,8 @@ export type MessagingRealtimeEvent<Message extends MessageModel> =
           } | null;
       }
     | {
-          readonly type: "ChangeMessage";
-          readonly change: MessageChange;
+          readonly type: "UpdateMessage";
+          readonly message: Message;
       }
     | {
           readonly type: "UpdateOtherTypingState";
@@ -247,6 +256,7 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
         NewMessage: Schema.object({
             type: Schema.value("NewMessage"),
             message: MessageSchema,
+
             /**
              * Atomically update this other typing state in the same action as we send
              * a message.
@@ -266,9 +276,9 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
          * the update with the greatest change time. Change time will increase
          * monotonically for each message on each update.
          */
-        ChangeMessage: Schema.object({
-            type: Schema.value("ChangeMessage"),
-            change: MessageChangeSchema,
+        UpdateMessage: Schema.object({
+            type: Schema.value("UpdateMessage"),
+            message: MessageSchema,
         }),
 
         /**
@@ -338,6 +348,7 @@ export type MessagingRealtimeBroadcastNewMessageRequest = SchemaType<
 
 export const MessagingRealtimeBroadcastNewMessageRequestSchema = Schema.object({
     index: Schema.integer.min(0),
+    version: Schema.integer.min(0),
     authorId: Schema.id<AccountId>(),
     createdTime: Schema.date,
     payload: MessageContentPayloadSchema,

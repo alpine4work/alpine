@@ -6,7 +6,6 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {
     MessagingRealtimeEventStub,
-    MessagingRealtimeEventStubChange,
     MessagingRealtimeEventStubNewMessage,
 } from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
 import {
@@ -25,7 +24,6 @@ import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
@@ -33,11 +31,7 @@ import {
     MessageReferences,
     getMessageReferencedIds,
 } from "~/shared/messaging/message_references.js";
-import {
-    MessageContentPayloadContentUpdate,
-    MessageContentPayloadParent,
-    MessagePayload,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/message_schema.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
@@ -47,6 +41,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * Create a new message in a room.
@@ -79,8 +74,7 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
         steps: ReadonlyArray<Step>;
     },
 ) => Promise<{
-    content: MessageContent;
-    contentUpdate: MessageContentPayloadContentUpdate;
+    version: number;
 }>;
 
 /**
@@ -93,7 +87,7 @@ export type DeleteMessageFunction<RoomKey extends string> = (
         messageIndex: number;
     },
 ) => Promise<{
-    deletedTime: Date;
+    version: number;
 }>;
 
 /**
@@ -110,25 +104,42 @@ export type BackfillMessagesFunction<
     context: WorkerSessionActionContext,
     options: {
         roomKey: RoomKey;
+        checkpoint: ServerSynchronizationCheckpoint;
         clientMessageCount: number;
-        clientLastMessageChangeTime: Date | null;
         newMessageLimit: number;
     },
 ) => Promise<{
     messageCount: number;
-    lastMessageChangeTime: Date | null;
     newMessages: ReadonlyArray<Message>;
     newOtherReferencedMessages: ReadonlyArray<Message>;
-    messageChangesResult:
+    messageUpdatesResult:
         | {
               type: "Available";
-              changes: ReadonlyArray<MessageChange>;
+              checkpoint: ServerSynchronizationCheckpoint;
+              messages: ReadonlyArray<Message>;
           }
         | {
               type: "Unavailable";
           };
     extra: BackfillMessagesExtra;
 }>;
+
+/**
+ * Get a message but only at the specified version or a newer version. Useful
+ * for serving realtime events where we know the message was updated to some
+ * version but need to load the message with the session actor's permissions.
+ */
+export type GetMessageAtVersionFunction<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        version: number;
+    },
+) => Promise<Message>;
 
 /**
  * Get message references using the permissions associated with the session
@@ -192,6 +203,7 @@ export class MessagingRealtimeConnection<
         Message,
         BackfillMessagesExtra
     >;
+    private readonly _getMessageAtVersion: GetMessageAtVersionFunction<RoomKey, Message>;
     public readonly _getMessageReferences: GetMessageReferencesFunction<RoomKey>;
     private readonly _createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
 
@@ -227,6 +239,7 @@ export class MessagingRealtimeConnection<
         updateMessageContent,
         deleteMessage,
         backfillMessages,
+        getMessageAtVersion,
         getMessageReferences,
         createMessageModel,
     }: {
@@ -249,6 +262,7 @@ export class MessagingRealtimeConnection<
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
         backfillMessages: BackfillMessagesFunction<RoomKey, Message, BackfillMessagesExtra>;
+        getMessageAtVersion: GetMessageAtVersionFunction<RoomKey, Message>;
         getMessageReferences: GetMessageReferencesFunction<RoomKey>;
         createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
     }) {
@@ -263,6 +277,7 @@ export class MessagingRealtimeConnection<
         this._updateMessageContent = updateMessageContent;
         this._deleteMessage = deleteMessage;
         this._backfillMessages = backfillMessages;
+        this._getMessageAtVersion = getMessageAtVersion;
         this._getMessageReferences = getMessageReferences;
         this._createMessageModel = createMessageModel;
     }
@@ -390,43 +405,26 @@ export class MessagingRealtimeConnection<
         stateRef.current = {nextMessageIndexToSend, queuedMessages};
     }
 
-    private _sendMessageChange(
-        context: WorkerActionContext,
-        messageChange: MessagingRealtimeEventStubChange,
-    ): SafeFloatingPromise<void> {
-        // It's ok to send message change events even while we're backfilling. Since on
-        // the frontend `MessageList` holds onto message changes even if the change
-        // effects a message the client hasn't loaded yet.
-        //
-        // So if a message change occurs for a message we're currently backfilling, the
-        // client will receive the change first then the backfill and will apply the
-        // change to the backfilled message.
-        return this._sendEvent(context, {
-            type: "ChangeMessage",
-            change: messageChange,
-        });
-    }
-
     public async backfillMessages(
         context: WorkerSessionActionContext,
         {
+            checkpoint,
             clientMessageCount,
-            clientLastMessageChangeTime,
             newMessageLimit,
         }: {
+            checkpoint: ServerSynchronizationCheckpoint;
             clientMessageCount: number;
-            clientLastMessageChangeTime: Date | null;
             newMessageLimit: number;
         },
     ): Promise<{
         messageCount: number;
-        lastMessageChangeTime: Date | null;
         newMessages: ReadonlyArray<Message>;
         newOtherReferencedMessages: ReadonlyArray<Message>;
-        messageChangesResult:
+        messageUpdatesResult:
             | {
                   readonly type: "Available";
-                  readonly changes: ReadonlyArray<MessageChange>;
+                  readonly checkpoint: ServerSynchronizationCheckpoint;
+                  readonly messages: ReadonlyArray<Message>;
               }
             | {
                   readonly type: "Unavailable";
@@ -436,41 +434,34 @@ export class MessagingRealtimeConnection<
     }> {
         assert(this.accountId === context.actor.getAccountId());
 
-        const {
-            messageCount,
-            lastMessageChangeTime,
-            newMessages,
-            newOtherReferencedMessages,
-            messageChangesResult,
-            extra,
-        } = await this._queuedMessagesState.withLock(async stateRef => {
-            const result = await this._backfillMessages(context, {
-                roomKey: this.roomKey,
-                clientMessageCount,
-                clientLastMessageChangeTime,
-                newMessageLimit,
+        const {messageCount, newMessages, newOtherReferencedMessages, messageUpdatesResult, extra} =
+            await this._queuedMessagesState.withLock(async stateRef => {
+                const result = await this._backfillMessages(context, {
+                    roomKey: this.roomKey,
+                    checkpoint,
+                    clientMessageCount,
+                    newMessageLimit,
+                });
+
+                await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
+                    context.actor.getAccountId(),
+                );
+
+                stateRef.current = {
+                    nextMessageIndexToSend: result.messageCount,
+                    queuedMessages: stateRef.current.queuedMessages,
+                };
+
+                await this._flushQueuedMessages(context, stateRef);
+
+                return result;
             });
-
-            await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
-                context.actor.getAccountId(),
-            );
-
-            stateRef.current = {
-                nextMessageIndexToSend: result.messageCount,
-                queuedMessages: stateRef.current.queuedMessages,
-            };
-
-            await this._flushQueuedMessages(context, stateRef);
-
-            return result;
-        });
 
         return {
             messageCount,
-            lastMessageChangeTime,
             newMessages,
             newOtherReferencedMessages,
-            messageChangesResult,
+            messageUpdatesResult,
             // NOTE(calebmer): In the following case:
             //
             // 1. Backfill starts for connection B
@@ -541,6 +532,7 @@ export class MessagingRealtimeConnection<
 
             const message: MessagingRealtimeEventStubNewMessage = {
                 index,
+                version: 0,
                 authorId,
                 createdTime,
                 payload: messagePayload,
@@ -592,7 +584,7 @@ export class MessagingRealtimeConnection<
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());
 
-        const {content, contentUpdate} = await this._updateMessageContent(context, {
+        const {version} = await this._updateMessageContent(context, {
             roomKey: this.roomKey,
             messageIndex,
             contentVersion,
@@ -603,17 +595,19 @@ export class MessagingRealtimeConnection<
             context.actor.getAccountId(),
         );
 
-        const change: MessagingRealtimeEventStubChange = {
-            type: "UpdateContent",
-            index: messageIndex,
-            content,
-            contentUpdate,
-        };
+        const sendOurEventPromise = this._sendEvent(context, {
+            type: "UpdateMessage",
+            messageIndex,
+            version,
+        });
 
-        const sendOurEventPromise = this._sendMessageChange(context, change);
-
-        for (const connection of this._iterateOtherConnections())
-            connection._sendMessageChange(context, change);
+        for (const connection of this._iterateOtherConnections()) {
+            connection._sendEvent(context, {
+                type: "UpdateMessage",
+                messageIndex,
+                version,
+            });
+        }
 
         // Wait until we send our update message event before finishing the RPC.
         await sendOurEventPromise;
@@ -627,21 +621,24 @@ export class MessagingRealtimeConnection<
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());
 
-        const {deletedTime} = await this._deleteMessage(context, {
+        const {version} = await this._deleteMessage(context, {
             roomKey: this.roomKey,
             messageIndex,
         });
 
-        const messageChange: MessageChange = {
-            type: "Delete",
-            index: messageIndex,
-            deletedTime,
-        };
+        const sendOurEventPromise = this._sendEvent(context, {
+            type: "UpdateMessage",
+            messageIndex,
+            version,
+        });
 
-        const sendOurEventPromise = this._sendMessageChange(context, messageChange);
-
-        for (const connection of this._iterateOtherConnections())
-            connection._sendMessageChange(context, messageChange);
+        for (const connection of this._iterateOtherConnections()) {
+            connection._sendEvent(context, {
+                type: "UpdateMessage",
+                messageIndex,
+                version,
+            });
+        }
 
         // Wait until we send our update message event before finishing the RPC.
         await sendOurEventPromise;
@@ -734,6 +731,7 @@ export class MessagingRealtimeConnection<
 
         const message: MessagingRealtimeEventStubNewMessage = {
             index: request.index,
+            version: request.version,
             authorId: request.authorId,
             createdTime: request.createdTime,
             payload: request.payload,
@@ -857,44 +855,17 @@ export class MessagingRealtimeConnection<
                     updateOtherTypingState: eventStub.updateOtherTypingState,
                 };
             }
-            case "ChangeMessage": {
-                switch (eventStub.change.type) {
-                    case "Delete": {
-                        return {type: "ChangeMessage", change: eventStub.change};
-                    }
-                    case "UpdateContent": {
-                        const contentReferencedIds = getContentReferencedIdsForNode(
-                            eventStub.change.content,
-                        );
+            case "UpdateMessage": {
+                const message = await this._getMessageAtVersion(context, {
+                    roomKey: this.roomKey,
+                    messageIndex: eventStub.messageIndex,
+                    version: eventStub.version,
+                });
 
-                        const references = !isEmptyContentReferencedIds(contentReferencedIds)
-                            ? await this._getMessageReferences(context, {
-                                  spaceId: this.spaceId,
-                                  roomKey: this.roomKey,
-                                  referencedIds: {
-                                      authorId: null,
-                                      contentReferencedIds,
-                                      fileIds: emptySet,
-                                  },
-                              })
-                            : {contentReferences: emptyContentReferences};
-
-                        return {
-                            type: "ChangeMessage",
-                            change: {
-                                type: "UpdateContent",
-                                index: eventStub.change.index,
-                                content: {
-                                    doc: eventStub.change.content,
-                                    references: references.contentReferences,
-                                },
-                                contentUpdate: eventStub.change.contentUpdate,
-                            },
-                        };
-                    }
-                    default:
-                        throw exhaustive(eventStub.change);
-                }
+                return {
+                    type: "UpdateMessage",
+                    message,
+                };
             }
             case "PutMessageStreamPart": {
                 const {contentReferences} = !isEmptyContentReferencedIds(eventStub.referencedIds)

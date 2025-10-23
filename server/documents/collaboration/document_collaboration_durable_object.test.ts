@@ -66,6 +66,7 @@ import {
     deleteDocumentComment,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestWorkerContext({
     documentsInjection,
@@ -628,13 +629,13 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -661,13 +662,13 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -721,13 +722,13 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -754,13 +755,13 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1067,13 +1068,13 @@ test("will respond optimistically with a comment thread with files even if it ha
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1125,13 +1126,13 @@ test("will respond optimistically with a comment thread with files even if it ha
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1210,13 +1211,13 @@ test("will respond optimistically with a comment thread with files even if it ha
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1268,13 +1269,13 @@ test("will respond optimistically with a comment thread with files even if it ha
         }),
     ).toEqual({
         commentCount: 1,
-        lastCommentChangeTime: null,
         otherReferencedComments: [],
         comments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1834,15 +1835,15 @@ test("can create comments in comment threads", async () => {
 
     await connection1.procedures.backfillComments({
         commentThreadId,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 0,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
     await connection2.procedures.backfillComments({
         commentThreadId,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 0,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
@@ -1870,6 +1871,7 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -1899,6 +1901,7 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -1921,8 +1924,8 @@ test("can create comments in comment threads", async () => {
     expect(
         await connection1.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 1,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
@@ -1934,16 +1937,15 @@ test("can create comments in comment threads", async () => {
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 2,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 2,
-        lastCommentChangeTime: null,
         newComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 1,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -1960,15 +1962,19 @@ test("can create comments in comment threads", async () => {
             }),
         ],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
     expect(
         await connection2.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 0,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
@@ -1980,16 +1986,15 @@ test("can create comments in comment threads", async () => {
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 2,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 2,
-        lastCommentChangeTime: null,
         newComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -2008,6 +2013,7 @@ test("can create comments in comment threads", async () => {
                 documentId: document.id,
                 commentThreadId,
                 index: 1,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -2024,7 +2030,11 @@ test("can create comments in comment threads", async () => {
             }),
         ],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
@@ -2051,6 +2061,7 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 2,
+                    version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2080,6 +2091,7 @@ test("can create comments in comment threads", async () => {
                     documentId: document.id,
                     commentThreadId,
                     index: 2,
+                    version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2227,8 +2239,8 @@ test("if comment thread is persisting we will wait to create messages but respon
     expect(
         await connection1.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 1,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
@@ -2240,22 +2252,24 @@ test("if comment thread is persisting we will wait to create messages but respon
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 1,
-        lastCommentChangeTime: null,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
     expect(
         await connection2.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 0,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
@@ -2267,16 +2281,15 @@ test("if comment thread is persisting we will wait to create messages but respon
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 1,
-        lastCommentChangeTime: null,
         newComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -2293,7 +2306,11 @@ test("if comment thread is persisting we will wait to create messages but respon
             }),
         ],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
@@ -2320,6 +2337,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2354,6 +2372,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2443,8 +2462,8 @@ test("if comment thread update message hasn’t been processed we will wait to r
 
     const backfillMessagePromise = connection1.procedures.backfillComments({
         commentThreadId,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 1,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
@@ -2524,14 +2543,16 @@ test("if comment thread update message hasn’t been processed we will wait to r
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 1,
-        lastCommentChangeTime: null,
         newComments: [],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
@@ -2543,8 +2564,8 @@ test("if comment thread update message hasn’t been processed we will wait to r
     expect(
         await connection2.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 0,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).toEqual({
@@ -2556,16 +2577,15 @@ test("if comment thread update message hasn’t been processed we will wait to r
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         commentCount: 1,
-        lastCommentChangeTime: null,
         newComments: [
             new DocumentCommentModel({
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
                 payload: {
@@ -2582,7 +2602,11 @@ test("if comment thread update message hasn’t been processed we will wait to r
             }),
         ],
         newOtherReferencedComments: [],
-        commentChangesResult: {type: "Available", changes: []},
+        commentUpdatesResult: {
+            type: "Available",
+            checkpoint: expect.any(Date),
+            messages: [],
+        },
         typingStateByConnectionId: new Map(),
     });
 
@@ -2616,6 +2640,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2650,6 +2675,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     documentId: document.id,
                     commentThreadId,
                     index: 1,
+                    version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
                     payload: {
@@ -2799,6 +2825,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 100,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -2807,7 +2834,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [
@@ -2815,6 +2841,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -2839,6 +2866,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 100,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -2847,7 +2875,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [
@@ -2855,6 +2882,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -2879,6 +2907,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 0,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -2887,7 +2916,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [],
@@ -2900,6 +2928,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 0,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -2908,7 +2937,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [],
@@ -2929,6 +2957,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -2945,7 +2974,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -2962,6 +2990,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -2978,7 +3007,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -2992,7 +3020,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3006,7 +3033,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3020,7 +3046,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3034,7 +3059,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3051,6 +3075,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3067,7 +3092,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3084,6 +3108,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3100,7 +3125,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3114,7 +3138,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3128,7 +3151,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3142,7 +3164,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3156,7 +3177,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -3187,6 +3207,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 100,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -3195,7 +3216,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [
@@ -3203,6 +3223,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3227,6 +3248,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 100,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -3235,7 +3257,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [
@@ -3243,6 +3264,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3267,6 +3289,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 0,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -3275,7 +3298,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [],
@@ -3288,6 +3310,7 @@ test("while comment thread is persisting we will respond to comment load request
             limit: 0,
         }),
     ).toEqual({
+        checkpoint: expect.any(Date),
         commentThread: new DocumentCommentThreadModel({
             id: commentThreadId,
             documentId: document.id,
@@ -3296,7 +3319,6 @@ test("while comment thread is persisting we will respond to comment load request
             fallbackContentSnippet: null,
             isResolved: false,
             commentCount: 1,
-            lastCommentChangeTime: null,
             firstCommentAuthor: await getAccount(session1.action(), space.id, session1.account.id),
         }),
         initialComments: [],
@@ -3317,6 +3339,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3333,7 +3356,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3350,6 +3372,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3366,7 +3389,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3380,7 +3402,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3394,7 +3415,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3408,7 +3428,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3422,7 +3441,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3439,6 +3457,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3455,7 +3474,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3472,6 +3490,7 @@ test("while comment thread is persisting we will respond to comment load request
                 documentId: document.id,
                 commentThreadId,
                 index: 0,
+                version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
                 payload: {
@@ -3488,7 +3507,6 @@ test("while comment thread is persisting we will respond to comment load request
             }),
         ],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3502,7 +3520,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3516,7 +3533,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3530,7 +3546,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 
     expect(
@@ -3544,7 +3559,6 @@ test("while comment thread is persisting we will respond to comment load request
         commentCount: 1,
         comments: [],
         otherReferencedComments: [],
-        lastCommentChangeTime: null,
     });
 });
 
@@ -4297,7 +4311,6 @@ test("can resolve a comment thread", async () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             ],
@@ -4333,7 +4346,6 @@ test("can resolve a comment thread", async () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             ],
@@ -4405,7 +4417,6 @@ test("can unresolve a comment thread", async () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             ],
@@ -4449,7 +4460,6 @@ test("can unresolve a comment thread", async () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             ],
@@ -4817,16 +4827,16 @@ test("can’t call comment procedures as viewer", async () => {
     await expect(
         connection2.procedures.backfillComments({
             commentThreadId: commentThread.id,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 0,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.backfillComments({
         commentThreadId: commentThread.id,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 0,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
@@ -5298,23 +5308,23 @@ test("viewer receives update events without comment data", async () => {
 
     await connection1.procedures.backfillComments({
         commentThreadId,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 0,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
     await connection2.procedures.backfillComments({
         commentThreadId,
+        checkpoint: generateServerSynchronizationCheckpoint(),
         clientCommentCount: 0,
-        clientLastCommentChangeTime: null,
         newCommentLimit: 100,
     });
 
     await expect(
         connection3.procedures.backfillComments({
             commentThreadId,
+            checkpoint: generateServerSynchronizationCheckpoint(),
             clientCommentCount: 0,
-            clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
     ).rejects.toThrow("Can’t see document comments");
@@ -5990,29 +6000,27 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             getConnection: () => connection.connection.getConnectionForTest(commentThreadId),
             procedures: {
                 backfillMessages: async ({
+                    checkpoint,
                     clientMessageCount: clientCommentCount,
-                    clientLastMessageChangeTime: clientLastCommentChangeTime,
                     newMessageLimit: newCommentLimit,
                 }) => {
                     const {
                         commentCount: messageCount,
-                        lastCommentChangeTime: lastMessageChangeTime,
                         newComments: newMessages,
                         newOtherReferencedComments: newOtherReferencedMessages,
-                        commentChangesResult: messageChangesResult,
+                        commentUpdatesResult: messageUpdatesResult,
                         typingStateByConnectionId,
                     } = await connection.procedures.backfillComments({
                         commentThreadId,
+                        checkpoint,
                         clientCommentCount,
-                        clientLastCommentChangeTime,
                         newCommentLimit,
                     });
                     return {
                         messageCount,
-                        lastMessageChangeTime,
                         newMessages,
                         newOtherReferencedMessages,
-                        messageChangesResult,
+                        messageUpdatesResult,
                         typingStateByConnectionId,
                     };
                 },
@@ -6053,6 +6061,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             documentId,
             commentThreadId,
             index,
+            version: 0,
             createdTime,
             author,
             payload,

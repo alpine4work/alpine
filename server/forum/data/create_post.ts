@@ -88,7 +88,6 @@ export async function createPost(
         contentUpdate: null,
         commentsSummary: {
             nextCommentIndex: 0,
-            lastChangeTime: null,
             commentCountByAuthorId: new Map(),
             mentionCountByAccountId,
         },

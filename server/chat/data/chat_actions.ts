@@ -1,4 +1,4 @@
-import {addSeconds} from "date-fns";
+import {addDays, addSeconds} from "date-fns";
 import murmurhash from "murmurhash";
 import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
@@ -7,7 +7,6 @@ import {
     ChatTable,
     InternalFileChatAuthorizer,
 } from "~/server/chat/data/internal/chat_table.js";
-import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
     ServerAccountActionContext,
@@ -35,12 +34,15 @@ import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {
     MessageItem,
     processMessagesQuery,
 } from "~/server/messaging/helpers/process_messages_query.js";
+import {
+    messagingEventExpirationDays,
+    runBackfillMessageUpdates,
+} from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -84,7 +86,6 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -92,7 +93,6 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
@@ -101,7 +101,9 @@ import {
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
+import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 // Authorizers must be declared next to their respective Tables, so we must
 // re-export from this accessible module.
@@ -235,7 +237,6 @@ export async function createChatForTest(
             accountIdsForOneOnOne: accountIds.length === 2 ? accountIds : null,
             messagesSummary: {
                 nextMessageIndex: 0,
-                lastChangeTime: null,
                 messageCount: 0,
             },
         }),
@@ -490,7 +491,6 @@ function actuallyGetOrCreateChatForAccounts(
                             allSortedAccountIds.length === 2 ? allSortedAccountIds : null,
                         messagesSummary: {
                             nextMessageIndex: 0,
-                            lastChangeTime: null,
                             messageCount: 0,
                         },
                     };
@@ -831,7 +831,6 @@ function sendChatMessageForAccount(
                     "messagesSummary",
                     {
                         nextMessageIndex: chatAttributesItem.messagesSummary.nextMessageIndex + 1,
-                        lastChangeTime: chatAttributesItem.messagesSummary.lastChangeTime,
                         messageCount: chatAttributesItem.messagesSummary.messageCount + 1,
                     },
                     {updateLockVersion: chatAttributesItem.updateLockVersion},
@@ -1801,7 +1800,6 @@ async function createChatModelFromItem(
         spaceId: chatItem.attributesItem.spaceId,
         createdTime: chatItem.attributesItem.createdTime,
         messageCount: chatItem.attributesItem.messagesSummary.messageCount,
-        lastMessageChangeTime: chatItem.attributesItem.messagesSummary.lastChangeTime,
         // NOTE(calebmer): Ideally we sort chat accounts by some kind of affinity to
         // the current account? That seems like a good default.
         accounts: accounts
@@ -1912,6 +1910,42 @@ export async function getChatMessage(
 }
 
 /**
+ * Get a chat message with a version that's either equal to or greater than the
+ * provided version.
+ */
+export async function getChatMessageAtVersion(
+    context: ServerActionContext,
+    {chatId, messageIndex, version}: {chatId: ChatId; messageIndex: number; version: number},
+): Promise<ChatMessageModel> {
+    const [{spaceId}, item] = await runAllPromises([
+        authorizeChatAccess(context, chatId),
+        (async () => {
+            let item = await getChatMessageItemIfExists(context, chatId, messageIndex, {
+                consistency: "Eventual",
+            });
+
+            if (!item || item.version < version) {
+                item = await getChatMessageItemIfExists(context, chatId, messageIndex, {
+                    consistency: "Strong",
+                });
+            }
+
+            if (!item) {
+                throw createChatMessageNotFoundError(chatId, messageIndex);
+            }
+
+            if (item.version < version) {
+                throw new FailedPreconditionError("Can’t get message at a future version");
+            }
+
+            return item;
+        })(),
+    ]);
+
+    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+}
+
+/**
  * Get a single chat message comment's payload.
  */
 export async function getChatMessagePayload(
@@ -1956,6 +1990,7 @@ async function createChatMessageModelFromItem(
     return new ChatMessageModel({
         chatId,
         index: item.index,
+        version: item.version,
         author,
         createdTime: item.createdTime,
         payload,
@@ -1981,6 +2016,7 @@ export function updateChatMessageContent(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
     content: MessageContent;
     contentUpdate: MessageContentPayloadContentUpdate;
 }> {
@@ -2031,55 +2067,32 @@ export function updateChatMessageContent(
         }
 
         const contentUpdate: MessageContentPayloadContentUpdate = {
-            time: new Date(
-                Math.max(
-                    (chatItem.messagesSummary.lastChangeTime ?? chatItem.createdTime).getTime() + 1,
-                    Date.now(),
-                ),
-            ),
+            time: new Date(),
             mappings: [...(chatMessageItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
         };
 
-        // `lastChangeTime` should always be greater than or equal
-        // to `contentUpdatedTime`.
-        assert(
-            !chatMessageItem.payload.contentUpdate ||
-                contentUpdate.time > chatMessageItem.payload.contentUpdate.time,
-        );
+        const transactionEntry = ChatTable.transactionDirectlyUpdateItem({
+            ...chatMessageItem,
+            payload: {
+                ...chatMessageItem.payload,
+                content,
+                contentUpdate,
+            },
+        });
 
         await DynamoTableSchema.executeTransaction(context, [
-            ChatTable.transactionDirectlyUpdateItem({
-                ...chatMessageItem,
-                payload: {
-                    ...chatMessageItem.payload,
-                    content,
-                    contentUpdate,
-                },
-            }),
-            ChatTable.transactionDirectlyUpdateItemAttribute(
-                {partitionType: "Chat", sortRangeType: "Attributes", chatId},
-                "messagesSummary",
-                {
-                    nextMessageIndex: chatItem.messagesSummary.nextMessageIndex,
-                    lastChangeTime: contentUpdate.time,
-                    messageCount: chatItem.messagesSummary.messageCount,
-                },
-                {updateLockVersion: chatItem.updateLockVersion},
-            ),
-            // Create-or-replace is safe because the change time is guaranteed to be unique
-            // and monotonically increasing.
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
-                sortRangeType: "MessageChangeLog",
+                sortRangeType: "MessageUpdates",
                 chatId,
-                changeTime: contentUpdate.time,
+                eventTime: contentUpdate.time,
                 messageIndex: chatMessageItem.messageIndex,
-                change: {
-                    type: "UpdateContent",
-                    content,
-                    contentUpdateMappings: contentUpdate.mappings,
-                },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(contentUpdate.time, messagingEventExpirationDays),
             }),
         ]);
 
@@ -2094,7 +2107,12 @@ export function updateChatMessageContent(
             },
         });
 
-        return {spaceId: chatItem.spaceId, content, contentUpdate};
+        return {
+            spaceId: chatItem.spaceId,
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            content,
+            contentUpdate,
+        };
     });
 }
 
@@ -2104,7 +2122,7 @@ export function updateChatMessageContent(
 export function deleteChatMessage(
     context: ServerAccountActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
-): Promise<{deletedTime: Date}> {
+): Promise<{version: number; deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
             authorizeChatAccessAndReturnItem(context, chatId),
@@ -2127,45 +2145,26 @@ export function deleteChatMessage(
         if (chatMessageItem.payload.clerical)
             throw new FailedPreconditionError("Can’t delete clerical messages");
 
-        const deletedTime = new Date(
-            Math.max(
-                (chatItem.messagesSummary.lastChangeTime ?? chatItem.createdTime).getTime() + 1,
-                Date.now(),
-            ),
-        );
+        const deletedTime = new Date();
 
-        // `lastChangeTime` should always be greater than or equal
-        // to `deletedTime`.
-        assert(
-            !chatMessageItem.payload.contentUpdate ||
-                deletedTime > chatMessageItem.payload.contentUpdate.time,
-        );
+        const transactionEntry = ChatTable.transactionDirectlyUpdateItem({
+            ...chatMessageItem,
+            payload: {type: "Deleted", deletedTime},
+        });
 
         await DynamoTableSchema.executeTransaction(context, [
-            ChatTable.transactionDirectlyUpdateItem({
-                ...chatMessageItem,
-                payload: {type: "Deleted", deletedTime},
-            }),
-            ChatTable.transactionDirectlyUpdateItemAttribute(
-                {partitionType: "Chat", sortRangeType: "Attributes", chatId},
-                "messagesSummary",
-                {
-                    nextMessageIndex: chatItem.messagesSummary.nextMessageIndex,
-                    lastChangeTime: deletedTime,
-                    messageCount: chatItem.messagesSummary.messageCount,
-                },
-                {updateLockVersion: chatItem.updateLockVersion},
-            ),
-            // Create-or-replace is safe because the change time is guaranteed to be unique
-            // and monotonically increasing.
+            transactionEntry,
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
-                sortRangeType: "MessageChangeLog",
+                sortRangeType: "MessageUpdates",
                 chatId,
-                changeTime: deletedTime,
+                eventTime: deletedTime,
                 messageIndex: chatMessageItem.messageIndex,
-                change: {type: "Delete"},
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(deletedTime, messagingEventExpirationDays),
             }),
         ]);
 
@@ -2180,7 +2179,10 @@ export function deleteChatMessage(
             },
         });
 
-        return {deletedTime};
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            deletedTime,
+        };
     });
 }
 
@@ -2299,7 +2301,6 @@ export async function getChatMessagesFromStart(
     messageCount: number;
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
-    lastMessageChangeTime: Date | null;
 }> {
     const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
@@ -2325,7 +2326,6 @@ export async function getChatMessagesFromStart(
         ),
         messages,
         otherReferencedMessages,
-        lastMessageChangeTime: chatItem.messagesSummary.lastChangeTime,
     };
 }
 
@@ -2549,7 +2549,6 @@ export async function getChatMessagesFromEnd(
     messageCount: number;
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
-    lastMessageChangeTime: Date | null;
 }> {
     const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
@@ -2575,7 +2574,6 @@ export async function getChatMessagesFromEnd(
         ),
         messages,
         otherReferencedMessages,
-        lastMessageChangeTime: chatItem.messagesSummary.lastChangeTime,
     };
 }
 
@@ -2799,15 +2797,6 @@ export async function getChatMessagePayloadsFromEnd(
     };
 }
 
-export type ChatMessageChangesResult =
-    | {
-          type: "Available";
-          changes: Array<MessageChange>;
-      }
-    | {
-          type: "Unavailable";
-      };
-
 /**
  * Backfills any missing messages or message updates for a client. The client
  * provides what it knows to be the message count and last change time then we
@@ -2829,25 +2818,24 @@ export async function backfillChatMessages(
     context: ServerSessionActionContext,
     {
         chatId,
+        checkpoint,
         clientMessageCount,
-        clientLastMessageChangeTime,
         newMessageLimit,
     }: {
         chatId: ChatId;
+        checkpoint: ServerSynchronizationCheckpoint;
         clientMessageCount: number;
-        clientLastMessageChangeTime: Date | null;
         newMessageLimit: number;
     },
 ): Promise<{
     messageCount: number;
-    lastMessageChangeTime: Date | null;
     newMessages: Array<ChatMessageModel>;
     newOtherReferencedMessages: Array<ChatMessageModel>;
-    messageChangesResult: ChatMessageChangesResult;
+    messageUpdatesResult: MessageUpdatesBackfillResult<ChatMessageModel>;
 }> {
     const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
-    const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
+    const [chatItem, {messages, otherReferencedMessages}, messageUpdatesResult] =
         await runAllPromises([
             chatItemPromise,
             getChatMessagesFromStartAssumingAuthorizedChat(context, {
@@ -2862,27 +2850,23 @@ export async function backfillChatMessages(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
-            chatItemPromise.then(chatItem =>
-                queryChatMessageChangeLogAssumingAuthorizedPost(context, {
-                    chatItem,
-                    lastMessageChangeTime: clientLastMessageChangeTime,
-                    // Use a strong read consistency when backfilling. This guarantees the caller
-                    // will observe all realtime events before this function call. Realtime events
-                    // that happen during the function call may be missed. You should be subscribed
-                    // to new realtime events before starting to backfill.
-                    consistency: "Strong",
-                }),
-            ),
+            runBackfillMessageUpdates(context, {
+                checkpoint,
+                queryMessageUpdates: (context, options) =>
+                    ChatTable.query(context, {
+                        partitionKey: {partitionType: "Chat", chatId},
+                        ...options,
+                    }),
+                getMessageIfExists: (context, messageIndex, options) =>
+                    getChatMessageItemIfExists(context, chatId, messageIndex, options),
+                createMessageModelFromItem: async (context, item) => {
+                    const {spaceId} = await chatItemPromise;
+                    return createChatMessageModelFromItem(context, spaceId, chatId, item);
+                },
+            }),
         ]);
 
     const lastMessageIndex = messages.length > 0 ? messages[messages.length - 1]!.index : -1;
-
-    const lastMessageChangeTime =
-        messageChangesResult.type === "Available" && messageChangesResult.changes.length > 0
-            ? getMessageChangeTime(
-                  messageChangesResult.changes[messageChangesResult.changes.length - 1]!,
-              )
-            : null;
 
     return {
         messageCount: Math.max(
@@ -2891,107 +2875,10 @@ export async function backfillChatMessages(
             // consistency race conditions.
             lastMessageIndex + 1,
         ),
-        lastMessageChangeTime:
-            lastMessageChangeTime &&
-            // Make sure `lastMessageChangeTime` is consistent with
-            // `messageChangesResult` in case of eventual consistency race conditions.
-            (!chatItem.messagesSummary.lastChangeTime ||
-                lastMessageChangeTime > chatItem.messagesSummary.lastChangeTime)
-                ? lastMessageChangeTime
-                : chatItem.messagesSummary.lastChangeTime,
         newMessages: messages,
         newOtherReferencedMessages: otherReferencedMessages,
-        messageChangesResult,
+        messageUpdatesResult,
     };
-}
-
-async function queryChatMessageChangeLogAssumingAuthorizedPost(
-    context: ServerActionContext,
-    {
-        chatItem,
-        lastMessageChangeTime,
-        consistency = "Eventual",
-    }: {
-        chatItem: ChatAttributesItem;
-        lastMessageChangeTime: Date | null;
-        consistency?: DynamoReadConsistency;
-    },
-): Promise<ChatMessageChangesResult> {
-    // No changes occurred during the backfill period, there is nothing we need
-    // to query.
-    if (chatItem.messagesSummary.lastChangeTime?.getTime() === lastMessageChangeTime?.getTime())
-        return {type: "Available", changes: []};
-
-    const lastMessageChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
-        lastMessageChangeTime ?? chatItem.createdTime,
-    );
-
-    // If our last change item may have expired then other relevant changelog entries
-    // may have also expired. The client will need to fully reset its state since
-    // we don't have the data necessary to backfill.
-    if (
-        isDatePossiblyLessThanWithUncertaintyWindow(
-            lastMessageChangeExpirationTime,
-            // Use `Date.now()` so tests can mock the `Date.now()` function.
-            new Date(Date.now()),
-        )
-    ) {
-        return {type: "Unavailable"};
-    }
-
-    const changes = await parallelMapAsyncIterableToArray(
-        ChatTable.query(context, {
-            partitionKey: {
-                partitionType: "Chat",
-                chatId: chatItem.chatId,
-            },
-            startSortKey: {
-                sortRangeType: "MessageChangeLog",
-                changeTime: new Date((lastMessageChangeTime ?? chatItem.createdTime).getTime() + 1),
-            },
-            endSortKey: {
-                sortRangeType: "MessageChangeLog",
-                changeTime: DynamoKeyAttributeSchema.date.maxValue,
-            },
-            limit: "All",
-            consistency,
-        }),
-        async (item): Promise<MessageChange> => {
-            switch (item.change.type) {
-                case "UpdateContent": {
-                    return {
-                        type: "UpdateContent",
-                        index: item.messageIndex,
-                        content: {
-                            doc: item.change.content,
-                            // Don't propagate `consistency` when loading content references. We
-                            // accept references can have eventual consistency.
-                            references: await getMessageContentReferencesForNode(
-                                context,
-                                chatItem.spaceId,
-                                item.change.content,
-                            ),
-                        },
-                        contentUpdate: {
-                            time: item.changeTime,
-                            mappings: item.change.contentUpdateMappings,
-                        },
-                    };
-                }
-                case "Delete": {
-                    return {
-                        type: "Delete",
-                        index: item.messageIndex,
-                        deletedTime: item.changeTime,
-                    };
-                }
-                default:
-                    throw exhaustive(item.change);
-            }
-        },
-    );
-
-    return {type: "Available", changes};
 }
 
 /**

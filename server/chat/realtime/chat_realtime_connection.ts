@@ -10,6 +10,7 @@ import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
+    GetMessageAtVersionFunction,
     GetMessageReferencesFunction,
     MessagingRealtimeConnection,
     UpdateMessageContentFunction,
@@ -31,6 +32,7 @@ import {
 import {
     backfillChatMessages,
     deleteChatMessage,
+    getChatMessageAtVersion,
     getChatMessageReferences,
     sendChatMessage,
     updateChatMessageContent,
@@ -77,6 +79,7 @@ export class ChatRealtimeConnection {
             updateMessageContent,
             deleteMessage,
             backfillMessages,
+            getMessageAtVersion,
             getMessageReferences,
             createMessageModel,
         });
@@ -181,16 +184,29 @@ const deleteMessage: DeleteMessageFunction<ChatId> = (context, {roomKey: chatId,
 
 const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = async (
     context,
-    {roomKey: chatId, clientMessageCount, clientLastMessageChangeTime, newMessageLimit},
+    {roomKey: chatId, checkpoint, clientMessageCount, newMessageLimit},
 ) => {
     const result = await backfillChatMessages(context, {
         chatId,
+        checkpoint,
         clientMessageCount,
-        clientLastMessageChangeTime,
         newMessageLimit,
     });
 
     return {...result, extra: null};
+};
+
+const getMessageAtVersion: GetMessageAtVersionFunction<ChatId, ChatMessageModel> = async (
+    context,
+    {roomKey: chatId, messageIndex, version},
+) => {
+    const {message} = await getChatMessageAtVersion(context, {
+        chatId,
+        messageIndex,
+        version,
+    });
+
+    return message;
 };
 
 const getMessageReferences: GetMessageReferencesFunction<ChatId> = async (
@@ -213,6 +229,7 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
     return new ChatMessageModel({
         chatId,
         index: message.index,
+        version: message.version,
         createdTime: message.createdTime,
         author: references.author,
         payload: {

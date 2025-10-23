@@ -1,6 +1,5 @@
-import {addSeconds} from "date-fns";
+import {addDays, addSeconds} from "date-fns";
 import {Mapping, Step, StepResult} from "prosemirror-transform";
-import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionedAccountIdsInContent,
@@ -10,7 +9,6 @@ import {
     ServerActionContext,
     ServerBotActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
     DynamoCacheReadConsistency,
     DynamoReadConsistency,
@@ -20,10 +18,7 @@ import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
-import {
-    ForumRealtimeTable,
-    PostAttributesItem,
-} from "~/server/forum/data/internal/forum_realtime_table.js";
+import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {
     PostItemAuthorizationCache,
@@ -31,10 +26,13 @@ import {
 } from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {
+    messagingEventExpirationDays,
+    runBackfillMessageUpdates,
+} from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -60,13 +58,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, isMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -74,6 +70,8 @@ import {
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
+import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
  * Add a new comment to a post.
@@ -251,7 +249,6 @@ export async function createPostComment(
                 "commentsSummary",
                 {
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex + 1,
-                    lastChangeTime: postItem.commentsSummary.lastChangeTime,
                     commentCountByAuthorId: newCommentCountByAuthorId,
                     mentionCountByAccountId: newMentionCountByAccountId,
                 },
@@ -731,6 +728,42 @@ export async function getPostComment(
 }
 
 /**
+ * Get a post comment with a version that's either equal to or greater than the
+ * provided version.
+ */
+export async function getPostCommentAtVersion(
+    context: ServerActionContext,
+    {postId, commentIndex, version}: {postId: PostId; commentIndex: number; version: number},
+): Promise<PostCommentModel> {
+    const [{spaceId}, item] = await runAllPromises([
+        authorizePostAccess(context, postId, "View"),
+        (async () => {
+            let item = await getPostCommentItemIfExists(context, postId, commentIndex, {
+                consistency: "Eventual",
+            });
+
+            if (!item || item.version < version) {
+                item = await getPostCommentItemIfExists(context, postId, commentIndex, {
+                    consistency: "Strong",
+                });
+            }
+
+            if (!item) {
+                throw createPostCommentNotFoundError(postId, commentIndex);
+            }
+
+            if (item.version < version) {
+                throw new FailedPreconditionError("Can’t get message at a future version");
+            }
+
+            return item;
+        })(),
+    ]);
+
+    return createPostCommentModelFromItem(context, spaceId, postId, item);
+}
+
+/**
  * Get a single post comment's payload.
  */
 export async function getPostCommentPayload(
@@ -786,6 +819,7 @@ async function createPostCommentModelFromItem(
     return new PostCommentModel({
         postId,
         index: item.index,
+        version: item.version,
         author,
         createdTime: item.createdTime,
         payload,
@@ -811,6 +845,7 @@ export function updatePostCommentContent(
     },
 ): Promise<{
     spaceId: SpaceId;
+    version: number;
     content: MessageContent;
     contentUpdate: MessageContentPayloadContentUpdate;
 }> {
@@ -891,21 +926,9 @@ export function updatePostCommentContent(
         }
 
         const contentUpdate: MessageContentPayloadContentUpdate = {
-            time: new Date(
-                Math.max(
-                    (postItem.commentsSummary.lastChangeTime ?? postItem.createdTime).getTime() + 1,
-                    Date.now(),
-                ),
-            ),
+            time: new Date(),
             mappings: [...(commentItem.payload.contentUpdate?.mappings ?? emptyArray), mapping],
         };
-
-        // `lastChangeTime` should always be greater than or equal
-        // to `contentUpdatedTime`.
-        assert(
-            !commentItem.payload.contentUpdate ||
-                contentUpdate.time > commentItem.payload.contentUpdate.time,
-        );
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             postItem.commentsSummary.mentionCountByAccountId,
@@ -913,15 +936,18 @@ export function updatePostCommentContent(
             content,
         );
 
+        const transactionEntry = ForumTable.transactionDirectlyUpdateItem({
+            ...commentItem,
+            payload: {
+                ...commentItem.payload,
+                content,
+                contentUpdate,
+            },
+        });
+
         await DynamoTableSchema.executeTransaction(context, [
-            ForumTable.transactionDirectlyUpdateItem({
-                ...commentItem,
-                payload: {
-                    ...commentItem.payload,
-                    content,
-                    contentUpdate,
-                },
-            }),
+            transactionEntry,
+
             // Ok for us to not tell the client about a comment summary update through our
             // general realtime system. Instead, comment counts will be updated through the
             // messaging realtime system.
@@ -930,26 +956,22 @@ export function updatePostCommentContent(
                 "commentsSummary",
                 {
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex,
-                    lastChangeTime: contentUpdate.time,
                     commentCountByAuthorId: postItem.commentsSummary.commentCountByAuthorId,
                     mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
-            // Create-or-replace is safe because the change time is guaranteed to be unique
-            // and monotonically increasing.
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
-                sortRangeType: "CommentChangeLog",
+                sortRangeType: "MessageUpdates",
                 postId,
-                changeTime: contentUpdate.time,
-                commentIndex: commentItem.commentIndex,
-                change: {
-                    type: "UpdateContent",
-                    content,
-                    contentUpdateMappings: contentUpdate.mappings,
-                },
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdate.time),
+                eventTime: contentUpdate.time,
+                messageIndex: commentItem.commentIndex,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(contentUpdate.time, messagingEventExpirationDays),
             }),
         ]);
 
@@ -964,7 +986,12 @@ export function updatePostCommentContent(
             },
         });
 
-        return {spaceId, content, contentUpdate};
+        return {
+            spaceId,
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            content,
+            contentUpdate,
+        };
     });
 }
 
@@ -974,7 +1001,7 @@ export function updatePostCommentContent(
 export function deletePostComment(
     context: ServerAccountActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
-): Promise<{deletedTime: Date}> {
+): Promise<{version: number; deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const postItemConsistency: DynamoReadConsistency = "Eventual";
 
@@ -1025,19 +1052,7 @@ export function deletePostComment(
         if (commentItem.payload.clerical)
             throw new FailedPreconditionError("Can’t delete clerical comments");
 
-        const deletedTime = new Date(
-            Math.max(
-                (postItem.commentsSummary.lastChangeTime ?? postItem.createdTime).getTime() + 1,
-                Date.now(),
-            ),
-        );
-
-        // `lastChangeTime` should always be greater than or equal
-        // to `deletedTime`.
-        assert(
-            !commentItem.payload.contentUpdate ||
-                deletedTime > commentItem.payload.contentUpdate.time,
-        );
+        const deletedTime = new Date();
 
         const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
             postItem.commentsSummary.mentionCountByAccountId,
@@ -1045,11 +1060,14 @@ export function deletePostComment(
             null,
         );
 
+        const transactionEntry = ForumTable.transactionDirectlyUpdateItem({
+            ...commentItem,
+            payload: {type: "Deleted", deletedTime},
+        });
+
         await DynamoTableSchema.executeTransaction(context, [
-            ForumTable.transactionDirectlyUpdateItem({
-                ...commentItem,
-                payload: {type: "Deleted", deletedTime},
-            }),
+            transactionEntry,
+
             // Ok for us to not tell the client about a comment summary update through our
             // general realtime system. Instead, comment counts will be updated through the
             // messaging realtime system.
@@ -1058,22 +1076,22 @@ export function deletePostComment(
                 "commentsSummary",
                 {
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex,
-                    lastChangeTime: deletedTime,
                     commentCountByAuthorId: postItem.commentsSummary.commentCountByAuthorId,
                     mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
-            // Create-or-replace is safe because the change time is guaranteed to be unique
-            // and monotonically increasing.
+
+            // Create-or-replace is safe because `eventTime`, `messageIndex`, and `version`
+            // are all in the item key. So we won't be replacing any existing update item.
             ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
-                sortRangeType: "CommentChangeLog",
+                sortRangeType: "MessageUpdates",
                 postId,
-                changeTime: deletedTime,
-                commentIndex: commentItem.commentIndex,
-                change: {type: "Delete"},
-                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
+                eventTime: deletedTime,
+                messageIndex: commentItem.commentIndex,
+                version: transactionEntry.newItem.updateLockVersion ?? 0,
+                expirationTime: addDays(deletedTime, messagingEventExpirationDays),
             }),
         ]);
 
@@ -1088,7 +1106,10 @@ export function deletePostComment(
             },
         });
 
-        return {deletedTime};
+        return {
+            version: transactionEntry.newItem.updateLockVersion ?? 0,
+            deletedTime,
+        };
     });
 }
 
@@ -1224,7 +1245,6 @@ export async function getPostCommentsFromStart(
     commentCount: number;
     comments: Array<PostCommentModel>;
     otherReferencedComments: Array<PostCommentModel>;
-    lastCommentChangeTime: Date | null;
 }> {
     const postItemConsistency: DynamoReadConsistency = "Eventual";
 
@@ -1275,7 +1295,6 @@ export async function getPostCommentsFromStart(
         ),
         comments,
         otherReferencedComments,
-        lastCommentChangeTime: postItem.commentsSummary.lastChangeTime,
     };
 }
 
@@ -1519,7 +1538,6 @@ export async function getPostCommentsFromEnd(
     commentCount: number;
     comments: Array<PostCommentModel>;
     otherReferencedComments: Array<PostCommentModel>;
-    lastCommentChangeTime: Date | null;
 }> {
     const postItemConsistency: DynamoReadConsistency = "Eventual";
 
@@ -1569,7 +1587,6 @@ export async function getPostCommentsFromEnd(
         ),
         comments,
         otherReferencedComments,
-        lastCommentChangeTime: postItem.commentsSummary.lastChangeTime,
     };
 }
 
@@ -1815,15 +1832,6 @@ export async function getPostCommentPayloadsFromEnd(
     };
 }
 
-export type PostCommentChangesResult =
-    | {
-          type: "Available";
-          changes: Array<MessageChange>;
-      }
-    | {
-          type: "Unavailable";
-      };
-
 /**
  * Backfills any missing comments or comment updates for a client. The client
  * provides what it knows to be the comment count and last change time then we
@@ -1845,21 +1853,20 @@ export async function backfillPostComments(
     context: ServerActionContext,
     {
         postId,
+        checkpoint,
         clientCommentCount,
-        clientLastCommentChangeTime,
         newCommentLimit,
     }: {
         postId: PostId;
+        checkpoint: ServerSynchronizationCheckpoint;
         clientCommentCount: number;
-        clientLastCommentChangeTime: Date | null;
         newCommentLimit: number;
     },
 ): Promise<{
     commentCount: number;
-    lastCommentChangeTime: Date | null;
     newComments: Array<PostCommentModel>;
     newOtherReferencedComments: Array<PostCommentModel>;
-    commentChangesResult: PostCommentChangesResult;
+    commentUpdatesResult: MessageUpdatesBackfillResult<PostCommentModel>;
 }> {
     const postItemConsistency: DynamoReadConsistency = "Eventual";
 
@@ -1880,25 +1887,12 @@ export async function backfillPostComments(
     // to authorize later in the action it's available.
     PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
-    const [[postItem, commentChangesResult], {comments, otherReferencedComments}] =
+    const [postItem, {comments, otherReferencedComments}, commentUpdatesResult] =
         await runAllPromises([
             postItemPromise.then(async postItem => {
                 if (!postItem) throw createPostNotFoundError(postId);
-
-                const [, commentChangesResult] = await runAllPromises([
-                    authorizeChannelAccess(context, postItem.channelId, "View"),
-                    queryPostCommentChangeLogAssumingAuthorizedPost(context, {
-                        postItem,
-                        lastCommentChangeTime: clientLastCommentChangeTime,
-                        // Use a strong read consistency when backfilling. This guarantees the caller
-                        // will observe all realtime events before this function call. Realtime events
-                        // that happen during the function call may be missed. You should be subscribed
-                        // to new realtime events before starting to backfill.
-                        consistency: "Strong",
-                    }),
-                ]);
-
-                return [postItem, commentChangesResult] as const;
+                await authorizeChannelAccess(context, postItem.channelId, "View");
+                return postItem;
             }),
             getPostCommentsFromStartAssumingAuthorizedPost(context, {
                 postId,
@@ -1916,16 +1910,24 @@ export async function backfillPostComments(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
+            runBackfillMessageUpdates(context, {
+                checkpoint,
+                queryMessageUpdates: (context, options) =>
+                    ForumTable.query(context, {
+                        partitionKey: {partitionType: "Post", postId},
+                        ...options,
+                    }),
+                getMessageIfExists: (context, messageIndex, options) =>
+                    getPostCommentItemIfExists(context, postId, messageIndex, options),
+                createMessageModelFromItem: async (context, item) => {
+                    const postItem = await postItemPromise;
+                    if (!postItem) throw createPostNotFoundError(postId);
+                    return createPostCommentModelFromItem(context, postItem.spaceId, postId, item);
+                },
+            }),
         ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
-
-    const lastCommentChangeTime =
-        commentChangesResult.type === "Available" && commentChangesResult.changes.length > 0
-            ? getMessageChangeTime(
-                  commentChangesResult.changes[commentChangesResult.changes.length - 1]!,
-              )
-            : null;
 
     return {
         commentCount: Math.max(
@@ -1938,109 +1940,8 @@ export async function backfillPostComments(
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        lastCommentChangeTime:
-            lastCommentChangeTime &&
-            // Make sure `lastCommentChangeTime` is consistent with
-            // `commentChangesResult` in case of eventual consistency race conditions.
-            (!postItem.commentsSummary.lastChangeTime ||
-                lastCommentChangeTime > postItem.commentsSummary.lastChangeTime)
-                ? lastCommentChangeTime
-                : postItem.commentsSummary.lastChangeTime,
         newComments: comments,
         newOtherReferencedComments: otherReferencedComments,
-        commentChangesResult,
+        commentUpdatesResult,
     };
-}
-
-async function queryPostCommentChangeLogAssumingAuthorizedPost(
-    context: ServerActionContext,
-    {
-        postItem,
-        lastCommentChangeTime,
-        consistency = "Eventual",
-    }: {
-        postItem: Pick<
-            PostAttributesItem,
-            "postId" | "spaceId" | "createdTime" | "commentsSummary"
-        >;
-        lastCommentChangeTime: Date | null;
-        consistency?: DynamoCacheReadConsistency;
-    },
-): Promise<PostCommentChangesResult> {
-    // No changes occurred during the backfill period, there is nothing we need
-    // to query.
-    if (postItem.commentsSummary.lastChangeTime?.getTime() === lastCommentChangeTime?.getTime())
-        return {type: "Available", changes: []};
-
-    const lastCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
-        lastCommentChangeTime ?? postItem.createdTime,
-    );
-
-    // If our last change item has expired then other relevant changelog entries
-    // may have also expired. The client will need to fully reset its state since
-    // we don't have the data necessary to backfill.
-    if (
-        isDatePossiblyLessThanWithUncertaintyWindow(
-            lastCommentChangeExpirationTime,
-            // Use `Date.now()` so tests can mock the `Date.now()` function.
-            new Date(Date.now()),
-        )
-    ) {
-        return {type: "Unavailable"};
-    }
-
-    const changes = await parallelMapAsyncIterableToArray(
-        ForumTable.query(context, {
-            partitionKey: {
-                partitionType: "Post",
-                postId: postItem.postId,
-            },
-            startSortKey: {
-                sortRangeType: "CommentChangeLog",
-                changeTime: new Date((lastCommentChangeTime ?? postItem.createdTime).getTime() + 1),
-            },
-            endSortKey: {
-                sortRangeType: "CommentChangeLog",
-                changeTime: DynamoKeyAttributeSchema.date.maxValue,
-            },
-            limit: "All",
-            consistency,
-        }),
-        async (item): Promise<MessageChange> => {
-            switch (item.change.type) {
-                case "UpdateContent": {
-                    return {
-                        type: "UpdateContent",
-                        index: item.commentIndex,
-                        content: {
-                            doc: item.change.content,
-
-                            // Don't propagate `consistency` when loading content references. We
-                            // accept references can have eventual consistency.
-                            references: await getMessageContentReferencesForNode(
-                                context,
-                                postItem.spaceId,
-                                item.change.content,
-                            ),
-                        },
-                        contentUpdate: {
-                            time: item.changeTime,
-                            mappings: item.change.contentUpdateMappings,
-                        },
-                    };
-                }
-                case "Delete": {
-                    return {
-                        type: "Delete",
-                        index: item.commentIndex,
-                        deletedTime: item.changeTime,
-                    };
-                }
-                default:
-                    throw exhaustive(item.change);
-            }
-        },
-    );
-
-    return {type: "Available", changes};
 }

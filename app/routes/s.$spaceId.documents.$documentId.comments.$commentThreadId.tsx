@@ -36,10 +36,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
     commentThread: DocumentCommentThreadModel.schema(),
+    initialCheckpoint: ServerSynchronizationCheckpointSchema,
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
@@ -59,6 +64,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
     const clientInfo = context.loader.getClientInfo();
     const platform = getInitialAppRenderPlatform(clientInfo);
     const spacingScale = getInitialAppRenderSpacingScale(clientInfo);
+
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
         await runAllPromises([
@@ -86,6 +95,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     return jsonWithSchema(LoaderSchema, {
         document,
         commentThread,
+        initialCheckpoint: checkpoint,
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
         inboxEntry,
@@ -115,6 +125,7 @@ export default function DocumentCommentThreadRoute() {
     const {
         document: initialDocument,
         commentThread,
+        initialCheckpoint,
         initialComments,
         initialOtherReferencedComments,
         inboxEntry,
@@ -125,6 +136,7 @@ export default function DocumentCommentThreadRoute() {
         content,
         procedures,
         subscribeToCommentThreadEvents,
+        subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
     } = useDocumentContentEditorWebSocket({
         documentId: initialDocument.id,
@@ -149,6 +161,7 @@ export default function DocumentCommentThreadRoute() {
             isConnected={isConnected}
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+            subscribeToPongs={subscribeToPongs}
             unpersistedResolutionStateByCommentThreadId={
                 unpersistedResolutionStateByCommentThreadId
             }
@@ -169,6 +182,7 @@ export default function DocumentCommentThreadRoute() {
             })}
             initialCommentThreadResults={[
                 {
+                    checkpoint: initialCheckpoint,
                     commentThread,
                     comments: initialComments,
                     otherReferencedComments: initialOtherReferencedComments,

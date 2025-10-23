@@ -5,7 +5,6 @@ import {
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -13,9 +12,11 @@ import {
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
+    createMessageUpdatesBackfillResultSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
@@ -36,24 +37,17 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
         /** See `backfillMessages` in `messaging_realtime_protocol.ts`. */
         backfillComments: {
             input: {
+                checkpoint: ServerSynchronizationCheckpointSchema,
                 clientCommentCount: Schema.integer,
-                clientLastCommentChangeTime: Schema.date.nullable(),
                 newCommentLimit: Schema.integer,
             },
             output: {
                 commentCount: Schema.integer,
-                lastCommentChangeTime: Schema.date.nullable(),
                 newComments: Schema.array(PostCommentModel.schema()),
                 newOtherReferencedComments: Schema.array(PostCommentModel.schema()),
-                commentChangesResult: Schema.union({
-                    Available: Schema.object({
-                        type: Schema.value("Available"),
-                        changes: Schema.array(MessageChangeSchema),
-                    }),
-                    Unavailable: Schema.object({
-                        type: Schema.value("Unavailable"),
-                    }),
-                }),
+                commentUpdatesResult: createMessageUpdatesBackfillResultSchema(
+                    PostCommentModel.schema(),
+                ),
                 typingStateByConnectionId: Schema.map(
                     Schema.id<WebSocketConnectionId>(),
                     MessagingTypingStateSchema,

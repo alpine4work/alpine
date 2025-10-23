@@ -21,6 +21,7 @@ import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const spaceId = generateId<SpaceId>();
 const channelId = generateId<ChannelId>();
@@ -179,7 +180,6 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -195,7 +195,6 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -211,7 +210,6 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 20,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -227,7 +225,6 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -243,7 +240,6 @@ test("can insert some posts into the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -318,7 +314,6 @@ test("can toggle the comments for a post open", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -334,7 +329,6 @@ test("can toggle the comments for a post open", () => {
         content: testContent2WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -350,7 +344,6 @@ test("can toggle the comments for a post open", () => {
         content: testContent3WithReferences,
         contentUpdate: null,
         commentCount: 20,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -366,7 +359,6 @@ test("can toggle the comments for a post open", () => {
         content: testContent4WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -382,7 +374,6 @@ test("can toggle the comments for a post open", () => {
         content: testContent5WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -614,7 +605,6 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -630,7 +620,6 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -646,7 +635,6 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -662,7 +650,6 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 20,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -678,7 +665,6 @@ test("can insert some posts into the end with already open comments", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -773,7 +759,6 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -789,7 +774,6 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -805,7 +789,6 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -821,7 +804,6 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 20,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -837,7 +819,6 @@ test("can update the post comments list", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -881,7 +862,10 @@ test("can update the post comments list", () => {
     ]);
 
     list = list.updatePostComments(post3.id, () =>
-        MessageList.new({messageCount: 3, lastMessageChangeTime: null}),
+        MessageList.new({
+            checkpoint: generateServerSynchronizationCheckpointForTest(),
+            messageCount: 3,
+        }),
     );
 
     expect(getItems(list)).toEqual([
@@ -897,7 +881,10 @@ test("can update the post comments list", () => {
     ]);
 
     list = list.updatePostComments(post3.id, () =>
-        MessageList.new({messageCount: 7, lastMessageChangeTime: null}),
+        MessageList.new({
+            checkpoint: generateServerSynchronizationCheckpointForTest(),
+            messageCount: 7,
+        }),
     );
 
     expect(getItems(list)).toEqual([
@@ -947,7 +934,6 @@ test("can add a channel header at the beginning", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -963,7 +949,6 @@ test("can add a channel header at the beginning", () => {
         content: testContent2WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -979,7 +964,6 @@ test("can add a channel header at the beginning", () => {
         content: testContent3WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -995,7 +979,6 @@ test("can add a channel header at the beginning", () => {
         content: testContent4WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -1011,7 +994,6 @@ test("can add a channel header at the beginning", () => {
         content: testContent5WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -1123,7 +1105,6 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent1WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -1139,7 +1120,6 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent2WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),
@@ -1155,7 +1135,6 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent3WithReferences,
         contentUpdate: null,
         commentCount: 5,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -1171,7 +1150,6 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent4WithReferences,
         contentUpdate: null,
         commentCount: 1,
-        lastCommentChangeTime: null,
         commentAuthorCount: 1,
         previewCommentAuthors: [account1],
         reactions: new ReactionSet(emptyMap),
@@ -1187,7 +1165,6 @@ test("can add an unloaded posts section at the end", () => {
         content: testContent5WithReferences,
         contentUpdate: null,
         commentCount: 0,
-        lastCommentChangeTime: null,
         commentAuthorCount: 0,
         previewCommentAuthors: [],
         reactions: new ReactionSet(emptyMap),

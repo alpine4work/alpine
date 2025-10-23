@@ -191,8 +191,8 @@ export function useDynamoGeneralRealtimeQueryBase<Model, Extra>(
         return subscribeToEvents(handleEvent);
     }, [handleEvent, subscribeToEvents]);
 
-    // Whenever we get a pong from the WebSocket, update our checkpoint since data
-    // is up-to-date up until this checkpoint.
+    // Whenever we get a pong from the WebSocket, update our checkpoint so we know
+    // data is up-to-date as of this new time.
     useEffect(() => {
         return subscribeToPongs(({checkpoint}) => query.setMutableCheckpoint(checkpoint));
     }, [query, subscribeToPongs]);

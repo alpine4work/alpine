@@ -260,12 +260,6 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             nextCommentIndex: Schema.integer.min(0),
 
                             /**
-                             * The last time a comment was changed. This should equal the `changeTime` of
-                             * the highest item in `CommentChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
-
-                            /**
                              * All the accounts which have commented on the post and the number of comments
                              * they have made. The map is ordered by when the account first commented on
                              * the post.
@@ -683,7 +677,6 @@ async function createPostModelFromItem(
         } | null;
         readonly commentsSummary: {
             readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
-            readonly lastChangeTime: Date | null;
         };
         readonly reactions: ReactionSet;
         readonly updateLockVersion?: number;
@@ -729,7 +722,6 @@ async function createPostModelFromItem(
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,
             0,
         ),
-        lastCommentChangeTime: item.commentsSummary.lastChangeTime,
         commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
         previewCommentAuthors,
         reactions: item.reactions,

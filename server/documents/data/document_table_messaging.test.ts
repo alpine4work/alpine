@@ -311,7 +311,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+        const {commentCount, comments, otherReferencedComments} =
             await getDocumentCommentsFromStart(context, {
                 documentId,
                 commentThreadId,
@@ -324,7 +324,6 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             messageCount: commentCount,
             messages: comments,
             otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
         };
     },
     async getMessagesFromEnd(
@@ -338,20 +337,21 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getDocumentCommentsFromEnd(context, {
+        const {commentCount, comments, otherReferencedComments} = await getDocumentCommentsFromEnd(
+            context,
+            {
                 documentId,
                 commentThreadId,
                 limit,
                 afterCommentIndex,
                 beforeCommentIndex,
-            });
+            },
+        );
 
         return {
             messageCount: commentCount,
             messages: comments,
             otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
         };
     },
     async getMessagePayloadsFromStart(
@@ -390,33 +390,27 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         context,
         {
             roomKey,
+            checkpoint,
             clientMessageCount: clientCommentCount,
-            clientLastMessageChangeTime: clientLastCommentChangeTime,
             newMessageLimit: newCommentLimit,
         },
     ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        const {
-            commentCount,
-            lastCommentChangeTime,
-            newComments,
-            newOtherReferencedComments,
-            commentChangesResult,
-        } = await backfillDocumentComments(context, {
-            documentId,
-            commentThreadId,
-            clientCommentCount,
-            clientLastCommentChangeTime,
-            newCommentLimit,
-        });
+        const {commentCount, newComments, newOtherReferencedComments, commentUpdatesResult} =
+            await backfillDocumentComments(context, {
+                documentId,
+                commentThreadId,
+                checkpoint,
+                clientCommentCount,
+                newCommentLimit,
+            });
 
         return {
             messageCount: commentCount,
-            lastMessageChangeTime: lastCommentChangeTime,
             newMessages: newComments,
             newOtherReferencedMessages: newOtherReferencedComments,
-            messageChangesResult: commentChangesResult,
+            messageUpdatesResult: commentUpdatesResult,
         };
     },
     spacePermissionDeniedErrorMessage: "Account doesn’t have access to space",

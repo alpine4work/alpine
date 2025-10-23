@@ -9,6 +9,7 @@ type CommentQueryItem = {
     readonly createdTime: Date;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
+    readonly updateLockVersion?: number;
 };
 
 type CommentQueryStreamItem = {
@@ -91,6 +92,7 @@ export async function* processCommentsQuery(
 
         const comment: MessageItem = {
             index: currentItem.commentIndex,
+            version: currentItem.updateLockVersion ?? 0,
             createdTime: currentItem.createdTime,
             authorId: currentItem.authorId,
             payload: currentItem.payload,

@@ -9,7 +9,6 @@ import {
     DocumentWithOptionalTitleContentSchema,
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -18,13 +17,11 @@ import {
     DocumentId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -59,12 +56,6 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
          * The index of the next comment.
          */
         nextCommentIndex: Schema.integer.min(0),
-
-        /**
-         * The last time a comment was changed. This should equal the `changeTime` of
-         * the highest item in `CommentChangeLog`.
-         */
-        lastChangeTime: Schema.date.nullable().default(null),
 
         /**
          * All the accounts which have commented in this thread and the number of comments
@@ -145,7 +136,7 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
     }),
 });
 
-// type DocumentStepCountByAccountId = InstanceType<typeof DocumentStepCountByAccountId>;
+type DocumentStepCountByAccountId = InstanceType<typeof DocumentStepCountByAccountId>;
 
 const DocumentStepCountByAccountId = createSchemaLazyTransformClass<
     Uint8Array,
@@ -578,21 +569,44 @@ export const DocumentsTable = DynamoTableSchema.new({
                 },
 
                 /**
-                 * We keep a log of changes to comments so that when backfilling for realtime
-                 * we can send any missed updates between the last time data was loaded and
-                 * the backfill.
+                 * Whenever a message is updated we add a `MessageUpdates` item. So when
+                 * clients need to backfill realtime events they missed while disconnected from
+                 * a WebSocket server they can query this sort range to catch up.
                  *
-                 * `changeTime` should be monotonically increasing which is managed by
-                 * `lastChangeTime` in `commentsSummary`.
+                 * The event includes the `messageIndex` and the new `version` of the message.
+                 * During backfill we load the new version of the item.
                  *
-                 * This log does not include when comments are created, only updated or
-                 * deleted. Because comment indexes are dense we can take the last seen comment
-                 * index and load comments after that to backfill.
+                 * This sort range has a similar design to the `Events` sort range in
+                 * `DynamoGeneralRealtimeTableSchema`.
                  *
-                 * Log items will expire after a certain amount of time. If a client hasn't
-                 * backfilled in a long time it will need to fully reload since we won't know
-                 * what changed.
+                 * IMPORTANT: This does not include realtime events for streaming messages!
+                 * Streaming messages are updated with a different realtime system that's more
+                 * efficient for the streaming use case.
+                 *
+                 * Named `MessageUpdates` instead of `CommentUpdates` so we can have shared
+                 * utilities for querying this sort range that work across all messaging
+                 * surfaces.
                  */
+                {
+                    name: "MessageUpdates",
+                    sortKeyAttributes: {
+                        // NOTE(calebmer): Reversed so if we ever wanted to backfill in one query we
+                        // could. Through a query that starts at the client's last `messageIndex` and
+                        // ends at the checkpoint's `eventTime`.
+                        eventTime: DynamoKeyAttributeSchema.date.reverse(),
+                        // All the data is in the key so we can safely use create-or-replace to add
+                        // items to the table without worrying we're overriding some other data.
+                        messageIndex: DynamoKeyAttributeSchema.integer,
+                        version: DynamoKeyAttributeSchema.integer,
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+
+                // NOTE(calebmer, 2025-10-13): We changed the format for messaging realtime
+                // events to a new sort range: `MessageUpdates`. Leaving this around until all
+                // old `CommentChangeLog` items expire. At which point we can remove this from
+                // the DynamoDB schema.
                 {
                     name: "CommentChangeLog",
                     sortKeyAttributes: {
@@ -601,21 +615,7 @@ export const DocumentsTable = DynamoTableSchema.new({
                     withExpirationTime: "Required",
                     attributes: Schema.object({
                         commentIndex: Schema.integer,
-                        change: Schema.union({
-                            UpdateContent: Schema.object({
-                                type: Schema.value("UpdateContent"),
-                                content: MessageContentSchema,
-                                contentUpdateMappings:
-                                    Schema.array(ProsemirrorMappingSchema).default(emptyArray),
-                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                            Delete: Schema.object({
-                                type: Schema.value("Delete"),
-                                // `deletedTime` is the `changeTime` sort key attribute. We don't
-                                // duplicate it here.
-                            }),
-                        }),
+                        change: Schema.unknown(),
                     }),
                 },
             ],

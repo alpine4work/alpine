@@ -12,7 +12,14 @@ import {MessageModel} from "~/shared/messaging/message_model.js";
  *
  * The `range` is designed to be a `<VirtualizedScrollView>`s rendered range.
  */
-export function tryLoadingMessages<Message extends MessageModel>({
+export function tryLoadingMessages<
+    Message extends MessageModel,
+    Result extends {
+        messageCount: number;
+        messages: ReadonlyArray<Message>;
+        otherReferencedMessages: ReadonlyArray<Message>;
+    },
+>({
     viewHeight,
     messages,
     range,
@@ -26,20 +33,12 @@ export function tryLoadingMessages<Message extends MessageModel>({
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
-    }) => Promise<{
-        messageCount: number;
-        messages: ReadonlyArray<Message>;
-        otherReferencedMessages: ReadonlyArray<Message>;
-    }>;
+    }) => Promise<Result>;
     loadFromEnd: (options: {
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
-    }) => Promise<{
-        messageCount: number;
-        messages: ReadonlyArray<Message>;
-        otherReferencedMessages: ReadonlyArray<Message>;
-    }>;
+    }) => Promise<Result>;
 }):
     | {
           isLoading: false;
@@ -47,11 +46,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
     | {
           isLoading: true;
           wasJump: boolean;
-          promise: Promise<{
-              messageCount: number;
-              messages: ReadonlyArray<Message>;
-              otherReferencedMessages: ReadonlyArray<Message>;
-          }>;
+          promise: Promise<Result>;
       } {
     range = messages.getMessagesRange(range);
     if (!range) return {isLoading: false};

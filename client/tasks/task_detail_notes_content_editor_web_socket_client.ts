@@ -30,6 +30,7 @@ import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 export type TaskNotesContentEditorState = CollaborativeContentEditorState<
     TaskNotesContentWithReferences,
@@ -398,5 +399,9 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 subscriber(event.event);
             }
         });
+    }
+
+    public subscribeToPongs(subscriber: (message: WebSocketPongMessage) => void) {
+        return this._client.subscribeToPongs(subscriber);
     }
 }

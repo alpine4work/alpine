@@ -164,6 +164,8 @@ import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -211,6 +213,7 @@ type DocumentContentEditorSidebarTransition = {
 };
 
 type DocumentContentEditorSidebarData = {
+    readonly checkpoint: ServerSynchronizationCheckpoint;
     readonly commentThread: DocumentCommentThreadModel;
     readonly initialComments: ReadonlyArray<DocumentCommentModel>;
     readonly initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
@@ -233,6 +236,7 @@ export function DocumentContentEditor({
     documentId: DocumentId;
     initialDocument: DocumentModel | null;
     initialCommentThreadResult: {
+        checkpoint: ServerSynchronizationCheckpoint;
         commentThread: DocumentCommentThreadModel;
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
@@ -889,6 +893,7 @@ export function DocumentContentEditor({
                 if (data.commentThread === null) return null;
 
                 return {
+                    checkpoint: data.checkpoint,
                     commentThread: data.commentThread,
                     initialComments: data.initialComments,
                     initialOtherReferencedComments: data.initialOtherReferencedComments,
@@ -1967,6 +1972,7 @@ export function DocumentContentEditor({
                                     isConnected={isConnected}
                                     procedures={procedures}
                                     subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                    subscribeToPongs={subscribeToPongs}
                                     unpersistedResolutionStateByCommentThreadId={
                                         unpersistedResolutionStateByCommentThreadId
                                     }
@@ -2299,6 +2305,7 @@ function DocumentContentEditorSidebar({
     isConnected,
     procedures,
     subscribeToCommentThreadEvents,
+    subscribeToPongs,
     unpersistedResolutionStateByCommentThreadId,
     totalDecoratedCommentThreads,
     decorations,
@@ -2320,6 +2327,7 @@ function DocumentContentEditorSidebar({
     isConnected: boolean;
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
     unpersistedResolutionStateByCommentThreadId: ReadonlyMap<
         DocumentCommentThreadId,
         {readonly isResolved: boolean; readonly version: number}
@@ -2594,6 +2602,7 @@ function DocumentContentEditorSidebar({
                                 onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                                 initialCommentThreadResults={[
                                     {
+                                        checkpoint: initialDataResult.value.checkpoint,
                                         commentThread: initialDataResult.value.commentThread,
                                         comments: initialDataResult.value.initialComments,
                                         otherReferencedComments:
@@ -2605,6 +2614,7 @@ function DocumentContentEditorSidebar({
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                                subscribeToPongs={subscribeToPongs}
                                 unpersistedResolutionStateByCommentThreadId={
                                     unpersistedResolutionStateByCommentThreadId
                                 }
@@ -2663,6 +2673,7 @@ function DocumentContentEditorSidebar({
                         routeLayout,
                         spacingScale,
                         subscribeToCommentThreadEvents,
+                        subscribeToPongs,
                         unpersistedResolutionStateByCommentThreadId,
                     ],
                 )}

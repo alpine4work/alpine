@@ -48,10 +48,15 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema().nullable(),
     commentThreadResult: Schema.object({
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentThread: DocumentCommentThreadModel.schema(),
         initialComments: Schema.array(DocumentCommentModel.schema()),
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
@@ -76,11 +81,19 @@ export async function loader({params, context: unauthenticatedContext, request}:
         await runAllPromises([
             getDocumentWithOptionalCommentsIfExists(context, documentId),
             commentThreadId
-                ? getDocumentCommentThreadAndInitialComments(context, {
-                      documentId,
-                      commentThreadId,
-                      limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                  })
+                ? (async () => {
+                      // Generate checkpoint before we start loading data. So when we backfill we
+                      // include any realtime events that happened while loading data.
+                      const checkpoint = generateServerSynchronizationCheckpoint();
+
+                      const output = await getDocumentCommentThreadAndInitialComments(context, {
+                          documentId,
+                          commentThreadId,
+                          limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+                      });
+
+                      return {checkpoint, ...output};
+                  })()
                 : null,
             isSearchFavoriteEntity(context, {
                 spaceId,

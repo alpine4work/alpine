@@ -6,16 +6,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {Id} from "~/shared/id/id.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageModel,
     OptimisticMessageModel,
     areMessagePayloadModelsEqual,
-    getLastChangedMessage,
 } from "~/shared/messaging/message_model.js";
 import {MessageStream, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export type MessageListItem<Message extends MessageModel> =
     | MessageListLoadedItem<Message>
@@ -59,34 +58,157 @@ export type MessageListTypingIndicatorsItem = {
  * may be partially loaded at any time with gaps between messages.
  */
 export class MessageList<Message extends MessageModel> {
+    /**
+     * The number of messages in the list excluding optimistic messages.
+     *
+     * This corresponds to the `messageCount` property we receive when loading
+     * a message list. Or that's on the messaging room model (e.g. `PostModel`'s
+     * `commentCount` property).
+     *
+     * When getting the message count from `MessageList` we required you to make
+     * an explicit choice between "including optimistic messages" or "excluding
+     * optimistic messages" to avoid bugs. For example, in the UI when rendering a
+     * message count you may want to include optimistic messages but when running a
+     * realtime event backfill you may want to exclude optimistic messages since
+     * the server might not know about optimistic messages yet.
+     */
     private readonly _messageCountExcludingOptimisticMessages: number;
+
+    /**
+     * The loaded messages in our list.
+     *
+     * Messages are a dense list with no gaps. If you have a message at index 8
+     * then you know there's a message at index 7, 6, 5, etc. If you have a
+     * `messageCount` of 100 then you know the first message's index is 0 and the
+     * last message's index is 99. This allows you to paginate to arbitrary points
+     * within the message list with ease.
+     *
+     * However, the _loaded_ messages on the client are sparse! We don't always
+     * have the full message list loaded in memory. In a chat with 1000 messages we
+     * may only have the last 20 messages loaded. If one of those 20 messages is a
+     * reply to message with index 532 then this property will have the last 20
+     * messages (indexes 979-999) and index 532 loaded (so we can render the
+     * content of message 532).
+     *
+     * If the user clicks on that reply then we'll load the messages around index
+     * 532 and jump the user to that position. At that point this property may have
+     * the original messages (indexes 979-999) in addition to 20 new messages
+     * around index 532 (indexes 522-542).
+     *
+     * This is a binary tree so we have O(log(n)) time complexity for
+     * immutable insertion/updates.
+     */
     private readonly _messages: Tree<number, Message>;
+
+    /**
+     * Tracks ranges of unloaded messages in the list.
+     *
+     * Allows us to efficiently ask "what's the first unloaded message after index
+     * N" without doing an O(n) scan through the loaded messages data.
+     */
+    // TODO: Document this format. I'll be honest, it's been a while since I wrote
+    // this code and I forget the exact format. This file could also use tests too.
+    // It's something like a range of loaded (or unloaded) messages is represented
+    // by a pair of `Lower`/`Upper` values. One at the start of the loaded (or
+    // unloaded) message range and one at the end.
     private readonly _unloadedMessages: Tree<number, "Upper" | "Lower">;
+
+    /**
+     * Optimistic messages are messages that haven't been created on the server yet
+     * but we're rendering as a part of the message list on the client so the UI
+     * for sending messages feels instant.
+     *
+     * These messages are rendered at the end of the message list and haven't been
+     * given `index`s yet. Since only the server can decide the final `index` for a
+     * new message.
+     *
+     * If the user sends a message and before it's been saved on the server, the
+     * client receives a `NewMessage` event from another user then that message
+     * will be rendered _above_ our optimistic message since once the server
+     * finishes saving our new message it'll end up with a later `index` anyway.
+     */
     private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
-    private readonly _lastMessageChangeTime: Date | null;
-    private readonly _unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
+
+    /**
+     * Tracks state for typing indicators. When a user starts typing an entry is
+     * added to this map. When they stop typing the same entry is removed from
+     * this map.
+     */
     private readonly _typingStateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
         MessagingTypingState
     >;
+
+    /**
+     * This is a mutable piece of state inside our otherwise immutable data type.
+     * A functional programming sin! However, we do it since it's practical.
+     *
+     * The `ServerSynchronizationCheckpoint` tells us how up-to-date our client's
+     * realtime data is based on what's on the server. When we backfill realtime
+     * events we send our checkpoint to the server and the server will return all
+     * realtime events that happened between the checkpoint and now. So for example
+     * if our WebSocket disconnects for two minutes because the user lost internet,
+     * when the WebSocket reconnects we'll send the last checkpoint we had from the
+     * server (which is the time two minutes ago) and receive all realtime events
+     * we missed while we were disconnected.
+     *
+     * The `ServerSynchronizationCheckpoint` is set:
+     *
+     * 1. When we initially load data.
+     *
+     * 2. Every `Ping`/`Pong` message from our WebSocket server. Since while we're
+     *    connected to the WebSocket server we know we're seeing all realtime
+     *    events. As soon as the WebSocket disconnects (and we stop receiving
+     *    `Pong` messages) our client data may be falling out-of-date with the
+     *    server since there's realtime events we're not seeing.
+     *
+     * We ping the WebSocket server every minute. If this were an immutable
+     * property on the list we'd end up re-rendering the entire view
+     * depending on this list once per minute. Which feels inefficient. Especially
+     * if the user is actively interacting with the view and we block some other
+     * update.
+     *
+     * Instead, we update a mutable property on the data type. This makes the data
+     * type "impure" in a functional programming sense but it's fine, we're not
+     * caching and reusing these objects. Making this a mutable property may be a
+     * premature optimization but mutability just doesn't seem like a big
+     * deal here.
+     */
+    private _mutableCheckpoint: ServerSynchronizationCheckpoint | null;
 
     private constructor({
         messageCountExcludingOptimisticMessages,
         messages,
         unloadedMessages,
         optimisticMessages,
-        lastMessageChangeTime,
-        unloadedMessageChangeByIndex,
         typingStateByConnectionId,
+        mutableCheckpoint,
     }: {
         messageCountExcludingOptimisticMessages: number;
         messages: Tree<number, Message>;
         unloadedMessages: Tree<number, "Upper" | "Lower">;
         optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
-        lastMessageChangeTime: Date | null;
-        unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
         typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
+        mutableCheckpoint: ServerSynchronizationCheckpoint | null;
     }) {
+        // Make sure the checkpoint is set before we start loading messages into our
+        // `MessageList`. If we don't have a checkpoint then we can't backfill realtime
+        // events! If we can't backfill realtime events then we don't have a successful
+        // realtime connection.
+        //
+        // We allow the `MessageList` to have a null checkpoint to support specifically
+        // `<PostListView>` with collapsed post comments. When a post's comments are
+        // opened we start loading the initial comments, if the initial comments don't
+        // return after ~100ms then we open the post's comments anyway to show loading
+        // shimmers. So we need a `MessageList` in this case for when we haven't
+        // finished loading post comments yet.
+        if (mutableCheckpoint === null) {
+            assert(
+                messages.length === 0,
+                "If `checkpoint` is null then there should be no loaded messages in the `MessageList`",
+            );
+        }
+
         if (process.env.NODE_ENV !== "production") {
             assert(
                 !messages.begin.node || messages.begin.node.key >= 0,
@@ -142,18 +264,19 @@ export class MessageList<Message extends MessageModel> {
         this._messages = messages;
         this._unloadedMessages = unloadedMessages;
         this._optimisticMessages = optimisticMessages;
-        this._lastMessageChangeTime = lastMessageChangeTime;
-        this._unloadedMessageChangeByIndex = unloadedMessageChangeByIndex;
         this._typingStateByConnectionId = typingStateByConnectionId;
+        this._mutableCheckpoint = mutableCheckpoint;
     }
 
     public static new<Message extends MessageModel>({
+        checkpoint,
         messageCount,
-        lastMessageChangeTime,
         typingStateByConnectionId,
     }: {
+        // Will throw if this is null and you try to call `loadMessages()`!
+        // `checkpoint` can only be null while all messages are unloaded.
+        checkpoint: ServerSynchronizationCheckpoint | null;
         messageCount: number;
-        lastMessageChangeTime: Date | null;
         typingStateByConnectionId?: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
     }): MessageList<Message> {
         return new MessageList({
@@ -161,11 +284,10 @@ export class MessageList<Message extends MessageModel> {
             messages: createTree(),
             unloadedMessages: createTree(),
             optimisticMessages: [],
-            lastMessageChangeTime,
-            unloadedMessageChangeByIndex: ImmutableMap.empty(),
             typingStateByConnectionId: typingStateByConnectionId
                 ? ImmutableMap.from(typingStateByConnectionId)
                 : ImmutableMap.empty(),
+            mutableCheckpoint: checkpoint,
         });
     }
 
@@ -179,6 +301,14 @@ export class MessageList<Message extends MessageModel> {
             this._optimisticMessages.length +
             (this._typingStateByConnectionId.size > 0 ? 1 : 0)
         );
+    }
+
+    /**
+     * Get the number of loaded messages in this list. This excludes optimistic
+     * messages and any unloaded messages.
+     */
+    public getLoadedMessageCount(): number {
+        return this._messages.length;
     }
 
     /**
@@ -201,14 +331,6 @@ export class MessageList<Message extends MessageModel> {
      */
     public hasTypingIndicatorsItem() {
         return this._typingStateByConnectionId.size > 0;
-    }
-
-    /**
-     * Get the last message change time our list knows about. We will use this to
-     * backfill changes the list doesn't know about.
-     */
-    public getLastMessageChangeTime(): Date | null {
-        return this._lastMessageChangeTime;
     }
 
     /**
@@ -464,35 +586,8 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
-        });
-    }
-
-    /**
-     * Increase last message change time for this list. If the last change time is
-     * less than the current last change time we won't change anything.
-     */
-    private _setLastMessageChangeTime(lastMessageChangeTime: Date | null): MessageList<Message> {
-        if (
-            !(
-                (!lastMessageChangeTime && this._lastMessageChangeTime) ||
-                !this._lastMessageChangeTime ||
-                (lastMessageChangeTime && this._lastMessageChangeTime < lastMessageChangeTime)
-            )
-        ) {
-            return this;
-        }
-
-        return new MessageList({
-            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
-            messages: this._messages,
-            unloadedMessages: this._unloadedMessages,
-            optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
-            typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -508,29 +603,21 @@ export class MessageList<Message extends MessageModel> {
         let messages = this._messages;
         let unloadedMessages = this._unloadedMessages;
         let optimisticMessages = this._optimisticMessages;
-        let unloadedMessageChangeByIndex = this._unloadedMessageChangeByIndex;
 
         const loadedMessageRanges: Array<{startIndex: number; endIndex: number}> = [];
 
-        for (let message of newMessages) {
-            let change: MessageChange | undefined;
-            [change, unloadedMessageChangeByIndex] = unloadedMessageChangeByIndex.getAndDelete(
-                message.index,
-            );
-
-            // If we are loading a message that was changed by realtime, apply the change
-            // now before inserting it.
-            if (change) message = changeMessage(message, change);
-
+        for (const message of newMessages) {
             const iterator = messages.find(message.index);
 
-            // Only override the existing message if it has a later change time. Otherwise
-            // keep the current message in the map.
-            if (iterator.value) message = getLastChangedMessage(iterator.value, message);
-
-            messages = iterator.node
-                ? iterator.update(message)
-                : messages.insert(message.index, message);
+            if (iterator.value && iterator.value.version >= message.version) {
+                // Only override the existing message if it has a later version. Otherwise
+                // keep the current message in the map.
+                continue;
+            } else {
+                messages = iterator.node
+                    ? iterator.update(message)
+                    : messages.insert(message.index, message);
+            }
 
             messageCount = Math.max(messageCount, message.index + 1);
 
@@ -677,9 +764,8 @@ export class MessageList<Message extends MessageModel> {
             messages,
             unloadedMessages,
             optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -695,14 +781,23 @@ export class MessageList<Message extends MessageModel> {
         messageCount,
         messages,
         otherReferencedMessages,
+        updatedMessages,
     }: {
         messageCount: number;
         messages: ReadonlyArray<Message>;
         otherReferencedMessages: ReadonlyArray<Message>;
+        updatedMessages?: ReadonlyArray<Message>;
     }): MessageList<Message> {
-        return this._setMessageCountExcludingOptimisticMessages(messageCount)
-            ._setMessages(messages)
-            ._setMessages(otherReferencedMessages);
+        let self = this._setMessageCountExcludingOptimisticMessages(messageCount);
+
+        self = self._setMessages(messages);
+        self = self._setMessages(otherReferencedMessages);
+
+        if (updatedMessages) {
+            self = self._setMessages(updatedMessages);
+        }
+
+        return self;
     }
 
     /**
@@ -714,31 +809,23 @@ export class MessageList<Message extends MessageModel> {
      */
     public backfillMessages({
         messageCount,
-        lastMessageChangeTime,
         newMessages,
         newOtherReferencedMessages,
-        messageChanges,
+        updatedMessages,
         typingStateByConnectionId,
     }: {
         messageCount: number;
-        lastMessageChangeTime: Date | null;
         newMessages: ReadonlyArray<Message>;
         newOtherReferencedMessages: ReadonlyArray<Message>;
-        messageChanges: ReadonlyArray<MessageChange>;
+        updatedMessages: ReadonlyArray<Message>;
         typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
     }) {
         let self = this.loadMessages({
             messageCount,
             messages: newMessages,
             otherReferencedMessages: newOtherReferencedMessages,
+            updatedMessages,
         });
-
-        self = self._setLastMessageChangeTime(lastMessageChangeTime);
-
-        self = messageChanges.reduce(
-            (messages, change) => messages.changeLoadedMessage(change),
-            self,
-        );
 
         self = self._setTypingStateByConnectionId(typingStateByConnectionId);
 
@@ -750,7 +837,7 @@ export class MessageList<Message extends MessageModel> {
      * than our message count then we will extend the message count. If the message
      * with the same index already exists then it will be replaced.
      */
-    public addMessage(message: Message): MessageList<Message> {
+    public setMessage(message: Message): MessageList<Message> {
         return this._setMessages([message]);
     }
 
@@ -766,94 +853,9 @@ export class MessageList<Message extends MessageModel> {
             unloadedMessages: this._unloadedMessages,
             messages: this._messages,
             optimisticMessages: [...this._optimisticMessages, message],
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
-    }
-
-    /**
-     * Updates a message at the specified index in the list. If the message at that
-     * index is not loaded or out of bounds then this function does nothing.
-     *
-     * Excludes optimistic messages. If the index is an optimistic message we will
-     * ignore and do nothing.
-     */
-    public changeLoadedMessage(change: MessageChange): MessageList<Message> {
-        const iterator = this._messages.find(change.index);
-
-        // If we have not loaded the message at the changed index, then stash the
-        // change in a map so that if we load the message in the future the change
-        // can be applied.
-        //
-        // This supports the (rare) race condition where we get a change from realtime
-        // that is not reflected in a `getMessagesFromEnd()` call soon to resolve after
-        // because `getMessagesFromEnd()` is using eventual consistency.
-        if (!iterator.value) {
-            return new MessageList({
-                messageCountExcludingOptimisticMessages:
-                    this._messageCountExcludingOptimisticMessages,
-                messages: this._messages,
-                unloadedMessages: this._unloadedMessages,
-                optimisticMessages: this._optimisticMessages,
-                lastMessageChangeTime: this._lastMessageChangeTime,
-                unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex.update(
-                    change.index,
-                    lastChange => {
-                        if (!lastChange) return change;
-                        return getMessageChangeTime(change) < getMessageChangeTime(lastChange)
-                            ? lastChange
-                            : change;
-                    },
-                ),
-                typingStateByConnectionId: this._typingStateByConnectionId,
-            });
-        }
-
-        const message = iterator.value;
-
-        switch (change.type) {
-            case "UpdateContent": {
-                const newMessage = changeMessage(message, change);
-                if (newMessage === message) return this;
-
-                return new MessageList({
-                    messageCountExcludingOptimisticMessages:
-                        this._messageCountExcludingOptimisticMessages,
-                    messages: iterator.update(newMessage),
-                    unloadedMessages: this._unloadedMessages,
-                    optimisticMessages: this._optimisticMessages,
-                    lastMessageChangeTime:
-                        !this._lastMessageChangeTime ||
-                        change.contentUpdate.time > this._lastMessageChangeTime
-                            ? change.contentUpdate.time
-                            : this._lastMessageChangeTime,
-                    unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
-                    typingStateByConnectionId: this._typingStateByConnectionId,
-                });
-            }
-            case "Delete": {
-                const newMessage = changeMessage(message, change);
-                if (newMessage === message) return this;
-
-                return new MessageList({
-                    messageCountExcludingOptimisticMessages:
-                        this._messageCountExcludingOptimisticMessages,
-                    messages: iterator.update(newMessage),
-                    unloadedMessages: this._unloadedMessages,
-                    optimisticMessages: this._optimisticMessages,
-                    lastMessageChangeTime:
-                        !this._lastMessageChangeTime ||
-                        change.deletedTime > this._lastMessageChangeTime
-                            ? change.deletedTime
-                            : this._lastMessageChangeTime,
-                    unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
-                    typingStateByConnectionId: this._typingStateByConnectionId,
-                });
-            }
-            default:
-                throw exhaustive(change);
-        }
     }
 
     /**
@@ -873,10 +875,75 @@ export class MessageList<Message extends MessageModel> {
                     ? update(optimisticMessage)
                     : optimisticMessage,
             ),
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
+    }
+
+    /**
+     * Has the checkpoint been initialized?
+     *
+     * Whether or not the checkpoint has been initialized is an immutable fact. So
+     * if you depend on this your effect/component will re-run when the checkpoint
+     * is initialized.
+     */
+    public isCheckpointInitialized(): boolean {
+        return this._mutableCheckpoint !== null;
+    }
+
+    /**
+     * Initialize the `MessageList`'s checkpoint if it hasn't already
+     * been initialized.
+     *
+     * This is an immutable update to trigger a re-render. So any effects that were
+     * waiting on the checkpoint can now run.
+     */
+    public initializeCheckpointIfNeeded(
+        checkpoint: ServerSynchronizationCheckpoint,
+    ): MessageList<Message> {
+        // Checkpoint is already initialized.
+        if (this._mutableCheckpoint !== null) return this;
+
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages: this._messages,
+            unloadedMessages: this._unloadedMessages,
+            optimisticMessages: this._optimisticMessages,
+            typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: checkpoint,
+        });
+    }
+
+    /**
+     * Get the current mutable checkpoint property.
+     *
+     * Throws if `isCheckpointInitialized()` is false.
+     */
+    public getMutableCheckpoint(): ServerSynchronizationCheckpoint {
+        assert(
+            this._mutableCheckpoint !== null,
+            "`checkpoint` hasn’t been initialized in `MessageList`",
+        );
+
+        return this._mutableCheckpoint;
+    }
+
+    /**
+     * Set the mutable checkpoint property on this query object. Noops if the
+     * provided `checkpoint` is older than the current checkpoint.
+     *
+     * Throws if `isCheckpointInitialized()` is false.
+     */
+    public setMutableCheckpoint(checkpoint: ServerSynchronizationCheckpoint): void {
+        assert(
+            this._mutableCheckpoint !== null,
+            "`checkpoint` hasn’t been initialized in `MessageList`",
+        );
+
+        this._mutableCheckpoint =
+            this._mutableCheckpoint.getTime() < checkpoint.getTime()
+                ? checkpoint
+                : this._mutableCheckpoint;
     }
 
     /**
@@ -898,9 +965,8 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: newTypingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -916,11 +982,10 @@ export class MessageList<Message extends MessageModel> {
             messages: this._messages,
             unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: typingState
                 ? this._typingStateByConnectionId.set(connectionId, typingState)
                 : this._typingStateByConnectionId.delete(connectionId),
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -936,6 +1001,10 @@ export class MessageList<Message extends MessageModel> {
         const iterator = this._messages.find(event.index);
         if (!iterator.value) return this;
 
+        // TODO(calebmer, #ai-realtime-hacks): What if we receive a
+        // `PutMessageStreamPart` event before a `NewMessage` event? I don't think
+        // there's anything in `MessagingRealtimeConnection` that stops this from
+        // happening right now.
         const message = iterator.value;
         if (message.payload.type !== "Content") return this;
         if (!message.stream) return this;
@@ -1008,9 +1077,8 @@ export class MessageList<Message extends MessageModel> {
             messages,
             unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
     }
 
@@ -1036,53 +1104,8 @@ export class MessageList<Message extends MessageModel> {
             messages,
             unloadedMessages: this._unloadedMessages,
             optimisticMessages: this._optimisticMessages,
-            lastMessageChangeTime: this._lastMessageChangeTime,
-            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
             typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
         });
-    }
-}
-
-function changeMessage<Message extends MessageModel>(
-    message: Message,
-    change: MessageChange,
-): Message {
-    switch (change.type) {
-        case "UpdateContent": {
-            // Do nothing if the message is deleted or the comment was updated at a later
-            // time then our message. There are no ordering guarantees for
-            // `changeLoadedMessage()`! So we have to enforce ordering with
-            // `contentUpdatedTime`.
-            if (
-                message.payload.type !== "Content" ||
-                (message.payload.contentUpdate !== null &&
-                    change.contentUpdate.time.getTime() <
-                        message.payload.contentUpdate.time.getTime())
-            ) {
-                return message;
-            }
-
-            return message.clone({
-                payload: {
-                    ...message.payload,
-                    content: change.content,
-                    contentUpdate: change.contentUpdate,
-                },
-            });
-        }
-        case "Delete": {
-            // Delete messages should only happen once and should only happen to
-            // content messages.
-            if (message.payload.type !== "Content") return message;
-
-            return message.clone({
-                payload: {
-                    type: "Deleted",
-                    deletedTime: change.deletedTime,
-                },
-            });
-        }
-        default:
-            throw exhaustive(change);
     }
 }

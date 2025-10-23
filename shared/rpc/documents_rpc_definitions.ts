@@ -22,7 +22,6 @@ import {
     DocumentId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentSchema,
     MessageContentStepSchema,
@@ -32,14 +31,13 @@ import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
 } from "~/shared/messaging/message_references.js";
-import {
-    MessageContentPayloadContentUpdateSchema,
-    MessageContentPayloadParentSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
+import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const authorizeDocumentAccess = defineRpc({
     name: "authorizeDocumentAccess",
@@ -210,7 +208,6 @@ export const getDocumentCommentsFromStart = defineRpc({
         commentCount: Schema.integer,
         comments: Schema.array(DocumentCommentModel.schema()),
         otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -227,7 +224,6 @@ export const getDocumentCommentsFromEnd = defineRpc({
         commentCount: Schema.integer,
         comments: Schema.array(DocumentCommentModel.schema()),
         otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -256,8 +252,7 @@ export const updateDocumentCommentContent = defineRpc({
         steps: Schema.array(MessageContentStepSchema),
     },
     output: {
-        content: MessageContentSchema,
-        contentUpdate: MessageContentPayloadContentUpdateSchema,
+        version: Schema.integer,
     },
 });
 
@@ -269,7 +264,7 @@ export const deleteDocumentComment = defineRpc({
         commentIndex: Schema.integer,
     },
     output: {
-        deletedTime: Schema.date,
+        version: Schema.integer,
     },
 });
 
@@ -278,25 +273,31 @@ export const backfillDocumentComments = defineRpc({
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        checkpoint: ServerSynchronizationCheckpointSchema,
         clientCommentCount: Schema.integer,
-        clientLastCommentChangeTime: Schema.date.nullable(),
         newCommentLimit: Schema.integer,
     },
     output: {
         commentThread: DocumentCommentThreadModel.schema(),
         commentCount: Schema.integer,
-        lastCommentChangeTime: Schema.date.nullable(),
         newComments: Schema.array(DocumentCommentModel.schema()),
         newOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
-        commentChangesResult: Schema.union({
-            Available: Schema.object({
-                type: Schema.value("Available"),
-                changes: Schema.array(MessageChangeSchema),
-            }),
-            Unavailable: Schema.object({
-                type: Schema.value("Unavailable"),
-            }),
-        }),
+        commentUpdatesResult: createMessageUpdatesBackfillResultSchema(
+            DocumentCommentModel.schema(),
+        ),
+    },
+});
+
+export const getDocumentCommentAtVersion = defineRpc({
+    name: "getDocumentCommentAtVersion",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentIndex: Schema.integer,
+        version: Schema.integer,
+    },
+    output: {
+        comment: DocumentCommentModel.schema(),
     },
 });
 

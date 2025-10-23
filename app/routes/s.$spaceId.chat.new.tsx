@@ -40,8 +40,13 @@ import {ChatId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {
+    ServerSynchronizationCheckpointSchema,
+    generateServerSynchronizationCheckpoint,
+} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
+    checkpoint: ServerSynchronizationCheckpointSchema,
     selectedAccounts: Schema.array(AccountModel.schema),
     selectedChat: Schema.object({
         chat: ChatModel.schema(),
@@ -62,6 +67,10 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     const selectedAccountIds = (url.searchParams.get("accounts")?.split(" ") ?? []).map(accountId =>
         deserializeAccountIdForLoader(accountId),
     );
+
+    // Generate checkpoint before we start loading data. So when we backfill we
+    // include any realtime events that happened while loading data.
+    const checkpoint = generateServerSynchronizationCheckpoint();
 
     const [selectedAccounts, selectedChatResult] = await runAllPromises([
         runAllPromises(
@@ -87,6 +96,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
+            checkpoint,
             selectedAccounts,
             selectedChat: selectedChatResult?.selectedChat ?? null,
             suggestedChats: selectedChatResult?.suggestedChats ?? [],
@@ -295,7 +305,11 @@ export default function NewChatRoute() {
                     />
                 </Box>
             </Box>
-            <NewChatMessagingView ref={messagingViewRef} selectedChat={loaderData.selectedChat} />
+            <NewChatMessagingView
+                ref={messagingViewRef}
+                initialCheckpoint={loaderData.checkpoint}
+                selectedChat={loaderData.selectedChat}
+            />
         </Box>
     );
 }

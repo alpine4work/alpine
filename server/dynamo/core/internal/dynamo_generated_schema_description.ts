@@ -865,15 +865,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 },
-                                                "lastChangeTime": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Date"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                },
                                                 "messageCount": {
                                                     "valueSchema": {
                                                         "type": "Integer"
@@ -1870,6 +1861,42 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "MessageUpdates": {
+                            "id": 4,
+                            "orderKey": "a2V",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                },
+                                "messageIndex": {
+                                    "type": "Integer"
+                                },
+                                "version": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "MessageChangeLog": {
                             "id": 3,
                             "orderKey": "a3",
@@ -1889,51 +1916,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "change": {
                                         "valueSchema": {
-                                            "type": "Union",
-                                            "typeKey": "type",
-                                            "variantSchemaByTypeValue": {
-                                                "UpdateContent": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "UpdateContent"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "content": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "05d7837f"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "contentUpdateMappings": {
-                                                            "valueSchema": {
-                                                                "type": "Array",
-                                                                "itemSchema": {
-                                                                    "type": "Reference",
-                                                                    "reuseReferenceId": "96bba2b8"
-                                                                }
-                                                            },
-                                                            "optional": true
-                                                        }
-                                                    }
-                                                },
-                                                "Delete": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "Delete"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            "type": "Unknown"
                                         },
                                         "optional": false
                                     },
@@ -5012,15 +4995,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 },
-                                                "lastChangeTime": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Date"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                },
                                                 "commentCountByAuthorId": {
                                                     "valueSchema": {
                                                         "type": "Map",
@@ -5358,6 +5332,42 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "MessageUpdates": {
+                            "id": 2,
+                            "orderKey": "a0V",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                },
+                                "messageIndex": {
+                                    "type": "Integer"
+                                },
+                                "version": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "CommentChangeLog": {
                             "id": 1,
                             "orderKey": "a1",
@@ -5377,51 +5387,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "change": {
                                         "valueSchema": {
-                                            "type": "Union",
-                                            "typeKey": "type",
-                                            "variantSchemaByTypeValue": {
-                                                "UpdateContent": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "UpdateContent"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "content": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "05d7837f"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "contentUpdateMappings": {
-                                                            "valueSchema": {
-                                                                "type": "Array",
-                                                                "itemSchema": {
-                                                                    "type": "Reference",
-                                                                    "reuseReferenceId": "96bba2b8"
-                                                                }
-                                                            },
-                                                            "optional": true
-                                                        }
-                                                    }
-                                                },
-                                                "Delete": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "Delete"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            "type": "Unknown"
                                         },
                                         "optional": false
                                     },
@@ -7170,6 +7136,42 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "MessageUpdates": {
+                            "id": 0,
+                            "orderKey": "a1V",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                },
+                                "messageIndex": {
+                                    "type": "Integer"
+                                },
+                                "version": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "CommentChangeLog": {
                             "id": 2,
                             "orderKey": "a2",
@@ -7189,51 +7191,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "change": {
                                         "valueSchema": {
-                                            "type": "Union",
-                                            "typeKey": "type",
-                                            "variantSchemaByTypeValue": {
-                                                "UpdateContent": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "UpdateContent"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "content": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "05d7837f"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "contentUpdateMappings": {
-                                                            "valueSchema": {
-                                                                "type": "Array",
-                                                                "itemSchema": {
-                                                                    "type": "Reference",
-                                                                    "reuseReferenceId": "96bba2b8"
-                                                                }
-                                                            },
-                                                            "optional": true
-                                                        }
-                                                    }
-                                                },
-                                                "Delete": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "Delete"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            "type": "Unknown"
                                         },
                                         "optional": false
                                     },
@@ -8131,15 +8089,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "type": "Integer"
                                                     },
                                                     "optional": false
-                                                },
-                                                "lastChangeTime": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Date"
-                                                        }
-                                                    },
-                                                    "optional": true
                                                 },
                                                 "commentCountByAuthorId": {
                                                     "valueSchema": {
@@ -11712,15 +11661,6 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "lastChangeTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
                                     "commentCountByAuthorId": {
                                         "valueSchema": {
                                             "type": "Map",
@@ -12509,6 +12449,42 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
+                        "MessageUpdates": {
+                            "id": 5,
+                            "orderKey": "a2V",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
+                                },
+                                "messageIndex": {
+                                    "type": "Integer"
+                                },
+                                "version": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
                         "CommentChangeLog": {
                             "id": 4,
                             "orderKey": "a3",
@@ -12528,51 +12504,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "change": {
                                         "valueSchema": {
-                                            "type": "Union",
-                                            "typeKey": "type",
-                                            "variantSchemaByTypeValue": {
-                                                "UpdateContent": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "UpdateContent"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "content": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "05d7837f"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "contentUpdateMappings": {
-                                                            "valueSchema": {
-                                                                "type": "Array",
-                                                                "itemSchema": {
-                                                                    "type": "Reference",
-                                                                    "reuseReferenceId": "96bba2b8"
-                                                                }
-                                                            },
-                                                            "optional": true
-                                                        }
-                                                    }
-                                                },
-                                                "Delete": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "type": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": "Delete"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            "type": "Unknown"
                                         },
                                         "optional": false
                                     },

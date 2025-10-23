@@ -85,6 +85,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
+import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
@@ -92,8 +93,8 @@ const LoaderSchema = Schema.object({
     notesVersion: Schema.integer,
     notesContent: TaskNotesContentWithReferencesSchema,
     initialComments: Schema.object({
+        checkpoint: ServerSynchronizationCheckpointSchema,
         commentCount: Schema.integer,
-        lastCommentChangeTime: Schema.date.nullable(),
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     }).nullable(),

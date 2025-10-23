@@ -11,6 +11,7 @@ import {
     deleteTaskAndAllChildren,
     deleteTaskComment,
     duplicateTaskAndAllChildren,
+    getTaskCommentAtVersion,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContentWithoutReferences,
@@ -23,6 +24,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definitions from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export default implementRpcs(definitions, {
     commitTaskActionTransaction: {
@@ -164,8 +166,10 @@ export default implementRpcs(definitions, {
 
     getTaskCommentsFromEnd: {
         visibility: ["AppClient"],
-        execute: (context, input) => {
-            return getTaskCommentsFromEnd(context.actor.authorizeSession(), input);
+        execute: async (context, input) => {
+            const checkpoint = generateServerSynchronizationCheckpoint();
+            const output = await getTaskCommentsFromEnd(context.actor.authorizeSession(), input);
+            return {...output, checkpoint};
         },
     },
 
@@ -185,12 +189,8 @@ export default implementRpcs(definitions, {
 
     updateTaskCommentContent: {
         visibility: ["TaskNotesCollaborationService"],
-        execute: async (context, input) => {
-            const {content, contentUpdate} = await updateTaskCommentContent(
-                context.actor.authorizeSession(),
-                input,
-            );
-            return {content, contentUpdate};
+        execute: (context, input) => {
+            return updateTaskCommentContent(context.actor.authorizeSession(), input);
         },
     },
 
@@ -205,6 +205,14 @@ export default implementRpcs(definitions, {
         visibility: ["TaskNotesCollaborationService"],
         execute: (context, input) => {
             return backfillTaskComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getTaskCommentAtVersion: {
+        visibility: ["TaskNotesCollaborationService"],
+        execute: async (context, input) => {
+            const comment = await getTaskCommentAtVersion(context.actor.authorizeSession(), input);
+            return {comment};
         },
     },
 

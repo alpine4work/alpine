@@ -202,6 +202,7 @@ export const apiForumPaths: Pick<
                         route: "/api/durable-objects/posts/:postId/broadcast-new-message",
                         body: MessagingRealtimeBroadcastNewMessageRequestSchema.serialize({
                             index,
+                            version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
                             payload,
@@ -216,6 +217,7 @@ export const apiForumPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, spaceId, {
                         index,
+                        version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
                         payload,

@@ -13,14 +13,17 @@ import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const NewChatMessagingViewForwardRef = forwardRef(NewChatMessagingView);
 export {NewChatMessagingViewForwardRef as NewChatMessagingView};
 
 function NewChatMessagingView(
     {
+        initialCheckpoint,
         selectedChat,
     }: {
+        initialCheckpoint: ServerSynchronizationCheckpoint;
         selectedChat: {
             chat: ChatModel;
             initialMessages: ReadonlyArray<ChatMessageModel>;
@@ -31,7 +34,7 @@ function NewChatMessagingView(
 ) {
     const context = useAppContext();
 
-    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+    const {isConnected, procedures, subscribeToEvents, subscribeToPongs} = useWebSocket(
         "ChatRealtimeService",
         ChatRealtimeProtocol,
         selectedChat ? `/api/durable-objects/chat/${selectedChat.chat.id}` : null,
@@ -55,16 +58,16 @@ function NewChatMessagingView(
             initialMessagesResult={
                 selectedChat
                     ? {
+                          checkpoint: initialCheckpoint,
                           messageCount: selectedChat.chat.messageCount,
                           messages: selectedChat.initialMessages,
                           otherReferencedMessages: selectedChat.initialOtherReferencedMessages,
-                          lastMessageChangeTime: selectedChat.chat.lastMessageChangeTime,
                       }
                     : {
+                          checkpoint: initialCheckpoint,
                           messageCount: 0,
                           messages: [],
                           otherReferencedMessages: [],
-                          lastMessageChangeTime: null,
                       }
             }
             header={chatMessagingViewHeaderItem}
@@ -118,6 +121,7 @@ function NewChatMessagingView(
             // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
             // @ts-ignore
             subscribeToEvents={subscribeToEvents}
+            subscribeToPongs={subscribeToPongs}
             getMessageUrl={useCallback(
                 messageIndex => {
                     // This should never throw through (mostly) coincidence. The only messages you

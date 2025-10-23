@@ -78,6 +78,7 @@ import {
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
+    getDocumentCommentAtVersion,
     getDocumentCommentReferences,
     getDocumentCommentThreadAndInitialCommentsIfExists,
     getDocumentCommentsFromEnd,
@@ -89,6 +90,7 @@ import {
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
     new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();
@@ -452,8 +454,8 @@ export class DocumentCollaborationConnection {
             context,
             {
                 commentThreadId,
+                checkpoint,
                 clientCommentCount: clientMessageCount,
-                clientLastCommentChangeTime: clientLastMessageChangeTime,
                 newCommentLimit: newMessageLimit,
             },
         ) => {
@@ -463,25 +465,23 @@ export class DocumentCollaborationConnection {
 
             const {
                 messageCount: commentCount,
-                lastMessageChangeTime: lastCommentChangeTime,
                 newMessages: newComments,
                 newOtherReferencedMessages: newOtherReferencedComments,
-                messageChangesResult: commentChangesResult,
+                messageUpdatesResult: commentUpdatesResult,
                 typingStateByConnectionId,
                 extra: {commentThread},
             } = await connection.backfillMessages(context, {
+                checkpoint,
                 clientMessageCount,
-                clientLastMessageChangeTime,
                 newMessageLimit,
             });
 
             return {
                 commentThread,
                 commentCount,
-                lastCommentChangeTime,
                 newComments,
                 newOtherReferencedComments,
-                commentChangesResult,
+                commentUpdatesResult,
                 typingStateByConnectionId,
             };
         },
@@ -540,15 +540,20 @@ export class DocumentCollaborationConnection {
             // comments processing! Which is why we don't use `withLock()`.
             await this._state.waitForUnlock();
 
+            // Generate checkpoint before we start loading data. So when we backfill we
+            // include any realtime events that happened while loading data.
+            const checkpoint = generateServerSynchronizationCheckpoint();
+
             const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
             );
 
             if (!optimisticCommentThread) {
-                return getDocumentCommentThreadAndInitialCommentsIfExists(context, {
+                const output = await getDocumentCommentThreadAndInitialCommentsIfExists(context, {
                     documentId: this._contentManager.id,
                     ...input,
                 });
+                return {checkpoint, ...output};
             }
 
             const {commentThread, comment} = await this._getOptimisticCommentThread(
@@ -558,6 +563,7 @@ export class DocumentCollaborationConnection {
             );
 
             return {
+                checkpoint,
                 commentThread,
                 initialComments: input.limit > 0 ? [comment] : [],
                 initialOtherReferencedComments: [],
@@ -602,7 +608,6 @@ export class DocumentCollaborationConnection {
                           ]
                         : [],
                 otherReferencedComments: [],
-                lastCommentChangeTime: null,
             };
         },
 
@@ -644,7 +649,6 @@ export class DocumentCollaborationConnection {
                           ]
                         : [],
                 otherReferencedComments: [],
-                lastCommentChangeTime: null,
             };
         },
 
@@ -995,8 +999,8 @@ export class DocumentCollaborationConnection {
                 context,
                 {
                     roomKey,
+                    checkpoint,
                     clientMessageCount: clientCommentCount,
-                    clientLastMessageChangeTime: clientLastCommentChangeTime,
                     newMessageLimit: newCommentLimit,
                 },
             ) => {
@@ -1011,6 +1015,8 @@ export class DocumentCollaborationConnection {
                     return context.tracer.withSpan(
                         "Comment thread hasn’t persisted so returning optimistic backfill",
                         async context => {
+                            const checkpoint = generateServerSynchronizationCheckpoint();
+
                             const {commentThread, comment} = await this._getOptimisticCommentThread(
                                 context,
                                 commentThreadId,
@@ -1019,11 +1025,14 @@ export class DocumentCollaborationConnection {
 
                             return {
                                 messageCount: 1,
-                                lastMessageChangeTime: null,
                                 newMessages:
                                     clientCommentCount < 1 && newCommentLimit > 0 ? [comment] : [],
                                 newOtherReferencedMessages: [],
-                                messageChangesResult: {type: "Available", changes: []},
+                                messageUpdatesResult: {
+                                    type: "Available",
+                                    checkpoint,
+                                    messages: [],
+                                },
                                 extra: {commentThread},
                             };
                         },
@@ -1033,26 +1042,46 @@ export class DocumentCollaborationConnection {
                 const {
                     commentThread,
                     commentCount,
-                    lastCommentChangeTime,
                     newComments,
                     newOtherReferencedComments,
-                    commentChangesResult,
+                    commentUpdatesResult,
                 } = await backfillDocumentComments(context, {
                     documentId,
                     commentThreadId,
+                    checkpoint,
                     clientCommentCount,
-                    clientLastCommentChangeTime,
                     newCommentLimit,
                 });
 
                 return {
                     messageCount: commentCount,
-                    lastMessageChangeTime: lastCommentChangeTime,
                     newMessages: newComments,
                     newOtherReferencedMessages: newOtherReferencedComments,
-                    messageChangesResult: commentChangesResult,
+                    messageUpdatesResult: commentUpdatesResult,
                     extra: {commentThread},
                 };
+            },
+            getMessageAtVersion: async (context, {roomKey, messageIndex, version}) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
+                if (optimisticCommentThread && version <= 0) {
+                    return this._getOptimisticCommentThreadComment(
+                        context,
+                        commentThreadId,
+                        optimisticCommentThread,
+                    );
+                }
+
+                const {comment} = await getDocumentCommentAtVersion(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex: messageIndex,
+                    version,
+                });
+
+                return comment;
             },
             getMessageReferences,
             createMessageModel,
@@ -1081,6 +1110,7 @@ export class DocumentCollaborationConnection {
             documentId: this._contentManager.id,
             commentThreadId,
             index: 0,
+            version: 0,
             author,
             createdTime: optimisticCommentThread.createdTime,
             payload: {
@@ -1118,7 +1148,6 @@ export class DocumentCollaborationConnection {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: comment.author,
             }),
         };
@@ -1149,6 +1178,7 @@ const createMessageModel: CreateMessageModelFunction<
         documentId,
         commentThreadId,
         index: message.index,
+        version: message.version,
         createdTime: message.createdTime,
         author: references.author,
         payload: {

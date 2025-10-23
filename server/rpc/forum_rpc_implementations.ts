@@ -20,6 +20,7 @@ import {
     backfillPostComments,
     createPostComment,
     deletePostComment,
+    getPostCommentAtVersion,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
@@ -36,6 +37,7 @@ import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import * as definitions from "~/shared/rpc/forum_rpc_definitions.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export default implementRpcs(definitions, {
     createChannel: {
@@ -221,14 +223,18 @@ export default implementRpcs(definitions, {
     getPostCommentsFromStart: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return getPostCommentsFromStart(context, input);
+            const checkpoint = generateServerSynchronizationCheckpoint();
+            const output = await getPostCommentsFromStart(context, input);
+            return {checkpoint, ...output};
         },
     },
 
     getPostCommentsFromEnd: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return getPostCommentsFromEnd(context, input);
+            const checkpoint = generateServerSynchronizationCheckpoint();
+            const output = await getPostCommentsFromEnd(context, input);
+            return {checkpoint, ...output};
         },
     },
 
@@ -264,12 +270,8 @@ export default implementRpcs(definitions, {
 
     updatePostCommentContent: {
         visibility: ["PostRealtimeService"],
-        execute: async (context, input) => {
-            const {content, contentUpdate} = await updatePostCommentContent(
-                context.actor.authorizeSession(),
-                input,
-            );
-            return {content, contentUpdate};
+        execute: (context, input) => {
+            return updatePostCommentContent(context.actor.authorizeSession(), input);
         },
     },
 
@@ -284,6 +286,14 @@ export default implementRpcs(definitions, {
         visibility: ["PostRealtimeService"],
         execute: (context, input) => {
             return backfillPostComments(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getPostCommentAtVersion: {
+        visibility: ["PostRealtimeService"],
+        execute: async (context, input) => {
+            const comment = await getPostCommentAtVersion(context.actor.authorizeSession(), input);
+            return {comment};
         },
     },
 

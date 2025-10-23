@@ -3,6 +3,7 @@ import {
     authorizeChatAccess,
     backfillChatMessages,
     deleteChatMessage,
+    getChatMessageAtVersion,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     sendChatMessage,
@@ -57,11 +58,7 @@ export default implementRpcs(definitions, {
     updateChatMessageContent: {
         visibility: ["ChatRealtimeService"],
         execute: async (context, input) => {
-            const {content, contentUpdate} = await updateChatMessageContent(
-                context.actor.authorizeSession(),
-                input,
-            );
-            return {content, contentUpdate};
+            return updateChatMessageContent(context.actor.authorizeSession(), input);
         },
     },
 
@@ -76,6 +73,14 @@ export default implementRpcs(definitions, {
         visibility: ["ChatRealtimeService"],
         execute: (context, input) => {
             return backfillChatMessages(context.actor.authorizeSession(), input);
+        },
+    },
+
+    getChatMessageAtVersion: {
+        visibility: ["ChatRealtimeService"],
+        execute: async (context, input) => {
+            const message = await getChatMessageAtVersion(context.actor.authorizeSession(), input);
+            return {message};
         },
     },
 

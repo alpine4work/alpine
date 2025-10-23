@@ -1,5 +1,6 @@
+import {addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
-import {Mapping, ReplaceStep} from "prosemirror-transform";
+import {ReplaceStep} from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
@@ -7,6 +8,7 @@ import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {messagingBackfillSafetyWindowMinutes} from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {
     CreateMessageFunction,
     DeleteMessageFunction,
@@ -26,6 +28,7 @@ import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_en
 import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -45,6 +48,7 @@ import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
+import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -105,6 +109,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
         createMessageModel: (options: {
             roomKey: RoomKey;
             index: number;
+            version: number;
             createdTime: Date;
             author: AccountModel;
             payload: MessagePayloadModel;
@@ -180,17 +185,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -204,6 +209,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -217,6 +223,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -229,7 +236,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -237,17 +248,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -261,6 +272,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -273,7 +285,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -281,17 +297,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 2,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -305,6 +321,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -317,7 +334,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -349,31 +370,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -395,6 +422,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -414,6 +442,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -433,6 +462,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -449,17 +479,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 2,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -472,7 +502,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -494,6 +528,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -513,6 +548,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -532,6 +568,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -576,31 +613,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -610,8 +653,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages({
+                checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                 clientMessageCount: room.messageCount + 1,
-                clientLastMessageChangeTime: null,
                 newMessageLimit: 100,
             });
 
@@ -633,6 +676,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -652,6 +696,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -679,6 +724,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -698,6 +744,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -717,10 +764,13 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(await connection3BackfillPromise).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -734,6 +784,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -751,6 +802,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -795,31 +847,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 1,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -829,8 +887,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages({
+                checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                 clientMessageCount: room.messageCount + 1,
-                clientLastMessageChangeTime: null,
                 newMessageLimit: 100,
             });
 
@@ -852,6 +910,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -871,6 +930,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -890,10 +950,13 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(await connection3BackfillPromise).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -907,6 +970,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -944,46 +1008,55 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1038,6 +1111,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1055,6 +1129,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1072,6 +1147,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1107,46 +1183,55 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1217,6 +1302,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1234,6 +1320,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1251,6 +1338,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1288,46 +1376,55 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1378,6 +1475,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1395,6 +1493,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1421,6 +1520,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1438,6 +1538,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1455,6 +1556,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 2,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1489,16 +1591,19 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1523,17 +1628,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1546,7 +1651,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1564,6 +1673,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1596,16 +1706,19 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 0,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1634,8 +1747,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection2BackfillPromise = connection2.procedures.backfillMessages({
+                checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                 clientMessageCount: room.messageCount,
-                clientLastMessageChangeTime: null,
                 newMessageLimit: 100,
             });
 
@@ -1653,6 +1766,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1672,11 +1786,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(await connection2BackfillPromise).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session1.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -1689,7 +1803,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1728,17 +1846,30 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            const updatedMessage3 = await updateMessageContent(context.action(session3), {
+            await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
                 contentVersion: 0,
                 steps: [new ReplaceStep(5, 6, textSlice("2"))],
             });
 
-            const deletedMessage1 = await deleteMessage(context.action(session1), {
+            const updatedMessage3Time = new Date();
+
+            // Wait for the clock to advance at least 10ms before making the second update.
+            {
+                const waitStartTime = new Date();
+                while (true) {
+                    await wait(10);
+                    if (new Date().getTime() >= waitStartTime.getTime() + 10) break;
+                }
+            }
+
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
             });
+
+            const deletedMessage1Time = new Date();
 
             const connection1 = await connectForTest(context.action(session1), room.key);
 
@@ -1746,32 +1877,26 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: generateServerSynchronizationCheckpoint(),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {
+                messageUpdatesResult: {
                     type: "Available",
-                    changes: [
-                        {
-                            type: "UpdateContent",
+                    checkpoint: expect.any(Date),
+                    messages: [
+                        expect.objectContaining({
+                            index: message1.index,
+                            payload: expect.objectContaining({type: "Deleted"}),
+                        }),
+                        expect.objectContaining({
                             index: message3.index,
-                            content: content2WithReferences,
-                            contentUpdate: {
-                                time: updatedMessage3.contentUpdate.time,
-                                mappings: [expect.any(Mapping)],
-                            },
-                        },
-                        {
-                            type: "Delete",
-                            index: message1.index,
-                            deletedTime: deletedMessage1.deletedTime,
-                        },
+                            payload: expect.objectContaining({type: "Content"}),
+                        }),
                     ],
                 },
                 typingStateByConnectionId: new Map(),
@@ -1781,23 +1906,25 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(
+                        new Date(updatedMessage3Time.getTime() + 5),
+                        messagingBackfillSafetyWindowMinutes,
+                    ),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: updatedMessage3.contentUpdate.time,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {
+                messageUpdatesResult: {
                     type: "Available",
-                    changes: [
-                        {
-                            type: "Delete",
+                    checkpoint: expect.any(Date),
+                    messages: [
+                        expect.objectContaining({
                             index: message1.index,
-                            deletedTime: deletedMessage1.deletedTime,
-                        },
+                            payload: expect.objectContaining({type: "Deleted"}),
+                        }),
                     ],
                 },
                 typingStateByConnectionId: new Map(),
@@ -1807,22 +1934,28 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(
+                        new Date(deletedMessage1Time.getTime() + 5),
+                        messagingBackfillSafetyWindowMinutes,
+                    ),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: deletedMessage1.deletedTime,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: deletedMessage1.deletedTime,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(connection1.takeEvents()).toEqual([]);
 
-            const updatedMessage2 = await updateMessageContent(context.action(session2), {
+            await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
                 contentVersion: 0,
@@ -1831,41 +1964,30 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: generateServerSynchronizationCheckpoint(),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: updatedMessage2.contentUpdate.time,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {
+                messageUpdatesResult: {
                     type: "Available",
-                    changes: [
-                        {
-                            type: "UpdateContent",
-                            index: message3.index,
-                            content: content2WithReferences,
-                            contentUpdate: {
-                                time: updatedMessage3.contentUpdate.time,
-                                mappings: [expect.any(Mapping)],
-                            },
-                        },
-                        {
-                            type: "Delete",
-                            index: message1.index,
-                            deletedTime: deletedMessage1.deletedTime,
-                        },
-                        {
-                            type: "UpdateContent",
+                    checkpoint: expect.any(Date),
+                    messages: [
+                        expect.objectContaining({
                             index: message2.index,
-                            content: content2WithReferences,
-                            contentUpdate: {
-                                time: updatedMessage2.contentUpdate.time,
-                                mappings: [expect.any(Mapping)],
-                            },
-                        },
+                            payload: expect.objectContaining({type: "Content"}),
+                        }),
+                        expect.objectContaining({
+                            index: message1.index,
+                            payload: expect.objectContaining({type: "Deleted"}),
+                        }),
+                        expect.objectContaining({
+                            index: message3.index,
+                            payload: expect.objectContaining({type: "Content"}),
+                        }),
                     ],
                 },
                 typingStateByConnectionId: new Map(),
@@ -1875,27 +1997,25 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(
+                        new Date(deletedMessage1Time.getTime() + 5),
+                        messagingBackfillSafetyWindowMinutes,
+                    ),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: deletedMessage1.deletedTime,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: updatedMessage2.contentUpdate.time,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {
+                messageUpdatesResult: {
                     type: "Available",
-                    changes: [
-                        {
-                            type: "UpdateContent",
+                    checkpoint: expect.any(Date),
+                    messages: [
+                        expect.objectContaining({
                             index: message2.index,
-                            content: content2WithReferences,
-                            contentUpdate: {
-                                time: updatedMessage2.contentUpdate.time,
-                                mappings: [expect.any(Mapping)],
-                            },
-                        },
+                            payload: expect.objectContaining({type: "Content"}),
+                        }),
                     ],
                 },
                 typingStateByConnectionId: new Map(),
@@ -1943,31 +2063,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -1985,35 +2111,38 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
 
@@ -2025,60 +2154,50 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: generateServerSynchronizationCheckpoint(),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: expect.any(Date),
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {
+                messageUpdatesResult: {
                     type: "Available",
-                    changes: [
-                        {
-                            type: "UpdateContent",
+                    checkpoint: expect.any(Date),
+                    messages: [
+                        expect.objectContaining({
                             index: message2.index,
-                            content: content2WithReferences,
-                            contentUpdate: expect.any(Object),
-                        },
-                        {
-                            type: "Delete",
-                            index: message2.index,
-                            deletedTime: expect.any(Date),
-                        },
+                            payload: expect.objectContaining({type: "Deleted"}),
+                        }),
                     ],
                 },
                 typingStateByConnectionId: new Map(),
@@ -2132,31 +2251,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount + 3,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -2166,8 +2291,8 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages({
+                checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                 clientMessageCount: room.messageCount + 3,
-                clientLastMessageChangeTime: null,
                 newMessageLimit: 100,
             });
 
@@ -2187,35 +2312,38 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        content: content2WithReferences,
-                        contentUpdate: expect.any(Object),
-                    },
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: expect.objectContaining({doc: content2}),
+                        }),
+                    }),
                 },
             ]);
 
@@ -2227,32 +2355,29 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "Delete",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: message2.index,
-                        deletedTime: expect.any(Date),
-                    },
+                        payload: expect.objectContaining({type: "Deleted"}),
+                    }),
                 },
             ]);
 
@@ -2260,10 +2385,13 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(await connection3BackfillPromise).toEqual({
                 messageCount: room.messageCount + 3,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -2298,46 +2426,55 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -2359,6 +2496,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2394,6 +2532,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2424,6 +2563,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2468,6 +2608,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2513,6 +2654,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2563,6 +2705,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2605,17 +2748,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 2,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2645,6 +2788,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount + 1,
+                        version: 0,
                         author: await session2.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -2683,7 +2827,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -2764,124 +2912,127 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             // Verify each connection received the update with appropriate permissions
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document1.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document2.id}`,
-                                        {
-                                            isPrivate: true,
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document3.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document1.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document2.id}`,
+                                            {
+                                                isPrivate: true,
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document3.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document1.id}`,
-                                        {
-                                            isPrivate: true,
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document2.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document3.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document1.id}`,
+                                            {
+                                                isPrivate: true,
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document2.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document3.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document1.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document2.id}`,
-                                        {
-                                            isPrivate: true,
-                                        },
-                                    ],
-                                    [
-                                        `Document:${document3.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document1.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document2.id}`,
+                                            {
+                                                isPrivate: true,
+                                            },
+                                        ],
+                                        [
+                                            `Document:${document3.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
@@ -2906,31 +3057,37 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount,
-                lastMessageChangeTime: null,
                 newMessages: [],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -2969,6 +3126,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3005,6 +3163,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3036,6 +3195,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3072,6 +3232,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     message: createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3120,17 +3281,17 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
 
             expect(
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3143,23 +3304,27 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
             expect(
                 await connection3.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 100,
                 }),
             ).toEqual({
                 messageCount: room.messageCount + 1,
-                lastMessageChangeTime: null,
                 newMessages: [
                     createMessageModel({
                         roomKey: room.key,
                         index: room.messageCount,
+                        version: 0,
                         author: await session3.get(),
                         createdTime: expect.any(Date),
                         payload: {
@@ -3172,7 +3337,11 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                 ],
                 newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
+                messageUpdatesResult: {
+                    type: "Available",
+                    checkpoint: expect.any(Date),
+                    messages: [],
+                },
                 typingStateByConnectionId: new Map(),
             });
 
@@ -3226,111 +3395,115 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
             // Verify each connection received the update with appropriate permissions
             expect(connection1.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
             expect(connection2.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document.id}`,
-                                        {
-                                            isPrivate: true,
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document.id}`,
+                                            {
+                                                isPrivate: true,
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
             expect(connection3.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document.id}`,
-                                        {
-                                            isPrivate: false,
-                                            entity: expect.any(Object),
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document.id}`,
+                                            {
+                                                isPrivate: false,
+                                                entity: expect.any(Object),
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
 
             expect(connection4.takeEvents()).toEqual([
                 {
-                    type: "ChangeMessage",
-                    change: {
-                        type: "UpdateContent",
+                    type: "UpdateMessage",
+                    message: expect.objectContaining({
                         index: initialMessage.index,
-                        content: {
-                            doc: updatedContent,
-                            references: {
-                                accountById: new Map(),
-                                fileById: undefined,
-                                fileEntityById: undefined,
-                                searchEntityById: new Map([
-                                    [
-                                        `Document:${document.id}`,
-                                        {
-                                            isPrivate: true,
-                                        },
-                                    ],
-                                ]),
+                        payload: expect.objectContaining({
+                            type: "Content",
+                            content: {
+                                doc: updatedContent,
+                                references: {
+                                    accountById: new Map(),
+                                    fileById: undefined,
+                                    fileEntityById: undefined,
+                                    searchEntityById: new Map([
+                                        [
+                                            `Document:${document.id}`,
+                                            {
+                                                isPrivate: true,
+                                            },
+                                        ],
+                                    ]),
+                                },
                             },
-                        },
-                        contentUpdate: expect.any(Object),
-                    },
+                        }),
+                    }),
                 },
             ]);
         });
@@ -3347,14 +3520,14 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 const connection2 = await connectForTest(context.action(session2), room.key);
 
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
@@ -3367,6 +3540,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                     {
                         index: room.messageCount,
+                        version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
                         payload: {
@@ -3425,14 +3599,14 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 const connection2 = await connectForTest(context.action(session2), room.key);
 
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
@@ -3445,6 +3619,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                     {
                         index: room.messageCount,
+                        version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
                         payload: {
@@ -3470,6 +3645,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                     {
                         index: room.messageCount + 1,
+                        version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
                         payload: {
@@ -3528,14 +3704,14 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 const connection2 = await connectForTest(context.action(session2), room.key);
 
                 await connection1.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
                 await connection2.procedures.backfillMessages({
+                    checkpoint: addMinutes(generateServerSynchronizationCheckpoint(), 5),
                     clientMessageCount: room.messageCount,
-                    clientLastMessageChangeTime: null,
                     newMessageLimit: 10,
                 });
 
@@ -3548,6 +3724,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                     {
                         index: room.messageCount + 1,
+                        version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
                         payload: {
@@ -3573,6 +3750,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                     }),
                     {
                         index: room.messageCount,
+                        version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
                         payload: {

@@ -10771,7 +10771,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 1]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -10811,7 +10810,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 1]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -10852,7 +10850,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 2]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -10898,7 +10895,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 2]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -10978,7 +10974,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 1]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -11018,7 +11013,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 1,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 1]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -11059,7 +11053,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 2]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -11087,7 +11080,6 @@ describe("Comments", () => {
             fallbackContentSnippet: expect.any(Object),
             commentsSummary: {
                 nextCommentIndex: 2,
-                lastChangeTime: null,
                 commentCountByAuthorId: new Map([[session1.account.id, 2]]),
                 mentionCountByAccountId: new Map(),
             },
@@ -14183,7 +14175,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14209,7 +14200,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14235,7 +14225,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14262,7 +14251,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14303,7 +14291,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14371,7 +14358,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14401,7 +14387,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14441,7 +14426,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14479,7 +14463,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14530,7 +14513,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -14543,7 +14525,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session2.get(),
             }),
         );
@@ -14556,7 +14537,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -14609,7 +14589,6 @@ describe("Comments", () => {
                 },
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -14636,7 +14615,6 @@ describe("Comments", () => {
                 },
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session2.get(),
             }),
         );
@@ -14663,7 +14641,6 @@ describe("Comments", () => {
                 },
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -14689,7 +14666,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14716,7 +14692,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14760,7 +14735,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14787,7 +14761,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -14814,7 +14787,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14858,7 +14830,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14889,7 +14860,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -14996,7 +14966,6 @@ describe("Comments", () => {
                     },
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15142,7 +15111,6 @@ describe("Comments", () => {
                     },
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15192,7 +15160,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -15219,7 +15186,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15280,7 +15246,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -15307,7 +15272,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15352,7 +15316,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15379,7 +15342,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -15406,7 +15368,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15450,7 +15411,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15485,7 +15445,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -15498,7 +15457,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session2.get(),
             }),
         );
@@ -15511,7 +15469,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session1.get(),
             }),
         );
@@ -15573,7 +15530,6 @@ describe("Comments", () => {
                     },
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             );
@@ -15602,7 +15558,6 @@ describe("Comments", () => {
                     },
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session2.get(),
                 }),
             );
@@ -15631,7 +15586,6 @@ describe("Comments", () => {
                     },
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             );
@@ -15697,7 +15651,6 @@ describe("Comments", () => {
                     },
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             );
@@ -15726,7 +15679,6 @@ describe("Comments", () => {
                     },
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session2.get(),
                 }),
             );
@@ -15755,7 +15707,6 @@ describe("Comments", () => {
                     },
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session1.get(),
                 }),
             );
@@ -15782,7 +15733,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -15809,7 +15759,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15853,7 +15802,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15881,7 +15829,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15925,7 +15872,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -15965,7 +15911,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16008,7 +15953,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16091,7 +16035,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16156,7 +16099,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16183,7 +16125,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16227,7 +16168,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16289,7 +16229,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16303,7 +16242,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16317,7 +16255,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16344,7 +16281,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16359,7 +16295,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16373,7 +16308,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16387,7 +16321,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16414,7 +16347,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: true,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16429,7 +16361,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16443,7 +16374,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16457,7 +16387,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16500,7 +16429,6 @@ describe("Comments", () => {
                     fallbackContentSnippet: expect.any(Object),
                     isResolved: false,
                     commentCount: 1,
-                    lastCommentChangeTime: null,
                     firstCommentAuthor: await session.get(),
                 }),
             );
@@ -16515,7 +16443,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16529,7 +16456,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: expect.any(Object),
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16543,7 +16469,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16606,7 +16531,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16631,7 +16555,6 @@ describe("Comments", () => {
                 version: 1,
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
                 fallbackContentSnippet: {
                     doc: assertDocumentWithOptionalTitleContent(
@@ -16735,7 +16658,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16951,7 +16873,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -16980,7 +16901,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17017,7 +16937,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17046,7 +16965,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17082,7 +17000,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17098,7 +17015,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17130,7 +17046,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17168,7 +17083,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17199,7 +17113,6 @@ describe("Comments", () => {
                 },
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17225,7 +17138,6 @@ describe("Comments", () => {
                 fallbackContentSnippet: null,
                 isResolved: false,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17258,7 +17170,6 @@ describe("Comments", () => {
                 },
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );
@@ -17295,7 +17206,6 @@ describe("Comments", () => {
                 },
                 isResolved: true,
                 commentCount: 1,
-                lastCommentChangeTime: null,
                 firstCommentAuthor: await session.get(),
             }),
         );

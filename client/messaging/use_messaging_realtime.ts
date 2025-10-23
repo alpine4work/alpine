@@ -1,6 +1,5 @@
 import {Memo, useEffect, useRef} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -11,6 +10,8 @@ import {
     BackfillMessagesProcedureOutput,
     MessagingRealtimeEvent,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
+import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
 /**
  * Sets up a realtime connection for the provided post. Making sure comments
@@ -21,41 +22,42 @@ export function useMessagingRealtime<
     Message extends MessageModel<RoomKey>,
     BackfillMessagesExtra = null,
 >({
-    messages,
-    onUpdateMessages,
     isConnected,
+    messages,
+    onUpdateMessages: onUpdateMessagesFromProps,
     backfillMessages,
     subscribeToEvents,
+    subscribeToPongs,
 }: {
+    isConnected: boolean;
     messages: MessageList<Message>;
     onUpdateMessages: (
         update: (messages: MessageList<Message>) => MessageList<Message>,
         extra: BackfillMessagesExtra | null,
     ) => void;
-    isConnected: boolean;
     backfillMessages: Memo<
         (input: {
+            checkpoint: ServerSynchronizationCheckpoint;
             clientMessageCount: number;
-            clientLastMessageChangeTime: Date | null;
             newMessageLimit: number;
         }) => Promise<BackfillMessagesProcedureOutput<Message> & {extra?: BackfillMessagesExtra}>
     >;
     subscribeToEvents: Memo<
         (subscriber: (event: MessagingRealtimeEvent<Message>) => void) => () => void
     >;
+    subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
 }) {
     const setErrorState = useErrorState();
 
-    const hasBackfillFinishedRef = useRef(false);
+    const onUpdateMessages = useEvent(onUpdateMessagesFromProps);
 
     const handleEvent = useEvent((event: MessagingRealtimeEvent<Message>) => {
         switch (event.type) {
             case "NewMessage": {
-                // Ignore until the backfill has finished
-                if (!hasBackfillFinishedRef.current) break;
-
                 onUpdateMessages(messages => {
-                    messages = messages.addMessage(event.message);
+                    if (!messages.isCheckpointInitialized()) return messages;
+
+                    messages = messages.setMessage(event.message);
 
                     if (event.updateOtherTypingState) {
                         messages = messages.updateTypingState(
@@ -68,17 +70,15 @@ export function useMessagingRealtime<
                 }, null);
                 break;
             }
-            case "ChangeMessage": {
-                // Ignore until the backfill has finished
-                if (!hasBackfillFinishedRef.current) break;
+            case "UpdateMessage": {
+                onUpdateMessages(messages => {
+                    if (!messages.isCheckpointInitialized()) return messages;
 
-                onUpdateMessages(messages => messages.changeLoadedMessage(event.change), null);
+                    return messages.setMessage(event.message);
+                }, null);
                 break;
             }
             case "UpdateOtherTypingState": {
-                // Ignore until the backfill has finished
-                if (!hasBackfillFinishedRef.current) break;
-
                 onUpdateMessages(
                     messages => messages.updateTypingState(event.connectionId, event.typingState),
                     null,
@@ -98,33 +98,66 @@ export function useMessagingRealtime<
         }
     });
 
+    // Subscribe to realtime events that may change what's in message list.
     useEffect(() => {
-        if (!isConnected) return;
         return subscribeToEvents(handleEvent);
-    }, [handleEvent, isConnected, subscribeToEvents]);
+    }, [handleEvent, subscribeToEvents]);
 
-    const messagesRef = useRef(messages);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        messagesRef.current = messages;
-    });
+    // Whenever we get a pong from the WebSocket, update our checkpoint so we know
+    // data is up-to-date as of this new time.
+    useEffect(() => {
+        return subscribeToPongs(({checkpoint}) => {
+            if (messages.isCheckpointInitialized()) {
+                messages.setMutableCheckpoint(checkpoint);
+            } else {
+                onUpdateMessages(
+                    messages => messages.initializeCheckpointIfNeeded(checkpoint),
+                    null,
+                );
+            }
+        });
+    }, [messages, onUpdateMessages, subscribeToPongs]);
 
-    // Important that this is in a `useEvent()` so we have access to the latest
-    // `onUpdateMessages()` reference.
-    const handleBackfillResponse = useEvent(
-        (output: BackfillMessagesProcedureOutput<Message> & {extra?: BackfillMessagesExtra}) => {
-            hasBackfillFinishedRef.current = true;
+    // Whenever we connect, we need to backfill changes from when we initially read
+    // inbox entries until now. That way if any realtime events happened during
+    // that time we can incorporate them into our state instead of completely
+    // missing them.
+    const wasConnectedRef = useRef(false);
+    useEffect(() => {
+        if (!messages.isCheckpointInitialized()) return;
 
-            onUpdateMessages(messages => {
-                switch (output.messageChangesResult.type) {
+        if (!isConnected) {
+            wasConnectedRef.current = false;
+            return;
+        }
+
+        if (wasConnectedRef.current) return;
+        wasConnectedRef.current = true;
+
+        backfillMessages({
+            checkpoint: messages.getMutableCheckpoint(),
+            clientMessageCount: messages.getMessageCountExcludingOptimisticMessages(),
+            newMessageLimit: getInitialLoadMessageCount(getClientInfo()),
+        }).then(
+            output => {
+                switch (output.messageUpdatesResult.type) {
                     case "Available": {
-                        return messages.backfillMessages({
-                            messageCount: output.messageCount,
-                            lastMessageChangeTime: output.lastMessageChangeTime,
-                            newMessages: output.newMessages,
-                            newOtherReferencedMessages: output.newOtherReferencedMessages,
-                            messageChanges: output.messageChangesResult.changes,
-                            typingStateByConnectionId: output.typingStateByConnectionId,
-                        });
+                        const {messageUpdatesResult} = output;
+
+                        onUpdateMessages(messages => {
+                            const newMessages = messages.backfillMessages({
+                                messageCount: output.messageCount,
+                                newMessages: output.newMessages,
+                                newOtherReferencedMessages: output.newOtherReferencedMessages,
+                                updatedMessages: messageUpdatesResult.messages,
+                                typingStateByConnectionId: output.typingStateByConnectionId,
+                            });
+
+                            newMessages.setMutableCheckpoint(messageUpdatesResult.checkpoint);
+
+                            return newMessages;
+                        }, output.extra ?? null);
+                        break;
                     }
 
                     // If message changes are unavailable then fully reset the message list since
@@ -132,46 +165,20 @@ export function useMessagingRealtime<
                     // then be able to see we have rendered unloaded messages and kick off a new
                     // network request.
                     case "Unavailable": {
-                        return MessageList.new({
-                            messageCount: output.messageCount,
-                            lastMessageChangeTime: output.lastMessageChangeTime,
-                            typingStateByConnectionId: output.typingStateByConnectionId,
-                        });
+                        onUpdateMessages(() => {
+                            return MessageList.new({
+                                checkpoint: messages.getMutableCheckpoint(),
+                                messageCount: output.messageCount,
+                                typingStateByConnectionId: output.typingStateByConnectionId,
+                            });
+                        }, output.extra ?? null);
+                        break;
                     }
                     default:
-                        throw exhaustive(output.messageChangesResult);
+                        throw exhaustive(output.messageUpdatesResult);
                 }
-            }, output.extra ?? null);
-        },
-    );
-
-    // Whenever we connect to the WebSocket, request a message backfill. If the
-    // user visits another browser tab this will disconnect the WebSocket then when
-    // the user returns to this browser tab we will send another backfill.
-    const backfillPromiseRef = useRef<Promise<void> | null>(null);
-    useEffect(() => {
-        if (!isConnected) {
-            backfillPromiseRef.current = null;
-            return;
-        }
-
-        if (backfillPromiseRef.current) return;
-
-        const backfillPromise = backfillMessages({
-            clientMessageCount: messagesRef.current.getMessageCountExcludingOptimisticMessages(),
-            clientLastMessageChangeTime: messagesRef.current.getLastMessageChangeTime(),
-            newMessageLimit: getInitialLoadMessageCount(getClientInfo()),
-        }).then(
-            output => {
-                if (backfillPromiseRef.current !== backfillPromise) return;
-                handleBackfillResponse(output);
             },
-            error => {
-                if (backfillPromiseRef.current !== backfillPromise) return;
-                setErrorState(error);
-            },
+            error => setErrorState(error),
         );
-
-        backfillPromiseRef.current = backfillPromise;
-    }, [backfillMessages, handleBackfillResponse, isConnected, setErrorState]);
+    }, [backfillMessages, isConnected, messages, onUpdateMessages, setErrorState]);
 }

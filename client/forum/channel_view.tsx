@@ -221,7 +221,6 @@ export function ChannelView({
     useEffect(() => {
         return optimisticCreatePostEventEmitter.subscribe(event => {
             if (event.channelId !== channel.id) return;
-
             setPosts(posts =>
                 posts.updateQuery(query => query.handleEventTransaction(event.eventTransaction)),
             );

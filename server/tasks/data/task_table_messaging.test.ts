@@ -194,18 +194,19 @@ testMessagingImplementation<TaskId>(processContext, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getTaskCommentsFromStart(context, {
+        const {commentCount, comments, otherReferencedComments} = await getTaskCommentsFromStart(
+            context,
+            {
                 taskId,
                 limit,
                 afterCommentIndex,
                 beforeCommentIndex,
-            });
+            },
+        );
         return {
             messageCount: commentCount,
             messages: comments,
             otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
         };
     },
     async getMessagesFromEnd(
@@ -217,18 +218,19 @@ testMessagingImplementation<TaskId>(processContext, {
             beforeMessageIndex: beforeCommentIndex,
         },
     ) {
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getTaskCommentsFromEnd(context, {
+        const {commentCount, comments, otherReferencedComments} = await getTaskCommentsFromEnd(
+            context,
+            {
                 taskId,
                 limit,
                 afterCommentIndex,
                 beforeCommentIndex,
-            });
+            },
+        );
         return {
             messageCount: commentCount,
             messages: comments,
             otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
         };
     },
     async getMessagePayloadsFromStart(
@@ -259,29 +261,23 @@ testMessagingImplementation<TaskId>(processContext, {
         context,
         {
             roomKey: taskId,
+            checkpoint,
             clientMessageCount: clientCommentCount,
-            clientLastMessageChangeTime: clientLastCommentChangeTime,
             newMessageLimit: newCommentLimit,
         },
     ) {
-        const {
-            commentCount,
-            lastCommentChangeTime,
-            newComments,
-            newOtherReferencedComments,
-            commentChangesResult,
-        } = await backfillTaskComments(context, {
-            taskId,
-            clientCommentCount,
-            clientLastCommentChangeTime,
-            newCommentLimit,
-        });
+        const {commentCount, newComments, newOtherReferencedComments, commentUpdatesResult} =
+            await backfillTaskComments(context, {
+                taskId,
+                checkpoint,
+                clientCommentCount,
+                newCommentLimit,
+            });
         return {
             messageCount: commentCount,
-            lastMessageChangeTime: lastCommentChangeTime,
             newMessages: newComments,
             newOtherReferencedMessages: newOtherReferencedComments,
-            messageChangesResult: commentChangesResult,
+            messageUpdatesResult: commentUpdatesResult,
         };
     },
 });
