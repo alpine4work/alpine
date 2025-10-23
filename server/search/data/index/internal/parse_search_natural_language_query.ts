@@ -237,7 +237,11 @@ export function parseSearchNaturalLanguageQuery(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId;
+        // NOTE(ifitzsimmons, #2025-10-10): A null account ID will disable *all* natural
+        // language parsing of "my" search queries that reference the actor.
+        // `actorAccountId` should always be null for Bots, since "ChatGPT's docs" or
+        // "ChatGPT's tasks" doesn't really make sense.
+        actorAccountId: AccountId | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -311,7 +315,7 @@ function parseSearchNaturalLanguageFilters(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId;
+        actorAccountId: AccountId | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -522,6 +526,15 @@ function parseSearchNaturalLanguageFilters(
         // e.g. "my..."
         if (matchTerms.my.isFuzzyMatch(state.term)) {
             state.advanceTerm();
+            if (!actorAccountId) {
+                // If we don't have an actor account then we can't parse a "my" query.
+                // This is because we don't know who the user is. However, it's possible
+                // that a Bot queries something like "Documents containing text my weekend
+                // plans". In this case, we should just continue so the bot can search for
+                // documents containing the text "my weekend plans".
+                // In other words, we should no treat the term "my" as control text.
+                continue;
+            }
 
             // e.g. "my documents" or "my messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
@@ -831,7 +844,7 @@ function parseSearchNaturalLanguageFilterModifiers(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId;
+        actorAccountId: AccountId | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -875,6 +888,15 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents created by me" or "messages sent by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
+                if (!actorAccountId) {
+                    // If we don't have an actor account then we can't parse a "my" query.
+                    // This is because we don't know who the user is. However, it's possible
+                    // that a Bot queries something like "Documents containing text my weekend
+                    // plans". In this case, we should just continue so the bot can search for
+                    // documents containing the text "my weekend plans".
+                    // In other words, we should no treat the term "my" as control text.
+                    return {filterStartTerm, filterEndTerm, filter};
+                }
                 const endTerm = state.advanceTerm();
 
                 return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
@@ -948,6 +970,15 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents written by me" or "posts authored by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
+                if (!actorAccountId) {
+                    // If we don't have an actor account then we can't parse a "my" query.
+                    // This is because we don't know who the user is. However, it's possible
+                    // that a Bot queries something like "Documents containing text my weekend
+                    // plans". In this case, we should just continue so the bot can search for
+                    // documents containing the text "my weekend plans".
+                    // In other words, we should no treat the term "my" as control text.
+                    return {filterStartTerm, filterEndTerm, filter};
+                }
                 const endTerm = state.advanceTerm();
 
                 return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
@@ -1030,6 +1061,15 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents updated by me" or "tasks updated by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
+                if (!actorAccountId) {
+                    // If we don't have an actor account then we can't parse a "my" query.
+                    // This is because we don't know who the user is. However, it's possible
+                    // that a Bot queries something like "Documents containing text my weekend
+                    // plans". In this case, we should just continue so the bot can search for
+                    // documents containing the text "my weekend plans".
+                    // In other words, we should no treat the term "my" as control text.
+                    return {filterStartTerm, filterEndTerm, filter};
+                }
                 const endTerm = state.advanceTerm();
 
                 return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
@@ -1101,6 +1141,15 @@ function parseSearchNaturalLanguageFilterModifiers(
 
         // e.g. "documents by me" or "messages by me"
         if (allowAccount && matchTerms.me.isFuzzyMatch(state.term)) {
+            if (!actorAccountId) {
+                // If we don't have an actor account then we can't parse a "my" query.
+                // This is because we don't know who the user is. However, it's possible
+                // that a Bot queries something like "Documents containing text my weekend
+                // plans". In this case, we should just continue so the bot can search for
+                // documents containing the text "my weekend plans".
+                // In other words, we should no treat the term "my" as control text.
+                return {filterStartTerm, filterEndTerm, filter};
+            }
             state.advanceTerm();
 
             return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
@@ -1173,6 +1222,15 @@ function parseSearchNaturalLanguageFilterModifiers(
             matchTerms.sent.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.posted.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
+        if (!actorAccountId) {
+            // If we don't have an actor account then we can't parse a "my" query.
+            // This is because we don't know who the user is. However, it's possible
+            // that a Bot queries something like "Documents containing text my weekend
+            // plans". In this case, we should just continue so the bot can search for
+            // documents containing the text "my weekend plans".
+            // In other words, we should no treat the term "my" as control text.
+            return {filterStartTerm, filterEndTerm, filter};
+        }
         state.advanceTerm();
         state.advanceTerm();
 
@@ -1203,6 +1261,15 @@ function parseSearchNaturalLanguageFilterModifiers(
         (matchTerms.wrote.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
+        if (!actorAccountId) {
+            // If we don't have an actor account then we can't parse a "my" query.
+            // This is because we don't know who the user is. However, it's possible
+            // that a Bot queries something like "Documents containing text my weekend
+            // plans". In this case, we should just continue so the bot can search for
+            // documents containing the text "my weekend plans".
+            // In other words, we should no treat the term "my" as control text.
+            return {filterStartTerm, filterEndTerm, filter};
+        }
         state.advanceTerm();
         state.advanceTerm();
 
@@ -1233,6 +1300,15 @@ function parseSearchNaturalLanguageFilterModifiers(
         (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
+        if (!actorAccountId) {
+            // If we don't have an actor account then we can't parse a "my" query.
+            // This is because we don't know who the user is. However, it's possible
+            // that a Bot queries something like "Documents containing text my weekend
+            // plans". In this case, we should just continue so the bot can search for
+            // documents containing the text "my weekend plans".
+            // In other words, we should no treat the term "my" as control text.
+            return {filterStartTerm, filterEndTerm, filter};
+        }
         state.advanceTerm();
         state.advanceTerm();
 
@@ -1366,7 +1442,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId;
+        actorAccountId: AccountId | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ) {
@@ -1416,7 +1492,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId;
+        actorAccountId: AccountId | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {

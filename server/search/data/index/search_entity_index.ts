@@ -1,6 +1,7 @@
 import murmurhash from "murmurhash";
 import {Node} from "prosemirror-model";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
@@ -8,10 +9,11 @@ import {
 } from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {
     ServerAccountActionContext,
+    ServerAccountActionContextModules,
     ServerActionContext,
     ServerActionContextModules,
+    ServerBotActionContext,
     ServerSessionActionContext,
-    ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -86,11 +88,13 @@ import {
     getAccountIfExists,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountSettings,
+    isBotSpaceAccount,
 } from "~/server/spaces/spaces_actions.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,
 } from "~/server/tasks/data/task_table.js";
+import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     AccessPolicy,
     AccessPolicyAccountGrantWithoutGeneration,
@@ -1118,7 +1122,7 @@ function assertSearchQueryTextLength(queryText: string) {
  * type-ahead functionality.
  */
 export async function searchByKeywords(
-    context: ServerSessionActionContext,
+    context: ServerSessionActionContext | ServerBotActionContext,
     {
         spaceId,
         queryText,
@@ -1133,6 +1137,7 @@ export async function searchByKeywords(
         timeZone: TimeZone;
         currentTime: Date;
         debugOptions?: SearchOptions;
+        botScope?: BotTokenPayloadScope;
     },
 ): Promise<Array<SearchEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1157,7 +1162,8 @@ export async function searchByKeywords(
         parseSearchNaturalLanguageQuery(queryText, {
             timeZone,
             currentTime,
-            actorAccountId: context.actor.getAccountId(),
+            actorAccountId:
+                context.actor.type === "Bot" ? null : context.actor.getPossiblyBotAccountId(),
             accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
         });
 
@@ -1405,6 +1411,7 @@ export async function searchByKeywords(
         });
     }
 
+    const accessPolicy = await getOpensearchQueryActorAccessClause(context, spaceId, "Keyword");
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
         explain: !!debugOptions,
         size: limit,
@@ -1427,31 +1434,7 @@ export async function searchByKeywords(
                 // Use filter context to only match content the user is allowed to see. The
                 // content must be in our space and must grant access to the account. Either
                 // directly or through a default grant.
-                filter: [
-                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
-                    {
-                        bool: {
-                            minimum_should_match: 1,
-                            should: [
-                                {
-                                    term: {
-                                        "accessPolicy.accountGrantAccountIds":
-                                            new OpensearchQueryValue(context.actor.getAccountId()),
-                                    },
-                                },
-                                {
-                                    term: {
-                                        "accessPolicy.defaultGrantType": new OpensearchQueryValue(
-                                            SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
-                                                "Space",
-                                            ),
-                                        ),
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ],
+                filter: [{term: {spaceId: new OpensearchQueryValue(spaceId)}}, accessPolicy],
             },
         },
         highlight: {
@@ -1782,7 +1765,7 @@ function enrichOpensearchSearchHitExplanation(
 // attack risk.
 export async function searchBySemantics(
     context: Context<
-        ServerSessionActionContextModules & {
+        ServerAccountActionContextModules & {
             languageModel: LanguageModelContextModule;
         }
     >,
@@ -1816,7 +1799,8 @@ export async function searchBySemantics(
     const {filters, isLowConfidence} = parseSearchNaturalLanguageQuery(queryText, {
         timeZone,
         currentTime,
-        actorAccountId: context.actor.getAccountId(),
+        actorAccountId:
+            context.actor.type === "Bot" ? null : context.actor.getPossiblyBotAccountId(),
         accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
     });
 
@@ -1833,6 +1817,7 @@ export async function searchBySemantics(
 
     assert(queryEmbeddingVector);
 
+    const accessPolicy = await getOpensearchQueryActorAccessClause(context, spaceId, "Semantic");
     const {hits} = await context.opensearch.searchWithoutSource(
         SearchEntityEmbeddingChunkIndex,
         spaceId,
@@ -1876,31 +1861,7 @@ export async function searchBySemantics(
                                             spaceId: new OpensearchQueryValue(spaceId),
                                         },
                                     },
-                                    {
-                                        bool: {
-                                            minimum_should_match: 1,
-                                            should: [
-                                                {
-                                                    term: {
-                                                        "entity.accessPolicy.accountGrantAccountIds":
-                                                            new OpensearchQueryValue(
-                                                                context.actor.getAccountId(),
-                                                            ),
-                                                    },
-                                                },
-                                                {
-                                                    term: {
-                                                        "entity.accessPolicy.defaultGrantType":
-                                                            new OpensearchQueryValue(
-                                                                SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
-                                                                    "Space",
-                                                                ),
-                                                            ),
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    },
+                                    accessPolicy,
                                 ],
                             },
                         },
@@ -3398,4 +3359,95 @@ export async function getAllSearchFavoriteEntities(
     }
 
     return results;
+}
+
+type SearchAccessPolicyForBotOrSessionResponse<IndexType extends "Keyword" | "Semantic"> =
+    IndexType extends "Keyword"
+        ? OpensearchQueryClause<OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>>
+        : OpensearchQueryClause<
+              OpensearchIndexFlattenedKeysType<typeof SearchEntityEmbeddingChunkIndex>
+          >;
+async function getOpensearchQueryActorAccessClause<IndexType extends "Keyword" | "Semantic">(
+    context: Context<ServerAccountActionContextModules>,
+    spaceId: SpaceId,
+    indexType: IndexType,
+): Promise<SearchAccessPolicyForBotOrSessionResponse<IndexType>> {
+    const accountGrantKeyBase = "accessPolicy.accountGrantAccountIds";
+    const defaultGrantKeyBase = "accessPolicy.defaultGrantType";
+    const keyPrefix = indexType === "Keyword" ? "" : "entity.";
+
+    const accessPolicyKey = `${keyPrefix}${accountGrantKeyBase}`;
+    const defaultGrantKey = `${keyPrefix}${defaultGrantKeyBase}`;
+
+    if (context.actor.type !== "Bot") {
+        return {
+            bool: {
+                minimum_should_match: 1,
+                should: [
+                    {
+                        term: {
+                            [accessPolicyKey]: new OpensearchQueryValue(
+                                context.actor.getAccountId(),
+                            ),
+                        },
+                    },
+                    {
+                        term: {
+                            [defaultGrantKey]: new OpensearchQueryValue(
+                                SearchEntityIndexDefaultGrantTypeIntegerMapping.into("Space"),
+                            ),
+                        },
+                    },
+                ],
+            },
+        };
+    }
+
+    const accessPolicy = await getBotAccessPolicy(context as ServerBotActionContext);
+
+    // Check if bot has space-level access (defaultGrant)
+    if (accessPolicy.defaultGrant !== null) {
+        return {
+            term: {
+                [defaultGrantKey]: new OpensearchQueryValue(
+                    SearchEntityIndexDefaultGrantTypeIntegerMapping.into("Space"),
+                ),
+            },
+        };
+    } else if (accessPolicy.accountGrantById.size > 0) {
+        const accountIds: Array<AccountId> = [];
+        for (const accountId of accessPolicy.accountGrantById.keys()) {
+            if (await isBotSpaceAccount(context, spaceId, accountId)) continue;
+            accountIds.push(accountId);
+        }
+
+        // Create a must clause for each account ID to ensure ALL are present
+        const mustClauses: Array<
+            OpensearchQueryClause<
+                OpensearchIndexFlattenedKeysType<typeof SearchEntityEmbeddingChunkIndex>
+            >
+        > = accountIds.map(accountId => ({
+            term: {
+                [accessPolicyKey]: new OpensearchQueryValue(accountId),
+            },
+        }));
+
+        return {
+            bool: {
+                minimum_should_match: 1,
+                should: [
+                    {bool: {must: mustClauses}},
+                    {
+                        term: {
+                            [defaultGrantKey]: new OpensearchQueryValue(
+                                SearchEntityIndexDefaultGrantTypeIntegerMapping.into("Space"),
+                            ),
+                        },
+                    },
+                ],
+            },
+        } as SearchAccessPolicyForBotOrSessionResponse<IndexType>;
+    } else {
+        throw new InternalError("Bot doesn’t have an access policy defined for Search");
+    }
 }

@@ -2,6 +2,8 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {createChatForTest} from "~/server/chat/data/chat_actions.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
@@ -99,6 +101,7 @@ const context = createTestContext({
     searchInjection,
     spacesInjection,
     tasksInjection,
+    chatInjection,
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
@@ -6168,4 +6171,293 @@ describe("`getSearchEntityIfPossible()`", () => {
             }
         }
     });
+});
+
+describe("bot with space-level access can access space-level content", () => {
+    const testSearch = (searchType: "keywords" | "semantics"): void => {
+        const searchFunction = searchType === "keywords" ? searchByKeywords : searchBySemantics;
+        const searchIndex =
+            searchType === "keywords" ? SearchEntityKeywordIndex : SearchEntityEmbeddingChunkIndex;
+
+        test(`${searchType}`, async () => {
+            const space = await TestSpace.create(context);
+            const botSession = await space.createSession({role: "Admin"});
+            const humanSession = await space.createSession();
+            const botAccount = await TestBot.createAndInstantiate(botSession);
+
+            // For semantic search, we need enough content to generate embeddings
+            const testBody = createArrayWithLength(100, () => "test").join(" ");
+
+            const publicDocument = await TestDocument.create(humanSession, {
+                title: "test",
+                body: testBody,
+            });
+            await publicDocument.access.grantDefault(humanSession);
+
+            const publicChannel = await TestChannel.create(humanSession, {
+                name: "Public channel",
+                access: "Public",
+            });
+            const privateChannel = await TestChannel.create(humanSession, {
+                name: "Private channel",
+                access: "Private",
+            });
+
+            const publicPost = await publicChannel.createPost(humanSession, testBody);
+            await privateChannel.createPost(humanSession, testBody);
+
+            await runAllTimersAndWaitForTestTasks();
+
+            await context.opensearch.refresh(searchIndex);
+
+            const results = await searchFunction(
+                botAccount
+                    .action({type: "Space"})
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: space.id,
+                    queryText: "test",
+                    limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
+                },
+            );
+
+            expect(
+                results
+                    .map(result => result.id)
+                    .filter(id => !id.startsWith("Account:"))
+                    .sort(defaultCompareStrings),
+            ).toEqual(
+                [`Document:${publicDocument.id}`, `Post:${publicPost.id}`].sort(
+                    defaultCompareStrings,
+                ),
+            );
+        });
+    };
+
+    testSearch("keywords");
+    testSearch("semantics");
+});
+
+describe("bot with account-specific grants has access to entities that every account has access to and space-level content", () => {
+    const testSearch = (searchType: "keywords" | "semantics"): void => {
+        const searchFunction = searchType === "keywords" ? searchByKeywords : searchBySemantics;
+        const searchIndex =
+            searchType === "keywords" ? SearchEntityKeywordIndex : SearchEntityEmbeddingChunkIndex;
+
+        test(`${searchType}`, async () => {
+            const space = await TestSpace.create(context);
+            const botSession = await space.createSession({role: "Admin"});
+            const humanSession1 = await space.createSession();
+            const humanSession2 = await space.createSession();
+            const botAccount = await TestBot.createAndInstantiate(botSession);
+            const botAccount2 = await TestBot.createAndInstantiate(botSession);
+            // Human 3 is *not* in the chat.
+            const humanSession3 = await space.createSession();
+
+            const testBody = createArrayWithLength(100, () => "test").join(" ");
+
+            // Document is private but human 1 and human 2 have access
+            const document1 = await TestDocument.create(humanSession1, {
+                title: "test",
+                body: testBody,
+            });
+            await document1.access.grant(humanSession1, humanSession2);
+
+            // Document 2 is only accessible to human 1 (creator)
+            await TestDocument.create(humanSession1, {title: "test", body: testBody});
+
+            // Document 3 is publicly accessible within space
+            const document3 = await TestDocument.create(humanSession1, {
+                title: "test",
+                body: testBody,
+            });
+            await document3.access.grantDefault(humanSession1);
+
+            // Document 4 is created by a human that is not in the chat and only
+            // one member of the chat (human 1) has access. Document 4 should then
+            // not be accessible to the bot.
+            const document4 = await TestDocument.create(humanSession3, {
+                title: "test",
+                body: testBody,
+            });
+            await document4.access.grant(humanSession3, humanSession1);
+
+            // Chat between human 1, human 2, and bot 1 and bot 2
+            const chat = await createChatForTest(humanSession1.action(), {
+                spaceId: space.id,
+                otherAccountIds: [humanSession2.account.id, botAccount.id, botAccount2.id],
+            });
+
+            // Private channel where both human 1 and human 2 have access
+            const privateChannel = await TestChannel.create(humanSession1, {
+                name: "Private channel",
+                access: "Private",
+            });
+            await privateChannel.access.grantAccounts(humanSession1, [humanSession2]);
+            const post1 = await privateChannel.createPost(humanSession1, testBody);
+
+            const publicChannel = await TestChannel.create(humanSession1, {
+                name: "Public channel",
+                access: "Public",
+            });
+            const post2 = await publicChannel.createPost(humanSession1, testBody);
+
+            // Only human 1 has access (creator)
+            const privateChannel2 = await TestChannel.create(humanSession1, {
+                name: "Private channel 2",
+                access: "Private",
+            });
+            await privateChannel2.createPost(humanSession1, testBody);
+
+            await runAllTimersAndWaitForTestTasks();
+
+            await context.opensearch.refresh(searchIndex);
+
+            const results = await searchFunction(
+                botAccount
+                    .action({
+                        type: "Chat",
+                        chatId: chat.id,
+                    })
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: space.id,
+                    queryText: "test",
+                    limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
+                },
+            );
+
+            expect(
+                results
+                    .map(result => result.id)
+                    .filter(id => !id.startsWith("Account:"))
+                    .sort(defaultCompareStrings),
+            ).toEqual(
+                [
+                    `Document:${document1.id}`,
+                    `Document:${document3.id}`,
+                    `Post:${post1.id}`,
+                    `Post:${post2.id}`,
+                ].sort(defaultCompareStrings),
+            );
+        });
+    };
+
+    testSearch("keywords");
+    testSearch("semantics");
+});
+
+test("bot in a chat with all bots has access to space-level content", async () => {
+    const space = await TestSpace.create(context);
+    const botSession = await space.createSession({role: "Admin"});
+    const humanSession = await space.createSession();
+    const bot1 = await TestBot.createAndInstantiate(botSession);
+    const bot2 = await TestBot.createAndInstantiate(botSession);
+    const bot3 = await TestBot.createAndInstantiate(botSession);
+
+    // Document granted only to bot2 and bot3 (should not appear after filtering)
+    await TestDocument.create(humanSession, {title: "test"});
+
+    // Document with default grant (should appear)
+    const document2 = await TestDocument.create(humanSession, {title: "test"});
+    await document2.access.grantDefault(humanSession);
+
+    // Task granted only to bot2 (should not appear after filtering)
+    const task1 = await TestTask.create(humanSession, {title: "test"});
+    await task1.addCollection(
+        humanSession,
+        await TestTaskCollection.create(humanSession, {name: "test"}),
+    );
+
+    // Collection with default grant (should appear)
+    const collection = await TestTaskCollection.create(humanSession, {name: "test"});
+    await collection.access.grantDefault(humanSession);
+
+    // Create a chat with only bot accounts
+    // This shouldn't be possible but is worth testing
+    const chat = await createChatForTest(botSession.action(), {
+        spaceId: space.id,
+        otherAccountIds: [bot2.id, bot3.id],
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const results = await searchByKeywords(
+        bot1.action({
+            type: "Chat",
+            chatId: chat.id,
+        }),
+        {
+            spaceId: space.id,
+            queryText: "test",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        },
+    );
+
+    // Should only see entities with default grants, not those granted only to bots
+    expect(
+        results
+            .map(result => result.id)
+            .filter(id => !id.startsWith("Account:"))
+            .sort(defaultCompareStrings),
+    ).toEqual(
+        [`Document:${document2.id}`, `TaskCollection:${collection.id}`].sort(defaultCompareStrings),
+    );
+});
+
+test("bot cannot search entities from a different space even with account grants", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    const space1Session = await space1.createSession({role: "Admin"});
+    const space2Session = await space2.createSession({role: "Admin"});
+
+    const botAccount = await TestBot.createAndInstantiate(space1Session);
+
+    // Create entities in space1 (bot's space)
+    const document1 = await TestDocument.create(space1Session, {title: "test in space1"});
+    await document1.access.grantDefault(space1Session);
+
+    // Create entities in space2 (different space)
+    const document2 = await TestDocument.create(space2Session, {title: "test in space2"});
+    await document2.access.grantDefault(space2Session);
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // Bot should only see entities from space1
+    const space1Results = await searchByKeywords(botAccount.action({type: "Space"}), {
+        spaceId: space1.id,
+        queryText: "test",
+        limit: 100,
+        timeZone: defaultTimeZone,
+        currentTime: new Date(),
+    });
+
+    expect(
+        space1Results
+            .map(result => result.id)
+            .filter(id => !id.startsWith("Account:"))
+            .sort(defaultCompareStrings),
+    ).toEqual([`Document:${document1.id}`]);
+
+    // Bot should not have access to space2
+    await expect(
+        searchByKeywords(botAccount.action({type: "Space"}), {
+            spaceId: space2.id,
+            queryText: "test",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
 });

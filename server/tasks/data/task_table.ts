@@ -7663,7 +7663,7 @@ function createTaskCollectionModelSearchResultFromItem(
  * have out-of-date data.
  */
 export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     collectionId: TaskCollectionId,
     timeZone: TimeZone,
     currentTime: Date,

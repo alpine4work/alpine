@@ -5088,3 +5088,362 @@ describe('parses account name after "all" then entity type', () => {
         });
     });
 });
+
+describe("handles null actorAccountId gracefully for bot searches", () => {
+    const botOptions = {
+        ...options,
+        actorAccountId: null,
+    };
+
+    describe('"my" keyword handling', () => {
+        test("my documents - treats 'my' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("my documents", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["my"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents about my weekend plans - treats 'my' as regular text", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("documents about my weekend plans", botOptions),
+            ).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["my weekend plans"],
+                controlQueryTexts: ["documents about"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("my tasks - treats 'my' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("my tasks", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["my"],
+                controlQueryTexts: ["tasks"],
+                filters: [
+                    {
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+    });
+
+    describe('"me" keyword handling', () => {
+        test("documents created by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents created by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["created by me"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents written by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents written by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["written by me"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents updated by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents updated by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["updated by me"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["by me"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("messages sent by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("messages sent by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["sent by me"],
+                controlQueryTexts: ["messages"],
+                filters: [
+                    {
+                        entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("posts authored by me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("posts authored by me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["authored by me"],
+                controlQueryTexts: ["posts"],
+                filters: [
+                    {
+                        entityTypes: ["Post"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+    });
+
+    describe('"I" keyword handling', () => {
+        test("documents I created - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents I created", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I created"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents I sent - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents I sent", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I sent"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents I wrote - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents I wrote", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I wrote"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents I authored - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents I authored", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I authored"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents I updated - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("documents I updated", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I updated"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("messages I posted - treats 'I' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("messages I posted", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["I"],
+                controlQueryTexts: ["messages", "posted"],
+                filters: [
+                    {
+                        entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+                        account: null,
+                        time: null,
+                    },
+                    {
+                        account: null,
+                        entityTypes: ["Post"],
+                        time: null,
+                    },
+                ],
+            });
+        });
+    });
+
+    describe("complex queries with first-person keywords", () => {
+        test("find documents about my project - treats 'my' as regular text", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("find documents about my project", botOptions),
+            ).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["find", "my project"],
+                controlQueryTexts: ["documents about"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("tasks about me - treats 'me' as regular text", () => {
+            expect(parseSearchNaturalLanguageQuery("tasks about me", botOptions)).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["me"],
+                controlQueryTexts: ["tasks about"],
+                filters: [
+                    {
+                        entityTypes: ["Task", "TaskCollection"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents containing I and me - treats both as regular text", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("documents containing I and me", botOptions),
+            ).toEqual({
+                isLowConfidence: true,
+                queryTexts: ["containing I and me"],
+                controlQueryTexts: ["documents"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: null,
+                    },
+                ],
+            });
+        });
+    });
+
+    describe("bot searches still support other filters", () => {
+        test("documents by john - still parses account names", () => {
+            expect(parseSearchNaturalLanguageQuery("documents by john", botOptions)).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["documents by john"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                        time: null,
+                    },
+                ],
+            });
+        });
+
+        test("documents created last week - still parses dates", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("documents created last week", botOptions),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["documents created last week"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: null,
+                        time: {
+                            field: "Created",
+                            range: {
+                                inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                                inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                            },
+                        },
+                    },
+                ],
+            });
+        });
+
+        test("documents by john updated yesterday - combines account and date filters", () => {
+            expect(
+                parseSearchNaturalLanguageQuery("documents by john updated yesterday", botOptions),
+            ).toEqual({
+                isLowConfidence: false,
+                queryTexts: [],
+                controlQueryTexts: ["documents by john updated yesterday"],
+                filters: [
+                    {
+                        entityTypes: ["Document"],
+                        account: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                        time: {
+                            field: "LastUpdated",
+                            range: {
+                                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                            },
+                        },
+                    },
+                ],
+            });
+        });
+    });
+});
