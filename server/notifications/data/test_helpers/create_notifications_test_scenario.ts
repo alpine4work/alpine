@@ -1,25 +1,16 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
-import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
-import {ModelPartialDataType} from "~/shared/schema/model/model.js";
-
-// Notification table test helpers can only be used in Jest.
-assert(import.meta.jest);
 
 // We create a new scenario for every test so the inbox isn't shared between
 // test runs.
-export async function createNotificationsScenario(context: TestContext) {
+export async function createNotificationsTestScenario(context: TestContext) {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
 
@@ -111,30 +102,4 @@ export async function createNotificationsScenario(context: TestContext) {
         mentionAccount3MessageContent,
         mentionSharedAccountMessageContent,
     };
-}
-
-export function massageInboxEntriesQuery(
-    entriesQuery: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
-): Array<InboxEntryModel> {
-    return entriesQuery.items.map(({model}) => model);
-}
-
-export function createTestInboxModel({
-    accountId,
-    spaceId,
-    ...inboxModelOptions
-}: ModelPartialDataType<InboxModel> & {
-    accountId: AccountId;
-    spaceId: SpaceId;
-}) {
-    return new InboxModel({
-        accountId,
-        spaceId,
-        loudNotificationCount: 0,
-        entryCount: 0,
-        lastZeroEntryCountTime: null,
-        digestNotificationsOptedOutTime: null,
-        digestNotificationsSchedule: defaultDigestNotificationSchedule,
-        ...inboxModelOptions,
-    });
 }

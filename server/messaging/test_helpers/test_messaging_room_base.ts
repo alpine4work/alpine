@@ -9,6 +9,7 @@ import {
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -171,7 +172,14 @@ export abstract class TestMessagingRoomBase {
             },
         );
 
-        return TestMessage._new(this.context, this.space, this, index, createdTime);
+        const author: TestAccount =
+            session instanceof TestSession
+                ? session.account
+                : session instanceof TestAccount
+                ? session
+                : await TestAccount.get(this.context, session.actor.getPossiblyBotAccountId());
+
+        return TestMessage._new(this.context, this.space, author, this, index, createdTime);
     }
 }
 
@@ -202,6 +210,7 @@ export abstract class TestCommentRoomBase extends TestMessageRoomBase {
 export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomBase> {
     public readonly context: TestContext;
     public readonly space: TestSpace;
+    public readonly author: TestAccount;
     public readonly room: Room;
     public readonly index: number;
     public readonly createdTime: Date;
@@ -209,12 +218,14 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     private constructor(
         context: TestContext,
         space: TestSpace,
+        author: TestAccount,
         room: Room,
         index: number,
         createdTime: Date,
     ) {
         this.context = context;
         this.space = space;
+        this.author = author;
         this.room = room;
         this.index = index;
         this.createdTime = createdTime;
@@ -225,11 +236,12 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     public static _new<Room extends TestMessagingRoomBase>(
         context: TestContext,
         space: TestSpace,
+        author: TestAccount,
         room: Room,
         index: number,
         createdTime: Date,
     ) {
-        return new TestMessage(context, space, room, index, createdTime);
+        return new TestMessage(context, space, author, room, index, createdTime);
     }
 
     public async get() {

@@ -23,6 +23,7 @@ import {
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -55,6 +56,7 @@ export type TestPostCreateOptions = {
 export class TestPost extends TestCommentRoomBase {
     public readonly context: TestContext;
     public readonly space: TestSpace;
+    public readonly author: TestAccount;
     public readonly id: PostId;
     public readonly createdTime: Date;
     // NOTE(calebmer, 2024-11-01): We haven't implemented moving a post between
@@ -65,6 +67,7 @@ export class TestPost extends TestCommentRoomBase {
     private constructor(
         context: TestContext,
         space: TestSpace,
+        author: TestAccount,
         id: PostId,
         createdTime: Date,
         initialChannel: TestChannel,
@@ -72,6 +75,7 @@ export class TestPost extends TestCommentRoomBase {
         super();
         this.context = context;
         this.space = space;
+        this.author = author;
         this.id = id;
         this.createdTime = createdTime;
         this.initialChannel = initialChannel;
@@ -189,7 +193,14 @@ export class TestPost extends TestCommentRoomBase {
             content: assertPostContent(content),
         });
 
-        return new TestPost(session.context, session.space, post.id, post.createdTime, channel);
+        return new TestPost(
+            session.context,
+            session.space,
+            session.account,
+            post.id,
+            post.createdTime,
+            channel,
+        );
     }
 
     protected override _getRoomKey() {

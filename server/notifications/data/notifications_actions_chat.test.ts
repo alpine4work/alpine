@@ -10,7 +10,6 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
-import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
 import {
     notificationEventAfterProcessingTestCheckpoint,
@@ -18,11 +17,10 @@ import {
     notificationEventProcessingTestCounter,
     processNotificationEvent,
 } from "~/server/notifications/data/process/process_notification_event.js";
-import {
-    createNotificationsScenario,
-    createTestInboxModel,
-    massageInboxEntriesQuery,
-} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
+import {createTestInboxModel} from "~/server/notifications/data/test_helpers/create_test_inbox_model.js";
+import {expectInboxChatEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_chat_entry_model.js";
+import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -45,7 +43,6 @@ import {
     emptyMessageContent,
     MessageContentProsemirrorSchema as schema,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -134,7 +131,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("messaging creates an inbox entry for all subscribers", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
                 scenario.session1.account.id,
@@ -152,93 +149,41 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3,
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -246,125 +191,63 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const message3 = await chat.sendMessage(scenario.session1, "message3");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
@@ -375,7 +258,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("mentioning someone in a creates a second loud notification for them", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(
                 scenario.session1,
@@ -383,93 +266,41 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3,
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -480,62 +311,32 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -546,62 +347,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -612,68 +384,38 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 3,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
         });
 
         test("mentioning yourself does not create an extra loud notification for yourself", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(
                 scenario.session1,
@@ -681,93 +423,41 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3,
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
@@ -778,62 +468,31 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -841,62 +500,31 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
@@ -907,178 +535,94 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
         });
 
         test("accounts have separate inboxes for each space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(scenario.session1, scenario.sharedSession);
 
             const otherChat = await TestChat.get(scenario.otherSession, scenario.sharedSession);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.sharedSession,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([]);
 
             const message2 = await otherChat.sendMessage(scenario.otherSession, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.sharedSession,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    chatId: otherChat.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.sharedSession,
+                    chat: otherChat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.otherSession.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1086,7 +630,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("account can not see mention in chat they don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
                 scenario.session1,
@@ -1098,22 +642,10 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const otherChat = await TestChat.get(scenario.otherSession, scenario.sharedSession);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             const message1 = await chat1.sendMessage(
@@ -1123,76 +655,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             await chat2.sendMessage(scenario.session2, scenario.mentionAccount3MessageContent);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             await otherChat.sendMessage(
@@ -1202,43 +702,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
         });
 
         test("message notification events processed out of order result in the same latest message", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(
                 scenario.session1,
@@ -1246,23 +730,9 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3,
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             await chat.sendMessage(scenario.session1, "message1");
 
@@ -1283,132 +753,70 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
         });
 
         test("message notification events processed out of order result in the same latest message including implicit archival states", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(scenario.session1, scenario.session2);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             await chat.sendMessage(scenario.session1, "message1");
 
@@ -1429,80 +837,42 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
         });
 
         test("loud notifications are always at the top of the inbox", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(scenario.session1, scenario.session2);
 
@@ -1516,39 +886,20 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const message1 = await chat1.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1561,41 +912,25 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1605,56 +940,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1664,56 +978,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1723,56 +1016,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -1785,54 +1057,34 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message6.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -1844,54 +1096,34 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message6.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -1906,64 +1138,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message8.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message8,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message6.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
         });
 
         test("can not observe inbox in a space you don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             await expect(
                 observeInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
@@ -1971,7 +1183,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("observing an inbox freezes loud notifications in place", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(scenario.session1, scenario.session2);
 
@@ -1991,39 +1203,20 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const message1 = await chat1.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2036,41 +1229,25 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2080,56 +1257,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2137,56 +1293,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await observeInbox(context.action(scenario.session1), {spaceId: scenario.space.id});
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2196,71 +1331,45 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat4.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat4,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.get(),
+                    otherChatAccount: scenario.sharedSession,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2270,71 +1379,45 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat4.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat4,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.get(),
+                    otherChatAccount: scenario.sharedSession,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2344,71 +1427,45 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat4.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat4,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.get(),
+                    otherChatAccount: scenario.sharedSession,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message6.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message6,
                         contentTextSnippet: "message6",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2421,71 +1478,46 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat3,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message8.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message8,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat4.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat4,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.sharedSession.get(),
+                    otherChatAccount: scenario.sharedSession,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -2493,7 +1525,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("sends a loud notification on any message after some period of time", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(
                 scenario.session1,
@@ -2501,59 +1533,26 @@ for (const [currentProcessingType, processingMultiple] of [
                 scenario.session3,
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
@@ -2561,53 +1560,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -2615,53 +1590,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
 
@@ -2679,59 +1630,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session1.get(),
+                    otherChatAccount: scenario.session1,
                 }),
             ]);
         });
 
         test("can archive inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
                 scenario.session1,
@@ -2748,14 +1675,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await chat1.sendMessage(scenario.session2, "message1");
 
@@ -2770,92 +1690,52 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
@@ -2867,75 +1747,40 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -2949,60 +1794,29 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3016,44 +1830,18 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3061,7 +1849,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("can unarchive inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat1 = await TestChat.get(
                 scenario.session1,
@@ -3080,14 +1868,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3117,107 +1898,63 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: null,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
@@ -3245,33 +1982,15 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -3279,26 +1998,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3309,33 +2016,15 @@ for (const [currentProcessingType, processingMultiple] of [
                 key: {type: "Chat", chatId: chat1.id},
             });
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -3343,41 +2032,24 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3388,48 +2060,25 @@ for (const [currentProcessingType, processingMultiple] of [
                 key: {type: "Chat", chatId: chat2.id},
             });
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -3437,41 +2086,24 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3482,63 +2114,35 @@ for (const [currentProcessingType, processingMultiple] of [
                 key: {type: "Chat", chatId: chat1.id},
             });
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -3546,41 +2150,24 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3591,79 +2178,46 @@ for (const [currentProcessingType, processingMultiple] of [
                 key: {type: "Chat", chatId: chat1.id},
             });
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session3.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session3.get(),
+                    otherChatAccount: scenario.session3,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat2,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    chatId: chat3.id,
-                    chatAccountCount: 2,
+                expectInboxChatEntryModel({
+                    session: scenario.session2,
+                    chat: chat3,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message5.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -3671,41 +2225,24 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat1.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message3,
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: scenario.session2,
                 }),
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    chatId: chat2.id,
-                    chatAccountCount: 4,
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat2,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await scenario.session1.get(),
+                        message: message4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -3713,45 +2250,26 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("notification on an archived entry revives it", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(scenario.session1, scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3765,39 +2283,20 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const message2 = await chat.sendMessage(scenario.session2, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3805,45 +2304,26 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("notification on an archived entry from own account does not revive it", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(scenario.session1, scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const message1 = await chat.sendMessage(scenario.session2, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3857,53 +2337,27 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await chat.sendMessage(scenario.session1, "message2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await unarchiveInboxEntry(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 key: {type: "Chat", chatId: chat.id},
             });
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3920,14 +2374,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const message1 = await chat.sendMessage(
                 session1,
@@ -3936,26 +2383,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await session1.get(),
+                        message: message1,
+
                         contentTextSnippet: "Test comment 2",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -3968,26 +2404,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message3.createdTime,
-                        author: await session1.get(),
+                        message: message3,
+
                         contentTextSnippet: "Test comment 3",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4013,24 +2438,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await session1.get(),
+                        message: message4,
+
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -4042,24 +2457,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await session1.get(),
+                        message: message4,
+
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -4071,24 +2476,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await session1.get(),
+                        message: message4,
+
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -4116,24 +2511,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 3,
                     latestMessage: {
-                        createdTime: message7.createdTime,
-                        author: await session1.get(),
+                        message: message7,
+
                         contentTextSnippet: `Test comment 7 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -4145,24 +2530,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 3,
                     latestMessage: {
-                        createdTime: message7.createdTime,
-                        author: await session1.get(),
+                        message: message7,
+
                         contentTextSnippet: `Test comment 7 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -4177,14 +2552,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const message9 = await chat.sendMessage(
                 session1,
@@ -4193,26 +2561,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message9.createdTime,
-                        author: await session1.get(),
+                        message: message9,
+
                         contentTextSnippet: "Test comment 9",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4241,26 +2598,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 0,
                     latestMessage: {
+                        author: expect.objectContaining({id: session1.account.id}),
                         createdTime: expect.any(Date),
-                        author: await session1.get(),
                         contentTextSnippet: "",
-                        isStickyMention: false,
                         clerical: {
                             type: "ShareNotification",
                             entityType: "Document",
@@ -4293,26 +2639,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 0,
                     latestMessage: {
+                        author: expect.objectContaining({id: session1.account.id}),
                         createdTime: expect.any(Date),
-                        author: await session1.get(),
                         contentTextSnippet: "foobar",
-                        isStickyMention: false,
                         clerical: {
                             type: "ShareNotification",
                             entityType: "Document",
@@ -4358,24 +2693,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
+                        author: expect.objectContaining({id: session1.account.id}),
                         createdTime: expect.any(Date),
-                        author: await session1.get(),
                         contentTextSnippet: `Hello ${session2.account.initialName}`,
                         isStickyMention: true,
                         clerical: {
@@ -4397,39 +2722,21 @@ for (const [currentProcessingType, processingMultiple] of [
             const document = await TestDocument.create(session1);
             await document.access.grantDefault(session1);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const message1 = await chat.sendMessage(session1, "message1");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await session1.get(),
+                        message: message1,
+
                         contentTextSnippet: "message1",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4439,26 +2746,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await session1.get(),
+                        message: message2,
                         contentTextSnippet: "message2",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4487,26 +2782,15 @@ for (const [currentProcessingType, processingMultiple] of [
                 Date.now = originalDateNow;
             }
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
+                        author: expect.objectContaining({id: session1.account.id}),
                         createdTime: new Date(mockTime1),
-                        author: await session1.get(),
                         contentTextSnippet: "message3",
-                        isStickyMention: false,
                         clerical: {
                             type: "ShareNotification",
                             entityType: "Document",
@@ -4527,26 +2811,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 Date.now = originalDateNow;
             }
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 2,
                     latestMessage: {
-                        createdTime: message4.createdTime,
-                        author: await session1.get(),
+                        message: message4,
                         contentTextSnippet: "message4",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
@@ -4554,27 +2826,13 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("multiline message content is printed in the text snippet", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const chat = await TestChat.get(scenario.session1, scenario.session2);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             const message1 = await chat.sendMessage(
                 scenario.session2,
@@ -4591,40 +2849,21 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message1.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message1,
                         contentTextSnippet:
                             "Yes. But actually this other thing. And one final thing!",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             const message2 = await chat.sendMessage(
                 scenario.session2,
@@ -4641,39 +2880,20 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 2,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session1,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session2.get(),
+                        message: message2,
                         contentTextSnippet: "Yes. But actually this other thing",
-                        isStickyMention: false,
                     },
                     otherChatAccount: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
         });
 
         test("private entity in mention isn’t included in chat notification", async () => {
@@ -4701,51 +2921,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session2,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        author: await session1.get(),
-                        createdTime: message.createdTime,
+                        message,
                         contentTextSnippet: "Can you see this? TOP SECRET",
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(session3.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChatEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session3.account.id,
-                    chatId: chat.id,
-                    chatAccountCount: 3,
+            expect(await testGetInboxEntries(session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: session3,
+                    chat,
                     loudNotificationCount: 1,
                     latestMessage: {
-                        author: await session1.get(),
-                        createdTime: message.createdTime,
+                        message,
                         contentTextSnippet: "Can you see this? Private document",
-                        isStickyMention: false,
                     },
                     otherChatAccount: expect.any(AccountModel),
                 }),
@@ -4800,18 +2996,13 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxChatEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session2.account.id,
-                                            chatId: chat.id,
-                                            chatAccountCount: 3,
+                                        model: expectInboxChatEntryModel({
+                                            session: session2,
+                                            chat,
                                             loudNotificationCount: 1,
                                             latestMessage: {
-                                                author: await session1.get(),
-                                                createdTime: message.createdTime,
+                                                message,
                                                 contentTextSnippet: "Can you see this? TOP SECRET",
-                                                isStickyMention: false,
                                             },
                                             otherChatAccount: expect.any(AccountModel),
                                         }),
@@ -4845,19 +3036,14 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxChatEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session3.account.id,
-                                            chatId: chat.id,
-                                            chatAccountCount: 3,
+                                        model: expectInboxChatEntryModel({
+                                            session: session3,
+                                            chat,
                                             loudNotificationCount: 1,
                                             latestMessage: {
-                                                author: await session1.get(),
-                                                createdTime: message.createdTime,
+                                                message,
                                                 contentTextSnippet:
                                                     "Can you see this? Private document",
-                                                isStickyMention: false,
                                             },
                                             otherChatAccount: expect.any(AccountModel),
                                         }),

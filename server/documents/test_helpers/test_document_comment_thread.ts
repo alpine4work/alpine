@@ -17,6 +17,7 @@ import {
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -42,6 +43,7 @@ const schema = DocumentContentProsemirrorSchema;
 export class TestDocumentCommentThread extends TestCommentRoomBase {
     public readonly context: TestContext;
     public readonly space: TestSpace;
+    public readonly firstCommentAuthor: TestAccount;
     public readonly document: TestDocument;
     public readonly id: DocumentCommentThreadId;
     public readonly createdTime: Date;
@@ -49,6 +51,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
     private constructor(
         context: TestContext,
         document: TestDocument,
+        firstCommentAuthor: TestAccount,
         id: DocumentCommentThreadId,
         createdTime: Date,
     ) {
@@ -56,6 +59,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         this.context = context;
         this.space = document.space;
         this.document = document;
+        this.firstCommentAuthor = firstCommentAuthor;
         this.id = id;
         this.createdTime = createdTime;
     }
@@ -100,7 +104,13 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             },
         );
 
-        return new TestDocumentCommentThread(session.context, document, id, createdTime);
+        return new TestDocumentCommentThread(
+            session.context,
+            document,
+            session.account,
+            id,
+            createdTime,
+        );
     }
 
     protected override _getRoomKey() {

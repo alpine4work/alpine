@@ -17,7 +17,7 @@ import {
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
-import {createNotificationsScenario} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -1199,7 +1199,7 @@ describe("sendNotificationDigestForInbox", () => {
 
 describe("getNotificationDigestContent", () => {
     test("should get inbox entries", async () => {
-        const scenario = await createNotificationsScenario(context);
+        const scenario = await createNotificationsTestScenario(context);
 
         const chat = await TestChat.get(scenario.session1, scenario.session2, scenario.session3);
         await chat.sendMessage(scenario.session2, "message1");
@@ -1278,7 +1278,7 @@ describe("getNotificationDigestContent", () => {
     });
 
     test("should skip archived inbox entries", async () => {
-        const scenario = await createNotificationsScenario(context);
+        const scenario = await createNotificationsTestScenario(context);
         const chat = await TestChat.get(scenario.session1, scenario.session2);
         await chat.sendMessage(scenario.session2, "message1");
 

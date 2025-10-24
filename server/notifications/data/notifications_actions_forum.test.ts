@@ -1,6 +1,5 @@
 import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
-import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
@@ -8,14 +7,10 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
-import {
-    backfillInboxEntries,
-    getInboxEntries,
-} from "~/server/notifications/data/get_inbox_entries.js";
+import {backfillInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
@@ -25,11 +20,11 @@ import {
     notificationEventProcessingTestCounter,
     processNotificationEvent,
 } from "~/server/notifications/data/process/process_notification_event.js";
-import {
-    createNotificationsScenario,
-    createTestInboxModel,
-    massageInboxEntriesQuery,
-} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
+import {createTestInboxModel} from "~/server/notifications/data/test_helpers/create_test_inbox_model.js";
+import {expectInboxChannelPostsEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_channel_posts_entry_model.js";
+import {expectInboxPostCommentsEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_post_comments_entry_model.js";
+import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {
     acceptSpaceAccountInvite,
@@ -41,7 +36,6 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
-import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
@@ -57,10 +51,6 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {
-    InboxChannelPostsEntryModel,
-    InboxPostCommentsEntryModel,
-} from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -139,15 +129,10 @@ async function testGetInboxChannelPostsEntryPosts(
     return {hasMorePosts, posts: posts.map(post => post.model)};
 }
 
-async function getPostContentTextSnippet(post: TestPost) {
-    const {content} = await post.get();
-    return printContentSingleLineTextSnippetForServer(content);
-}
-
 test("won’t create two inbox entries if inbox is observed between serial event processing", async () => {
     processingType = "TwiceSerially";
 
-    const scenario = await createNotificationsScenario(context);
+    const scenario = await createNotificationsTestScenario(context);
 
     const channel = await TestChannel.create(scenario.session2);
 
@@ -180,55 +165,23 @@ test("won’t create two inbox entries if inbox is observed between serial event
     unpause2();
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await getInboxEntries(context.action(scenario.session2), {
-            spaceId: scenario.space.id,
-            filter: "New",
-            limit: 100,
-            afterCursor: null,
-        }).then(massageInboxEntriesQuery),
-    ).toEqual([
-        new InboxChannelPostsEntryModel({
-            isArchived: false,
-            spaceId: scenario.space.id,
-            accountId: scenario.session2.account.id,
-            loudNotificationCount: 0,
-            channel: {isPrivate: false, channel: await channel.getPreview()},
+    expect(await testGetInboxEntries(scenario.session2)).toEqual([
+        expectInboxChannelPostsEntryModel({
+            session: scenario.session2,
+            channel,
             bucketGeneration: 0,
             postCount: 2,
-            postAuthorCount: 1,
-            latestPost: {
-                author: await scenario.session1.get(),
-                createdTime: post2.createdTime,
-                contentTextSnippet: await getPostContentTextSnippet(post2),
-            },
-            otherPostAuthor: null,
+            latestPost: {post: post2, contentTextSnippet: expect.any(String)},
         }),
     ]);
 
-    expect(
-        await getInboxEntries(context.action(scenario.session3), {
-            spaceId: scenario.space.id,
-            filter: "New",
-            limit: 100,
-            afterCursor: null,
-        }).then(massageInboxEntriesQuery),
-    ).toEqual([
-        new InboxChannelPostsEntryModel({
-            isArchived: false,
-            spaceId: scenario.space.id,
-            accountId: scenario.session3.account.id,
-            loudNotificationCount: 0,
-            channel: {isPrivate: false, channel: await channel.getPreview()},
+    expect(await testGetInboxEntries(scenario.session3)).toEqual([
+        expectInboxChannelPostsEntryModel({
+            session: scenario.session3,
+            channel,
             bucketGeneration: 0,
             postCount: 2,
-            postAuthorCount: 1,
-            latestPost: {
-                author: await scenario.session1.get(),
-                createdTime: post2.createdTime,
-                contentTextSnippet: await getPostContentTextSnippet(post2),
-            },
-            otherPostAuthor: null,
+            latestPost: {post: post2, contentTextSnippet: expect.any(String)},
         }),
     ]);
 });
@@ -246,7 +199,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("posting creates an inbox entry for all subscribers", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
                 scenario.session1.account.id,
@@ -270,64 +223,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -338,83 +250,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -425,101 +287,43 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -530,100 +334,42 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -634,7 +380,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("posting creates an inbox entry for all subscribers unless a subscriber has lost access", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
                 scenario.session1.account.id,
@@ -658,66 +404,25 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await channel.access.revokeDefault(scenario.session1);
             await channel.access.grant(scenario.session1, scenario.session2);
@@ -726,66 +431,25 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const comment2 = await post.createComment(
                 scenario.session1,
@@ -794,84 +458,34 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session3.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await channel.access.grant(scenario.session1, scenario.session3);
 
@@ -882,101 +496,42 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session3.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session3.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -987,7 +542,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("can get individual inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -1023,21 +578,11 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                model: expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             });
 
@@ -1049,27 +594,17 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                model: expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             });
         });
 
         test("mentioning someone in a post a creates a loud notification for them whether or not they are a subscriber", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -1083,64 +618,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1151,101 +645,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1256,101 +693,46 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1361,107 +743,51 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     loudNotificationCount: 2,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("mentioning yourself does not create a loud notification for yourself", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -1475,64 +801,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1543,83 +828,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1630,82 +865,32 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1716,89 +901,39 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("accounts have separate inboxes for each space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
             const otherChannel = await TestChannel.create(scenario.otherSession);
@@ -1813,55 +948,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: otherChannel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.otherSession.get(),
-                        createdTime: otherPost.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: otherPost, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1872,73 +975,34 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.sharedSession,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.sharedSession.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: otherChannel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.otherSession.get(),
-                        createdTime: otherPost.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: otherPost, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1949,97 +1013,51 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.sharedSession,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.sharedSession.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    postId: otherPost.id,
-                    postAuthor: await scenario.otherSession.get(),
-                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.sharedSession,
+                    post: otherPost,
+                    channel: otherChannel,
                     loudNotificationCount: 1,
-                    postCreatedTime: otherPost.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.otherSession.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.sharedSession.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: otherChannel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.otherSession.get(),
-                        createdTime: otherPost.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(otherPost),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: otherPost, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("account can not see mention in a different space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -2056,39 +1074,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             const comment1 = await post.createComment(
@@ -2098,57 +1094,28 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             await otherPost.createComment(
@@ -2158,62 +1125,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
         });
 
         test("comment notification events processed out of order result in the same latest comment", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -2224,23 +1162,9 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const post = await channel.createPost(scenario.session2);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             await post.createComment(scenario.session1, createSimpleMessageContent("comment1"));
 
@@ -2264,156 +1188,75 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
         });
 
         test("comment notification events processed out of order result in the same latest comment including implicit archival states", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -2424,23 +1267,9 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const post = await channel.createPost(scenario.session2);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             await post.createComment(scenario.session1, createSimpleMessageContent("comment1"));
 
@@ -2464,118 +1293,52 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session2.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
         });
 
         test("loud notifications are always at the top of the inbox", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -2587,14 +1350,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment1 = await post1.createComment(
                 scenario.session2,
@@ -2603,31 +1359,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2638,49 +1378,26 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2691,67 +1408,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2762,67 +1447,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2830,67 +1483,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2901,67 +1522,37 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment6.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -2969,67 +1560,37 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment6.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3040,73 +1601,43 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 2,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment8.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment8,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment6.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment6,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("can not observe inbox in a space you don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             await expect(
                 observeInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
@@ -3114,7 +1645,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("observing an inbox freezes loud notifications in place", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -3128,14 +1659,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment1 = await post1.createComment(
                 scenario.session2,
@@ -3144,31 +1668,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3179,49 +1687,26 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3232,133 +1717,69 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await observeInbox(context.action(scenario.session1), {spaceId: scenario.space.id});
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3369,85 +1790,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post4.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post4.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post4,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3455,85 +1835,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post4.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post4.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post4,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3544,85 +1883,44 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post4.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post4.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post4,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment6.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment6,
                         contentTextSnippet: "comment6",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -3633,91 +1931,52 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment7.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment7,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post4.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post4.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post4,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("can archive inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -3732,14 +1991,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await post1.createComment(scenario.session2, createSimpleMessageContent("comment1"));
 
@@ -3763,137 +2015,66 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -3905,119 +2086,57 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4029,101 +2148,46 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4135,89 +2199,42 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.sharedSession.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("can unarchive inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -4234,14 +2251,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await post1.createComment(scenario.session2, createSimpleMessageContent("comment1"));
 
@@ -4275,136 +2285,66 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4432,82 +2372,36 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4519,100 +2413,45 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4624,118 +2463,54 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4747,136 +2522,64 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4888,161 +2591,81 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment5,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("can not archive or unarchive inbox entries in a space you don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -5076,7 +2699,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("notification on an archived entry revives it", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -5084,14 +2707,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment1 = await post.createComment(
                 scenario.session2,
@@ -5100,31 +2716,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -5136,14 +2736,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment2 = await post.createComment(
                 scenario.session2,
@@ -5152,37 +2745,21 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("notification on an archived entry revives it clearing old loud notification count", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -5190,14 +2767,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment1 = await post.createComment(
                 scenario.session2,
@@ -5206,31 +2776,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -5242,14 +2798,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment2 = await post.createComment(
                 scenario.session2,
@@ -5258,37 +2807,21 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("notification on an archived entry from own account does not revive it", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -5296,14 +2829,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             const comment1 = await post.createComment(
                 scenario.session2,
@@ -5312,31 +2838,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -5348,27 +2858,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await post.createComment(scenario.session1, createSimpleMessageContent("comment2"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             await unarchiveInboxEntry(
                 context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
@@ -5378,37 +2874,21 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session1,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("can not get inbox in a space you don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             await expect(
                 getInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
@@ -5416,7 +2896,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("gets an inbox model even in a fresh space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -5430,7 +2910,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("getting an inbox returns the current loud notification count", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -5439,7 +2919,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                 }),
             );
 
@@ -5450,7 +2929,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
                 }),
             );
 
@@ -5461,7 +2939,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                 }),
             );
 
@@ -5487,7 +2964,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 0,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5500,7 +2976,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5513,7 +2988,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5530,7 +3004,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5543,7 +3016,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5556,7 +3028,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5573,7 +3044,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5586,7 +3056,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 2,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5599,7 +3068,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5624,7 +3092,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5637,7 +3104,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 0,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -5650,7 +3116,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 2,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5667,7 +3132,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5693,7 +3157,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 2,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5710,7 +3173,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5736,7 +3198,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 2,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5765,7 +3226,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5791,7 +3251,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 0,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -5812,7 +3271,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5838,7 +3296,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 0,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -5859,7 +3316,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5885,7 +3341,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 0,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -5906,7 +3361,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5932,7 +3386,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -5953,7 +3406,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -5979,7 +3431,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -6000,7 +3451,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: null,
                 }),
@@ -6026,7 +3476,6 @@ for (const [currentProcessingType, processingMultiple] of [
                 createTestInboxModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
                     entryCount: 1,
                     lastZeroEntryCountTime: expect.any(Date),
                 }),
@@ -6034,7 +3483,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("start sort key and end sort key work properly in inclusive/exclusive mode", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -6140,138 +3589,86 @@ for (const [currentProcessingType, processingMultiple] of [
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post6.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post6.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post6,
                             latestComment: {
-                                createdTime: comment6.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment6,
                                 contentTextSnippet: "comment6",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post5.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post5.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post5,
                             latestComment: {
-                                createdTime: comment5.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment5,
                                 contentTextSnippet: "comment5",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post4.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post4.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post4,
                             latestComment: {
-                                createdTime: comment4.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment4,
                                 contentTextSnippet: "comment4",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post3.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post3.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post3,
                             latestComment: {
-                                createdTime: comment3.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment3,
                                 contentTextSnippet: "comment3",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post2.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post2.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post2,
                             latestComment: {
-                                createdTime: comment2.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment2,
                                 contentTextSnippet: "comment2",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post1.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post1.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post1,
                             latestComment: {
-                                createdTime: comment1.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment1,
                                 contentTextSnippet: "comment1",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                 ],
@@ -6306,92 +3703,58 @@ for (const [currentProcessingType, processingMultiple] of [
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post4.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post4.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post4,
                             latestComment: {
-                                createdTime: comment4.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment4,
                                 contentTextSnippet: "comment4",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post3.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post3.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post3,
                             latestComment: {
-                                createdTime: comment3.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment3,
                                 contentTextSnippet: "comment3",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post2.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post2.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post2,
                             latestComment: {
-                                createdTime: comment2.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment2,
                                 contentTextSnippet: "comment2",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post1.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post1.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post1,
                             latestComment: {
-                                createdTime: comment1.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment1,
                                 contentTextSnippet: "comment1",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                 ],
@@ -6427,69 +3790,44 @@ for (const [currentProcessingType, processingMultiple] of [
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post3.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post3.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post3,
                             latestComment: {
-                                createdTime: comment3.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment3,
                                 contentTextSnippet: "comment3",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post2.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post2.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post2,
                             latestComment: {
-                                createdTime: comment2.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment2,
                                 contentTextSnippet: "comment2",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post1.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post1.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post1,
                             latestComment: {
-                                createdTime: comment1.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment1,
                                 contentTextSnippet: "comment1",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                 ],
@@ -6524,115 +3862,71 @@ for (const [currentProcessingType, processingMultiple] of [
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post6.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post6.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post6,
                             latestComment: {
-                                createdTime: comment6.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment6,
                                 contentTextSnippet: "comment6",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post5.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post5.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post5,
                             latestComment: {
-                                createdTime: comment5.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment5,
                                 contentTextSnippet: "comment5",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post4.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post4.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post4,
                             latestComment: {
-                                createdTime: comment4.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment4,
                                 contentTextSnippet: "comment4",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post3.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post3.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post3,
                             latestComment: {
-                                createdTime: comment3.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment3,
                                 contentTextSnippet: "comment3",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 2,
-                        model: new InboxPostCommentsEntryModel({
+                        model: expectInboxPostCommentsEntryModel({
                             isArchived: true,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post2.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post2.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                            session: scenario.session1,
+                            channel,
+                            post: post2,
                             latestComment: {
-                                createdTime: comment2.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment2,
                                 contentTextSnippet: "comment2",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                 ],
@@ -6668,92 +3962,56 @@ for (const [currentProcessingType, processingMultiple] of [
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post6.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post6.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post6,
                             latestComment: {
-                                createdTime: comment6.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment6,
                                 contentTextSnippet: "comment6",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post5.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post5.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post5,
                             latestComment: {
-                                createdTime: comment5.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment5,
                                 contentTextSnippet: "comment5",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post4.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post4.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post4,
                             latestComment: {
-                                createdTime: comment4.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment4,
                                 contentTextSnippet: "comment4",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                     {
                         cursor: expect.any(String),
                         key: expect.any(String),
                         version: 1,
-                        model: new InboxPostCommentsEntryModel({
-                            isArchived: false,
-                            spaceId: scenario.space.id,
-                            accountId: scenario.session1.account.id,
-                            channel: {isPrivate: false, channel: await channel.getPreview()},
-                            postId: post3.id,
-                            postAuthor: await scenario.session1.get(),
-                            loudNotificationCount: 0,
-                            postCreatedTime: post3.createdTime,
-                            postContentTextSnippetIfMentioned: null,
+                        model: expectInboxPostCommentsEntryModel({
+                            session: scenario.session1,
+                            channel,
+                            post: post3,
                             latestComment: {
-                                createdTime: comment3.createdTime,
-                                author: await scenario.session2.get(),
+                                comment: comment3,
                                 contentTextSnippet: "comment3",
-                                isStickyMention: false,
                             },
-                            otherCommentAuthor: null,
                         }),
                     },
                 ],
@@ -6761,7 +4019,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("archiving an entry with loud notifications puts it back at the inbox generation", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -6786,65 +4044,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -6856,47 +4084,24 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -6907,71 +4112,39 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("implicitly archiving an entry with loud notifications puts it back at the inbox generation", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -6996,65 +4169,35 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -7062,47 +4205,24 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -7113,71 +4233,39 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("archived entries are in the order they were archived", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -7209,94 +4297,50 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await archiveInboxEntry(
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
@@ -7306,93 +4350,48 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -7404,93 +4403,47 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -7502,99 +4455,52 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("implicitly archived entries are in the order they were archived", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -7626,186 +4532,97 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await post3.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -7813,93 +4630,47 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -7907,99 +4678,52 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 3,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("archive entry order does not change when it updates", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -8050,67 +4774,36 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -8118,67 +4811,36 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -8186,73 +4848,42 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post2.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post1.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post1.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post1,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxPostCommentsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post3.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post: post3,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("mentioning in a post creates an entry for the mentioned account", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -8320,96 +4951,47 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post2.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post: post2,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    postId: post3.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session3,
+                    post: post3,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session3.account.initialName}!`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
 
         test("commenting on a post someone was mentioned on updates an entry for the mentioned account", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -8439,26 +5021,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -8469,37 +5039,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("commenting on a post revives an archived entry someone was mentioned on", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -8529,37 +5085,18 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await archiveInboxEntry(
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
@@ -8569,35 +5106,16 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
+                    session: scenario.session2,
+                    post,
+                    channel,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -8608,46 +5126,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment1,
                         contentTextSnippet: "comment1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
         });
 
         test("post with mention create event processed after comment event", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -8686,68 +5181,41 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await scenario.session3.get(),
+                        comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 2,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await scenario.session3.get(),
+                        comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("post with mention create event processed after comment event and after entry was archived", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -8786,42 +5254,21 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: scenario.session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await scenario.session3.get(),
+                        comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await archiveInboxEntry(
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
@@ -8831,86 +5278,42 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await scenario.session3.get(),
+                        comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "Archive",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    postId: post.id,
-                    postAuthor: await scenario.session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+                    session: scenario.session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await scenario.session3.get(),
+                        comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("creating posts updates an entry for every subscriber", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const session4 = await scenario.space.createSession();
             const session5 = await scenario.space.createSession();
@@ -8929,643 +5332,235 @@ for (const [currentProcessingType, processingMultiple] of [
                 subscribeToChannel(scenario.sharedSession.action(), channel2.id),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session5), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session5)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([]);
 
             const post1 = await channel1.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session5), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session5)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([]);
 
             const post2 = await channel1.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session5), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session5)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([]);
 
             const post3 = await channel1.createPost(scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: await scenario.session1.get(),
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session5), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session5)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: await scenario.session1.get(),
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([]);
 
             const post4 = await channel2.createPost(scenario.session2);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel2.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel: channel2,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel2.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel: channel2,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: await scenario.session1.get(),
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session5), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: session5.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel2.getPreview()},
+            expect(await testGetInboxEntries(session5)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session5,
+                    channel: channel2,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel2.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: channel2,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel1.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel: channel1,
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: await scenario.session1.get(),
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([]);
         });
 
         test("creating posts updates an entry for every subscriber unless the subscriber lost channel access", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const session4 = await scenario.space.createSession();
 
@@ -9582,148 +5577,48 @@ for (const [currentProcessingType, processingMultiple] of [
             await channel.access.grant(scenario.session2, session4);
             await channel.access.grant(scenario.session2, scenario.sharedSession);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([]);
 
             const post1 = await channel.createPost(session4);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -9733,99 +5628,37 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: await session4.get(),
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: session4,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post1),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
                     channel: {isPrivate: true, channelId: channel.id},
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: "",
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: ""},
                 }),
             ]);
 
@@ -9835,122 +5668,53 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session1,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session3.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: await session4.get(),
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: session4,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session3,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 2,
-                    latestPost: {
-                        author: await scenario.session2.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: await session4.get(),
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                    otherPostAuthor: session4,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(session4), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session4)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    loudNotificationCount: 0,
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.sharedSession,
                     channel: {isPrivate: true, channelId: channel.id},
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session4.get(),
-                        createdTime: post1.createdTime,
-                        contentTextSnippet: "",
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post1, contentTextSnippet: ""},
                 }),
             ]);
         });
 
         test("can not get inbox entry posts for a space you don’t have access to", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -9971,7 +5735,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("getting inbox entry posts freezes the inbox entry", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -9983,29 +5747,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10038,45 +5786,19 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 2,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10112,61 +5834,25 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 4,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 2,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10214,7 +5900,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("getting inbox entry posts does not observe if inbox was already observed", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -10226,29 +5912,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10258,45 +5928,19 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 2,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post3.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post3),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10318,45 +5962,20 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 2,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post4.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post4),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
                     postCount: 2,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post2.createdTime,
-                        contentTextSnippet: await getPostContentTextSnippet(post2),
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10390,7 +6009,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("can paginate getting inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
 
@@ -10572,7 +6191,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("account can’t backfill in a space it can’t access", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -10603,21 +6222,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         item: {
                             key: expect.any(String),
                             version: expect.any(Number),
-                            model: new InboxChannelPostsEntryModel({
-                                isArchived: false,
-                                spaceId: scenario.space.id,
-                                accountId: scenario.session3.account.id,
-                                loudNotificationCount: 0,
-                                channel: {isPrivate: false, channel: await channel.getPreview()},
+                            model: expectInboxChannelPostsEntryModel({
+                                session: scenario.session3,
+                                channel,
                                 bucketGeneration: 0,
-                                postCount: 1,
-                                postAuthorCount: 1,
-                                latestPost: {
-                                    author: await scenario.session1.get(),
-                                    createdTime: post.createdTime,
-                                    contentTextSnippet: await getPostContentTextSnippet(post),
-                                },
-                                otherPostAuthor: null,
+                                latestPost: {post, contentTextSnippet: expect.any(String)},
                             }),
                         },
                         indexes: expect.any(Map),
@@ -10634,7 +6243,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("won’t backfill events that happened far in the past", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -10661,21 +6270,11 @@ for (const [currentProcessingType, processingMultiple] of [
                         item: {
                             key: expect.any(String),
                             version: expect.any(Number),
-                            model: new InboxChannelPostsEntryModel({
-                                isArchived: false,
-                                spaceId: scenario.space.id,
-                                accountId: scenario.session3.account.id,
-                                loudNotificationCount: 0,
-                                channel: {isPrivate: false, channel: await channel.getPreview()},
+                            model: expectInboxChannelPostsEntryModel({
+                                session: scenario.session3,
+                                channel,
                                 bucketGeneration: 0,
-                                postCount: 1,
-                                postAuthorCount: 1,
-                                latestPost: {
-                                    author: await scenario.session1.get(),
-                                    createdTime: post.createdTime,
-                                    contentTextSnippet: await getPostContentTextSnippet(post),
-                                },
-                                otherPostAuthor: null,
+                                latestPost: {post, contentTextSnippet: expect.any(String)},
                             }),
                         },
                         indexes: expect.any(Map),
@@ -10712,25 +6311,12 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: expect.any(Object),
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10738,25 +6324,12 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: expect.any(Object),
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -10765,44 +6338,21 @@ for (const [currentProcessingType, processingMultiple] of [
                 key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
             });
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const comment2 = await post.createComment(session1, "Test comment 2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await session1.get(),
+                        comment: comment2,
                         contentTextSnippet: "Test comment 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -10810,31 +6360,15 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "Test comment 3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -10858,31 +6392,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -10890,31 +6410,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -10922,31 +6428,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await session1.get(),
+                        comment: comment4,
                         contentTextSnippet: `Test comment 4 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -10970,31 +6462,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 2,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment7.createdTime,
-                        author: await session1.get(),
+                        comment: comment7,
                         contentTextSnippet: `Test comment 7 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -11002,31 +6480,17 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 2,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment7.createdTime,
-                        author: await session1.get(),
+                        comment: comment7,
                         contentTextSnippet: `Test comment 7 ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -11037,44 +6501,21 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const comment9 = await post.createComment(session1, "Test comment 9");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     latestComment: {
-                        createdTime: comment9.createdTime,
-                        author: await session1.get(),
+                        comment: comment9,
                         contentTextSnippet: "Test comment 9",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -11279,70 +6720,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${session2.account.initialName}`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(session3.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session3)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session4.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session4.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session4)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session4,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: `Hello ${session2.account.initialName}`,
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: `Hello ${session2.account.initialName}`},
                 }),
             ]);
         });
@@ -11379,56 +6777,18 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session3.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session3)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session4.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session4.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session4)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session4,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: `Hello ${session2.account.initialName}`,
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: `Hello ${session2.account.initialName}`},
                 }),
             ]);
         });
@@ -11462,69 +6822,30 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: `Hello ${session2.account.initialName}`,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await channel.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
                     channel: {isPrivate: true},
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: null,
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -11545,79 +6866,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await channel.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
                     channel: {isPrivate: true},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -11655,85 +6930,43 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: `Hello ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await channel.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: await session1.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
                     channel: {isPrivate: true},
                     loudNotificationCount: 1,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "",
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("multiline post content is printed in the text snippet", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
 
@@ -11753,39 +6986,18 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: scenario.session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
                     latestPost: {
-                        author: await scenario.session1.get(),
-                        createdTime: post.createdTime,
+                        post,
                         contentTextSnippet:
                             "Yes. But actually this other thing. And one final thing!",
                     },
-                    otherPostAuthor: null,
                 }),
             ]);
         });
@@ -11818,55 +7030,21 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: "Can you see this? TOP SECRET",
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: "Can you see this? TOP SECRET"},
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(session3.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxChannelPostsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session3.account.id,
-                    loudNotificationCount: 0,
-                    channel: {isPrivate: false, channel: await channel.getPreview()},
+            expect(await testGetInboxEntries(session3)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session3,
+                    channel,
                     bucketGeneration: 0,
-                    postCount: 1,
-                    postAuthorCount: 1,
-                    latestPost: {
-                        author: await session1.get(),
-                        createdTime: post.createdTime,
-                        contentTextSnippet: "Can you see this? Private document",
-                    },
-                    otherPostAuthor: null,
+                    latestPost: {post, contentTextSnippet: "Can you see this? Private document"},
                 }),
             ]);
 
@@ -11904,7 +7082,6 @@ for (const [currentProcessingType, processingMultiple] of [
                                         model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session2.account.id,
-                                            loudNotificationCount: 0,
                                             entryCount: 1,
                                             lastZeroEntryCountTime: null,
                                         }),
@@ -11916,24 +7093,14 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxChannelPostsEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session2.account.id,
-                                            loudNotificationCount: 0,
-                                            channel: {
-                                                isPrivate: false,
-                                                channel: await channel.getPreview(),
-                                            },
+                                        model: expectInboxChannelPostsEntryModel({
+                                            session: session2,
+                                            channel,
                                             bucketGeneration: 0,
-                                            postCount: 1,
-                                            postAuthorCount: 1,
                                             latestPost: {
-                                                author: await session1.get(),
-                                                createdTime: post.createdTime,
+                                                post,
                                                 contentTextSnippet: "Can you see this? TOP SECRET",
                                             },
-                                            otherPostAuthor: null,
                                         }),
                                     },
                                 },
@@ -11953,7 +7120,6 @@ for (const [currentProcessingType, processingMultiple] of [
                                         model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session3.account.id,
-                                            loudNotificationCount: 0,
                                             entryCount: 1,
                                             lastZeroEntryCountTime: null,
                                         }),
@@ -11965,25 +7131,15 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxChannelPostsEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session3.account.id,
-                                            loudNotificationCount: 0,
-                                            channel: {
-                                                isPrivate: false,
-                                                channel: await channel.getPreview(),
-                                            },
+                                        model: expectInboxChannelPostsEntryModel({
+                                            session: session3,
+                                            channel,
                                             bucketGeneration: 0,
-                                            postCount: 1,
-                                            postAuthorCount: 1,
                                             latestPost: {
-                                                author: await session1.get(),
-                                                createdTime: post.createdTime,
+                                                post,
                                                 contentTextSnippet:
                                                     "Can you see this? Private document",
                                             },
-                                            otherPostAuthor: null,
                                         }),
                                     },
                                 },
@@ -12030,59 +7186,28 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    postId: post.id,
-                    postAuthor: expect.any(AccountModel),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment.createdTime,
+                        comment,
                         contentTextSnippet: "Can you see this? TOP SECRET",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: expect.any(AccountModel),
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(session3.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxPostCommentsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session3.account.id,
-                    postId: post.id,
-                    postAuthor: expect.any(AccountModel),
-                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
-                    loudNotificationCount: 0,
-                    postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: null,
+            expect(await testGetInboxEntries(session3)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session3,
+                    post,
+                    channel,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment.createdTime,
+                        comment,
                         contentTextSnippet: "Can you see this? Private document",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
             const expected = new Map(
@@ -12120,7 +7245,6 @@ for (const [currentProcessingType, processingMultiple] of [
                                         model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session2.account.id,
-                                            loudNotificationCount: 0,
                                             entryCount: 1,
                                             lastZeroEntryCountTime: null,
                                         }),
@@ -12132,24 +7256,13 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxPostCommentsEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session2.account.id,
-                                            postId: post.id,
-                                            postAuthor: expect.any(AccountModel),
-                                            channel: {
-                                                isPrivate: false,
-                                                channel: expect.any(ChannelPreviewModel),
-                                            },
-                                            loudNotificationCount: 0,
-                                            postCreatedTime: post.createdTime,
-                                            postContentTextSnippetIfMentioned: null,
+                                        model: expectInboxPostCommentsEntryModel({
+                                            session: session2,
+                                            post,
+                                            channel,
                                             latestComment: {
-                                                author: await session1.get(),
-                                                createdTime: comment.createdTime,
+                                                comment,
                                                 contentTextSnippet: "Can you see this? TOP SECRET",
-                                                isStickyMention: false,
                                             },
                                             otherCommentAuthor: expect.any(AccountModel),
                                         }),
@@ -12171,7 +7284,6 @@ for (const [currentProcessingType, processingMultiple] of [
                                         model: createTestInboxModel({
                                             spaceId: space.id,
                                             accountId: session3.account.id,
-                                            loudNotificationCount: 0,
                                             entryCount: 1,
                                             lastZeroEntryCountTime: null,
                                         }),
@@ -12183,27 +7295,15 @@ for (const [currentProcessingType, processingMultiple] of [
                                     item: {
                                         key: expect.any(String),
                                         version: expect.any(Number),
-                                        model: new InboxPostCommentsEntryModel({
-                                            isArchived: false,
-                                            spaceId: space.id,
-                                            accountId: session3.account.id,
-                                            postId: post.id,
-                                            postAuthor: expect.any(AccountModel),
-                                            channel: {
-                                                isPrivate: false,
-                                                channel: expect.any(ChannelPreviewModel),
-                                            },
-                                            loudNotificationCount: 0,
-                                            postCreatedTime: post.createdTime,
-                                            postContentTextSnippetIfMentioned: null,
+                                        model: expectInboxPostCommentsEntryModel({
+                                            session: session3,
+                                            post,
+                                            channel,
                                             latestComment: {
-                                                author: await session1.get(),
-                                                createdTime: comment.createdTime,
+                                                comment,
                                                 contentTextSnippet:
                                                     "Can you see this? Private document",
-                                                isStickyMention: false,
                                             },
-                                            otherCommentAuthor: null,
                                         }),
                                     },
                                 },

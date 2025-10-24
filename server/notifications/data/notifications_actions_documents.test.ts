@@ -1,6 +1,5 @@
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {
     notificationEventAfterProcessingTestCheckpoint,
@@ -8,10 +7,10 @@ import {
     notificationEventProcessingTestCounter,
     processNotificationEvent,
 } from "~/server/notifications/data/process/process_notification_event.js";
-import {
-    createNotificationsScenario,
-    massageInboxEntriesQuery,
-} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
+import {expectInboxDocumentCommentThreadEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_document_comment_thread_entry_model.js";
+import {expectDocumentNewCommentThreadsEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_document_new_comment_threads_entry_model.js";
+import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
 import {
     acceptSpaceAccountInvite,
     addSpaceAccount,
@@ -21,7 +20,6 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -30,10 +28,6 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {
-    InboxDocumentCommentThreadEntryModel,
-    InboxDocumentNewCommentThreadsEntryModel,
-} from "~/shared/notifications/inbox_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
@@ -84,7 +78,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("creating comment threads creates an inbox entry for the document owner", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
                 scenario.session1.account.id,
@@ -112,233 +106,86 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document1.id,
-                            createdTime: document1.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await document1.createCommentThread(scenario.session2, {from: 11, to: 12}, "test2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document1.id,
-                            createdTime: document1.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 4,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
                     commentThreadCount: 2,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await document1.createCommentThread(scenario.session3, {from: 12, to: 13}, "test3");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document1.id,
-                            createdTime: document1.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 5,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
-                    otherCommentThreadAuthor: await scenario.session3.get(),
+                    otherCommentThreadAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await document2.createCommentThread(scenario.session2, {from: 10, to: 11}, "test4");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document1.id,
-                            createdTime: document1.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 5,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
-                    otherCommentThreadAuthor: await scenario.session3.get(),
+                    otherCommentThreadAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const commentThread5 = await document2.createCommentThread(
                 scenario.session1,
@@ -348,86 +195,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document1.id,
-                            createdTime: document1.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 5,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
-                    otherCommentThreadAuthor: await scenario.session3.get(),
+                    otherCommentThreadAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document2.id,
-                            createdTime: document2.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 4,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session2,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: commentThread5.createdTime,
+                        commentThread: commentThread5,
                         contentTextSnippet: "test5",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             // Make sure multiple processing is working.
             expect(getCount1()).toEqual(1 * processingMultiple);
@@ -436,7 +230,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("mentioning a user in the initial comment thread creates a comment thread entry", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const document = await TestDocument.create(scenario.session1);
             await document.access.grantDefault(scenario.session1);
@@ -451,59 +245,23 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session1,
                     loudNotificationCount: 1,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread1.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+                    commentThread: commentThread1,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        comment: commentThread1,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const commentThread2 = await document.createCommentThread(
                 scenario.session2,
@@ -513,116 +271,48 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session1,
                     loudNotificationCount: 1,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 4,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread1.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+                    commentThread: commentThread1,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread1.createdTime,
+                        comment: commentThread1,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 4,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread2.createdTime,
+                        commentThread: commentThread2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session3,
                     loudNotificationCount: 1,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 4,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread2.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+                    commentThread: commentThread2,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread2.createdTime,
+                        comment: commentThread2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
 
         test("replying creates an inbox entry for subscribers", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const document = await TestDocument.create(scenario.session1);
             await document.access.grantDefault(scenario.session1);
@@ -637,227 +327,79 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "comment1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const comment2 = await commentThread.createComment(scenario.session3, "comment2");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "comment1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session2,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session3.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "comment2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const comment3 = await commentThread.createComment(scenario.session2, "comment3");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "comment1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session3,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: comment3.createdTime,
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -865,117 +407,47 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: scenario.session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "comment1",
                     },
                     otherCommentThreadAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session2,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: comment4.createdTime,
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session3,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: comment4.createdTime,
+                        comment: comment4,
                         contentTextSnippet: "comment4",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
         });
 
         test("comment notification events processed out of order result in the same latest comment", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const document = await TestDocument.create(scenario.session3);
             await document.access.grantDefault(scenario.session3);
@@ -990,23 +462,9 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             await commentThread.createComment(scenario.session1, "comment1");
 
@@ -1030,150 +488,57 @@ for (const [currentProcessingType, processingMultiple] of [
             const {unpause: unpause2} = await pause2Promise;
             unpause2();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session1,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session2,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
 
             unpause1();
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    loudNotificationCount: 0,
-                    firstCommentAuthor: await scenario.session2.get(),
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session1,
+                    commentThread,
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: scenario.space.id,
-                            version: 3,
-                            titleWithoutFallback: "",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: scenario.session2,
+                    commentThread,
                     loudNotificationCount: 1,
-                    firstCommentAuthor: await scenario.session2.get(),
+                    firstCommentAuthor: scenario.session2,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: comment3,
                         contentTextSnippet: "comment3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
         });
@@ -1415,70 +780,30 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 5,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "baz",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await document.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: true,
-                        documentId: document.id,
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    isDocumentPrivate: true,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -1515,70 +840,34 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
                     loudNotificationCount: 1,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 5,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session1.get(),
+                    commentThread,
+                    firstCommentAuthor: session1,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: commentThread.createdTime,
+                        comment: commentThread,
                         contentTextSnippet: `Hello ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await document.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
                     loudNotificationCount: 1,
-                    document: {
-                        isPrivate: true,
-                        documentId: document.id,
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session1.get(),
+                    isDocumentPrivate: true,
+                    commentThread,
+                    firstCommentAuthor: session1,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: commentThread.createdTime,
+                        comment: commentThread,
                         contentTextSnippet: "",
                         isStickyMention: true,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -1598,36 +887,12 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 5,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
+            expect(await testGetInboxEntries(session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: session1,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "bar",
                     },
                     otherCommentThreadAuthor: null,
@@ -1636,29 +901,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await document.access.revoke(session1, session1);
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: true,
-                        documentId: document.id,
-                    },
+            expect(await testGetInboxEntries(session1)).toEqual([
+                expectDocumentNewCommentThreadsEntryModel({
+                    session: session1,
+                    isDocumentPrivate: true,
                     bucketGeneration: 0,
-                    commentThreadCount: 1,
-                    commentThreadAuthorCount: 1,
                     firstComment: {
-                        author: await session2.get(),
-                        createdTime: commentThread.createdTime,
+                        commentThread,
                         contentTextSnippet: "",
                     },
                     otherCommentThreadAuthor: null,
@@ -1683,70 +932,30 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 5,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "baz",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
             await document.access.revoke(session1, session2);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: true,
-                        documentId: document.id,
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    isDocumentPrivate: true,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -1754,32 +963,16 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: true,
-                        documentId: document.id,
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    isDocumentPrivate: true,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment2.createdTime,
+                        comment: comment2,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -1815,65 +1008,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             await document.access.grant(session1, session2);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const comment = await commentThread.createComment(session1, "bar");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 5,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session1.get(),
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session2,
+                    commentThread,
+                    firstCommentAuthor: session1,
                     latestComment: {
-                        author: await session1.get(),
-                        createdTime: comment.createdTime,
+                        comment,
                         contentTextSnippet: "bar",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -1894,40 +1049,19 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
             await document.access.grant(session2, session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
             await commentThread.createComment(session2, "qux");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
         });
 
         test("won’t send notification when comment thread is created if account doesn’t have access to own document (but will send notification if mentioned when access is granted back)", async () => {
@@ -1963,65 +1097,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
             await document.access.grant(session2, session1);
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session1)).toEqual([]);
 
             const comment = await commentThread.createComment(session2, "bar");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session1.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxDocumentCommentThreadEntryModel({
-                    isArchived: false,
-                    spaceId: space.id,
-                    accountId: session1.account.id,
-                    loudNotificationCount: 0,
-                    document: {
-                        isPrivate: false,
-                        document: new DocumentPreviewModel({
-                            id: document.id,
-                            createdTime: document.createdTime,
-                            spaceId: space.id,
-                            version: 7,
-                            titleWithoutFallback: "foo",
-                            accessPolicy: expect.any(Object),
-                        }),
-                    },
-                    commentThreadId: commentThread.id,
-                    firstCommentAuthor: await session2.get(),
+            expect(await testGetInboxEntries(session1)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    session: session1,
+                    commentThread,
+                    firstCommentAuthor: session2,
                     latestComment: {
-                        author: await session2.get(),
-                        createdTime: comment.createdTime,
+                        comment,
                         contentTextSnippet: "bar",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: null,
                 }),
             ]);
         });

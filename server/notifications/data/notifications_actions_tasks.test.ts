@@ -1,16 +1,14 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
-import {getInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {
     notificationEventProcessingTestCounter,
     processNotificationEvent,
 } from "~/server/notifications/data/process/process_notification_event.js";
-import {
-    createNotificationsScenario,
-    massageInboxEntriesQuery,
-} from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
+import {expectInboxTaskEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_task_entry_model.js";
+import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -26,7 +24,6 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
@@ -77,7 +74,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("commenting creates an inbox entry for all subscribers", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
                 scenario.session1.account.id,
@@ -107,32 +104,11 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             await task.createComment(scenario.session2, "initial task comment from session 2");
 
@@ -145,40 +121,18 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session2,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: taskCommentFromSession1.createdTime,
-                        author: await scenario.session1.get(),
+                        comment: taskCommentFromSession1,
                         contentTextSnippet: "task comment from session 1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
@@ -189,68 +143,31 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: taskCommentFromSession2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: "task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: taskCommentFromSession2.createdTime,
-                        author: await scenario.session2.get(),
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: "task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
 
@@ -261,70 +178,33 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: taskCommentFromSession3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: taskCommentFromSession3,
                         contentTextSnippet: "task comment from session 3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session2,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: taskCommentFromSession3.createdTime,
-                        author: await scenario.session3.get(),
+                        comment: taskCommentFromSession3,
                         contentTextSnippet: "task comment from session 3",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: scenario.session1,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             // Make sure multiple processing is working
             expect(getCount1()).toEqual(1 * processingMultiple);
@@ -333,7 +213,7 @@ for (const [currentProcessingType, processingMultiple] of [
         });
 
         test("can get individual inbox entries", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
             const task = await TestTask.create(scenario.session1);
 
             const collection = await TestTaskCollection.create(scenario.session1);
@@ -369,23 +249,15 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+                model: expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: taskCommentFromSession2.createdTime,
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: "task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             });
 
@@ -411,23 +283,16 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxTaskEntryModel({
+                model: expectInboxTaskEntryModel({
                     isArchived: true,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: taskCommentFromSession2.createdTime,
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: "task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             });
 
@@ -439,21 +304,13 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+                model: expectInboxTaskEntryModel({
+                    session: scenario.session2,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: taskCommentFromSession1.createdTime,
+                        comment: taskCommentFromSession1,
                         contentTextSnippet: "task comment from session 1",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -467,23 +324,15 @@ for (const [currentProcessingType, processingMultiple] of [
             ).resolves.toEqual({
                 key: expect.any(String),
                 version: expect.any(Number),
-                model: new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+                model: expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: taskCommentFromSession1.createdTime,
+                        comment: taskCommentFromSession1,
                         contentTextSnippet: "task comment from session 1",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             });
         });
@@ -496,7 +345,7 @@ for (const [currentProcessingType, processingMultiple] of [
         // a loud notification, however Session 3 will now receive notifications for that task,
         // because mentioning a Session in a task subscribes them to that task.
         test("mentioning someone in a task comment a creates a loud notification for them whether or not they are a subscriber", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const task = await TestTask.create(scenario.session1);
 
@@ -521,55 +370,26 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: taskCommentFromSession2.createdTime,
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 1,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: taskCommentFromSession2.createdTime,
+                        comment: taskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -592,27 +412,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session2,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 1,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: taskCommentFromSession1.createdTime,
+                        comment: taskCommentFromSession1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -620,37 +426,22 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session1.get(),
-                        createdTime: taskCommentFromSession1.createdTime,
+                        comment: taskCommentFromSession1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: scenario.session2,
                 }),
             ]);
         });
 
         test("mentioning yourself does not create a loud notification for yourself", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const task = await TestTask.create(scenario.session1);
 
@@ -677,66 +468,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: firstTaskCommentFromSession2.createdTime,
+                        comment: firstTaskCommentFromSession2,
                         contentTextSnippet: "1st task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: firstTaskCommentFromSession2.createdTime,
+                        comment: firstTaskCommentFromSession2,
                         contentTextSnippet: "1st task comment from session 2",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -749,66 +503,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: loudTaskCommentFromSession2.createdTime,
+                        comment: loudTaskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: loudTaskCommentFromSession2.createdTime,
+                        comment: loudTaskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -821,66 +538,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session1), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session1.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session1,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: secondTaskCommentFromSession2.createdTime,
+                        comment: secondTaskCommentFromSession2,
                         contentTextSnippet: "2nd task comment from session 2",
-                        isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session3.get(),
+                    otherCommentAuthor: scenario.session3,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: secondTaskCommentFromSession2.createdTime,
+                        comment: secondTaskCommentFromSession2,
                         contentTextSnippet: "2nd task comment from session 2",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -899,7 +579,7 @@ for (const [currentProcessingType, processingMultiple] of [
         // in OtherSpace regarding that comment, however SharedSession doesn't receive the new notification
         // in Session 1's space.
         test("accounts have separate inboxes for each space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const taskInSession = await TestTask.create(scenario.session1);
             const taskInOtherSession = await TestTask.create(scenario.otherSession);
@@ -953,57 +633,27 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInSession.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.sharedSession,
+                    task: {task: taskInSession, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: firstTaskCommentFromSession2.createdTime,
+                        comment: firstTaskCommentFromSession2,
                         contentTextSnippet: "1st task comment from session 2",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
-            expect(
-                await getInboxEntries(context.action(scenario.otherSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.otherSession.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInOtherSession.id,
-                        taskOwner: await scenario.otherSession.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.otherSession)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.otherSession,
+                    task: {task: taskInOtherSession, taskOwner: scenario.otherSession},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.sharedSessionInOtherSpace.get(),
-                        createdTime: taskCommentFromSharedSessionInOtherSession.createdTime,
+                        comment: taskCommentFromSharedSessionInOtherSession,
                         contentTextSnippet: "task comment from shared session in other session",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1016,57 +666,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.sharedSession.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInSession.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.sharedSession)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.sharedSession,
+                    task: {task: taskInSession, taskOwner: scenario.session1},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: firstTaskCommentFromSession2.createdTime,
+                        comment: firstTaskCommentFromSession2,
                         contentTextSnippet: "1st task comment from session 2",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
             ]);
 
             expect(
-                await getInboxEntries(context.action(scenario.sharedSession), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                await testGetInboxEntries(scenario.sharedSession, {space: scenario.otherSpace}),
             ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.otherSpace.id,
-                    accountId: scenario.sharedSession.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInOtherSession.id,
-                        taskOwner: await scenario.otherSession.get(),
-                    },
+                expectInboxTaskEntryModel({
+                    session: scenario.sharedSession,
+                    task: {task: taskInOtherSession, taskOwner: scenario.otherSession},
                     loudNotificationCount: 0,
                     latestComment: {
-                        author: await scenario.otherSession.get(),
-                        createdTime: taskCommentFromOtherSession.createdTime,
+                        comment: taskCommentFromOtherSession,
                         contentTextSnippet: "task comment from other session",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1081,7 +703,7 @@ for (const [currentProcessingType, processingMultiple] of [
         // Session 3 will not receive another loud notification since Session 3 is not part of
         // the OtherSpace. So Session 3 will only have 1 loud notification count.
         test("account can not see mention in a different space", async () => {
-            const scenario = await createNotificationsScenario(context);
+            const scenario = await createNotificationsTestScenario(context);
 
             const taskInSession = await TestTask.create(scenario.session1);
             const taskInOtherSession = await TestTask.create(scenario.otherSession);
@@ -1121,27 +743,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInSession.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task: taskInSession, taskOwner: scenario.session1},
                     loudNotificationCount: 1,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: loudTaskCommentFromSession2.createdTime,
+                        comment: loudTaskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -1150,12 +758,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
 
             await taskInOtherSession.createComment(
@@ -1165,27 +768,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    isArchived: false,
-                    spaceId: scenario.space.id,
-                    accountId: scenario.session3.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: taskInSession.id,
-                        taskOwner: await scenario.session1.get(),
-                    },
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: scenario.session3,
+                    task: {task: taskInSession, taskOwner: scenario.session1},
                     loudNotificationCount: 1,
                     latestComment: {
-                        author: await scenario.session2.get(),
-                        createdTime: loudTaskCommentFromSession2.createdTime,
+                        comment: loudTaskCommentFromSession2,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
@@ -1194,12 +783,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             await expect(
-                getInboxEntries(context.action(scenario.session3), {
-                    spaceId: scenario.otherSpace.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
+                testGetInboxEntries(scenario.session3, {space: scenario.otherSpace}),
             ).rejects.toThrow(PermissionDeniedError);
         });
 
@@ -1214,29 +798,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await session1.get(),
+                        comment: comment,
                         contentTextSnippet: "foo",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1244,28 +813,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.updateAssignee(session1, null);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: true,
-                        taskId: task.id,
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await session1.get(),
+                        comment: comment,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1299,27 +854,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 1,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await session1.get(),
+                        comment: comment,
                         contentTextSnippet: `Hello ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
@@ -1329,26 +870,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.updateAssignee(session1, null);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: true,
-                        taskId: task.id,
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
                     loudNotificationCount: 1,
                     latestComment: {
-                        createdTime: comment.createdTime,
-                        author: await session1.get(),
+                        comment: comment,
                         contentTextSnippet: "",
                         isStickyMention: true,
                     },
@@ -1371,29 +899,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await session1.get(),
+                        comment: comment1,
                         contentTextSnippet: "foo",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1401,28 +914,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.updateAssignee(session1, null);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: true,
-                        taskId: task.id,
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await session1.get(),
+                        comment: comment1,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1432,28 +931,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: true,
-                        taskId: task.id,
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await session1.get(),
+                        comment: comment1,
                         contentTextSnippet: "",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1461,29 +946,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await task.updateAssignee(session1, session2);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment1.createdTime,
-                        author: await session1.get(),
+                        comment: comment1,
                         contentTextSnippet: "foo",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1493,29 +963,14 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment3.createdTime,
-                        author: await session1.get(),
+                        comment: comment3,
                         contentTextSnippet: "qux",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
@@ -1548,53 +1003,24 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             await task.updateAssignee(session1, session2);
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([]);
+            expect(await testGetInboxEntries(session2)).toEqual([]);
 
             const comment2 = await task.createComment(session1, "bar");
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(
-                await getInboxEntries(session2.action(), {
-                    spaceId: space.id,
-                    filter: "New",
-                    limit: 100,
-                    afterCursor: null,
-                }).then(massageInboxEntriesQuery),
-            ).toEqual([
-                new InboxTaskEntryModel({
-                    spaceId: space.id,
-                    accountId: session2.account.id,
-                    task: {
-                        isPrivate: false,
-                        taskId: task.id,
-                        taskOwner: await session2.get(),
-                    },
-                    isArchived: false,
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {task, taskOwner: session2},
                     loudNotificationCount: 0,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await session1.get(),
+                        comment: comment2,
                         contentTextSnippet: "bar",
-                        isStickyMention: false,
                     },
                     otherCommentAuthor: null,
                 }),
