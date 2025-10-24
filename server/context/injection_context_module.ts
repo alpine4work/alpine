@@ -41,6 +41,7 @@ import {
     AccessPolicy,
     AccessPolicyWithoutGenerations,
 } from "~/shared/access/access_policy.js";
+import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {Context, ContextModulesType} from "~/shared/context/context.js";
 import {ContextModuleBase as _ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
@@ -70,7 +71,6 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 // HACK(calebmer): For some reason Vite in hot reload mode doesn't like it when
 // we try to reference `ContextModuleBase` in `createInjectionContextModule()`
@@ -209,7 +209,7 @@ export type SearchInjection = {
         context: ServerAccountActionContext,
         spaceId: SpaceId,
         entityId: SearchMentionEntityId,
-    ): Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>;
+    ): Promise<ContentReferencesSearchEntity | null>;
 
     dangerouslyFavoriteSearchEntityWithoutAuthorization(
         context: DynamoContext,

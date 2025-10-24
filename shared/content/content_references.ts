@@ -18,6 +18,21 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ContentReferences = SchemaType<typeof ContentReferencesSchema>;
 
+export type ContentReferencesSearchEntity = SchemaType<typeof ContentReferencesSearchEntitySchema>;
+
+const ContentReferencesSearchEntitySchema = Schema.booleanUnion(
+    "isPrivate",
+    Schema.object({isPrivate: Schema.value(true)}),
+    Schema.object({isPrivate: Schema.value(false), entity: SearchEntityModel.schema}),
+);
+
+export type ContentReferencesFile = SchemaType<typeof ContentReferencesFileSchema>;
+
+const ContentReferencesFileSchema = Schema.object({
+    signedUrlSearch: Schema.string,
+    file: FileModel.schema,
+});
+
 /**
  * Data referenced by content that doesn't live inside the content.
  *
@@ -35,14 +50,7 @@ export const ContentReferencesSchema = Schema.object({
     /**
      * Search entities referenced in mentions.
      */
-    searchEntityById: Schema.map(
-        SearchMentionEntityIdSchema,
-        Schema.booleanUnion(
-            "isPrivate",
-            Schema.object({isPrivate: Schema.value(true)}),
-            Schema.object({isPrivate: Schema.value(false), entity: SearchEntityModel.schema}),
-        ),
-    ),
+    searchEntityById: Schema.map(SearchMentionEntityIdSchema, ContentReferencesSearchEntitySchema),
 
     /**
      * Files attached to the content.
@@ -72,15 +80,7 @@ export const ContentReferencesSchema = Schema.object({
     //
     // (If you look at the parent commit you can see my half complete, abandoned,
     // attempt at splitting this type in two.)
-    fileById: Schema.map(
-        Schema.id<FileId>(),
-        Schema.object({
-            signedUrlSearch: Schema.string,
-            file: FileModel.schema,
-        }),
-    )
-        .minSize(1)
-        .optional(),
+    fileById: Schema.map(Schema.id<FileId>(), ContentReferencesFileSchema).minSize(1).optional(),
 
     /**
      * Entities attached to content in files.
@@ -157,10 +157,7 @@ export function mergeContentReferences(
         accountById.set(accountId, existingAccount ? existingAccount.merge(account) : account);
     }
 
-    const searchEntityById = new Map<
-        SearchMentionEntityId,
-        {isPrivate: false; entity: SearchEntityModel} | {isPrivate: true}
-    >();
+    const searchEntityById = new Map<SearchMentionEntityId, ContentReferencesSearchEntity>();
 
     // Merge search entities together...
     for (const [entityId, entity] of concatIterables(

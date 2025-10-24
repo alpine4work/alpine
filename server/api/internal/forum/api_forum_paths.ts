@@ -2,8 +2,13 @@ import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
-import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
+import {
+    intoApiContentWithReferencesAndReturnReferences,
+    intoApiMessageContentWithReferences,
+} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
@@ -14,6 +19,7 @@ import {
     getPostCommentPayloadsFromStart,
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
+import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -44,7 +50,7 @@ export const apiForumPaths: Pick<
                     channel: {
                         id: pathParameters.id,
                         name: channel.name,
-                        description: await intoApiContentWithReferences(
+                        description: await intoApiMessageContentWithReferences(
                             context,
                             channel.spaceId,
                             channel.description,
@@ -61,13 +67,24 @@ export const apiForumPaths: Pick<
                 context,
                 pathParameters.id,
                 async (context, spaceId, post) => {
-                    const [author, content] = await runAllPromises([
+                    const [author, {content, references}] = await runAllPromises([
                         getApiAccount(context, spaceId, post.authorId, {
                             consistency: "StrongWithinCache",
                         }),
-                        intoApiContentWithReferences(context, spaceId, post.content),
+                        intoApiContentWithReferencesAndReturnReferences(
+                            context,
+                            spaceId,
+                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
+                            post.content,
+                        ),
                     ]);
-                    return {author, content};
+
+                    return {
+                        author,
+                        originalContent: post.content,
+                        content,
+                        references,
+                    };
                 },
                 {consistency: "StrongWithinCache"},
             );
@@ -83,6 +100,13 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         content: post.content.content,
+                        contentPreview: createPostSearchEntityTitle(
+                            post.channel.name,
+                            post.content.originalContent,
+                            getContentReferencesForServerPrintSingleLineTextSnippet(
+                                post.content.references,
+                            ),
+                        ),
                     },
                 },
             };

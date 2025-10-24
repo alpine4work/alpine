@@ -36,7 +36,9 @@ export function createPostSearchEntityTitle(
     channelName: string,
     content: PostContent,
     options: {
-        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (
+            accountId: AccountId,
+        ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -54,7 +56,9 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
     channelName: string,
     contentSnippet: PostContent,
     options: {
-        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (
+            accountId: AccountId,
+        ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

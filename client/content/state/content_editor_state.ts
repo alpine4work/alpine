@@ -30,6 +30,7 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     ContentReferences,
+    ContentReferencesSearchEntity,
     ContentWithReferences,
     mergeContentReferences,
     mergeContentReferencesFileSignedUrlSearches,
@@ -966,7 +967,7 @@ export function reduceContentReferencesShared<References extends ContentReferenc
         case "SetSearchEntity": {
             const oldEntity = references.searchEntityById.get(action.entityId);
 
-            let newEntity: {isPrivate: false; entity: SearchEntityModel} | {isPrivate: true};
+            let newEntity: ContentReferencesSearchEntity;
             if (!oldEntity) {
                 newEntity = action.entity;
             } else if (action.entity.isPrivate) {

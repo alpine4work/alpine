@@ -59,7 +59,9 @@ export function printContentSingleLineTextSnippet(
         getSearchEntityIfExists,
         getFileIfExists,
     }: {
-        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (
+            accountId: AccountId,
+        ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
@@ -104,7 +106,9 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     content: Node,
     options: {
         shouldPreserveMark: (mark: Mark) => boolean;
-        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (
+            accountId: AccountId,
+        ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

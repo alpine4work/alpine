@@ -54,6 +54,7 @@ function createTestAgentMessage({
             index: 0,
             author: {
                 ...author,
+                shortName: author.name,
                 space: {
                     role: "Member",
                     addedTime: assertDateString("2025-09-06T20:34:58.604Z"),

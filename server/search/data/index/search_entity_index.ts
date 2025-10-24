@@ -101,7 +101,11 @@ import {
     AccessPolicyDefaultGrantWithoutGeneration,
 } from "~/shared/access/access_policy.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
-import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    ContentReferences,
+    ContentReferencesSearchEntity,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
@@ -2548,7 +2552,7 @@ export async function getSearchMentionEntityIfPossible(
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen?: ReadonlySet<SearchEntityId>,
-): Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null> {
+): Promise<ContentReferencesSearchEntity | null> {
     const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId, seen);
     if (entity === null || entity.isPrivate === true) return entity;
 

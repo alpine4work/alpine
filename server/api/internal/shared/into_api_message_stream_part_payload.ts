@@ -1,4 +1,4 @@
-import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
+import {intoApiMessageContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -14,7 +14,11 @@ export async function intoApiMessageStreamPartPayload(
         case "ToolCall":
             return payload;
         case "Content": {
-            const content = await intoApiContentWithReferences(context, spaceId, payload.content);
+            const content = await intoApiMessageContentWithReferences(
+                context,
+                spaceId,
+                payload.content,
+            );
             return {type: "Content", content};
         }
         default:

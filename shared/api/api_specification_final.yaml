@@ -1253,12 +1253,14 @@ components:
 
         AccountWithoutSpace:
             type: object
-            required: [id, name]
+            required: [id, name, shortName]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
+                    $ref: "#/components/schemas/LabelString"
+                shortName:
                     $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
@@ -1275,13 +1277,17 @@ components:
 
         Account:
             type: object
-            required: [id, name, space]
+            required: [id, name, shortName, space]
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/AccountId"
                 name:
                     $ref: "#/components/schemas/LabelString"
+                shortName:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
                 botId:
                     $ref: "#/components/schemas/BotId"
                 space:
@@ -1366,7 +1372,7 @@ components:
 
         Post:
             type: object
-            required: [id, author, content]
+            required: [id, author, content, contentPreview]
             additionalProperties: false
             properties:
                 id:
@@ -1377,6 +1383,8 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
+                contentPreview:
+                    type: string
 
         Task:
             type: object

@@ -5,6 +5,7 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
+    FileTaskAuthorizer,
     completeTaskCommentStream,
     createTaskComment,
     getTaskCommentPayload,
@@ -63,7 +64,15 @@ export const apiTasksPaths: Pick<
                                       consistency: "StrongWithinCache",
                                   })
                                 : null,
-                            intoApiContentWithReferences(context, spaceId, task.content),
+                            intoApiContentWithReferences(
+                                context,
+                                spaceId,
+                                FileTaskAuthorizer.bind({
+                                    type: "TaskNotes",
+                                    taskId: pathParameters.id,
+                                }),
+                                task.content,
+                            ),
                         ]);
                         return {assignee, content};
                     },

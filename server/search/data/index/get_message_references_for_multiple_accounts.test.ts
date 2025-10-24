@@ -19,7 +19,10 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {emptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {
+    ContentReferencesSearchEntity,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {contextCacheMissTestCounter} from "~/shared/context/cache_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -318,10 +321,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         author: await sessions[46].get(),
         contentReferences: {
             ...emptyContentReferences,
-            searchEntityById: new Map<
-                SearchMentionEntityId,
-                {isPrivate: false; entity: SearchEntityModel}
-            >([
+            searchEntityById: new Map<SearchMentionEntityId, ContentReferencesSearchEntity>([
                 [
                     `Channel:${channel.id}`,
                     {
@@ -491,10 +491,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
         author: await sessions[46].get(),
         contentReferences: {
             ...emptyContentReferences,
-            searchEntityById: new Map<
-                SearchMentionEntityId,
-                {isPrivate: false; entity: SearchEntityModel}
-            >([
+            searchEntityById: new Map<SearchMentionEntityId, ContentReferencesSearchEntity>([
                 [
                     `Channel:${channel.id}`,
                     {
@@ -607,8 +604,7 @@ test("only loads a search entity from DynamoDB once no matter how many accounts 
                                 ...expectedReferences.contentReferences,
                                 searchEntityById: new Map<
                                     SearchMentionEntityId,
-                                    | {isPrivate: false; entity: SearchEntityModel}
-                                    | {isPrivate: true}
+                                    ContentReferencesSearchEntity
                                 >([
                                     ...expectedReferences.contentReferences.searchEntityById,
                                     ...(i % 2 !== 0 && i !== 49

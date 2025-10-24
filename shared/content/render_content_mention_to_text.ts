@@ -30,7 +30,9 @@ export function renderContentMentionToText(
         getAccountIfExists,
         getSearchEntityIfExists,
     }: {
-        getAccountIfExists: (accountId: AccountId) => AccountModelWithoutSpaceData | null;
+        getAccountIfExists: (
+            accountId: AccountId,
+        ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;

@@ -4,6 +4,7 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
+    FileDocumentAuthorizer,
     completeDocumentCommentStream,
     createDocumentComment,
     getDocumentCommentPayload,
@@ -43,6 +44,10 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         content: await intoApiContentWithReferences(
                             context,
                             document.spaceId,
+                            FileDocumentAuthorizer.bind({
+                                type: "Document",
+                                documentId: pathParameters.id,
+                            }),
                             document.content,
                         ),
                     },

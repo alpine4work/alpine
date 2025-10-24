@@ -1351,6 +1351,7 @@ export namespace ApiSpecification {
             readonly AccountWithoutSpace: {
                 readonly id: components["schemas"]["AccountId"];
                 readonly name: components["schemas"]["LabelString"];
+                readonly shortName: components["schemas"]["LabelString"];
                 readonly botId?: components["schemas"]["BotId"];
             };
             readonly Space: {
@@ -1360,6 +1361,7 @@ export namespace ApiSpecification {
             readonly Account: {
                 readonly id: components["schemas"]["AccountId"];
                 readonly name: components["schemas"]["LabelString"];
+                readonly shortName: string;
                 readonly botId?: components["schemas"]["BotId"];
                 readonly space: {
                     /** @enum {string} */
@@ -1404,6 +1406,7 @@ export namespace ApiSpecification {
                 readonly author: components["schemas"]["Account"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content"];
+                readonly contentPreview: string;
             };
             readonly Task: {
                 readonly id: components["schemas"]["TaskId"];

@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * user access to the account's full name.
  */
 export function getAccountShortNameWithoutFullNameTooltip(
-    accountData: AccountModelWithoutSpaceData,
+    accountData: Omit<AccountModelWithoutSpaceData, "avatar">,
 ): string {
     const {givenName} = parseAccountNameAssumingWesternNameOrder(accountData.name);
     return givenName;
