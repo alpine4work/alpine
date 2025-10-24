@@ -9,7 +9,7 @@ import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.
-process.title = "EdgeServiceFamily dev (cyberworlds, node)";
+process.title = "ResourceService dev (cyberworlds, node)";
 
 main().catch(error => {
     // eslint-disable-next-line no-console
@@ -35,11 +35,10 @@ async function main() {
             fileProcessorServicePublicKey: fileProcessorServicePublicKeyPath,
             apiServicePublicKey: apiServicePublicKeyPath,
             resourceServicePublicKey: resourceServicePublicKeyPath,
-            edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
+            resourceServicePrivateKey: resourceServicePrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
             fileProcessorServiceUrl,
             cacheLocalDataPath,
-            durableObjectsLocalDataPath,
             cloudflareR2LocalDataPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
@@ -55,11 +54,10 @@ async function main() {
             fileProcessorServicePublicKey: {type: "string"},
             apiServicePublicKey: {type: "string"},
             resourceServicePublicKey: {type: "string"},
-            edgeServiceFamilyPrivateKey: {type: "string"},
+            resourceServicePrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
             fileProcessorServiceUrl: {type: "string"},
             cacheLocalDataPath: {type: "string"},
-            durableObjectsLocalDataPath: {type: "string"},
             cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
@@ -83,13 +81,11 @@ async function main() {
     if (!apiServicePublicKeyPath) throw new Error("Missing `apiServicePublicKeyPath` arg");
     if (!resourceServicePublicKeyPath)
         throw new Error("Missing `resourceServicePublicKeyPath` arg");
-    if (!edgeServiceFamilyPrivateKeyPath)
-        throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
+    if (!resourceServicePrivateKeyPath)
+        throw new Error("Missing `resourceServicePrivateKeyPath` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
     if (!fileProcessorServiceUrl) throw new Error("Missing `fileProcessorServiceUrl` arg");
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
-    if (!durableObjectsLocalDataPath)
-        throw new Error("Missing `durableObjectsLocalDataPath` option");
     if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
     const [
@@ -100,7 +96,7 @@ async function main() {
         fileProcessorServicePublicKey,
         apiServicePublicKey,
         resourceServicePublicKey,
-        edgeServiceFamilyPrivateKey,
+        resourceServicePrivateKey,
         tokenAgentSecret,
     ] = await Promise.all([
         fs.readFile(appServicePublicKeyPath, "utf8"),
@@ -110,7 +106,7 @@ async function main() {
         fs.readFile(fileProcessorServicePublicKeyPath, "utf8"),
         fs.readFile(apiServicePublicKeyPath, "utf8"),
         fs.readFile(resourceServicePublicKeyPath, "utf8"),
-        fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
+        fs.readFile(resourceServicePrivateKeyPath, "utf8"),
         fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
 
@@ -120,18 +116,19 @@ async function main() {
     if (!runfilesPath) throw new Error("Missing runfiles env variable");
 
     const configString = fs.readFileSync(
-        joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
+        joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.toml"),
     );
     const config = toml.parse(configString);
 
     const miniflare = new Miniflare({
         name: config.name,
         modules: true,
-        scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
-        wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
-        upstream: appServiceUrl,
+        scriptPath: joinPath(
+            runfilesPath,
+            "cyberworlds/server/resources/resource_service_bundle.js",
+        ),
+        wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
-        durableObjectsPersist: durableObjectsLocalDataPath,
         r2Persist: cloudflareR2LocalDataPath,
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
@@ -141,7 +138,7 @@ async function main() {
             FILE_PROCESSOR_SERVICE_PUBLIC_KEY: fileProcessorServicePublicKey,
             API_SERVICE_PUBLIC_KEY: apiServicePublicKey,
             RESOURCE_SERVICE_PUBLIC_KEY: resourceServicePublicKey,
-            EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
+            RESOURCE_SERVICE_PRIVATE_KEY: resourceServicePrivateKey,
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,

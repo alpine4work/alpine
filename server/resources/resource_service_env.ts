@@ -1,0 +1,16 @@
+export type ResourceServiceEnv = {
+    AppStaticBucket: R2Bucket;
+    AvatarsBucket: R2Bucket;
+    FilesBucket: R2Bucket;
+    APP_SERVICE_PUBLIC_KEY?: string;
+    EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
+    TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
+    JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
+    FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
+    API_SERVICE_PUBLIC_KEY?: string;
+    RESOURCE_SERVICE_PUBLIC_KEY?: string;
+    RESOURCE_SERVICE_PRIVATE_KEY?: string;
+    TOKEN_AGENT_SECRET?: string;
+    FILE_PROCESSOR_SERVICE_URL?: string;
+    HONEYCOMB_API_KEY?: string;
+};

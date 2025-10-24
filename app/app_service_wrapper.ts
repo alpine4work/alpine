@@ -131,8 +131,6 @@ export async function run({
 
     let requestListener = (await module?.getAppService(constants)) ?? null;
 
-    // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
-    // in application code in production.
     const actualRequestListener = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
         // In development, static assets are served by `serve-static` middleware in
         // `AppService`. In production we serve static assets from Cloudflare R2.

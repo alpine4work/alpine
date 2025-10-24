@@ -93,6 +93,10 @@ const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
 const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
 const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
 
+const resourcesDevPort = parsePort(env.RESOURCES_DEV_PORT);
+const resourcesDevInspectorPort = parsePort(env.RESOURCES_DEV_INSPECTOR_PORT);
+const resourcesDevPrivatePorts = parsePorts(env.RESOURCES_DEV_PRIVATE_PORTS);
+
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
 const taskRealtimeDevPrivatePorts = parsePorts(env.TASK_REALTIME_DEV_PRIVATE_PORTS);
@@ -157,6 +161,9 @@ const fileProcessorServicePublicKeyPath = joinPath(
     keysDirectoryPath,
     "file_processor_service_rsa.pub",
 );
+
+const resourceServicePrivateKeyPath = joinPath(keysDirectoryPath, "resource_service_rsa");
+const resourceServicePublicKeyPath = joinPath(keysDirectoryPath, "resource_service_rsa.pub");
 
 const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
 const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
@@ -318,6 +325,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
@@ -372,6 +380,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
@@ -379,6 +388,36 @@ function createArtifacts() {
                 `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/resources",
+            executablePath: "server/resources/resources.sh",
+            stdioPrefix: "rsr",
+            ports: {
+                publicPort: resourcesDevPort,
+                privatePorts: resourcesDevPrivatePorts,
+                privatePortIndex: 0,
+                // Using dedicated healthcheck path for standardization and because some services (like EdgeService) forward requests on "/" to other services
+                waitForHttpServerPath: "/healthcheck",
+            },
+            args: [
+                `--appServiceUrl=http://localhost:${appDevPort}`,
+                `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
+                `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
+                `--resourceServicePrivateKey=${resourceServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
+                `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "files")}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--inspectorPort=${resourcesDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -402,6 +441,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -429,6 +469,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -468,6 +509,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileProcessorServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
@@ -503,6 +545,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileProcessorServicePublicKey=${fileProcessorServicePublicKeyPath}`,
                 `--apiServicePublicKey=${apiServicePublicKeyPath}`,
+                `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,

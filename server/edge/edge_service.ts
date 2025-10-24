@@ -110,6 +110,7 @@ async function handleFetch(
         });
     }
 
+    //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
     // Fast path for static asset requests. We don't want to trace these requests
     // or perform any other request/response manipulation.
     //
@@ -424,6 +425,10 @@ async function actuallyHandleFetch(
             if (!apiServicePublicKey)
                 throw new InternalError("Missing `API_SERVICE_PUBLIC_KEY` env variable");
 
+            const resourceServicePublicKey = env.RESOURCE_SERVICE_PUBLIC_KEY;
+            if (!resourceServicePublicKey)
+                throw new InternalError("Missing `RESOURCE_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
@@ -441,6 +446,7 @@ async function actuallyHandleFetch(
                     jobQueueServicePublicKey,
                     fileProcessorServicePublicKey,
                     apiServicePublicKey,
+                    resourceServicePublicKey,
                     secret: tokenAgentSecret,
                 }),
                 TokenAgentPrivateSide.new({
@@ -774,6 +780,7 @@ async function actuallyHandleFetch(
                 }
             }
 
+            //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
             // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move file
             // serving to its own subdomain. For example, `static.alpine.inc`. That way the
             // browser wouldn't send session cookies to the subdomain. We use signed URLs
@@ -787,6 +794,7 @@ async function actuallyHandleFetch(
                 return fetchFile(executionContext, env, tokenAgent, request, url, span, route);
             }
 
+            //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
             // NOTE(calebmer, 2024-10-03): The `/files/cors-proxy/:url` route is used when
             // pasting files in content where we find that the file's source is some URL
             // outside our space (e.g. an `<img>` with a `src` tag pointing to some domain

@@ -14,6 +14,7 @@ export const serviceTokenAgentOptions = {
     jobQueueServicePublicKey: {type: "string"},
     fileProcessorServicePublicKey: {type: "string"},
     apiServicePublicKey: {type: "string"},
+    resourceServicePublicKey: {type: "string"},
     servicePrivateKey: {type: "string"},
     tokenAgentSecret: {type: "string"},
 } as const;
@@ -25,6 +26,7 @@ export type ServiceTokenAgentOptions = {
     readonly jobQueueServicePublicKey?: string;
     readonly fileProcessorServicePublicKey?: string;
     readonly apiServicePublicKey?: string;
+    readonly resourceServicePublicKey?: string;
     readonly servicePrivateKey?: string;
     readonly tokenAgentSecret?: string;
 };
@@ -62,6 +64,8 @@ export async function createServiceTokenAgent<
         throw new InternalError("Missing `fileProcessorServicePublicKey` option");
     if (!options.apiServicePublicKey)
         throw new InternalError("Missing `apiServicePublicKey` option");
+    if (!options.resourceServicePublicKey)
+        throw new InternalError("Missing `resourceServicePublicKey` option");
     if (!options.servicePrivateKey) throw new InternalError("Missing `servicePrivateKey` option");
     if (!options.tokenAgentSecret) throw new InternalError("Missing `tokenAgentSecret` option");
 
@@ -72,6 +76,7 @@ export async function createServiceTokenAgent<
         jobQueueServicePublicKey,
         fileProcessorServicePublicKey,
         apiServicePublicKey,
+        resourceServicePublicKey,
         servicePrivateKey,
         tokenAgentSecret,
     ] = await runAllPromises([
@@ -81,6 +86,7 @@ export async function createServiceTokenAgent<
         getServiceTokenAgentKeyFromOption(options.jobQueueServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.fileProcessorServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.apiServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.resourceServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.servicePrivateKey),
         getServiceTokenAgentKeyFromOption(options.tokenAgentSecret),
     ]);
@@ -94,6 +100,7 @@ export async function createServiceTokenAgent<
             jobQueueServicePublicKey,
             fileProcessorServicePublicKey,
             apiServicePublicKey,
+            resourceServicePublicKey,
             secret: tokenAgentSecret,
         }),
         privateSideClass.new({

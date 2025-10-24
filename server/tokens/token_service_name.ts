@@ -20,6 +20,7 @@ const tokenServiceNames = [
     "JobQueueService",
     "FileProcessorService",
     "ApiService",
+    "ResourceService",
     ...tokenEdgeServiceFamilyNames,
 ] as const;
 
@@ -32,6 +33,7 @@ export const tokenServiceShortNameByName: {[Key in TokenServiceName]: string} = 
     JobQueueService: "job",
     FileProcessorService: "flp",
     ApiService: "api",
+    ResourceService: "rsr",
     EdgeService: "edg",
     DocumentCollaborationService: "doc",
     PostRealtimeService: "pst",

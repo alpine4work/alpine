@@ -61,6 +61,7 @@ export type DurableObjectEnv = {
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     FILE_PROCESSOR_SERVICE_PUBLIC_KEY?: string;
+    RESOURCE_SERVICE_PUBLIC_KEY?: string;
     API_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     TOKEN_AGENT_SECRET?: string;
@@ -165,6 +166,10 @@ export function createDurableObject<
             if (!fileProcessorServicePublicKey)
                 throw new InternalError("Missing `FILE_PROCESSOR_SERVICE_PUBLIC_KEY` env variable");
 
+            const resourceServicePublicKey = env.RESOURCE_SERVICE_PUBLIC_KEY;
+            if (!resourceServicePublicKey)
+                throw new InternalError("Missing `RESOURCE_SERVICE_PUBLIC_KEY` env variable");
+
             const apiServicePublicKey = env.API_SERVICE_PUBLIC_KEY;
             if (!apiServicePublicKey)
                 throw new InternalError("Missing `API_SERVICE_PUBLIC_KEY` env variable");
@@ -189,6 +194,7 @@ export function createDurableObject<
                     taskRealtimeServicePublicKey,
                     jobQueueServicePublicKey,
                     fileProcessorServicePublicKey,
+                    resourceServicePublicKey,
                     apiServicePublicKey,
                     secret: tokenAgentSecret,
                 }),

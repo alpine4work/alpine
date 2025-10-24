@@ -225,7 +225,7 @@ test("can’t resize an image with a session actor", async () => {
     );
 });
 
-test("can’t resize an image with a token that’s not from edge service", async () => {
+test("can’t resize an image with a token that’s not from edge service or resources service", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -265,7 +265,7 @@ test("can’t resize an image with a token that’s not from edge service", asyn
     expect(resizeResponse.status).toEqual(400);
     expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
     expect(await resizeResponse.text()).toMatch(
-        /^400 Bad Request\n\nPermissionDeniedError: Only `EdgeService` can resize a file\n/,
+        /^400 Bad Request\n\nPermissionDeniedError: Only `EdgeService` or `ResourceService` can resize a file\n/,
     );
 });
 

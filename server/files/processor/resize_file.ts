@@ -142,12 +142,18 @@ export async function resizeFile(
 
     if (request.method !== "GET") throw new InvalidArgumentError("Invalid HTTP request method");
 
-    // Make sure we've been proxied through `EdgeService` when uploading a file. We
+    // TODO(rmtobin, 2025-10-22, #resources-service): Remove `EdgeService` once we've migrated to the new service.
+    // Make sure we've been proxied through `EdgeService` or `ResourceService` when uploading a file. We
     // don't support resizing from other services like `JobQueueService`.
-    if (context.actor.serviceName !== "EdgeService")
-        throw new PermissionDeniedError("Only `EdgeService` can resize a file");
+    if (
+        context.actor.serviceName !== "EdgeService" &&
+        context.actor.serviceName !== "ResourceService"
+    )
+        throw new PermissionDeniedError(
+            "Only `EdgeService` or `ResourceService` can resize a file",
+        );
 
-    // Make sure `EdgeService` is using a system action to resize. That way we
+    // Make sure `EdgeService` or `ResourceService` is using a system action to resize. That way we
     // don't have to authenticate file access through attachments.
     context.actor.authorizeSystem();
 

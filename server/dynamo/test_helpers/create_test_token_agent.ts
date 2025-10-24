@@ -38,6 +38,8 @@ export async function createTestTokenAgents<
                 return joinPath(keysDirectoryPath, "file_processor_service_rsa");
             case "ApiService":
                 return joinPath(keysDirectoryPath, "api_service_rsa");
+            case "ResourceService":
+                return joinPath(keysDirectoryPath, "resource_service_rsa");
             case "EdgeService":
             case "DocumentCollaborationService":
             case "PostRealtimeService":
@@ -72,6 +74,10 @@ export async function createTestTokenAgents<
             ),
             fileProcessorServicePublicKey: fs.readFile(
                 joinPath(keysDirectoryPath, "file_processor_service_rsa.pub"),
+                "utf8",
+            ),
+            resourceServicePublicKey: fs.readFile(
+                joinPath(keysDirectoryPath, "resource_service_rsa.pub"),
                 "utf8",
             ),
             apiServicePublicKey: fs.readFile(

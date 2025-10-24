@@ -9,6 +9,7 @@ export const ServerSecretsSchema = Schema.object({
     jobQueueServicePublicKey: Schema.string,
     fileProcessorServicePublicKey: Schema.string,
     apiServicePublicKey: Schema.string,
+    resourceServicePublicKey: Schema.string,
     servicePrivateKey: Schema.string,
     tokenAgentSecret: Schema.string,
     honeycombApiKey: Schema.string,

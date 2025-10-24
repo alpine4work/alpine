@@ -1,0 +1,21 @@
+name = "resource-service"
+main = "resource_service_bundle.js"
+no_bundle = true
+compatibility_date = "2022-07-12"
+workers_dev = false
+
+[route]
+pattern = "resources.alpine.inc"
+custom_domain = true
+
+[[r2_buckets]]
+binding = "AvatarsBucket"
+bucket_name = "cyberworlds-avatars"
+
+[[r2_buckets]]
+binding = "AppStaticBucket"
+bucket_name = "cyberworlds-app-static"
+
+[[r2_buckets]]
+binding = "FilesBucket"
+bucket_name = "cyberworlds-files"

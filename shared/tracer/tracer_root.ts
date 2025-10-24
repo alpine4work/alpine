@@ -67,6 +67,7 @@ export type TracerServiceName =
     | "ApiService"
     | "AgentService"
     | "ChatGptAgentService"
+    | "ResourceService"
     | DurableObjectServiceName;
 
 /**

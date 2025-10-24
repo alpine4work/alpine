@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -70,6 +71,11 @@ export function isAvatarEntityPath(path: string): path is AvatarEntityPath {
     return pathTest(pathRest);
 }
 
+export function assertAvatarEntityPath(path: string): AvatarEntityPath {
+    assert(isAvatarEntityPath(path));
+    return path;
+}
+
 /**
  * Get the path corresponding to the provided `AvatarEntityPathObject`.
  */
@@ -100,7 +106,6 @@ export function printAvatarEntityObjectIntoTracerRoute(
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const avatarVariants = ["original", "small", "profile"] as const;
 
 /**
@@ -108,7 +113,7 @@ const avatarVariants = ["original", "small", "profile"] as const;
  * Small - the 72x72 avif image used for Avatars
  * Profile - the 512x512 avif image used for Profile images
  */
-type AvatarVariant = (typeof avatarVariants)[number];
+export type AvatarVariant = (typeof avatarVariants)[number];
 
 export function printAvatarEntityPathIntoCloudflareR2Key(
     path: AvatarEntityPath,
@@ -116,4 +121,8 @@ export function printAvatarEntityPathIntoCloudflareR2Key(
     variant: AvatarVariant,
 ) {
     return `${path}/${avatarId}-${variant}`;
+}
+
+export function isAvatarVariant(variant: string): variant is AvatarVariant {
+    return avatarVariants.includes(variant as AvatarVariant);
 }

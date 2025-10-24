@@ -160,6 +160,7 @@ js_library(
     visibility = [
         "//app:__subpackages__",
         "//server/edge:__pkg__",
+        "//server/resources:__pkg__",
     ],
 )
 

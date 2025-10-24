@@ -58,4 +58,22 @@ export async function deployCloudflareWorkers(
 
         await waitForProcessExit(deployAgentServiceSubprocess);
     });
+
+    await context.tracer.withSpan("Deploy Resources Service", async () => {
+        const deployResourceServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.sh"),
+            ["deploy"],
+            {
+                cwd: joinPath(runfilesPath, "cyberworlds"),
+                env: {
+                    ...getProcessEnvToPropagate(),
+                    CLOUDFLARE_ACCOUNT_ID: accountId,
+                    CLOUDFLARE_API_TOKEN: workersToken,
+                },
+                stdio: ["ignore", "inherit", "inherit"],
+            },
+        );
+
+        await waitForProcessExit(deployResourceServiceSubprocess);
+    });
 }
