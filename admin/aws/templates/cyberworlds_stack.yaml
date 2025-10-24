@@ -2380,6 +2380,7 @@ Resources:
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
@@ -2476,6 +2477,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:resourceServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -3170,6 +3178,7 @@ Resources:
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
@@ -3254,6 +3263,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:resourceServicePublicKey::"
                       - Name: TOKEN_AGENT_SECRET
                         ValueFrom:
                             Fn::Join:
@@ -4144,6 +4160,7 @@ Resources:
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
                                 --apnsCertificate=\\$APNS_CERTIFICATE
@@ -4218,6 +4235,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:resourceServicePublicKey::"
                       - Name: JOB_QUEUE_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
@@ -6110,6 +6134,7 @@ Resources:
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
                   Cpu: 2048
@@ -6188,6 +6213,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:FileProcessorServiceSecrets:apiServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:FileProcessorServiceSecrets:resourceServicePublicKey::"
                       - Name: FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                         ValueFrom:
                             Fn::Join:
