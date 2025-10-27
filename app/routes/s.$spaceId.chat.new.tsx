@@ -302,6 +302,9 @@ export default function NewChatRoute() {
                             selectedAccounts.length > 0 ? loaderData.suggestedChats : emptyArray
                         }
                         shouldInitiallyFocus={initiallyFocus === "ChatAccountPicker"}
+                        focusMessageInput={() => {
+                            messagingViewRef.current?.focusInput();
+                        }}
                     />
                 </Box>
             </Box>

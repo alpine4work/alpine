@@ -1,4 +1,9 @@
-import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/interactions";
+import {
+    getInteractionModality,
+    isFocusVisible,
+    setInteractionModality,
+    usePress,
+} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
@@ -80,6 +85,7 @@ export function ChatAccountPicker({
     shouldShowPendingSpinner,
     suggestedChats,
     shouldInitiallyFocus,
+    focusMessageInput,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
@@ -88,6 +94,7 @@ export function ChatAccountPicker({
     shouldShowPendingSpinner: boolean;
     suggestedChats: ReadonlyArray<ChatModel>;
     shouldInitiallyFocus: boolean;
+    focusMessageInput: () => void;
 }) {
     const platform = usePlatform();
     const accountRegistry = useAccountRegistry();
@@ -442,6 +449,21 @@ export function ChatAccountPicker({
                             setInteractionModality("keyboard");
                             selectedAccountRefs[selectedAccountRefs.length - 1]?.current?.focus();
                         }
+                        break;
+                    }
+
+                    case "Tab": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        // HACK: We're programmatically moving focus, but we're just hijacking
+                        // the tab key here, so we should make sure we maintain the
+                        // correct interaction modality, but NOT show the focus ring for
+                        // this action. Focus rings do not show in pointer modality.
+                        const interactionModality = getInteractionModality();
+                        setInteractionModality("pointer");
+                        focusMessageInput();
+                        setInteractionModality(interactionModality);
                         break;
                     }
                 }

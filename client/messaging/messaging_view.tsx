@@ -175,6 +175,7 @@ export type MessagingViewRef<RoomKey extends string> = {
     jumpToMessageRange(options: JumpToMessageRangeOptions<RoomKey>): void;
     getScrollOffset(): number;
     setScrollOffset(scrollOffset: number): void;
+    focusInput(): void;
 };
 
 const MessagingViewForwardRef = forwardRef(MessagingView);
@@ -543,8 +544,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            focusInput: () => {
+                inputRef.current?.focus();
+            },
         }),
-        [jumpToMessageRange],
+        [jumpToMessageRange, inputRef],
     );
 
     useMessagingRealtime({
