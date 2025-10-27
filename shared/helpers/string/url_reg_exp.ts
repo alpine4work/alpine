@@ -20,7 +20,7 @@
  * limitations under the License.
  */
 
-function createUrlRegExp() {
+function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
     /**
      * Regular expression to match all IANA top-level domains.
      *
@@ -287,9 +287,10 @@ function createUrlRegExp() {
      */
     const autolinkWebUrl = "(" + webUrlWithProtocol + "|" + webUrlWithoutProtocol + ")";
 
-    return new RegExp(autolinkWebUrl, "gu");
+    return new RegExp(autolinkWebUrl, global ? "gu" : "u");
 }
 
+let globalUrlRegExp: RegExp | null = null;
 let urlRegExp: RegExp | null = null;
 
 /**
@@ -302,14 +303,16 @@ let urlRegExp: RegExp | null = null;
  *
  * Lazily created the first time you call this function.
  */
-// NOTE(calebmer): Currently this regular expression does not work on Safari
-// because it uses a negative lookbehind (`(?<!:)`) in `webUrlWithoutProtocol`.
-// [Safari 16.4 will support negative lookbehinds][1]. This regular expression
-// is only used on the server at the moment so as long as we don't construct it
-// on the client we're fine.
-//
-// [1]: https://caniuse.com/js-regexp-lookbehind
-export function getUrlRegExp() {
-    if (urlRegExp === null) urlRegExp = createUrlRegExp();
+export function getUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
+    if (global) {
+        if (!globalUrlRegExp) {
+            globalUrlRegExp = createUrlRegExp({global: true});
+        }
+        return globalUrlRegExp;
+    }
+
+    if (!urlRegExp) {
+        urlRegExp = createUrlRegExp({global: false});
+    }
     return urlRegExp;
 }

@@ -63,6 +63,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "date-fns/parseISO",
     "date-fns/roundToNearestMinutes",
     "date-fns/startOfWeek",
+    "email-validator",
     "emoji-regex",
     "escape-html",
     "functional-red-black-tree",

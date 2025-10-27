@@ -49,6 +49,7 @@ ts_project(
         "//:node_modules/@types/jest",
         "//:node_modules/@types/tough-cookie",
         "//:node_modules/date-fns",
+        "//:node_modules/email-validator",
         "//:node_modules/emoji-regex",
         "//:node_modules/escape-html",
         "//:node_modules/functional-red-black-tree",

@@ -948,72 +948,100 @@ test("heading is converted into an integer", () => {
     expect(screen.getByRole("heading").tagName.toLowerCase()).toEqual("h3");
 });
 
-test("link with a non-HTTP scheme is blocked", () => {
-    const {rerender} = render(
-        <ContentEditor
-            aria-label="Test"
-            state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("paragraph", {}, [
-                        schema.text("Test", [
-                            schema.mark("link", {
-                                // eslint-disable-next-line no-script-url, string-quotes
-                                url: "javascript:alert('XSS')",
-                            }),
+describe("links", () => {
+    const validLinks = ["http://example.com", "https://example.com", "mailto:test@example.com"];
+
+    const formattedLinks = ["example.com", "calendar.example.com"];
+
+    const invalidLinks = [
+        // eslint-disable-next-line no-script-url, string-quotes
+        "javascript:alert('XSS')",
+        "file:///Users/calebmer/cyberworlds/package.json",
+        "tel:+123456789",
+    ];
+
+    for (const link of validLinks) {
+        test(`link with a valid scheme is accepted: ${link}`, () => {
+            render(
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create({
+                        doc: schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text("Test", [
+                                    schema.mark("link", {
+                                        url: link,
+                                    }),
+                                ]),
+                            ]),
                         ]),
-                    ]),
-                ]),
-                references: emptyContentReferences,
-            })}
-            onChange={() => {}}
-            fileAttachmentTarget={fileAttachmentTarget}
-            commentFileAttachmentTarget={commentFileAttachmentTarget}
-        />,
-    );
+                        references: emptyContentReferences,
+                    })}
+                    onChange={() => {}}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                    commentFileAttachmentTarget={commentFileAttachmentTarget}
+                />,
+            );
 
-    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
+            expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual(
+                `${link}${link.startsWith("http") ? "/" : ""}`,
+            );
+        });
+    }
 
-    rerender(
-        <ContentEditor
-            aria-label="Test"
-            state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("paragraph", {}, [
-                        schema.text("Test", [
-                            schema.mark("link", {
-                                url: "file:///Users/calebmer/cyberworlds/package.json",
-                            }),
+    for (const link of formattedLinks) {
+        test(`link with a valid format but no scheme is accepted: ${link}`, () => {
+            render(
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create({
+                        doc: schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text("Test", [
+                                    schema.mark("link", {
+                                        url: link,
+                                    }),
+                                ]),
+                            ]),
                         ]),
-                    ]),
-                ]),
-                references: emptyContentReferences,
-            })}
-            onChange={() => {}}
-            fileAttachmentTarget={fileAttachmentTarget}
-            commentFileAttachmentTarget={commentFileAttachmentTarget}
-        />,
-    );
+                        references: emptyContentReferences,
+                    })}
+                    onChange={() => {}}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                    commentFileAttachmentTarget={commentFileAttachmentTarget}
+                />,
+            );
 
-    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
+            expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual(`https://${link}/`);
+        });
+    }
 
-    rerender(
-        <ContentEditor
-            aria-label="Test"
-            state={ContentEditorState.create({
-                doc: schema.node("doc", {}, [
-                    schema.node("paragraph", {}, [
-                        schema.text("Test", [schema.mark("link", {url: "tel:+123456789"})]),
-                    ]),
-                ]),
-                references: emptyContentReferences,
-            })}
-            onChange={() => {}}
-            fileAttachmentTarget={fileAttachmentTarget}
-            commentFileAttachmentTarget={commentFileAttachmentTarget}
-        />,
-    );
+    for (const link of invalidLinks) {
+        test(`link with an invalid format is blocked: ${link}`, () => {
+            render(
+                <ContentEditor
+                    aria-label="Test"
+                    state={ContentEditorState.create({
+                        doc: schema.node("doc", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text("Test", [
+                                    schema.mark("link", {
+                                        url: link,
+                                    }),
+                                ]),
+                            ]),
+                        ]),
+                        references: emptyContentReferences,
+                    })}
+                    onChange={() => {}}
+                    fileAttachmentTarget={fileAttachmentTarget}
+                    commentFileAttachmentTarget={commentFileAttachmentTarget}
+                />,
+            );
 
-    expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
+            expect(screen.getByRole<HTMLAnchorElement>("link").href).toEqual("about:blank#blocked");
+        });
+    }
 });
 
 test("bullet list with multiple items", async () => {

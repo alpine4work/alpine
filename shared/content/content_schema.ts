@@ -41,7 +41,7 @@ import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {parseUserInputSafeUrl} from "~/shared/helpers/string/parse_user_input_safe_url.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -561,14 +561,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             inclusive: false,
             toDOM: node => {
                 const unknownUrl: unknown = node.attrs.url;
-
-                // We only allow linking to URLs with an HTTP or HTTPS scheme. That way
-                // we avoid XSS vulnerabilities with URLs that look like
-                // `javascript:alert('XSS')`.
-                const url =
-                    typeof unknownUrl === "string" && startsWithSafeUrlProtocol(unknownUrl)
-                        ? unknownUrl
-                        : "about:blank#blocked";
+                const url = parseUserInputSafeUrl(unknownUrl);
 
                 return [
                     "a",
