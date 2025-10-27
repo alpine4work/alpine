@@ -4572,6 +4572,286 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/Setup Log/Resource
+    SendAlertExecutionRole4F4916B1:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/ExecutionRole/Resource
+    SendAlertExecutionRoleDefaultPolicy9C6E0E7E:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SendAlertFunctionDeadLetterQueue95C09BF4
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: SendAlertExecutionRoleDefaultPolicy9C6E0E7E
+            Roles:
+                - Ref: SendAlertExecutionRole4F4916B1
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/ExecutionRole/DefaultPolicy/Resource
+    SendAlertFunctionDeadLetterQueue95C09BF4:
+        Type: AWS::SQS::Queue
+        Properties:
+            MessageRetentionPeriod: 1209600
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/Function/DeadLetterQueue/Resource
+    SendAlertFunction25C3C7E0:
+        Type: AWS::Lambda::Function
+        Properties:
+            Architectures:
+                - arm64
+            Code:
+                ImageUri:
+                    Fn::Join:
+                        - ""
+                        - - Ref: AWS::AccountId
+                          - .dkr.ecr.us-east-1.
+                          - Ref: AWS::URLSuffix
+                          - /
+                          - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                          - :latest
+            DeadLetterConfig:
+                TargetArn:
+                    Fn::GetAtt:
+                        - SendAlertFunctionDeadLetterQueue95C09BF4
+                        - Arn
+            Environment:
+                Variables:
+                    NODE_ENV: production
+                    CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
+                    JOB_QUEUE_URL:
+                        Fn::Join:
+                            - ""
+                            - - https://sqs.
+                              - Fn::Select:
+                                    - 3
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                              - .
+                              - Ref: AWS::URLSuffix
+                              - /
+                              - Fn::Select:
+                                    - 4
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                              - /
+                              - Fn::Select:
+                                    - 5
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                    FILE_PROCESSOR_JOB_QUEUE_URL:
+                        Fn::Join:
+                            - ""
+                            - - https://sqs.
+                              - Fn::Select:
+                                    - 3
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - .
+                              - Ref: AWS::URLSuffix
+                              - /
+                              - Fn::Select:
+                                    - 4
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - /
+                              - Fn::Select:
+                                    - 5
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                    FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
+                        Fn::Join:
+                            - ""
+                            - - https://sqs.
+                              - Fn::Select:
+                                    - 3
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - .
+                              - Ref: AWS::URLSuffix
+                              - /
+                              - Fn::Select:
+                                    - 4
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - /
+                              - Fn::Select:
+                                    - 5
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Fn::Join:
+                            - ""
+                            - - https://sqs.
+                              - Fn::Select:
+                                    - 3
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - .
+                              - Ref: AWS::URLSuffix
+                              - /
+                              - Fn::Select:
+                                    - 4
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                              - /
+                              - Fn::Select:
+                                    - 5
+                                    - Fn::Split:
+                                          - ":"
+                                          - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    RUNFILES: /var/task/admin/lambda/send_alert/send_alert_lambda_binary.runfiles
+            PackageType: Image
+            Role:
+                Fn::GetAtt:
+                    - SendAlertExecutionRole4F4916B1
+                    - Arn
+            Timeout: 30
+        DependsOn:
+            - SendAlertExecutionRoleDefaultPolicy9C6E0E7E
+            - SendAlertExecutionRole4F4916B1
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/Function/Resource
+    SendAlertFunctionLogRetention669A3B1C:
+        Type: Custom::LogRetention
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+                    - Arn
+            LogGroupName:
+                Fn::Join:
+                    - ""
+                    - - /aws/lambda/
+                      - Ref: SendAlertFunction25C3C7E0
+            RetentionInDays: 7
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/Function/LogRetention/Resource
+    SendAlertFunctionFunctionUrlCBA51F54:
+        Type: AWS::Lambda::Url
+        Properties:
+            AuthType: NONE
+            Cors:
+                AllowHeaders:
+                    - content-type
+                    - x-amz-date
+                    - authorization
+                    - x-api-key
+                AllowMethods:
+                    - POST
+                AllowOrigins:
+                    - "*"
+            TargetFunctionArn:
+                Fn::GetAtt:
+                    - SendAlertFunction25C3C7E0
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/Function/FunctionUrl/Resource
+    SendAlertFunctioninvokefunctionurl28DC188E:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunctionUrl
+            FunctionName:
+                Fn::GetAtt:
+                    - SendAlertFunction25C3C7E0
+                    - Arn
+            FunctionUrlAuthType: NONE
+            Principal: "*"
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/SendAlert/Function/invoke-function-url
+    LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+    LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - logs:DeleteRetentionPolicy
+                          - logs:PutRetentionPolicy
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+            Roles:
+                - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+    LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+        Type: AWS::Lambda::Function
+        Properties:
+            Handler: index.handler
+            Runtime: nodejs20.x
+            Timeout: 900
+            Code:
+                S3Bucket:
+                    Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
+                S3Key: 2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip
+            Role:
+                Fn::GetAtt:
+                    - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+                    - Arn
+        DependsOn:
+            - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+            - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+            aws:asset:path: asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d
+            aws:asset:is-bundled: false
+            aws:asset:property: Code
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
