@@ -74,8 +74,8 @@ function validateHeaders(
     const honeycombToken = headers["x-honeycomb-webhook-token"];
 
     if (pagerDutySignature) {
-        const pagerDutySecret = process.env.PAGERDUTY_WEBHOOK_SECRET;
-        if (!pagerDutySecret) {
+        const pagerDutyWebhookSecret = process.env.PAGERDUTY_WEBHOOK_SECRET;
+        if (!pagerDutyWebhookSecret) {
             return {
                 valid: false,
                 statusCode: 500,
@@ -83,7 +83,7 @@ function validateHeaders(
             };
         }
 
-        if (!verifyPagerDutySignature(body, pagerDutySignature, pagerDutySecret)) {
+        if (!verifyPagerDutySignature(body, pagerDutySignature, pagerDutyWebhookSecret)) {
             return {
                 valid: false,
                 statusCode: 401,
@@ -92,8 +92,8 @@ function validateHeaders(
         }
     } else if (honeycombToken) {
         // Check if this is a Honeycomb webhook and verify token
-        const honeycombSecret = process.env.HONEYCOMB_WEBHOOK_SECRET;
-        if (!honeycombSecret) {
+        const honeycombWebhookSecret = process.env.HONEYCOMB_WEBHOOK_SECRET;
+        if (!honeycombWebhookSecret) {
             return {
                 valid: false,
                 statusCode: 500,
@@ -101,7 +101,7 @@ function validateHeaders(
             };
         }
 
-        if (honeycombToken !== honeycombSecret) {
+        if (honeycombToken !== honeycombWebhookSecret) {
             return {
                 valid: false,
                 statusCode: 401,

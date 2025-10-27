@@ -1,5 +1,6 @@
 import {App, Duration, Stack, aws_iam, aws_lambda} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
@@ -120,6 +121,7 @@ async function addAwsResources(
         vpc: null,
         timeout: Duration.seconds(30),
         honeycombApiKey: null,
+        environment: {},
     });
 
     sqs.grantSendJobQueueMessages(scheduleDeployLambda.executionRole);
@@ -195,6 +197,7 @@ function addAwsLifecycleResources(
     // Create our send alert lambda
     // NOTE: If this is renamed, the url used by alerting webhooks will also be changed.
     // THIS WILL BREAK OUR ALERTS, which is not great.
+    const sendAlertSecrets = Secret.fromSecretNameV2(stack, "SecretsImport", "AlertSecrets");
     const sendAlertLambda = new AwsLambda(stack, "SendAlert", {
         bazelConfiguration: {
             bazelTarget: "//admin/lambda/send_alert:send_alert_lambda",
@@ -205,6 +208,14 @@ function addAwsLifecycleResources(
         vpc: null,
         timeout: Duration.seconds(30),
         honeycombApiKey: null,
+        environment: {
+            PAGERDUTY_WEBHOOK_SECRET: sendAlertSecrets
+                .secretValueFromJson("pagerDutyWebhookSecret")
+                .unsafeUnwrap(),
+            HONEYCOMB_WEBHOOK_SECRET: sendAlertSecrets
+                .secretValueFromJson("honeycombWebhookSecret")
+                .unsafeUnwrap(),
+        },
     });
 
     // Add a Function URL to the send alert lambda for external webhook access
@@ -213,7 +224,7 @@ function addAwsLifecycleResources(
         cors: {
             allowedOrigins: ["*"],
             allowedMethods: [aws_lambda.HttpMethod.POST],
-            allowedHeaders: ["content-type", "x-amz-date", "authorization", "x-api-key"],
+            allowedHeaders: ["content-type", "x-pagerduty-signature", "x-honeycomb-webhook-token"],
         },
     });
 }
