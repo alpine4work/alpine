@@ -89,6 +89,9 @@ async function main() {
                       rules: ruleOverrides,
                   }
                 : {},
+        // In fix mode, disable the removal of eslint-disable directives to prevent
+        // accidental removal of intentional disable comments
+        reportUnusedDisableDirectives: fixMode || fixAllMode ? "off" : undefined,
     });
 
     const results = await eslint.lintFiles(inputPaths);
