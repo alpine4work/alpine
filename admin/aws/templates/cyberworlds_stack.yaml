@@ -1007,8 +1007,6 @@ Resources:
                     - bounce
                     - complaint
                     - delivery
-                    - open
-                    - click
                     - reject
                     - deliveryDelay
                     - subscription

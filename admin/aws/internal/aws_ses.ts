@@ -44,8 +44,6 @@ export class AwsSes extends Construct {
                 EmailSendingEvent.BOUNCE,
                 EmailSendingEvent.COMPLAINT,
                 EmailSendingEvent.DELIVERY,
-                EmailSendingEvent.OPEN,
-                EmailSendingEvent.CLICK,
                 EmailSendingEvent.REJECT,
                 EmailSendingEvent.DELIVERY_DELAY,
                 EmailSendingEvent.SUBSCRIPTION,
