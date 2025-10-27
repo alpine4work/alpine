@@ -4,7 +4,7 @@ ts_project(
     name = "lambda",
     visibility = [
         "//server:__subpackages__",
-        "//admin/lambda/local:__subpackages__",
+        "//admin/lambda:__subpackages__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-secrets-manager",
