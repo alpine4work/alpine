@@ -132,32 +132,6 @@ async function addAwsResources(
 
     scheduleDeployLambda.grantInvoke(ciScheduleDeployIam);
 
-    // Create our send alert lambda
-    // NOTE: If this is renamed, the url used by alerting webhooks will also be changed.
-    // THIS WILL BREAK OUR ALERTS, which is not great.
-    const sendAlertLambda = new AwsLambda(stack, "SendAlert", {
-        bazelConfiguration: {
-            bazelTarget: "//admin/lambda/send_alert:send_alert_lambda",
-            handlerFilePath: "lambda/send_alert_lambda",
-        },
-        deploymentType: "zip",
-        sqs,
-        cloudflareAccountId,
-        vpc: null,
-        timeout: Duration.seconds(30),
-        honeycombApiKey: null,
-    });
-
-    // Add a Function URL to the send alert lambda for external webhook access
-    sendAlertLambda.lambdaFunction.addFunctionUrl({
-        authType: aws_lambda.FunctionUrlAuthType.NONE,
-        cors: {
-            allowedOrigins: ["*"],
-            allowedMethods: [aws_lambda.HttpMethod.POST],
-            allowedHeaders: ["content-type", "x-amz-date", "authorization", "x-api-key"],
-        },
-    });
-
     // Manually export resources through CloudFormation instead of using the CDK's
     // auto export capabilities. We were finding ourselves running into issues when
     // trying to change how exported resources are used in dependent stacks.
@@ -216,5 +190,30 @@ function addAwsLifecycleResources(
         cloudflareAccountId,
         dynamo,
         sqs,
+    });
+
+    // Create our send alert lambda
+    // NOTE: If this is renamed, the url used by alerting webhooks will also be changed.
+    // THIS WILL BREAK OUR ALERTS, which is not great.
+    const sendAlertLambda = new AwsLambda(stack, "SendAlert", {
+        bazelConfiguration: {
+            bazelTarget: "//admin/lambda/send_alert:send_alert_lambda",
+            handlerFilePath: "lambda/send_alert_lambda",
+        },
+        sqs,
+        cloudflareAccountId,
+        vpc: null,
+        timeout: Duration.seconds(30),
+        honeycombApiKey: null,
+    });
+
+    // Add a Function URL to the send alert lambda for external webhook access
+    sendAlertLambda.lambdaFunction.addFunctionUrl({
+        authType: aws_lambda.FunctionUrlAuthType.NONE,
+        cors: {
+            allowedOrigins: ["*"],
+            allowedMethods: [aws_lambda.HttpMethod.POST],
+            allowedHeaders: ["content-type", "x-amz-date", "authorization", "x-api-key"],
+        },
     });
 }
