@@ -59,7 +59,7 @@ export async function deployCloudflareWorkers(
         await waitForProcessExit(deployAgentServiceSubprocess);
     });
 
-    await context.tracer.withSpan("Deploy Resources Service", async () => {
+    await context.tracer.withSpan("Deploy Resource Service", async () => {
         const deployResourceServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.sh"),
             ["deploy"],

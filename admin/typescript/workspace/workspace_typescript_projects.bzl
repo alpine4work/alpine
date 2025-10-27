@@ -141,6 +141,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/notifications/my_account:my_account",
     "//server/opensearch:opensearch",
     "//server/remix:remix",
+    "//server/resources:resource_service_lib",
     "//server/rpc:rpc",
     "//server/search/core:core",
     "//server/search/data/index:index",

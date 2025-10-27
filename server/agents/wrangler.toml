@@ -5,6 +5,10 @@ compatibility_date = "2022-07-12"
 compatibility_flags = ["streams_enable_constructors"]
 workers_dev = true
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [[durable_objects.bindings]]
 name = "ChatGptAgentDurableObjectNamespace"
 class_name = "ChatGptAgentDurableObject"

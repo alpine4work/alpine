@@ -62,6 +62,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/files/processor/test_helpers",
     "//server/messaging/realtime/test_helpers",
     "//server/notifications/data:notifications_actions_forum_test",
+    "//server/resources",
     "//server/tasks/realtime:task_realtime_connection_test",
     "//shared/api:specification_generate_lib",
     "//shared/spaces/test_helpers",
