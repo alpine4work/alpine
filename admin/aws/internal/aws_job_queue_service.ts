@@ -331,6 +331,10 @@ export class AwsJobQueueService extends Construct {
                     weight: 1,
                 },
             ],
+            circuitBreaker: {
+                enable: true,
+                rollback: true,
+            },
         });
     }
 }

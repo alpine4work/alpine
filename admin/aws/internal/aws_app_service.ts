@@ -329,6 +329,10 @@ export class AwsAppService extends Construct {
                     weight: 1,
                 },
             ],
+            circuitBreaker: {
+                enable: true,
+                rollback: true,
+            },
         });
 
         // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old

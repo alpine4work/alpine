@@ -443,6 +443,10 @@ export class AwsFileProcessorService extends Construct {
                     weight: 1,
                 },
             ],
+            circuitBreaker: {
+                enable: true,
+                rollback: true,
+            },
         });
 
         // Make sure the load balancer can make requests against our service.

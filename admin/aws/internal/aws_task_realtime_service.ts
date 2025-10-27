@@ -417,6 +417,10 @@ class AwsTaskRealtimeServicePartition extends Construct {
             // name. We need these tags at runtime to route requests to the correct
             // `TaskRealtimeService` instance.
             enableECSManagedTags: true,
+            circuitBreaker: {
+                enable: true,
+                rollback: true,
+            },
         });
     }
 }

@@ -2638,8 +2638,13 @@ Resources:
                     AlarmNames: []
                     Enable: false
                     Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
                 MaximumPercent: 200
                 MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
             DesiredCount: 1
             EnableECSManagedTags: true
             SchedulingStrategy: REPLICA
@@ -2664,8 +2669,13 @@ Resources:
                     AlarmNames: []
                     Enable: false
                     Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
                 MaximumPercent: 200
                 MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
             DesiredCount: 1
             EnableECSManagedTags: true
             SchedulingStrategy: REPLICA
@@ -3413,8 +3423,13 @@ Resources:
                     AlarmNames: []
                     Enable: false
                     Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
                 MaximumPercent: 200
                 MinimumHealthyPercent: 50
+            DeploymentController:
+                Type: ECS
             DesiredCount: 2
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
@@ -4465,8 +4480,13 @@ Resources:
                     AlarmNames: []
                     Enable: false
                     Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
                 MaximumPercent: 200
                 MinimumHealthyPercent: 50
+            DeploymentController:
+                Type: ECS
             DesiredCount: 1
             EnableECSManagedTags: false
             SchedulingStrategy: REPLICA
@@ -6351,8 +6371,13 @@ Resources:
                     AlarmNames: []
                     Enable: false
                     Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
                 MaximumPercent: 200
                 MinimumHealthyPercent: 50
+            DeploymentController:
+                Type: ECS
             DesiredCount: 1
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
