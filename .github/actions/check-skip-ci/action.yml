@@ -18,7 +18,11 @@ runs:
               fi
 
               # Get the PR title
-              PR_TITLE=$(gh pr view $PR_NUMBER --json title --jq '.title')
+              PR_TITLE=$(gh pr view $PR_NUMBER --json title --jq '.title' 2>/dev/null || echo "")
+              if [ -z "$PR_TITLE" ]; then
+                echo "Failed to get PR title, GitHub API may be down. Continuing..."
+                exit 0
+              fi
               echo "PR Title: $PR_TITLE"
 
               # Check if the title starts with [SKIP CI]
