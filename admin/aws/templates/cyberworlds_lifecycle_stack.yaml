@@ -4783,6 +4783,7 @@ Resources:
             Cors:
                 AllowHeaders:
                     - content-type
+                    - user-agent
                     - x-pagerduty-signature
                     - x-honeycomb-webhook-token
                 AllowMethods:

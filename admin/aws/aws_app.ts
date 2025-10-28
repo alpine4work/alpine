@@ -224,7 +224,12 @@ function addAwsLifecycleResources(
         cors: {
             allowedOrigins: ["*"],
             allowedMethods: [aws_lambda.HttpMethod.POST],
-            allowedHeaders: ["content-type", "x-pagerduty-signature", "x-honeycomb-webhook-token"],
+            allowedHeaders: [
+                "content-type",
+                "user-agent",
+                "x-pagerduty-signature",
+                "x-honeycomb-webhook-token",
+            ],
         },
     });
 }
