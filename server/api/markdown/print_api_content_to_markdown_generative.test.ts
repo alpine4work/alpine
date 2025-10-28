@@ -10,10 +10,7 @@ import {
     printApiContentToMarkdown,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
-import {
-    ApiContentMentionInlineElementTargetPathObject,
-    printApiContentMentionInlineElementTargetPath,
-} from "~/shared/api/parse_api_path.js";
+import {ApiMentionPathObject, printApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -76,7 +73,7 @@ function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
 }
 
 const ApiContentMentionInlineElementTargetPathObjectArbitrary =
-    createUnionArbitrary<ApiContentMentionInlineElementTargetPathObject>({
+    createUnionArbitrary<ApiMentionPathObject>({
         Account: createIdArbitrary<AccountId>().map(accountId => ({
             type: "Account",
             accountId,
@@ -181,7 +178,7 @@ const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInline
     fc.record({
         type: fc.constant("Mention"),
         targetPath: ApiContentMentionInlineElementTargetPathObjectArbitrary.map(path =>
-            printApiContentMentionInlineElementTargetPath(path),
+            printApiMentionPath(path),
         ),
         title: fc.oneof(
             {arbitrary: fc.constant(undefined), weight: 10},

@@ -1,8 +1,7 @@
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {AgentConversationStateStore} from "~/server/agents/internal/conversation_state/agent_converstaion_state.js";
-import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
-import {getAgentMessagesFromStartUntilTokenLimit} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
+import {getAgentMessagesBetweenIndexes} from "~/server/agents/internal/messages/get_agent_messages_between_indexes.js";
+import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 export async function loadNewMessagesInAgentConversation(
@@ -11,29 +10,21 @@ export async function loadNewMessagesInAgentConversation(
     // We don't want to use `request.event.index` in this function. So omit it from
     // the type.
     request: Omit<AgentWebhookRequest, "event">,
-    state: AgentConversationStateStore,
-    insertItemIntoConversationItemCollection: (
-        transaction: DurableObjectTransaction,
-        orderKey: OrderKey,
-        messages: Array<AgentMessage>,
-    ) => Promise<void>,
+    conversation: AgentConversationStore,
     newMessageIndex: number,
 ): Promise<void> {
-    const messages = await getAgentMessagesFromStartUntilTokenLimit(
+    const {lastMessageIndex} = conversation.getState();
+    if (lastMessageIndex === null) return;
+
+    const messages = await getAgentMessagesBetweenIndexes(
         tracer,
         transaction,
         request,
-        state,
+        lastMessageIndex,
         newMessageIndex,
     );
     if (messages === null) return;
 
-    const orderKey = generateOrderKeyBetween(state.get().lastOrderKey, null);
-
-    await insertItemIntoConversationItemCollection(transaction, orderKey, messages);
-
-    await state.set(transaction, {
-        lastOrderKey: orderKey,
-        lastMessageIndex: newMessageIndex,
-    });
+    const agentMessagesLog = printAgentMessagesLog(messages);
+    await conversation.insertMessages(transaction, newMessageIndex, agentMessagesLog.trimEnd());
 }

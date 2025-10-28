@@ -41,7 +41,7 @@ async function testPrintApiContentToMarkdown(content: ApiContent, expectedMarkdo
     {
         const message = new AgentMessageStream({
             spaceId,
-            getMentionTargetPathIfExists: async () => null,
+            getTargetPathIfExists: async () => null,
         });
         const markdownTokens = encodeO200kBase(actualMarkdown);
 

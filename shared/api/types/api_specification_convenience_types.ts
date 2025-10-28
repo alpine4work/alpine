@@ -2,7 +2,7 @@ import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
 export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
 
-export type ApiContentMentionInlineElementTargetPath =
+export type ApiMentionPath =
     ApiSpecification.components["schemas"]["ContentMentionInlineElementTargetPath"];
 
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];

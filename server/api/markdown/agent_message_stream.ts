@@ -3,12 +3,18 @@ import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
 } from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {printApiContentMentionInlineElementTargetPathToMentionLinkUrl} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {parseApiContentMentionInlineElementTargetPath} from "~/shared/api/parse_api_path.js";
 import {
-    ApiContentMentionInlineElementTargetPath,
-    ApiMessageStreamPartPayload,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+    printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
+    printAppUrlFromApiNotMentionPath,
+} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {
+    ApiPath,
+    isApiMentionPath,
+    isApiNotMentionPath,
+    parseApiMentionPath,
+    parseApiNotMentionPath,
+} from "~/shared/api/parse_api_path.js";
+import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -30,24 +36,20 @@ export type AgentMessageStreamPart = {
  */
 export class AgentMessageStream {
     private readonly _spaceId: SpaceId;
-    private readonly _getMentionTargetPathIfExists: (
-        label: string,
-    ) => Promise<ApiContentMentionInlineElementTargetPath | null>;
+    private readonly _getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
 
     private _text = "";
     private _parts: Array<AgentMessageStreamPart> = [];
 
     constructor({
         spaceId,
-        getMentionTargetPathIfExists,
+        getTargetPathIfExists,
     }: {
         spaceId: SpaceId;
-        getMentionTargetPathIfExists: (
-            label: string,
-        ) => Promise<ApiContentMentionInlineElementTargetPath | null>;
+        getTargetPathIfExists: (linkPath: string) => Promise<ApiPath | null>;
     }) {
         this._spaceId = spaceId;
-        this._getMentionTargetPathIfExists = getMentionTargetPathIfExists;
+        this._getTargetPathIfExists = getTargetPathIfExists;
     }
 
     /**
@@ -195,6 +197,7 @@ export class AgentMessageStream {
         }
 
         const markdownRoot = parseMarkdownTree(text, {
+            // TODO(ifitzsimmons, #ai): remove this mdast patch
             // Allow parsing `Check out [My Document][]` as a link even if there is no
             // definition for `My Document`. We'll figure out the right link in our code.
             allowUndefinedLinkReferenceIdentifiers: true,
@@ -212,23 +215,28 @@ export class AgentMessageStream {
 
         const promiseWaiter = new PromiseWaiter();
 
-        // Loop through our Markdown content. If we find a collapsed `linkReference`
-        // then this might be the LLM trying to mention some content. So call
-        // `getMentionTargetPathIfExists()` and if we find a mention path then replace
-        // the `linkReference` with a `link` that'll get parsed as a mention.
+        // Loop through our Markdown content. All of our internal links are stored as
+        // shorthand link representations. So for a Document titled "Dinosaurs are cool",
+        // the markdown link looks like "[Dinosaurs are cool](document/dinosaurs-are-cool)"
+        // We do this for token efficiency and also to give the LLM more context about the
+        // linked content. When streaming these links back to the client, we need to replace
+        // the shorthand link with the actual link to the internal entity.
         const traverse = (node: Parent) => {
             for (let index = 0; index < node.children.length; index++) {
                 const childNode = node.children[index]!;
 
-                if (childNode.type === "linkReference" && childNode.referenceType !== "full") {
+                if (childNode.type === "link") {
                     promiseWaiter.waitUntil(async () => {
-                        const mentionTargetPath = await this._getMentionTargetPathIfExists(
-                            printMarkdownPhrasingContentText(childNode.children),
-                        );
+                        // TODO(ifitzsimmons, #format-non-mentionable-content): If the link
+                        // is not mentionable, `targetPath` will be null. We need to build a
+                        // plain link for non mentionable content and we also need to swap
+                        // the label so something more user friendly (`mentionLabel`).
+                        const targetPath = await this._getTargetPathIfExists(childNode.url);
 
-                        if (mentionTargetPath !== null) {
-                            const mentionTargetPathObject =
-                                parseApiContentMentionInlineElementTargetPath(mentionTargetPath);
+                        if (!targetPath) return null;
+
+                        if (isApiMentionPath(targetPath)) {
+                            const mentionTargetPathObject = parseApiMentionPath(targetPath);
 
                             node.children[index] = {
                                 type: "link",
@@ -236,6 +244,21 @@ export class AgentMessageStream {
                                     mentionTargetPathObject,
                                     {spaceId: this._spaceId, isAccountShortName: undefined},
                                 ),
+                                children: childNode.children,
+                                position: childNode.position,
+                            };
+                        } else {
+                            // If it's not mentionable, we'll create a direct link to the content.
+                            // For exampe, the link to a chat message will look someting like
+                            // `/chats/${chatId}?message=${messageIndex}
+                            assert(isApiNotMentionPath(targetPath));
+                            const targetPathObject = parseApiNotMentionPath(targetPath);
+
+                            node.children[index] = {
+                                type: "link",
+                                url: printAppUrlFromApiNotMentionPath(targetPathObject, {
+                                    spaceId: this._spaceId,
+                                }),
                                 children: childNode.children,
                                 position: childNode.position,
                             };

@@ -1,108 +1,25 @@
 import {Parent} from "mdast";
+import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
-    DurableObjectStorageCollection,
-    DurableObjectStorageInterface,
-    DurableObjectTransactionInterface,
-} from "~/server/agents/internal/durable_object_storage_collection.js";
+    createAgentLink,
+    printEscapedMarkdownLinkLabel,
+} from "~/server/agents/internal/link_references/agent_link_collection.js";
+import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printMarkdownPhrasingContentText} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentMentionInlineElementTargetPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
-    ApiContentMentionInlineElementTargetPath,
+    ApiMentionPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-
-export type AgentConversationLinkReference = {
-    readonly originalLabel: string;
-    readonly mentionTargetPath: ApiContentMentionInlineElementTargetPath;
-};
-
-const AgentContentLinkReferenceCollection = new DurableObjectStorageCollection<
-    string,
-    AgentConversationLinkReference
->("a3");
-
-export function listAgentContentLinkReferences(
-    storage: DurableObjectStorageInterface,
-): Promise<Map<string, AgentConversationLinkReference>> {
-    return AgentContentLinkReferenceCollection.list(storage);
-}
-
-export function getAgentContentLinkReference(
-    storage: DurableObjectStorageInterface,
-    label: string,
-): Promise<AgentConversationLinkReference | undefined> {
-    return AgentContentLinkReferenceCollection.get(storage, label);
-}
-
-export type AgentConversationLink = {
-    readonly originalLabel: string;
-    readonly reference: AgentConversationLinkReference;
-    readonly label: string;
-    readonly getEscapedLabel: () => string;
-};
-
-let putAgentContentLinkReferenceMutex: Mutex | null = null;
-
-export async function putAgentContentLinkReference(
-    storage: DurableObjectStorageInterface,
-    originalLabel: string,
-    mentionTargetPath: ApiContentMentionInlineElementTargetPath,
-): Promise<AgentConversationLink> {
-    // Use a process-wide mutex to avoid concurrent calls writing different
-    // mentions to the same label. This will be the only process ever writing to
-    // storage so a process-wide mutex is safe.
-    const run = (transaction: DurableObjectTransactionInterface) => {
-        putAgentContentLinkReferenceMutex ??= new Mutex();
-
-        return putAgentContentLinkReferenceMutex.withLock(async () => {
-            let dedupeNumber = 1;
-            let label = originalLabel;
-
-            while (true) {
-                // Check if this link label is unused or if
-                const existingReference = await AgentContentLinkReferenceCollection.get(
-                    transaction,
-                    label,
-                );
-                if (existingReference === undefined) break;
-                if (existingReference.mentionTargetPath === mentionTargetPath) break;
-
-                dedupeNumber += 1;
-                label = `${originalLabel} ${dedupeNumber}`;
-            }
-
-            const reference: AgentConversationLinkReference = {
-                originalLabel,
-                mentionTargetPath,
-            };
-
-            await AgentContentLinkReferenceCollection.put(transaction, label, reference);
-
-            return {
-                label,
-                getEscapedLabel: () => escapeMarkdownLinkLabel(label),
-                originalLabel,
-                reference,
-            };
-        });
-    };
-
-    // Make sure we're running in a transaction in addition to the process-wide
-    // mutex to really make sure we're not writing to the same label concurrently.
-    if ("rollback" in storage) {
-        return run(storage);
-    } else {
-        return storage.transaction(run);
-    }
-}
 
 /**
  * Print API content to Markdown for an agent. Strips some Markdown formatting
@@ -152,6 +69,9 @@ export async function printAgentContentToMarkdownTree(
                     // noop
                 }
 
+                // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g.
+                // a chat message) will be replaced with a missing link. It may make more
+                // sense to create an actual link to the message when possible.
                 const mentionTargetPath = url
                     ? parseApiContentMentionInlineElementTargetPathIfPossible(spaceId, url)
                     : null;
@@ -167,23 +87,21 @@ export async function printAgentContentToMarkdownTree(
                 }
 
                 // If this is a mention then remove the URL but keep the link structure (e.g.
-                // `[My Document][]`). We'll give agents a tool to load links based on the
-                // link label.
-
-                const originalLinkLabel = printMarkdownPhrasingContentText(childNode.children);
+                // `[Dinosaurs aren't Great](documents/dinosaurs-arent-Great)`). We'll give agents a tool to
+                // load links based on the formatted link.
+                const rawOriginalLinkLabel = printMarkdownPhrasingContentText(childNode.children);
 
                 promiseWaiter.waitUntil(async () => {
-                    const {label} = await putAgentContentLinkReference(
+                    const link = await createAgentLinkForApiMentionPath(
                         storage,
-                        originalLinkLabel,
                         mentionTargetPath,
+                        rawOriginalLinkLabel,
                     );
 
                     node.children[index] = {
-                        type: "linkReference",
-                        referenceType: "collapsed",
-                        identifier: "",
-                        children: [{type: "text", value: label}],
+                        type: "link",
+                        url: printAgentLinkPath(link),
+                        children: [{type: "text", value: printEscapedMarkdownLinkLabel(link)}],
                     };
                 });
                 continue;
@@ -212,24 +130,70 @@ export async function printAgentContentToMarkdownTree(
     return markdownTree;
 }
 
-/**
- * Escapes a string so it can be used as a Markdown link label.
- */
-function escapeMarkdownLinkLabel(contents: string): string {
-    const markdown = printMarkdownTree({
-        type: "root",
-        children: [
-            {
-                type: "linkReference",
-                referenceType: "collapsed",
-                identifier: "",
-                children: [{type: "text", value: contents}],
-            },
-        ],
-    }).trim();
+function createAgentLinkForApiMentionPath(
+    storage: DurableObjectStorageInterface,
+    targetPath: ApiMentionPath,
+    rawOriginalLinkLabel: string,
+): Promise<AgentLink> {
+    const pathObject = parseApiMentionPath(targetPath);
 
-    assert(markdown.startsWith("["));
-    assert(markdown.endsWith("][]"));
-
-    return markdown.slice(1, -3);
+    switch (pathObject.type) {
+        case "Account": {
+            return createAgentLink(storage, {
+                type: "Account",
+                account: {
+                    id: pathObject.accountId,
+                    name: rawOriginalLinkLabel,
+                },
+            });
+        }
+        case "Channel": {
+            return createAgentLink(storage, {
+                type: "Channel",
+                channel: {
+                    id: pathObject.channelId,
+                    name: rawOriginalLinkLabel,
+                },
+            });
+        }
+        case "Document": {
+            return createAgentLink(storage, {
+                type: "Document",
+                document: {
+                    id: pathObject.documentId,
+                    title: rawOriginalLinkLabel,
+                },
+            });
+        }
+        case "Post": {
+            return createAgentLink(storage, {
+                type: "Post",
+                post: {
+                    id: pathObject.postId,
+                    contentPreview: rawOriginalLinkLabel,
+                },
+            });
+        }
+        case "Task": {
+            return createAgentLink(storage, {
+                type: "Task",
+                task: {
+                    id: pathObject.taskId,
+                    title: rawOriginalLinkLabel,
+                },
+            });
+        }
+        case "TaskCollection": {
+            return createAgentLink(storage, {
+                type: "TaskCollection",
+                taskCollection: {
+                    id: pathObject.collectionId,
+                    name: rawOriginalLinkLabel,
+                },
+            });
+        }
+        default: {
+            throw exhaustive(pathObject);
+        }
+    }
 }

@@ -1,8 +1,8 @@
-import {ApiContentMentionInlineElementTargetPathObject} from "~/shared/api/parse_api_path.js";
+import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function getApiContentMentionInlineElementTargetPathNoun(
-    type: Exclude<ApiContentMentionInlineElementTargetPathObject["type"], "Account">,
+    type: Exclude<ApiMentionPathObject["type"], "Account">,
 ): string {
     switch (type) {
         case "Channel":

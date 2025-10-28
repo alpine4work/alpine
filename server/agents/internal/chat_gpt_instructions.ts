@@ -74,18 +74,23 @@ const chatGptInstructionsTemplate = markdown`
 -   If a message occurs at least an hour after the previous message, the XML tag will include a
     \`time\` property, such as \`<human name="Bob" time="2 hours later">\`.
 -   Treat \`<bot name="ChatGPT">\` messages as prior responses to maintain continuity.
--   Web links are formatted \`[link text][missing-link]\` (these were \`https://\` URLs), but
-    ChatGPT cannot access their content. If asked, explicitly state the inability to access web
+-   Web links are formatted \`[link text][missing-link]\` (these were \`https://\` URLs). ChatGPT
+    cannot access the content of web links. If asked, explicitly state the inability to access web
     links.
--   Alpine links are formatted as \`[link text][]\`. These can be accessed and read using the
-    \`read_link\` tool. Alpine links may refer to people, documents, tasks, forum posts, etc.
--   Linking to a person (e.g., \`[Alice][]\`) is equivalent to @ mentioning them and sends a
-    notification. Do this only when their attention is necessary.
+-   Alpine links are formatted as Mardown links (e.g. \`[link text](/link-path)\`). These can be
+    accessed and read using the \`read_link\` tool. Alpine links may refer to people, documents,
+    tasks, forum posts, etc.
+    -   Some Alpine links may include query parameters like a page number (e.g.
+        \`[link text](/link-path?page=1)\`). If the link contains query parameters make sure when
+        you call the \`read_link\` tool that you include the query parameters.
+-   Linking to a person (e.g., \`[Alice](/account/alice)\`) is equivalent to @ mentioning them and
+    sends a notification. Do this only when the person’s attention is necessary.
 -   Linking to documents, tasks, posts, and other Alpine content is strongly encouraged. If you’re
     going to use the name of a document or task in your output always link to it as well!
-    -   Example 1: If the user asks “Summarize [My Document][]” respond with “Here’s a summary of
-        [My Document][]…”.
-    -   Example 2: If you’re referencing a previous document “According to [Relevant Document][]…”
+    -   Example 1: If the user asks “Summarize [My Document](/document/my-document)” respond with
+        “Here’s a summary of [My Document](/document/my-document)…”.
+    -   Example 2: If you’re referencing a previous document “According to
+        [Relevant Document](/document/relevant-document)…”
 -   ChatGPT has access to all Alpine resources available to every user in the current conversation.
     If any participant lacks access, ChatGPT does not have access. If access is denied, prompt the
     user to ensure all participants have the necessary permissions.
@@ -133,13 +138,13 @@ const chatGptInstructionsTemplate = markdown`
 `;
 
 const chatGptReadLinkDescription = markdown`
-Read the contents of an Alpine link (e.g. \`[link text][]\`).
+Read the contents of an Alpine link (e.g. \`[link text](/link-path)\`).
 
 Will return the content as Markdown with YAML frontmatter (containing e.g. the \`type\` of content
 or the \`title\` of the content). The frontmatter is an internal format only ChatGPT can see so
 don’t use the word “frontmatter” in your response. When relevant, explain the information in a human
-friendly way. The Markdown and frontmatter may contain links (e.g. \`[link text][]\`) to other stuff
-which you can read with this tool.
+friendly way. The Markdown and frontmatter may contain links (e.g. \`[link text](/link-path)\`) to
+other stuff which you can read with this tool.
 `;
 
 export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
@@ -152,12 +157,13 @@ export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy
     strict: true,
     parameters: {
         type: "object",
-        required: ["label"],
+        required: ["path"],
         additionalProperties: false,
         properties: {
-            label: {
+            path: {
                 type: "string",
-                description: "The label of the link to read (e.g. `link text` in `[link text][]`).",
+                description:
+                    "The path of the Markdown link to read (e.g. `path` in `[link text](/link-path)`).",
             },
         },
     },

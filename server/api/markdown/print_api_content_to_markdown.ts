@@ -9,8 +9,9 @@ import {toMarkdown} from "mdast-util-to-markdown";
 import {getApiContentMentionInlineElementTargetPathNoun} from "~/server/api/markdown/get_api_content_mention_inline_element_target_path_type_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {
-    ApiContentMentionInlineElementTargetPathObject,
-    parseApiContentMentionInlineElementTargetPath,
+    ApiMentionPathObject,
+    ApiNotMentionPathObject,
+    parseApiMentionPath,
 } from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
@@ -962,9 +963,7 @@ function* printApiContentInlineElementToMarkdown(
                 }
             }
 
-            const targetPathObject = parseApiContentMentionInlineElementTargetPath(
-                element.targetPath,
-            );
+            const targetPathObject = parseApiMentionPath(element.targetPath);
 
             const title =
                 element.title ??
@@ -1010,7 +1009,7 @@ function* printApiContentInlineElementToMarkdown(
 }
 
 export function printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
-    targetPathObject: ApiContentMentionInlineElementTargetPathObject,
+    targetPathObject: ApiMentionPathObject,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {
     switch (targetPathObject.type) {
@@ -1029,6 +1028,35 @@ export function printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
             return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.taskId}?mention`;
         case "TaskCollection":
             return `https://alpine.inc/s/${spaceId}/tasks/collections/${targetPathObject.collectionId}?mention`;
+        default:
+            throw exhaustive(targetPathObject);
+    }
+}
+
+export function printAppUrlFromApiNotMentionPath(
+    targetPathObject: ApiNotMentionPathObject,
+    {spaceId}: {spaceId: SpaceId},
+): string {
+    switch (targetPathObject.type) {
+        case "Chat":
+        case "ChatMessages":
+            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.chatId}`;
+        case "ChatMessage":
+            return `https://alpine.inc/s/${spaceId}/chats/${targetPathObject.chatId}?message=${targetPathObject.messageIndex}`;
+        case "DocumentComment":
+            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.documentId}?comments=${targetPathObject.commentThreadId}&comment=${targetPathObject.commentIndex}`;
+        case "DocumentCommentThread":
+        case "DocumentCommentThreadComments":
+            return `https://alpine.inc/s/${spaceId}/documents/${targetPathObject.documentId}?comments=${targetPathObject.commentThreadId}`;
+        case "PostComment":
+            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.postId}?comment=${targetPathObject.commentIndex}`;
+        case "PostComments":
+            // Redirect to the post itself. This is mentionable.
+            return `https://alpine.inc/s/${spaceId}/posts/${targetPathObject.postId}?mention`;
+        case "TaskComment":
+            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.taskId}?comment=${targetPathObject.commentIndex}`;
+        case "TaskComments":
+            return `https://alpine.inc/s/${spaceId}/tasks/${targetPathObject.taskId}?comments=show`;
         default:
             throw exhaustive(targetPathObject);
     }

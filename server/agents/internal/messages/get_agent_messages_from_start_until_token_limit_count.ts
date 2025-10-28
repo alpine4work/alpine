@@ -1,11 +1,17 @@
-import {ApiClient, getApiMessagesFromEnd} from "~/server/agents/internal/api_client.js";
+import {ApiClient, getApiMessagesFromStart} from "~/server/agents/internal/api_client.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-export async function getAgentMessagesFromEndUntilLimitTokenCount(
+/**
+ * Given a message index, get all messages after that index within a provided
+ * token limit.
+ *
+ * Returns null if the conversation is empty OR the index is out of bounds.
+ */
+export async function getAgentMessagesFromStartUntilTokenLimitCount(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
     apiClient: ApiClient,
@@ -16,25 +22,22 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
     messages: Array<AgentMessage>;
     nextCursor: number | null;
 }> {
-    let cursor: number | null = startingIndex + 1;
+    let cursor: number | null = startingIndex;
     let totalTokenCount = 0;
     const messages: Array<AgentMessage> = [];
 
-    // Load messages until we reach our token limit.
     while (cursor !== null && totalTokenCount < limitTokenCount) {
         const {
             data: {nextCursor, messages: currentMessages},
-        } = await getApiMessagesFromEnd(tracer, apiClient, roomPathObject, {
+        } = await getApiMessagesFromStart(tracer, apiClient, roomPathObject, {
             limit: loadApiMessagesForAgentBatchCount,
             cursor,
         });
 
         cursor = nextCursor;
-
-        for (let i = currentMessages.length - 1; i >= 0; i--) {
-            const currentMessage = currentMessages[i]!;
+        for (const currentMessage of currentMessages) {
+            // Ignore deleted messages.
             if (currentMessage.payload.type === "Deleted") continue;
-
             const message = await AgentMessage.new(transaction, {
                 spaceId,
                 index: currentMessage.index,
@@ -42,9 +45,7 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
                 createdTime: currentMessage.createdTime,
                 payload: currentMessage.payload,
             });
-
             const tokenCount = message.getTokenCount();
-
             // If this message would put us over our token limit then DO NOT add the
             // message and instead return the messages we have.
             //
@@ -61,25 +62,16 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
                 totalTokenCount > limitTokenCount / 2 &&
                 totalTokenCount + tokenCount > limitTokenCount
             ) {
-                // Agent messages are added in reverse order. So reverse them back to get the
-                // correct order.
-                messages.reverse();
-
-                // Plus 1 because the range is end exclusive. So if we stopped at index 5, index
-                // 6 was the last message we added to this request. If we want to request the
-                // next set of results, we need to look back from the message at index 6.
-                return {messages, nextCursor: message.index + 1};
+                // Minus 1 because the range is start exclusive. So if we stopped at index 5, index
+                // 4 was the last message we added to this request. If we want to request the
+                // next set of results, we need to look forward from the message at index 4.
+                return {messages, nextCursor: message.index - 1};
             } else {
                 totalTokenCount += tokenCount;
-
                 messages.push(message);
             }
         }
     }
-
-    // Agent messages are added in reverse order. So reverse them back to get the
-    // correct order.
-    messages.reverse();
 
     return {messages, nextCursor: cursor};
 }

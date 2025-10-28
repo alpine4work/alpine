@@ -1,6 +1,6 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {parseApiContentMentionInlineElementTargetPath} from "~/shared/api/parse_api_path.js";
+import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -193,7 +193,7 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    const targetPathObject = parseApiContentMentionInlineElementTargetPath(element.targetPath);
+    const targetPathObject = parseApiMentionPath(element.targetPath);
 
     let mention: ContentMention;
 

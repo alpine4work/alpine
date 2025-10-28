@@ -1,6 +1,7 @@
 import OpenAi from "openai";
+import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 
 export type ChatGptAgentConversationState = {
     readonly lastOrderKey: OrderKey | null;
@@ -24,10 +25,11 @@ export const ChatGptAgentConversationItemCollection = new DurableObjectStorageCo
     ChatGptAgentConversationItem
 >("a2");
 
-export class ChatGptAgentConversationStateStore {
+export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGptAgentConversationState> {
     private _state: ChatGptAgentConversationState;
 
     private constructor(state: ChatGptAgentConversationState) {
+        super();
         this._state = state;
     }
 
@@ -37,14 +39,14 @@ export class ChatGptAgentConversationStateStore {
             lastOrderKey: null,
         };
 
-        return new ChatGptAgentConversationStateStore(state);
+        return new ChatGptAgentConversationStore(state);
     }
 
-    public get() {
+    public getState() {
         return this._state;
     }
 
-    public async set(
+    public async setState(
         transaction: DurableObjectTransaction,
         stateUpdate: Partial<ChatGptAgentConversationState>,
     ) {
@@ -54,5 +56,26 @@ export class ChatGptAgentConversationStateStore {
         };
 
         await ChatGptAgentConversationStateCollection.put(transaction, "", this._state);
+    }
+
+    public async insertMessages(
+        transaction: DurableObjectTransaction,
+        newMessageIndex: number,
+        messages: string,
+    ) {
+        const orderKey = generateOrderKeyBetween(this.getState().lastOrderKey, null);
+
+        await ChatGptAgentConversationItemCollection.put(transaction, orderKey, {
+            item: {
+                type: "message",
+                role: "user",
+                content: [{type: "input_text", text: messages}],
+            },
+        });
+
+        await this.setState(transaction, {
+            lastOrderKey: orderKey,
+            lastMessageIndex: newMessageIndex,
+        });
     }
 }

@@ -24,12 +24,12 @@ import {
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
     ApiContentListBlockElementItem,
-    ApiContentMentionInlineElementTargetPath,
     ApiContentParagraphBlockElement,
     ApiContentQuoteBlockElementBlockElement,
     ApiContentTableBlockElement,
     ApiContentTableBlockElementCell,
     ApiContentTableBlockElementCellBlockElement,
+    ApiMentionPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -1995,7 +1995,7 @@ function* parseApiContentInlineElementFromMarkdown(
 export function parseApiContentMentionInlineElementTargetPathIfPossible(
     spaceId: SpaceId,
     url: URL,
-): ApiContentMentionInlineElementTargetPath | null {
+): ApiMentionPath | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&

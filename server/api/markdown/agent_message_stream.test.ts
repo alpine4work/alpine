@@ -1,13 +1,13 @@
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {DocumentId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 
 test("streams plain text message when update is called once at the end", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The");
@@ -70,7 +70,7 @@ test("streams plain text message when update is called once at the end", async (
 test("streams plan text message when update is called once every token", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The");
@@ -128,7 +128,7 @@ test("streams plan text message when update is called once every token", async (
 test("streams plan text message when update is called once every few tokens", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The");
@@ -168,7 +168,7 @@ test("streams plan text message when update is called once every few tokens", as
 test("streams bold inline formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -319,7 +319,7 @@ test("streams bold inline formatting correctly", async () => {
 test("streams italic formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -470,7 +470,7 @@ test("streams italic formatting correctly", async () => {
 test("streams italic formatting correctly (with underscores)", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -621,7 +621,7 @@ test("streams italic formatting correctly (with underscores)", async () => {
 test("streams bold + italic inline formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -772,7 +772,7 @@ test("streams bold + italic inline formatting correctly", async () => {
 test("streams bold + italic inline formatting correctly with extra asterisk", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -923,7 +923,7 @@ test("streams bold + italic inline formatting correctly with extra asterisk", as
 test("streams bold + italic inline formatting correctly with two extra asterisks", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1074,7 +1074,7 @@ test("streams bold + italic inline formatting correctly with two extra asterisks
 test("streams bold inline formatting with newline before termination", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1211,7 +1211,7 @@ test("streams bold inline formatting with newline before termination", async () 
 test("streams lone asterisk correctly (that looks like caveat)", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1338,7 +1338,7 @@ test("streams lone asterisk correctly (that looks like caveat)", async () => {
 test("streams bold HTML inline formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1489,7 +1489,7 @@ test("streams bold HTML inline formatting correctly", async () => {
 test("streams bold HTML inline formatting with newline before termination", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1626,7 +1626,7 @@ test("streams bold HTML inline formatting with newline before termination", asyn
 test("streams partial bold HTML inline formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -1805,7 +1805,7 @@ test("streams partial bold HTML inline formatting correctly", async () => {
 test("empty paragraphs with updates in weird places", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("<p");
@@ -1854,7 +1854,7 @@ test("empty paragraphs with updates in weird places", async () => {
 test("can stream simple unordered list", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("-");
@@ -1954,7 +1954,7 @@ test("can stream simple unordered list", async () => {
 test("streams strike inline formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -2105,7 +2105,7 @@ test("streams strike inline formatting correctly", async () => {
 test("streams inline code formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -2253,10 +2253,12 @@ test("streams inline code formatting correctly", async () => {
     ]);
 });
 
-test("streams link formatting correctly (without reference)", async () => {
+test("streams link formatting correctly (without mentionable reference)", async () => {
+    const postId = generateId<PostId>();
+
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => `/posts/${postId}/messages/1`,
     });
 
     message.pushText("The quick");
@@ -2331,7 +2333,7 @@ test("streams link formatting correctly (without reference)", async () => {
         },
     ]);
 
-    message.pushText(" over the][]");
+    message.pushText(" over the](/post-comment/message-text)");
 
     expect(await message.update()).toEqual([
         {
@@ -2345,7 +2347,17 @@ test("streams link formatting correctly (without reference)", async () => {
                             elements: [
                                 {
                                     type: "Text",
-                                    text: "The quick brown fox jumps over the",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/posts/${postId}?comment=1`,
+                                        },
+                                    ],
                                 },
                             ],
                         },
@@ -2369,7 +2381,21 @@ test("streams link formatting correctly (without reference)", async () => {
                             elements: [
                                 {
                                     type: "Text",
-                                    text: "The quick brown fox jumps over the lazy dog.",
+                                    text: "The quick ",
+                                },
+                                {
+                                    type: "Text",
+                                    text: "brown fox jumps over the",
+                                    marks: [
+                                        {
+                                            type: "Link",
+                                            url: `https://alpine.inc/s/${spaceId}/posts/${postId}?comment=1`,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " lazy dog.",
                                 },
                             ],
                         },
@@ -2385,8 +2411,8 @@ test("streams link formatting correctly (with reference)", async () => {
 
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async label => {
-            if (label === "brown fox jumps over the") return `/documents/${documentId}`;
+        getTargetPathIfExists: async linkUrl => {
+            if (linkUrl === "/document/brown-fox-jumps-over-the") return `/documents/${documentId}`;
 
             return null;
         },
@@ -2464,7 +2490,7 @@ test("streams link formatting correctly (with reference)", async () => {
         },
     ]);
 
-    message.pushText(" over the][]");
+    message.pushText(" over the](/document/brown-fox-jumps-over-the)");
 
     expect(await message.update()).toEqual([
         {
@@ -2528,7 +2554,7 @@ test("streams link formatting correctly (with reference)", async () => {
 test("streams link formatting correctly character by character (without reference)", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("The quick");
@@ -2669,8 +2695,8 @@ test("streams link formatting correctly character by character (with reference)"
 
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async label => {
-            if (label === "brown fox jumps over the") return `/documents/${documentId}`;
+        getTargetPathIfExists: async linkUrl => {
+            if (linkUrl === "/document/brown-fox-jumps-over-the") return `/documents/${documentId}`;
 
             return null;
         },
@@ -2774,6 +2800,38 @@ test("streams link formatting correctly character by character (with reference)"
 
     message.pushText("]");
 
+    expect(await message.update()).toEqual([]);
+
+    message.pushText("(/document/brown-fox-jumps-over-the");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    // TODO(ifitzsimmons, #ai): The link hasn't been "closed" yet, so we
+                                    // render the "link" as plain text. We'll have to patch the markdown
+                                    // parser as some point to handle this case.
+                                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qtfnrj25qdh092rz074secyvp0
+                                    text: "The quick brown fox jumps over the(/document/brown-fox-jumps-over-the",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(")");
+
     expect(await message.update()).toEqual([
         {
             index: 0,
@@ -2799,14 +2857,6 @@ test("streams link formatting correctly character by character (with reference)"
             },
         },
     ]);
-
-    message.pushText("[");
-
-    expect(await message.update()).toEqual([]);
-
-    message.pushText("]");
-
-    expect(await message.update()).toEqual([]);
 
     message.pushText(" lazy dog.");
 
@@ -2844,7 +2894,7 @@ test("streams link formatting correctly character by character (with reference)"
 test("streams missing link reference formatting correctly (without reference)", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("test: ");
@@ -2984,7 +3034,7 @@ test("streams missing link reference formatting correctly (without reference)", 
 test("streams missing link URL formatting correctly (without reference)", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("test: ");
@@ -3159,7 +3209,7 @@ test("streams missing link URL formatting correctly (without reference)", async 
 test("streams code block correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,
-        getMentionTargetPathIfExists: async () => null,
+        getTargetPathIfExists: async () => null,
     });
 
     message.pushText("foo\n\n");

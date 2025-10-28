@@ -1,45 +1,41 @@
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {getApiMessagesFromStart} from "~/server/agents/internal/api_client.js";
-import {AgentConversationStateStore} from "~/server/agents/internal/conversation_state/agent_converstaion_state.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
- * Given an agent conversation, get any chat messages that have been sent after the last message
- * in the conversation.
+ * Gets all the messages between two indexes. `startMessageIndex` is exclusive
+ * and `endMessageIndex` is inclusive.
  *
- * Returns null if the conversation is empty OR the conversation is up to date.
+ * Returns null if there aren't any messages between the two indexes.
  */
-export async function getAgentMessagesFromStartUntilTokenLimit(
+export async function getAgentMessagesBetweenIndexes(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
     // We don't want to use `request.event.index` in this function. So omit it from
     // the type.
     request: Omit<AgentWebhookRequest, "event">,
-    state: AgentConversationStateStore,
-    newMessageIndex: number,
+    startMessageIndex: number,
+    endMessageIndex: number,
 ): Promise<Array<AgentMessage> | null> {
-    const initialCursor = state.get().lastMessageIndex;
-    if (initialCursor === null) return null;
-
     // There are no new messages to load!
-    if (newMessageIndex <= initialCursor) return null;
+    if (endMessageIndex <= startMessageIndex) return null;
 
-    let cursor = initialCursor;
+    let cursor = startMessageIndex;
     const messages: Array<AgentMessage> = [];
 
-    outer: while (newMessageIndex > cursor) {
+    outer: while (endMessageIndex > cursor) {
         const {
             data: {nextCursor, messages: currentMessages},
         } = await getApiMessagesFromStart(tracer, request.apiClient, request.room, {
-            limit: Math.min(loadApiMessagesForAgentBatchCount, newMessageIndex - cursor),
+            limit: Math.min(loadApiMessagesForAgentBatchCount, endMessageIndex - cursor),
             cursor,
         });
 
         for (const currentMessage of currentMessages) {
             // Ignore messages after the index we're looking for.
-            if (currentMessage.index > newMessageIndex) break outer;
+            if (currentMessage.index > endMessageIndex) break outer;
 
             // Ignore deleted messages.
             if (currentMessage.payload.type === "Deleted") continue;

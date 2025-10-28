@@ -2,11 +2,9 @@
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
-import {
-    AgentConversationLinkReference,
-    listAgentContentLinkReferences,
-    printAgentContentToMarkdown,
-} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
+import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
+import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
 import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
@@ -27,13 +25,19 @@ afterEach(async () => {
 async function testPrintAgentContentToMarkdown(
     content: ApiContent,
     expectedMarkdown: string,
-    expectedContentLinkReferences: ReadonlyMap<string, AgentConversationLinkReference> = emptyMap,
+    expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {
     const actualMarkdown = await printAgentContentToMarkdown(storage, content, {spaceId});
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
 
-    expect(await listAgentContentLinkReferences(storage)).toEqual(expectedContentLinkReferences);
+    const actualContentLinkReferences = await listAgentLinksForTest(storage);
+    const actualContentLinkReferencesMap = new Map<string, AgentLink>();
+    for (const [key, reference] of actualContentLinkReferences) {
+        actualContentLinkReferencesMap.set(key, reference);
+    }
+
+    expect(actualContentLinkReferencesMap).toEqual(expectedContentLinkReferences);
 }
 
 test("simple paragraph without links", async () => {
@@ -72,7 +76,7 @@ test("external link (via Link mark) gets converted to plain text", async () => {
     );
 });
 
-test("mention preserves structure but removes URL", async () => {
+test("mention preserves structure but changes URL", async () => {
     await testPrintAgentContentToMarkdown(
         {
             elements: [
@@ -90,13 +94,41 @@ test("mention preserves structure but removes URL", async () => {
                 },
             ],
         },
-        `Check out [My Document][] here.\n`,
+        `Check out [My Document](/document/my-document) here.\n`,
         new Map([
             [
-                "My Document",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+                "/document/my-document",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "My Document",
+                    localDocumentPage: null,
+                },
             ],
         ]),
+    );
+});
+
+test("non-mentionable content replaces link with missing link", async () => {
+    await testPrintAgentContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Check out "},
+                        {
+                            type: "Text",
+                            text: "My comment",
+                            marks: [{type: "Link", url: `/posts/${postId}/messages/1`}],
+                        },
+                        {type: "Text", text: " here."},
+                    ],
+                },
+            ],
+        },
+        `Check out [My comment][missing-link] here.\n`,
+        emptyMap,
     );
 });
 
@@ -207,11 +239,15 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                 },
             ],
         },
-        `See *[Important Task][]* for details.\n`,
+        `See *[Important Task](/task/important-task)* for details.\n`,
         new Map([
             [
-                "Important Task",
-                {originalLabel: "Important Task", mentionTargetPath: `/tasks/${taskId}`},
+                "/task/important-task",
+                {
+                    type: "Task",
+                    taskId,
+                    title: "Important Task",
+                },
             ],
         ]),
     );
@@ -241,9 +277,23 @@ test("mixed mentions and external links", async () => {
                 },
             ],
         },
-        `Check [This Post][] and also visit [the docs][missing-link].\n`,
+        `Check [This Post](/post/this-post) and also visit [the docs][missing-link].\n`,
         new Map([
-            ["This Post", {originalLabel: "This Post", mentionTargetPath: `/posts/${postId}`}],
+            [
+                "/post/this-post",
+                {
+                    type: "PostComments",
+                    postId,
+                    label: "This Post",
+                    pageInfo: {
+                        from: "Start",
+                        index: 0,
+                    },
+                    pageNumber: 1,
+                    paginationType: "page",
+                    rootMessage: null,
+                },
+            ],
         ]),
     );
 });
@@ -267,11 +317,15 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                 },
             ],
         },
-        `See <a href="missing-link">[Important Task][]</a> for details.\n`,
+        `See <a href="missing-link">[Important Task](/task/important-task)</a> for details.\n`,
         new Map([
             [
-                "Important Task",
-                {originalLabel: "Important Task", mentionTargetPath: `/tasks/${taskId}`},
+                "/task/important-task",
+                {
+                    type: "Task",
+                    taskId,
+                    title: "Important Task",
+                },
             ],
         ]),
     );
@@ -347,7 +401,7 @@ Visit <a href="missing-link">https://example.com</a> and <a href="missing-link">
     );
 });
 
-test("mentions with conflicting labels get dedupe numbers", async () => {
+test("mentions with conflicting link Ids get dedupe numbers but labels are unchanged", async () => {
     await testPrintAgentContentToMarkdown(
         {
             elements: [
@@ -371,15 +425,26 @@ test("mentions with conflicting labels get dedupe numbers", async () => {
                 },
             ],
         },
-        `First: [My Document][] and second: [My Document 2][].\n`,
+        `First: [My Document](/document/my-document) and second: [My Document](/document/my-document-2).\n`,
         new Map([
             [
-                "My Document",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+                "/document/my-document",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "My Document",
+                    localDocumentPage: null,
+                },
             ],
             [
-                "My Document 2",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${otherDocumentId}`},
+                "/document/my-document-2",
+                {
+                    type: "DocumentPage",
+                    documentId: otherDocumentId,
+                    title: "My Document",
+                    dedupeNumber: 2,
+                    localDocumentPage: null,
+                },
             ],
         ]),
     );
@@ -409,11 +474,16 @@ test("identical mentions with same label and target path reuse the same referenc
                 },
             ],
         },
-        `First: [My Document][] and again: [My Document][].\n`,
+        `First: [My Document](/document/my-document) and again: [My Document](/document/my-document).\n`,
         new Map([
             [
-                "My Document",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+                "/document/my-document",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "My Document",
+                    localDocumentPage: null,
+                },
             ],
         ]),
     );
@@ -466,24 +536,140 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
         ),
     );
 
-    expect(actualMarkdown1).toEqual(`See [My Document][].\n`);
-    expect(actualMarkdown2).toEqual(`Also see [My Document 2][].\n`);
+    expect(actualMarkdown1).toEqual(`See [My Document](/document/my-document).\n`);
+    expect(actualMarkdown2).toEqual(`Also see [My Document](/document/my-document-2).\n`);
 
-    expect(await listAgentContentLinkReferences(storage)).toEqual(
+    expect(await listAgentLinksForTest(storage)).toEqual(
         new Map([
             [
-                "My Document",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${documentId}`},
+                "/document/my-document",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "My Document",
+                    localDocumentPage: null,
+                },
             ],
             [
-                "My Document 2",
-                {originalLabel: "My Document", mentionTargetPath: `/documents/${otherDocumentId}`},
+                "/document/my-document-2",
+                {
+                    type: "DocumentPage",
+                    documentId: otherDocumentId,
+                    title: "My Document",
+                    dedupeNumber: 2,
+                    localDocumentPage: null,
+                },
             ],
         ]),
     );
 });
 
-test("mentions with same label increment dedupe numbers up to 5", async () => {
+test("mentions with same link Ids increment dedupe numbers up to 5", async () => {
+    // NOTE(ifitzsimmons) The name of this test is a little confusing.
+    // **There is no hard limit of 5**. This test simply verifies that
+    // our dedupe logic works up until at least the number 5
+    const secondDocumentId = generateId<DocumentId>();
+    const thirdDocumentId = generateId<DocumentId>();
+    const fourthDocumentId = generateId<DocumentId>();
+    const fifthDocumentId = generateId<DocumentId>();
+
+    await testPrintAgentContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "First: "},
+                        {
+                            type: "Mention",
+                            targetPath: `/documents/${documentId}`,
+                            title: "Task",
+                        },
+                        {type: "Text", text: ", second: "},
+                        {
+                            type: "Mention",
+                            targetPath: `/documents/${secondDocumentId}`,
+                            title: "Task",
+                        },
+                        {type: "Text", text: ", third: "},
+                        {
+                            type: "Mention",
+                            targetPath: `/documents/${thirdDocumentId}`,
+                            title: "Task",
+                        },
+                        {type: "Text", text: ", fourth: "},
+                        {
+                            type: "Mention",
+                            targetPath: `/documents/${fourthDocumentId}`,
+                            title: "Task",
+                        },
+                        {type: "Text", text: ", and fifth: "},
+                        {
+                            type: "Mention",
+                            targetPath: `/documents/${fifthDocumentId}`,
+                            title: "Task",
+                        },
+                        {type: "Text", text: "."},
+                    ],
+                },
+            ],
+        },
+        `First: [Task](/document/task), second: [Task](/document/task-2), third: [Task](/document/task-3), fourth: [Task](/document/task-4), and fifth: [Task](/document/task-5).\n`,
+        new Map([
+            [
+                "/document/task",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "Task",
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-2",
+                {
+                    type: "DocumentPage",
+                    documentId: secondDocumentId,
+                    title: "Task",
+                    dedupeNumber: 2,
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-3",
+                {
+                    type: "DocumentPage",
+                    documentId: thirdDocumentId,
+                    title: "Task",
+                    dedupeNumber: 3,
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-4",
+                {
+                    type: "DocumentPage",
+                    documentId: fourthDocumentId,
+                    title: "Task",
+                    dedupeNumber: 4,
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-5",
+                {
+                    type: "DocumentPage",
+                    documentId: fifthDocumentId,
+                    title: "Task",
+                    dedupeNumber: 5,
+                    localDocumentPage: null,
+                },
+            ],
+        ]),
+    );
+});
+
+test("dedupes by entity and label combination", async () => {
     const thirdDocumentId = generateId<DocumentId>();
     const fourthDocumentId = generateId<DocumentId>();
     const fifthDocumentId = generateId<DocumentId>();
@@ -535,17 +721,70 @@ test("mentions with same label increment dedupe numbers up to 5", async () => {
                 },
             ],
         },
-        `First: [Task][], second: [Task 2][], third: [Task 3][], fourth: [Task 4][], fifth: [Task 5][], and sixth: [Task 6][].\n`,
+        `First: [Task](/document/task), second: [Task](/task/task), third: [Task](/post/task), fourth: [Task](/document/task-2), fifth: [Task](/document/task-3), and sixth: [Task](/document/task-4).\n`,
         new Map([
-            ["Task", {originalLabel: "Task", mentionTargetPath: `/documents/${documentId}`}],
-            ["Task 2", {originalLabel: "Task", mentionTargetPath: `/tasks/${taskId}`}],
-            ["Task 3", {originalLabel: "Task", mentionTargetPath: `/posts/${postId}`}],
-            ["Task 4", {originalLabel: "Task", mentionTargetPath: `/documents/${thirdDocumentId}`}],
             [
-                "Task 5",
-                {originalLabel: "Task", mentionTargetPath: `/documents/${fourthDocumentId}`},
+                "/document/task",
+                {
+                    type: "DocumentPage",
+                    documentId,
+                    title: "Task",
+                    localDocumentPage: null,
+                },
             ],
-            ["Task 6", {originalLabel: "Task", mentionTargetPath: `/documents/${fifthDocumentId}`}],
+            [
+                "/task/task",
+                {
+                    type: "Task",
+                    taskId,
+                    title: "Task",
+                },
+            ],
+            [
+                "/post/task",
+                {
+                    type: "PostComments",
+                    postId,
+                    label: "Task",
+                    pageInfo: {
+                        from: "Start",
+                        index: 0,
+                    },
+                    pageNumber: 1,
+                    paginationType: "page",
+                    rootMessage: null,
+                },
+            ],
+            [
+                "/document/task-2",
+                {
+                    type: "DocumentPage",
+                    documentId: thirdDocumentId,
+                    title: "Task",
+                    dedupeNumber: 2,
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-3",
+                {
+                    type: "DocumentPage",
+                    documentId: fourthDocumentId,
+                    title: "Task",
+                    dedupeNumber: 3,
+                    localDocumentPage: null,
+                },
+            ],
+            [
+                "/document/task-4",
+                {
+                    type: "DocumentPage",
+                    documentId: fifthDocumentId,
+                    title: "Task",
+                    dedupeNumber: 4,
+                    localDocumentPage: null,
+                },
+            ],
         ]),
     );
 });
