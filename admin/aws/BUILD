@@ -38,6 +38,7 @@ filegroup(
         "//admin/lambda/schedule_deploy:schedule_deploy_lambda_production",
         "//admin/lambda/send_alert:send_alert_lambda_production",
         "//app:app_image_tarball_production",
+        "//server/api:api_image_tarball_production",
         "//server/files/processor:processor_image_tarball_production",
         "//server/files/processor/process_file:process_file_lambda_production",
         "//server/files/processor/resize_file:resize_file_lambda_production",

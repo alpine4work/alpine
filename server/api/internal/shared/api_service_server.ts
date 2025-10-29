@@ -239,6 +239,23 @@ export async function createApiServiceRequestListener(
         });
     }
 
+    router.on("GET", "/healthcheck", (req, res) => {
+        standardizedRequestListener(tracer, req, res, async request => {
+            const url = new URL(request.url);
+            return traceServerResponse(
+                tracer,
+                request,
+                url,
+                "/healthcheck",
+                async () =>
+                    new Response("200 OK", {
+                        status: 200,
+                        headers: {"content-type": "text/plain"},
+                    }),
+            );
+        });
+    });
+
     const ajv = new Ajv({
         strict: false,
         // `discriminator` is a OpenAPI feature that's not enabled by default.

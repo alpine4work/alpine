@@ -255,6 +255,14 @@ Resources:
                                 - - Fn::GetAtt:
                                         - LoggingServiceBucket66AE76E8
                                         - Arn
+                                  - /apiService/AWSLogs/
+                                  - Ref: AWS::AccountId
+                                  - /*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - LoggingServiceBucket66AE76E8
+                                        - Arn
                                   - /appService/AWSLogs/
                                   - Ref: AWS::AccountId
                                   - /*
@@ -284,6 +292,19 @@ Resources:
                               - - Fn::GetAtt:
                                       - LoggingServiceBucket66AE76E8
                                       - Arn
+                                - /apiService/AWSLogs/
+                                - Ref: AWS::AccountId
+                                - /*
+                    - Action: s3:PutObject
+                      Effect: Allow
+                      Principal:
+                          AWS: arn:aws:iam::127311923021:root
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - Fn::GetAtt:
+                                      - LoggingServiceBucket66AE76E8
+                                      - Arn
                                 - /fileProcessorService/AWSLogs/
                                 - Ref: AWS::AccountId
                                 - /*
@@ -300,6 +321,7 @@ Resources:
             CapacityProviders:
                 - Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
                 - Ref: AppServiceAutoScalingGroupCapacityProvider7D53F9BC
+                - Ref: ApiServiceAutoScalingGroupCapacityProvider951BBC49
                 - Ref: JobQueueServiceAutoScalingGroupCapacityProvider3105FE09
                 - Ref: FileProcessorServiceAutoScalingGroupCapacityProviderA11D6649
             Cluster:
@@ -374,6 +396,24 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098443B6A033DF:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchDomainSecurityGroup046A436D
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+                CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:443
     OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -769,6 +809,7 @@ Resources:
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33e576C5C1B
             - OpensearchDomainCED7C974
+            - OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098443B6A033DF
             - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481
             - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F
             - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
@@ -1926,6 +1967,25 @@ Resources:
             aws:cdk:path:
                 CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/from
                 CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:ALL PORTS
+    TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098ALLPORTS4A5B9F6E:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:ALL PORTS
+            FromPort: 0
+            GroupId:
+                Fn::GetAtt:
+                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                    - GroupId
+            ToPort: 65535
+        Metadata:
+            aws:cdk:path:
+                CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/from
+                CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:ALL PORTS
     TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99ALLPORTSD27DFFB6:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -3115,6 +3175,13 @@ Resources:
                           - Fn::GetAtt:
                                 - SqsJobQueue62388F96
                                 - Arn
+                    - Action:
+                          - ec2:DescribeNetworkInterfaces
+                          - ecs:DescribeContainerInstances
+                          - ecs:DescribeTasks
+                          - ecs:ListTasks
+                      Effect: Allow
+                      Resource: "*"
                     - Action: ses:SendEmail
                       Effect: Allow
                       Resource:
@@ -3131,13 +3198,6 @@ Resources:
                                   - Ref: AWS::AccountId
                                   - :identity/
                                   - Ref: SesEmailIdentity8E702B39
-                    - Action:
-                          - ec2:DescribeNetworkInterfaces
-                          - ecs:DescribeContainerInstances
-                          - ecs:DescribeTasks
-                          - ecs:ListTasks
-                      Effect: Allow
-                      Resource: "*"
                 Version: 2012-10-17
             PolicyName: AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
             Roles:
@@ -3222,6 +3282,13 @@ Resources:
                         HostPort: 4000
                         Protocol: tcp
                   Secrets:
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:apiServicePublicKey::"
                       - Name: APP_SERVICE_PUBLIC_KEY
                         ValueFrom:
                             Fn::Join:
@@ -3264,13 +3331,6 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:fileProcessorServicePublicKey::"
-                      - Name: API_SERVICE_PUBLIC_KEY
-                        ValueFrom:
-                            Fn::Join:
-                                - ""
-                                - - "arn:aws:secretsmanager:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - ":secret:AppServiceSecrets:apiServicePublicKey::"
                       - Name: RESOURCE_SERVICE_PUBLIC_KEY
                         ValueFrom:
                             Fn::Join:
@@ -3662,6 +3722,964 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Certificate/Resource
+    ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/ApiService/AutoScalingGroup
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/Resource
+    ApiServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A04940002F9FB96C:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A049:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/from
+                CyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A049:4000
+    ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/ApiService/AutoScalingGroup
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceRole/Resource
+    ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecs:DeregisterContainerInstance
+                          - ecs:RegisterContainerInstance
+                          - ecs:Submit*
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - EcsClusterFB9B21B5
+                              - Arn
+                    - Action:
+                          - ecs:Poll
+                          - ecs:StartTelemetrySession
+                      Condition:
+                          ArnEquals:
+                              ecs:cluster:
+                                  Fn::GetAtt:
+                                      - EcsClusterFB9B21B5
+                                      - Arn
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - ecr:GetAuthorizationToken
+                          - ecs:DiscoverPollEndpoint
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2
+            Roles:
+                - Ref: ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
+    ApiServiceAutoScalingGroupInstanceProfile1E0819BF:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceProfile
+    ApiServiceAutoScalingGroupLaunchConfig8B24DF22:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            IamInstanceProfile:
+                Ref: ApiServiceAutoScalingGroupInstanceProfile1E0819BF
+            ImageId:
+                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+            InstanceType: t4g.micro
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                      - GroupId
+            UserData:
+                Fn::Base64:
+                    Fn::Join:
+                        - ""
+                        - - |-
+                              #!/bin/bash
+                              echo ECS_CLUSTER=
+                          - Ref: EcsClusterFB9B21B5
+                          - >2-
+                             >> /etc/ecs/ecs.config
+                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
+                            169.254.169.254/32 --jump DROP
+
+                            sudo service iptables save
+
+                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+        DependsOn:
+            - ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2
+            - ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/LaunchConfig
+    ApiServiceAutoScalingGroupASG48C3F143:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            LaunchConfigurationName:
+                Ref: ApiServiceAutoScalingGroupLaunchConfig8B24DF22
+            MaxSize: "4"
+            MinSize: "2"
+            NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: Name
+                  PropagateAtLaunch: true
+                  Value: CyberworldsStack/ApiService/AutoScalingGroup
+            VPCZoneIdentifier:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+        UpdatePolicy:
+            AutoScalingScheduledAction:
+                IgnoreUnmodifiedGroupSizeProperties: true
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/ASG
+    ApiServiceAutoScalingGroupCapacityProvider951BBC49:
+        Type: AWS::ECS::CapacityProvider
+        Properties:
+            AutoScalingGroupProvider:
+                AutoScalingGroupArn:
+                    Ref: ApiServiceAutoScalingGroupASG48C3F143
+                ManagedScaling:
+                    Status: ENABLED
+                    TargetCapacity: 100
+                ManagedTerminationProtection: ENABLED
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroupCapacityProvider/AutoScalingGroupCapacityProvider
+    ApiServiceTaskDefinitionTaskRole5521C40B:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/TaskRole/Resource
+    ApiServiceTaskDefinitionTaskRoleDefaultPolicy7F7154F1:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:BatchWriteItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:DeleteItem
+                          - dynamodb:GetItem
+                          - dynamodb:PutItem
+                          - dynamodb:Query
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
+                          - dynamodb:UpdateItem
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - AccountsTable81C15AE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - AlphaAccessTable823F6A12
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotWebhookEventsTable9E64D99B
+                                - Arn
+                          - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::GetAtt:
+                                - ChatTable7A2D1C24
+                                - Arn
+                          - Fn::GetAtt:
+                                - DeployTableF6562626
+                                - Arn
+                          - Fn::GetAtt:
+                                - DocumentsTable7E808EE5
+                                - Arn
+                          - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
+                                - FilesTable1399FAA4
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumRealtimeTableFB7C25E5
+                                - Arn
+                          - Fn::GetAtt:
+                                - ForumTable1FBA2B20
+                                - Arn
+                          - Fn::GetAtt:
+                                - InboxTableE3C19927
+                                - Arn
+                          - Fn::GetAtt:
+                                - SearchEntitiesTableC54BE0E8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpacesTable8A997355
+                                - Arn
+                          - Fn::GetAtt:
+                                - SpellCheckTable1F4FC39B
+                                - Arn
+                          - Fn::GetAtt:
+                                - TaskActionsTableFC756837
+                                - Arn
+                          - Fn::GetAtt:
+                                - TasksTable88911DC5
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AccountsTable81C15AE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - AlphaAccessTable823F6A12
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotWebhookEventsTable9E64D99B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ChatTable7A2D1C24
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DeployTableF6562626
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FilesTable1399FAA4
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumRealtimeTableFB7C25E5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - ForumTable1FBA2B20
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SearchEntitiesTableC54BE0E8
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpacesTable8A997355
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - SpellCheckTable1F4FC39B
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TaskActionsTableFC756837
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - TasksTable88911DC5
+                                        - Arn
+                                  - /index/*
+                    - Action:
+                          - es:ESHttpDelete
+                          - es:ESHttpGet
+                          - es:ESHttpHead
+                          - es:ESHttpPatch
+                          - es:ESHttpPost
+                          - es:ESHttpPut
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /_bulk
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /_mget
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /search_entity_embedding_chunks
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /search_entity_embedding_chunks/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /search_entity_keywords
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /search_entity_keywords/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /task_collections
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /task_collections/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /tasks
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - OpensearchDomainCED7C974
+                                        - Arn
+                                  - /tasks/*
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - SqsFileProcessorHeavyJobQueueA7996724
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorJobQueue551DBCF8
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsFileProcessorLightJobQueueDC9222EF
+                                - Arn
+                          - Fn::GetAtt:
+                                - SqsJobQueue62388F96
+                                - Arn
+                    - Action:
+                          - ec2:DescribeNetworkInterfaces
+                          - ecs:DescribeContainerInstances
+                          - ecs:DescribeTasks
+                          - ecs:ListTasks
+                      Effect: Allow
+                      Resource: "*"
+                Version: 2012-10-17
+            PolicyName: ApiServiceTaskDefinitionTaskRoleDefaultPolicy7F7154F1
+            Roles:
+                - Ref: ApiServiceTaskDefinitionTaskRole5521C40B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    ApiServiceTaskDefinitionD60EA9BF:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            ContainerDefinitions:
+                - Command:
+                      - sh
+                      - -c
+                      - Fn::Join:
+                            - ""
+                            - - /var/www/server/api/api_production --port=4000
+                                --edgeServiceUrl=https://alpine.inc --opensearchDomainEndpoint=
+                              - Fn::GetAtt:
+                                    - OpensearchDomainCED7C974
+                                    - DomainEndpoint
+                              - " --jobQueueUrl="
+                              - Ref: SqsJobQueue62388F96
+                              - " --fileProcessorJobQueueUrl="
+                              - Ref: SqsFileProcessorJobQueue551DBCF8
+                              - " --fileProcessorHeavyJobQueueUrl="
+                              - Ref: SqsFileProcessorHeavyJobQueueA7996724
+                              - " --fileProcessorLightJobQueueUrl="
+                              - Ref: SqsFileProcessorLightJobQueueDC9222EF
+                              - " --ecsCluster="
+                              - Ref: EcsClusterFB9B21B5
+                              - "
+                                --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
+                                altimeServiceTaskDefinition81563AFA
+                                --taskRealtimeServiceSecurityGroupId="
+                              - Fn::GetAtt:
+                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - GroupId
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cohereApiKey=$COHERE_API_KEY
+                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=\\$API_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
+                                --apnsCertificate=\\$APNS_CERTIFICATE
+                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
+                  Cpu: 2048
+                  Environment:
+                      - Name: NODE_ENV
+                        Value: production
+                  Essential: true
+                  HealthCheck:
+                      Command:
+                          - CMD-SHELL
+                          - /var/www/server/api/api_production.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node
+                            --input-type module --eval "const response = await
+                            fetch('http://localhost:4000/healthcheck'); if (!response.ok) { throw
+                            new Error('Healthcheck failed') }"
+                      Interval: 30
+                      Retries: 3
+                      Timeout: 5
+                  Image:
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group:
+                              Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
+                          awslogs-stream-prefix: CyberworldsStack
+                          awslogs-region: us-east-1
+                  Memory: 936
+                  Name: Container
+                  PortMappings:
+                      - ContainerPort: 4000
+                        HostPort: 4000
+                        Protocol: tcp
+                  Secrets:
+                      - Name: API_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:apiServicePublicKey::"
+                      - Name: APP_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:appServicePublicKey::"
+                      - Name: API_SERVICE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:apiServicePrivateKey::"
+                      - Name: EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:edgeServiceFamilyPublicKey::"
+                      - Name: TASK_REALTIME_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:taskRealtimeServicePublicKey::"
+                      - Name: JOB_QUEUE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:fileProcessorServicePublicKey::"
+                      - Name: RESOURCE_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:resourceServicePublicKey::"
+                      - Name: TOKEN_AGENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:tokenAgentSecret::"
+                      - Name: HONEYCOMB_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:honeycombApiKey::"
+                      - Name: COHERE_API_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:cohereApiKey::"
+                      - Name: APNS_CERTIFICATE
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:apnsCertificate::"
+                      - Name: APNS_CERTIFICATE_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:apnsCertificatePrivateKey::"
+                      - Name: CLOUDFLARE_R2_ACCESS_KEY_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:cloudflareR2AccessKeyId::"
+                      - Name: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:ApiServiceSecrets:cloudflareR2SecretAccessKey::"
+                  StopTimeout: 120
+                  User: www-data
+            ExecutionRoleArn:
+                Fn::GetAtt:
+                    - ApiServiceTaskDefinitionExecutionRole171517A8
+                    - Arn
+            Family: CyberworldsStackApiServiceTaskDefinition613E3269
+            NetworkMode: host
+            RequiresCompatibilities:
+                - EC2
+            TaskRoleArn:
+                Fn::GetAtt:
+                    - ApiServiceTaskDefinitionTaskRole5521C40B
+                    - Arn
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/Resource
+    ApiServiceTaskDefinitionContainerLogGroup7F4869A8:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 14
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/Container/LogGroup/Resource
+    ApiServiceTaskDefinitionExecutionRole171517A8:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/ExecutionRole/Resource
+    ApiServiceTaskDefinitionExecutionRoleDefaultPolicy693EAFE4:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - ecr:BatchCheckLayerAvailability
+                          - ecr:BatchGetImage
+                          - ecr:GetDownloadUrlForLayer
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:ecr:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :repository/
+                                - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1
+                    - Action: ecr:GetAuthorizationToken
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - ApiServiceTaskDefinitionContainerLogGroup7F4869A8
+                              - Arn
+                    - Action:
+                          - secretsmanager:DescribeSecret
+                          - secretsmanager:GetSecretValue
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:secretsmanager:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :secret:ApiServiceSecrets-??????
+                Version: 2012-10-17
+            PolicyName: ApiServiceTaskDefinitionExecutionRoleDefaultPolicy693EAFE4
+            Roles:
+                - Ref: ApiServiceTaskDefinitionExecutionRole171517A8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    ApiService199661B5:
+        Type: AWS::ECS::Service
+        Properties:
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: ApiServiceAutoScalingGroupCapacityProvider951BBC49
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
+                MaximumPercent: 200
+                MinimumHealthyPercent: 50
+            DeploymentController:
+                Type: ECS
+            DesiredCount: 2
+            EnableECSManagedTags: false
+            HealthCheckGracePeriodSeconds: 60
+            LoadBalancers:
+                - ContainerName: Container
+                  ContainerPort: 4000
+                  TargetGroupArn:
+                      Ref: ApiServiceLoadBalancerAlbListenerTargetGroupGroup573E76BE
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: ApiServiceTaskDefinitionD60EA9BF
+        DependsOn:
+            - ApiServiceLoadBalancerAlbListenerCD838A52
+            - ApiServiceLoadBalancerAlbListenerTargetGroupGroup573E76BE
+            - ApiServiceTaskDefinitionTaskRoleDefaultPolicy7F7154F1
+            - ApiServiceTaskDefinitionTaskRole5521C40B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/Service/Service
+    ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Only allow from Cloudflare IPs
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            SecurityGroupIngress:
+                - CidrIp: 173.245.48.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.21.244.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.22.200.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 103.31.4.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 141.101.64.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 108.162.192.0/18
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 190.93.240.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 188.114.96.0/20
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 197.234.240.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 198.41.128.0/17
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 162.158.0.0/15
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.16.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 104.24.0.0/14
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 172.64.0.0/13
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 131.0.72.0/22
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2400:cb00::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2606:4700::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2803:f800::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:b500::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2405:8100::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2a06:98c0::/29
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIpv6: 2c0f:f248::/32
+                  Description: HTTPS allowlist
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow from anyone on port 443
+                  FromPort: 443
+                  IpProtocol: tcp
+                  ToPort: 443
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/DefaultSecurityGroup/Resource
+    ApiServiceLoadBalancerAlb67D7EA2E:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            LoadBalancerAttributes:
+                - Key: deletion_protection.enabled
+                  Value: "false"
+                - Key: access_logs.s3.enabled
+                  Value: "true"
+                - Key: access_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: access_logs.s3.prefix
+                  Value: apiService
+                - Key: connection_logs.s3.enabled
+                  Value: "true"
+                - Key: connection_logs.s3.bucket
+                  Value:
+                      Ref: LoggingServiceBucket66AE76E8
+                - Key: connection_logs.s3.prefix
+                  Value: apiService
+            Name: cyberworlds-api
+            Scheme: internet-facing
+            SecurityGroups:
+                - Fn::GetAtt:
+                      - ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34
+                      - GroupId
+            Subnets:
+                - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                - Ref: VpcPublicSubnet2Subnet691E08A3
+            Type: application
+        DependsOn:
+            - LoggingServiceBucketPolicyEA2FC156
+            - VpcPublicSubnet1DefaultRoute3DA9E72A
+            - VpcPublicSubnet1RouteTableAssociation97140677
+            - VpcPublicSubnet2DefaultRoute97F91067
+            - VpcPublicSubnet2RouteTableAssociationDD5762D8
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/Alb/Resource
+    ApiServiceLoadBalancerAlbListenerCD838A52:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            Certificates:
+                - CertificateArn:
+                      Ref: ApiServiceCertificate4819341A
+            DefaultActions:
+                - TargetGroupArn:
+                      Ref: ApiServiceLoadBalancerAlbListenerTargetGroupGroup573E76BE
+                  Type: forward
+            LoadBalancerArn:
+                Ref: ApiServiceLoadBalancerAlb67D7EA2E
+            Port: 443
+            Protocol: HTTPS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/Alb/Listener/Resource
+    ApiServiceLoadBalancerAlbListenerTargetGroupGroup573E76BE:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            HealthCheckIntervalSeconds: 5
+            HealthCheckPath: /healthcheck
+            HealthCheckTimeoutSeconds: 3
+            HealthyThresholdCount: 3
+            Name: cyberworlds-api-target-group
+            Port: 4000
+            Protocol: HTTP
+            TargetGroupAttributes:
+                - Key: deregistration_delay.timeout_seconds
+                  Value: "10"
+                - Key: stickiness.enabled
+                  Value: "false"
+            TargetType: instance
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/Alb/Listener/TargetGroupGroup/Resource
+    ApiServiceCertificate4819341A:
+        Type: AWS::CertificateManager::Certificate
+        Properties:
+            DomainName: api.alpine.inc
+            Tags:
+                - Key: Name
+                  Value: CyberworldsStack/ApiService/Certificate
+            ValidationMethod: DNS
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/Certificate/Resource
     JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434:
         Type: AWS::EC2::SecurityGroup
         Properties:

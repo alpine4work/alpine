@@ -2,6 +2,7 @@ import {App, Duration, Stack, aws_iam, aws_lambda} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {ciScheduleDeployIamArn} from "~/admin/aws/aws_known_ids.js";
+import {AwsApiService} from "~/admin/aws/internal/aws_api_service.js";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -78,6 +79,17 @@ async function addAwsResources(
         opensearch,
         sqs,
         ses,
+        taskRealtimeService,
+        loggingService,
+    });
+
+    new AwsApiService(stack, {
+        vpc,
+        ecsCluster,
+        cloudflareAccountId,
+        dynamo,
+        opensearch,
+        sqs,
         taskRealtimeService,
         loggingService,
     });
