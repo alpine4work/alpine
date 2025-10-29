@@ -4654,6 +4654,12 @@ Resources:
                             - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:AlertSecrets:SecretString:honeycombWebhookSecret::}}
+                    GITHUB_ACTIONS_WEBHOOK_SECRET:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:AlertSecrets:SecretString:gitHubActionsWebhookSecret::}}
                     NODE_ENV: production
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
                     JOB_QUEUE_URL:
@@ -4784,6 +4790,9 @@ Resources:
                 AllowHeaders:
                     - content-type
                     - user-agent
+                    - x-github-event
+                    - x-hub-signature
+                    - x-hub-signature-256
                     - x-pagerduty-signature
                     - x-honeycomb-webhook-token
                 AllowMethods:

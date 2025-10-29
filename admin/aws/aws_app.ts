@@ -227,6 +227,9 @@ function addAwsLifecycleResources(
             HONEYCOMB_WEBHOOK_SECRET: sendAlertSecrets
                 .secretValueFromJson("honeycombWebhookSecret")
                 .unsafeUnwrap(),
+            GITHUB_ACTIONS_WEBHOOK_SECRET: sendAlertSecrets
+                .secretValueFromJson("gitHubActionsWebhookSecret")
+                .unsafeUnwrap(),
         },
     });
 
@@ -239,6 +242,9 @@ function addAwsLifecycleResources(
             allowedHeaders: [
                 "content-type",
                 "user-agent",
+                "x-github-event",
+                "x-hub-signature",
+                "x-hub-signature-256",
                 "x-pagerduty-signature",
                 "x-honeycomb-webhook-token",
             ],

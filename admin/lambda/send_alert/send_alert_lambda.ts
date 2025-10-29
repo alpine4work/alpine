@@ -1,12 +1,14 @@
 /* eslint-disable no-console */
 import {Handler} from "aws-lambda";
 import {createHmac, timingSafeEqual} from "crypto";
-import {
-    SendAlertAvailableChannel,
-    sendAlertAvailableChannels,
-} from "~/admin/lambda/send_alert/send_alert_available_channels.js";
+import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_github_actions.js";
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
+import {
+    sendGitHubActionsToAlpine,
+    sendHoneycombToAlpine,
+    sendPagerDutyToAlpine,
+} from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
 
 // This file implements a Lambda function that processes incoming alert events
 // from PagerDuty and Honeycomb. It parses the event data and makes posts within
@@ -18,7 +20,7 @@ import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerd
 // alerting capabilities in the future. Once we build out that feature, this should
 // be removed.
 
-type SendAlertLambdaInputEvent = PagerDutyEventPayload | HoneycombEventPayload;
+type SendAlertSource = "pagerduty" | "honeycomb" | "github_actions";
 
 interface LambdaFunctionUrlEvent {
     body?: string;
@@ -69,13 +71,30 @@ function verifyPagerDutySignature(
     );
 }
 
+function verifyGitHubSignature(
+    rawBody: string,
+    signatureHeader: string,
+    webhookSecret: string,
+): boolean {
+    const hmac = createHmac("sha256", webhookSecret);
+    hmac.update(rawBody);
+    const expectedSignature = `sha256=${hmac.digest("hex")}`;
+
+    return timingSafeEqual(
+        new Uint8Array(Buffer.from(expectedSignature)),
+        new Uint8Array(Buffer.from(signatureHeader)),
+    );
+}
+
 function validateHeaders(
     headers: Record<string, string>,
     body: string,
-): {valid: true} | {valid: false; statusCode: number; error: string} {
+): {valid: true; source: SendAlertSource} | {valid: false; statusCode: number; error: string} {
     // Check if this is a PagerDuty webhook and verify signature
     const pagerDutySignature = headers["x-pagerduty-signature"];
     const honeycombToken = headers["x-honeycomb-webhook-token"];
+    const gitHubSignature = headers["x-hub-signature-256"];
+    let source: SendAlertSource | null = null;
 
     if (pagerDutySignature) {
         const pagerDutyWebhookSecret = process.env.PAGERDUTY_WEBHOOK_SECRET;
@@ -94,6 +113,8 @@ function validateHeaders(
                 error: "Invalid signature",
             };
         }
+
+        source = "pagerduty";
     } else if (honeycombToken) {
         // Check if this is a Honeycomb webhook and verify token
         const honeycombWebhookSecret = process.env.HONEYCOMB_WEBHOOK_SECRET;
@@ -112,35 +133,33 @@ function validateHeaders(
                 error: "Invalid token",
             };
         }
+
+        source = "honeycomb";
+    } else if (gitHubSignature) {
+        // Check if this is a GitHub Actions webhook and verify signature
+        const gitHubActionsWebhookSecret = process.env.GITHUB_ACTIONS_WEBHOOK_SECRET;
+        if (!gitHubActionsWebhookSecret) {
+            return {
+                valid: false,
+                statusCode: 500,
+                error: "GITHUB_ACTIONS_WEBHOOK_SECRET environment variable is not set",
+            };
+        }
+
+        if (!verifyGitHubSignature(body, gitHubSignature, gitHubActionsWebhookSecret)) {
+            return {
+                valid: false,
+                statusCode: 401,
+                error: "Invalid signature",
+            };
+        }
+
+        source = "github_actions";
     } else {
         return {valid: false, statusCode: 400, error: "Invalid headers"};
     }
 
-    return {valid: true};
-}
-
-function sendPagerDutyToAlpine(data: PagerDutyEventPayload) {
-    const channel: SendAlertAvailableChannel = "alerts";
-    const channelId = sendAlertAvailableChannels[channel];
-
-    console.log("Received PagerDuty event:");
-    console.log(JSON.stringify(data, null, 2));
-    console.log(`Sending to ${channel} (${channelId})`);
-    // TODO: Implement actual sending to Alpine
-}
-
-function sendHoneycombToAlpine(data: HoneycombEventPayload) {
-    const channel: SendAlertAvailableChannel =
-        data.channel in sendAlertAvailableChannels
-            ? (data.channel as SendAlertAvailableChannel)
-            : "honeycomb";
-
-    const channelId = sendAlertAvailableChannels[channel];
-
-    console.log("Received Honeycomb event:");
-    console.log(JSON.stringify(data, null, 2));
-    console.log(`Sending to ${channel} (${channelId})`);
-    // TODO: Implement actual sending to Alpine
+    return {valid: true, source};
 }
 
 export const handler: Handler<LambdaFunctionUrlEvent, LambdaFunctionUrlResult> = async (
@@ -183,8 +202,7 @@ export const handler: Handler<LambdaFunctionUrlEvent, LambdaFunctionUrlResult> =
             };
         }
 
-        let alertEvent: SendAlertLambdaInputEvent;
-
+        let alertEvent;
         try {
             alertEvent = JSON.parse(body);
         } catch (error) {
@@ -199,10 +217,26 @@ export const handler: Handler<LambdaFunctionUrlEvent, LambdaFunctionUrlResult> =
         }
 
         // Actually process the event data
-        if ("event" in alertEvent) {
-            sendPagerDutyToAlpine(alertEvent);
-        } else {
-            sendHoneycombToAlpine(alertEvent);
+        if (validation.source === "pagerduty") {
+            sendPagerDutyToAlpine(alertEvent as PagerDutyEventPayload);
+        } else if (validation.source === "honeycomb") {
+            sendHoneycombToAlpine(alertEvent as HoneycombEventPayload);
+        } else if (validation.source === "github_actions") {
+            const eventType = event.headers["x-github-event"];
+            if (!eventType) {
+                console.error("Missing X-GitHub-Event header");
+
+                return {
+                    statusCode: 400,
+                    headers: {"content-type": "application/json"},
+                    body: JSON.stringify({ok: false, error: "Missing X-GitHub-Event header"}),
+                };
+            }
+
+            sendGitHubActionsToAlpine({
+                type: eventType,
+                ...alertEvent,
+            } as GitHubActionsEventPayload);
         }
 
         return {
