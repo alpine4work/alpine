@@ -102,7 +102,7 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
@@ -112,7 +112,10 @@ import {
     updateOurAccountObservedTimeZone,
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {createAlphaSpaceAsAdmin} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {
+    createAlphaSpaceAsAdmin,
+    instantiateBotSpaceAccount,
+} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
@@ -500,6 +503,14 @@ export default function SpaceLayoutRoute() {
         createAlphaSpaceAsAdmin: async (input: {name: string; ownerAccountId: AccountId}) => {
             const output = await createAlphaSpaceAsAdmin(context, input);
             return output;
+        },
+        instantiateBotSpaceAccount: async (input: {botId: BotId; botAccountId?: AccountId}) => {
+            const {accountId} = await instantiateBotSpaceAccount(context, {
+                spaceId,
+                botId: input.botId,
+                accountId: input.botAccountId,
+            });
+            return accountId;
         },
     }));
 

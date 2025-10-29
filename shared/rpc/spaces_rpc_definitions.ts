@@ -1,7 +1,7 @@
 import {AvatarThemeSchema} from "~/shared/avatar/avatar_schema.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {AccountId, AvatarId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -155,5 +155,18 @@ export const createSpace = defineRpc({
     },
     output: {
         space: SpaceModel.schema(),
+    },
+});
+
+export const instantiateBotSpaceAccount = defineRpc({
+    name: "instantiateBotSpaceAccount",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        botId: Schema.id<BotId>(),
+        accountId: Schema.id<AccountId>().optional(),
+    },
+    output: {
+        accountId: Schema.id<AccountId>(),
+        name: Schema.string,
     },
 });

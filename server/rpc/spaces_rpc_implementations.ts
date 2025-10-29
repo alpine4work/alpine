@@ -10,6 +10,7 @@ import {
     finishUploadingSpaceAvatar,
     getOurAccountSpaceIds,
     getSpaceIfPossible,
+    instantiateBotSpaceAccount,
     moveSpaceAccountOwnerRole,
     rejectSpaceAccountInviteAsSpam,
     removeSpaceAccount,
@@ -229,6 +230,17 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const space = await createSpace(context.actor.authorizeSession(), input);
             return {space};
+        },
+    },
+
+    instantiateBotSpaceAccount: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {accountId, name} = await instantiateBotSpaceAccount(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {accountId, name};
         },
     },
 });
