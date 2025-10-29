@@ -51,8 +51,13 @@ const BotsTable = DynamoTableSchema.new({
 
                         /**
                          * When the bot is mentioned, send an event to this webhook.
+                         *
+                         * Bot webhooks should be null when the bot is "uni-directional". A
+                         * good example of a uni-directional bot is our "Alerts" bot, whose
+                         * sole function is to send alerts into Alpine - it should never listen
+                         * to Alpine events.
                          */
-                        webhookUrl: Schema.string,
+                        webhookUrl: Schema.string.nullable(),
                     }),
                 },
             ],
@@ -118,8 +123,6 @@ const BotsTable = DynamoTableSchema.new({
         },
     ],
 });
-
-type BotItem = DynamoTableItemType<typeof BotsTable, "Bot", "Attributes">;
 
 // NOTE(calebmer, 2025-08-21): We don't currently use this index but something
 // we'll definitely someday is the ability to list all of a bot's API keys.
@@ -353,7 +356,8 @@ export async function createScopedApiKeyForTest(
 
 /**
  * Get the information associated with a bot. Currently, basic information
- * about a bot (e.g. its name and avatar) is public globally!
+ * about a bot is public globally (e.g. its name, presence of a webhook URL,
+ * and avatar)!
  */
 export async function getBot(context: DynamoContext, botId: BotId) {
     const botItem = await BotsTable.getItem(context, {
@@ -364,6 +368,7 @@ export async function getBot(context: DynamoContext, botId: BotId) {
 
     return {
         name: botItem.name,
+        hasWebhookUrl: !!botItem.webhookUrl,
     };
 }
 
@@ -410,8 +415,14 @@ export async function processCallBotWebhookJob(
     // We always create an event item if one doesn't already exist.
     assert(eventItem);
 
+    if (!botItem.webhookUrl) {
+        // If the bot has no webhook URL then we shouldn't proceed with webhook event
+        // processing.
+        return;
+    }
+
     if (hasLease) {
-        await actuallyCallBotWebhook(context, botItem, eventItem, job);
+        await actuallyCallBotWebhook(context, botItem.webhookUrl, eventItem, job);
         return;
     }
 
@@ -534,12 +545,12 @@ function leaseBotWebhookEventItem(
  */
 async function actuallyCallBotWebhook(
     context: Context<ServerSystemActionContextModules & {botWebhook: BotWebhookContextModule}>,
-    botItem: BotItem,
+    webhookUrl: string,
     eventItem: BotWebhookEventItem,
     job: CallBotWebhookJobDescription,
 ) {
     const attemptNumber = eventItem.attempt.number;
-    const botWebhookUrl = new URL(botItem.webhookUrl);
+    const botWebhookUrl = new URL(webhookUrl);
 
     const roomPathObject = parseApiMessageRoomPath(job.event.roomPath);
 

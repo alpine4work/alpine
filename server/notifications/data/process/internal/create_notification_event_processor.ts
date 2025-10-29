@@ -1,4 +1,5 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {getBot} from "~/server/bots/bots_table.js";
 import {
     ServerImpersonatedAccountActionContext,
     ServerSystemActionContext,
@@ -253,7 +254,13 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
         const botId = await getSpaceAccountBotIdIfExists(context, event.spaceId, accountId);
 
         if (botId !== null) {
-            await processForBot(context, botId, accountId, options);
+            // If the account is a Bot and that bot has a webhook URL, then we want to
+            // call `processForBot()`, which will eventually notify the bot via its
+            // webhook. If the bot doe snot have a webhook, then we can't send it a
+            // notification, so don't try.
+            const {hasWebhookUrl} = await getBot(context, botId);
+            if (hasWebhookUrl) await processForBot(context, botId, accountId, options);
+
             return;
         }
 

@@ -692,7 +692,10 @@ export const dynamoGeneratedSchemaDescription: {
                                     },
                                     "webhookUrl": {
                                         "valueSchema": {
-                                            "type": "String"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
                                         },
                                         "optional": false
                                     },
