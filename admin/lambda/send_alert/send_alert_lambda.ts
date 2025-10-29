@@ -1,6 +1,10 @@
 /* eslint-disable no-console */
 import {Handler} from "aws-lambda";
 import {createHmac, timingSafeEqual} from "crypto";
+import {
+    SendAlertAvailableChannel,
+    sendAlertAvailableChannels,
+} from "~/admin/lambda/send_alert/send_alert_available_channels.js";
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 
@@ -116,14 +120,26 @@ function validateHeaders(
 }
 
 function sendPagerDutyToAlpine(data: PagerDutyEventPayload) {
+    const channel: SendAlertAvailableChannel = "alerts";
+    const channelId = sendAlertAvailableChannels[channel];
+
     console.log("Received PagerDuty event:");
     console.log(JSON.stringify(data, null, 2));
+    console.log(`Sending to ${channel} (${channelId})`);
     // TODO: Implement actual sending to Alpine
 }
 
 function sendHoneycombToAlpine(data: HoneycombEventPayload) {
+    const channel: SendAlertAvailableChannel =
+        data.channel in sendAlertAvailableChannels
+            ? (data.channel as SendAlertAvailableChannel)
+            : "honeycomb";
+
+    const channelId = sendAlertAvailableChannels[channel];
+
     console.log("Received Honeycomb event:");
     console.log(JSON.stringify(data, null, 2));
+    console.log(`Sending to ${channel} (${channelId})`);
     // TODO: Implement actual sending to Alpine
 }
 
