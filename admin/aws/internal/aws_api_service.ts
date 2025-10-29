@@ -29,7 +29,7 @@ export class AwsApiService extends Construct {
             secretsName: "ApiServiceSecrets",
             taskDefinitionOptions: {
                 tarballPath: "cyberworlds/server/api/api_image_tarball_load/tarball.tar",
-                containerCommandPath: "/var/www/server/api/api_production",
+                containerCommandPath: "/var/www/server/api/api",
             },
             loadBalancerOptions: {
                 domainName: "api.alpine.inc",

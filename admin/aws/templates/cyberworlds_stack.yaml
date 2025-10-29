@@ -4175,7 +4175,7 @@ Resources:
                       - -c
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/api/api_production --port=4000
+                            - - /var/www/server/api/api --port=4000
                                 --edgeServiceUrl=https://alpine.inc --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
@@ -4221,7 +4221,7 @@ Resources:
                   HealthCheck:
                       Command:
                           - CMD-SHELL
-                          - /var/www/server/api/api_production.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node
+                          - /var/www/server/api/api.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node
                             --input-type module --eval "const response = await
                             fetch('http://localhost:4000/healthcheck'); if (!response.ok) { throw
                             new Error('Healthcheck failed') }"
