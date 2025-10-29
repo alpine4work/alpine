@@ -44,33 +44,39 @@ interface LambdaFunctionUrlResult {
     isBase64Encoded?: boolean;
 }
 
+// https://developer.pagerduty.com/docs/verifying-webhook-signatures
 function verifyPagerDutySignature(
     rawBody: string,
     signatureHeader: string,
     webhookSecret: string,
 ): boolean {
-    const parts = signatureHeader.split(",");
-    const timestampPart = parts.find(p => p.startsWith("t="));
-    const signaturePart = parts.find(p => p.startsWith("v1="));
+    // Step 1: Extract signatures from X-PagerDuty-Signature header
+    // Split by comma and filter for v1 signatures only
+    const signatures = signatureHeader
+        .split(",")
+        .map(sig => sig.trim())
+        .filter(sig => sig.startsWith("v1="))
+        .map(sig => sig.substring(3)); // Remove "v1=" prefix
 
-    if (!timestampPart || !signaturePart) {
+    if (signatures.length === 0) {
         return false;
     }
 
-    const timestamp = timestampPart.substring(2);
-    const receivedSignature = signaturePart.substring(3);
-
-    const stringToSign = `v1:${timestamp}:${rawBody}`;
+    // Step 2: Compute expected signature
     const hmac = createHmac("sha256", webhookSecret);
-    hmac.update(stringToSign);
+    hmac.update(rawBody);
     const expectedSignature = hmac.digest("hex");
 
-    return timingSafeEqual(
-        new Uint8Array(Buffer.from(receivedSignature, "hex")),
-        new Uint8Array(Buffer.from(expectedSignature, "hex")),
+    // Step 3: Compare with any of the received signatures
+    return signatures.some(receivedSignature =>
+        timingSafeEqual(
+            new Uint8Array(Buffer.from(expectedSignature, "hex")),
+            new Uint8Array(Buffer.from(receivedSignature, "hex")),
+        ),
     );
 }
 
+// https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
 function verifyGitHubSignature(
     rawBody: string,
     signatureHeader: string,
@@ -126,6 +132,7 @@ function validateHeaders(
             };
         }
 
+        // Honeycomb is a simple token match
         if (honeycombToken !== honeycombWebhookSecret) {
             return {
                 valid: false,
