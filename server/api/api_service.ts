@@ -64,6 +64,9 @@ type Options = ServiceOptions<typeof options>;
 
 export const options = {
     port: {type: "string"},
+    cohereApiKey: {type: "string"},
+    apnsCertificate: {type: "string"},
+    apnsCertificatePrivateKey: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
