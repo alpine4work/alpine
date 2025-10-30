@@ -6,8 +6,7 @@ ts_project(
     visibility = [
         "//admin/adhoc:__pkg__",
         "//app:__pkg__",
-        "//server/jobs/queue:__pkg__",
-        "//server/search/data/index:__pkg__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/@types/node",
@@ -45,6 +44,7 @@ js_library(
         "//admin/adhoc:__pkg__",
         "//admin/dev:__pkg__",
         "//app/integration_tests:__pkg__",
+        "//server/api/internal/test_helpers:__pkg__",
     ],
 )
 

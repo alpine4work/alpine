@@ -108,6 +108,15 @@ export type ApiMessageContentPayload =
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
+export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
+
+export type ApiSearchResultPath = ApiSpecification.components["schemas"]["SearchResultPath"];
+
+export type ApiSearchResultBodyMatches =
+    ApiSpecification.components["schemas"]["SearchResultBodyMatches"];
+
+export type ApiSearchResultBodyMatch = ApiSearchResultBodyMatches[number];
+
 export type ApiErrorResponseBody =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];
 

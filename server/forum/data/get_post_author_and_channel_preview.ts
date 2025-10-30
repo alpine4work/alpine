@@ -60,8 +60,12 @@ export async function getPostAuthorAndChannelPreviewIfPossible(
  * times in the same action you'll get the same result without issuing a
  * network request.
  */
-export async function getPostAuthorAndChannelPreview(context: ServerActionContext, postId: PostId) {
-    const result = await getPostAuthorAndChannelPreviewIfPossible(context, postId);
+export async function getPostAuthorAndChannelPreview(
+    context: ServerActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+) {
+    const result = await getPostAuthorAndChannelPreviewIfPossible(context, postId, options);
     if (!result) throw createPostNotFoundError(postId);
     return unwrapResult(result);
 }

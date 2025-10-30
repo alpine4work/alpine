@@ -1,4 +1,4 @@
-import {ServerBotActionContext} from "~/server/context/server_action_context.js";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -9,7 +9,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 export type ApiPaths = {
     readonly [Path in keyof ApiSpecification.paths]: {
         readonly [Method in keyof Pick<ApiSpecification.paths[Path], OpenApiMethod>]: (
-            context: ServerBotActionContext,
+            context: ApiServiceBotActionContext,
             options: {
                 pathParameters: ApiOperationPathParametersType<Path, Method>;
                 queryParameters: ApiOperationQueryParametersType<Path, Method>;
@@ -30,7 +30,7 @@ export type ApiPaths = {
 export type ApiPathsBase = {
     readonly [path: string]: {
         readonly [method: string]: (
-            context: ServerBotActionContext,
+            context: ApiServiceBotActionContext,
             options: {
                 pathParameters: any;
                 queryParameters: any;

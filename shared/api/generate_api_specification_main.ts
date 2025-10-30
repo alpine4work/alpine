@@ -32,6 +32,7 @@ async function main() {
         specificationContent,
         {
             idRegExp: idRegExp.source,
+            integerRegExp: "(?:[0-9]|[1-9][0-9]+)",
             maxLabelStringLength,
             codeBlockLanguageIds: JSON.stringify(contentCodeBlockLanguageIds),
         },
@@ -75,6 +76,10 @@ async function main() {
     const specificationTypesAst = await openapiTypescript(specificationFinalContent, {
         immutable: true,
         transform: (schema, options) => {
+            if (schema.const === null) {
+                return ts.factory.createLiteralTypeNode(ts.factory.createNull());
+            }
+
             if (schema.format === "date-time") {
                 return ts.factory.createTypeReferenceNode(
                     ts.factory.createIdentifier("DateString"),
@@ -122,6 +127,47 @@ async function main() {
                 }
             }
 
+            for (const [pathName, pathPrefix, idType] of [
+                ["ChatMessagesListPath", "/chats/", "ChatId"],
+                ["PostMessagesListPath", "/posts/", "PostId"],
+                ["TaskMessagesListPath", "/tasks/", "TaskId"],
+            ] as const) {
+                if (options.path === `#/components/schemas/${pathName}`) {
+                    return ts.factory.createTemplateLiteralType(
+                        ts.factory.createTemplateHead(pathPrefix),
+                        [
+                            ts.factory.createTemplateLiteralTypeSpan(
+                                createTsIdType(idType),
+                                ts.factory.createTemplateTail("/messages"),
+                            ),
+                        ],
+                    );
+                }
+            }
+
+            for (const [pathName, pathPrefix, idType] of [
+                ["ChatMessagePath", "/chats/", "ChatId"],
+                ["PostMessagePath", "/posts/", "PostId"],
+                ["TaskMessagePath", "/tasks/", "TaskId"],
+            ] as const) {
+                if (options.path === `#/components/schemas/${pathName}`) {
+                    return ts.factory.createTemplateLiteralType(
+                        ts.factory.createTemplateHead(pathPrefix),
+                        [
+                            ts.factory.createTemplateLiteralTypeSpan(
+                                createTsIdType(idType),
+                                ts.factory.createTemplateMiddle("/messages/"),
+                            ),
+                            ts.factory.createTemplateLiteralTypeSpan(
+                                ts.factory.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
+                                ts.factory.createTemplateTail(""),
+                            ),
+                        ],
+                    );
+                }
+            }
+
+            // TODO(ifitzsimmons, #ai): There should probably be a better way to handle this?
             if (options.path === "#/components/schemas/DocumentThreadPath") {
                 return ts.factory.createTemplateLiteralType(
                     ts.factory.createTemplateHead("/documents/"),
@@ -133,6 +179,42 @@ async function main() {
                         ts.factory.createTemplateLiteralTypeSpan(
                             createTsIdType("DocumentCommentThreadId"),
                             ts.factory.createTemplateTail(""),
+                        ),
+                    ],
+                );
+            }
+
+            if (options.path === "#/components/schemas/DocumentMessagePath") {
+                return ts.factory.createTemplateLiteralType(
+                    ts.factory.createTemplateHead("/documents/"),
+                    [
+                        ts.factory.createTemplateLiteralTypeSpan(
+                            createTsIdType("DocumentId"),
+                            ts.factory.createTemplateMiddle("/threads/"),
+                        ),
+                        ts.factory.createTemplateLiteralTypeSpan(
+                            createTsIdType("DocumentCommentThreadId"),
+                            ts.factory.createTemplateMiddle("/messages/"),
+                        ),
+                        ts.factory.createTemplateLiteralTypeSpan(
+                            ts.factory.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
+                            ts.factory.createTemplateTail(""),
+                        ),
+                    ],
+                );
+            }
+
+            if (options.path === "#/components/schemas/DocumentThreadMessagesListPath") {
+                return ts.factory.createTemplateLiteralType(
+                    ts.factory.createTemplateHead("/documents/"),
+                    [
+                        ts.factory.createTemplateLiteralTypeSpan(
+                            createTsIdType("DocumentId"),
+                            ts.factory.createTemplateMiddle("/threads/"),
+                        ),
+                        ts.factory.createTemplateLiteralTypeSpan(
+                            createTsIdType("DocumentCommentThreadId"),
+                            ts.factory.createTemplateTail("/messages"),
                         ),
                     ],
                 );

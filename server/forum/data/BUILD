@@ -13,6 +13,7 @@ ts_project(
     name = "data",
     test_deps = [
         "//:node_modules/date-fns",
+        "//:node_modules/prosemirror-model",
         "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
@@ -31,8 +32,9 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/date-fns",
+        "//:node_modules/prosemirror-transform",
         "//server/access",
-        "//server/cloudflare/r2",
         "//server/content",
         "//server/context",
         "//server/dynamo/core",
@@ -45,7 +47,6 @@ ts_project(
         "//server/notifications/core",
         "//server/search/data/table",
         "//server/spaces",
-        "//server/tokens",
         "//shared/access",
         "//shared/context",
         "//shared/dynamo",
@@ -60,5 +61,6 @@ ts_project(
         "//shared/reactions",
         "//shared/schema",
         "//shared/spaces",
+        "//shared/web_socket",
     ],
 )

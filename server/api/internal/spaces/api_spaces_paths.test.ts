@@ -6,7 +6,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext({});
+const context = createTestContext({shouldStartOpensearch: true});
 
 const server = createTestApiServer(context, apiSpacesPaths);
 

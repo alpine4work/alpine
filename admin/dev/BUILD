@@ -4,6 +4,7 @@ load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
 
 ts_project(
     name = "dev_lib",
+    test_deps = ["//:node_modules/react"],
     data = [
         "//admin/vendor:bazelisk_copy_to_bin",
         "//server/apns:apns_development_certificates",

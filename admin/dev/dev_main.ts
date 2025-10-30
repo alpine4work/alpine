@@ -560,6 +560,7 @@ function createArtifacts() {
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
+                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

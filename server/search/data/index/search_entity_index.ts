@@ -1770,7 +1770,7 @@ function enrichOpensearchSearchHitExplanation(
 export async function searchBySemantics(
     context: Context<
         ServerAccountActionContextModules & {
-            languageModel: LanguageModelContextModule;
+            languageModel?: LanguageModelContextModule;
         }
     >,
     {
@@ -1789,6 +1789,14 @@ export async function searchBySemantics(
         debugOptions?: SearchOptions;
     },
 ): Promise<Array<SearchEntityResultModel>> {
+    if (!context.languageModel && !import.meta.jest) {
+        throw new InternalError("Missing language model in context");
+    } else if (!context.languageModel) {
+        // If we don't have a language model in the test context, then
+        // don't perform the semantic search.
+        return [];
+    }
+
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);

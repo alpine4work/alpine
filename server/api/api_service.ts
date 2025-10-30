@@ -1,4 +1,5 @@
 import {apiPaths} from "~/server/api/internal/api_paths.js";
+import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
 import {createApiServiceServer} from "~/server/api/internal/shared/api_service_server.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {
@@ -28,6 +29,9 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
+import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
+import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -64,6 +68,7 @@ type Options = ServiceOptions<typeof options>;
 
 export const options = {
     port: {type: "string"},
+    allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
@@ -97,6 +102,21 @@ export async function run({
     });
 
     const awsSigner = new AwsRequestSigner();
+
+    const languageModel =
+        process.env.NODE_ENV === "production"
+            ? new CohereEmbedEnglishV3LanguageModel({
+                  apiKey: assertExists(
+                      options.cohereApiKey,
+                      "`cohereApiKey` option is required in production",
+                  ),
+              })
+            : await AllMiniLmL6V2LanguageModel.new(
+                  assertExists(
+                      options.allMiniLmL6V2LanguageModel,
+                      "`allMiniLmL6V2LanguageModel` option is required in development",
+                  ),
+              );
 
     // Sometimes we want to upgrade a session actor to a system actor. This gives
     // the action escalated the system permission level which is dangerous! The
@@ -141,7 +161,7 @@ export async function run({
         );
     };
 
-    const processContext = Context.new({
+    const processContext: ApiServiceProcessContext = Context.new({
         ...createServerBasicProcessContextModules({
             tracer,
             shutdownManager,
@@ -164,6 +184,7 @@ export async function run({
         searchInjection: new SearchInjectionContextModule(searchInjection),
         spacesInjection: new SpacesInjectionContextModule(spacesInjection),
         tasksInjection: new TasksInjectionContextModule(tasksInjection),
+        languageModel: new LanguageModelContextModule(languageModel),
     });
 
     const server = await createApiServiceServer(processContext, apiPaths, {

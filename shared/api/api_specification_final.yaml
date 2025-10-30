@@ -457,6 +457,41 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamPart"}
 
+    /spaces/{id}/search:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            parameters:
+                - name: query
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [results]
+                                additionalProperties: false
+                                properties:
+                                    results:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/SearchResult"
+
     /tasks/{id}:
         parameters:
             - name: id
@@ -797,17 +832,41 @@ components:
             type: string
             pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
+        ChatMessagePath:
+            type: string
+            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
+
+        ChatMessagesListPath:
+            type: string
+            pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
+
         DocumentPath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        DocumentMessagePath:
+            type: string
+            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
 
         DocumentThreadPath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
+        DocumentThreadMessagesListPath:
+            type: string
+            pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
+
         PostPath:
             type: string
             pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
+
+        PostMessagePath:
+            type: string
+            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
+
+        PostMessagesListPath:
+            type: string
+            pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
 
         TaskPath:
             type: string
@@ -817,12 +876,27 @@ components:
             type: string
             pattern: ^/task-collections/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
 
+        TaskMessagePath:
+            type: string
+            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
+
+        TaskMessagesListPath:
+            type: string
+            pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
+
         MessageRoomPath:
             oneOf:
                 - $ref: "#/components/schemas/ChatPath"
                 - $ref: "#/components/schemas/DocumentThreadPath"
                 - $ref: "#/components/schemas/PostPath"
                 - $ref: "#/components/schemas/TaskPath"
+
+        MessagesListPath:
+            oneOf:
+                - $ref: "#/components/schemas/ChatMessagesListPath"
+                - $ref: "#/components/schemas/DocumentThreadMessagesListPath"
+                - $ref: "#/components/schemas/PostMessagesListPath"
+                - $ref: "#/components/schemas/TaskMessagesListPath"
 
         ContentMentionInlineElementTargetPath:
             oneOf:
@@ -831,6 +905,20 @@ components:
                 - $ref: "#/components/schemas/DocumentPath"
                 - $ref: "#/components/schemas/PostPath"
                 - $ref: "#/components/schemas/TaskPath"
+                - $ref: "#/components/schemas/TaskCollectionPath"
+
+        SearchResultPath:
+            oneOf:
+                - $ref: "#/components/schemas/AccountPath"
+                - $ref: "#/components/schemas/ChannelPath"
+                - $ref: "#/components/schemas/ChatPath"
+                - $ref: "#/components/schemas/ChatMessagePath"
+                - $ref: "#/components/schemas/DocumentPath"
+                - $ref: "#/components/schemas/DocumentMessagePath"
+                - $ref: "#/components/schemas/PostPath"
+                - $ref: "#/components/schemas/PostMessagePath"
+                - $ref: "#/components/schemas/TaskPath"
+                - $ref: "#/components/schemas/TaskMessagePath"
                 - $ref: "#/components/schemas/TaskCollectionPath"
 
         Content:
@@ -1348,6 +1436,16 @@ components:
                 content:
                     $ref: "#/components/schemas/Content"
 
+        DocumentPreview:
+            type: object
+            required: [id, title]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                title:
+                    type: string
+
         ChannelPreview:
             type: object
             required: [id, name]
@@ -1386,6 +1484,20 @@ components:
                 contentPreview:
                     type: string
 
+        PostPreview:
+            type: object
+            required: [id, author, contentPreview]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/PostId"
+                author:
+                    $ref: "#/components/schemas/Account"
+                channel:
+                    $ref: "#/components/schemas/ChannelPreview"
+                contentPreview:
+                    type: string
+
         Task:
             type: object
             required: [id, status, title, content]
@@ -1394,21 +1506,7 @@ components:
                 id:
                     $ref: "#/components/schemas/TaskId"
                 status:
-                    oneOf:
-                        - type: object
-                          required: [type, isActive]
-                          additionalProperties: false
-                          properties:
-                              type:
-                                  const: Open
-                              isActive:
-                                  type: boolean
-                        - type: object
-                          required: [type]
-                          additionalProperties: false
-                          properties:
-                              type:
-                                  const: Closed
+                    $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
                 assignee:
@@ -1426,6 +1524,35 @@ components:
                     enum: [Low, Medium, High, Urgent]
                 content:
                     $ref: "#/components/schemas/Content"
+
+        TaskPreview:
+            type: object
+            required: [id, status, title]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+
+        TaskStatus:
+            oneOf:
+                - type: object
+                  required: [type, isActive]
+                  additionalProperties: false
+                  properties:
+                      type:
+                          const: Open
+                      isActive:
+                          type: boolean
+                - type: object
+                  required: [type]
+                  additionalProperties: false
+                  properties:
+                      type:
+                          const: Closed
 
         TaskCollection:
             type: object
@@ -1587,3 +1714,223 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 wasMentioned:
                     type: boolean
+
+        SearchResult:
+            oneOf:
+                - $ref: "#/components/schemas/SearchAccountResult"
+                - $ref: "#/components/schemas/SearchChannelResult"
+                - $ref: "#/components/schemas/SearchChatResult"
+                - $ref: "#/components/schemas/SearchChatMessageResult"
+                - $ref: "#/components/schemas/SearchDocumentResult"
+                - $ref: "#/components/schemas/SearchDocumentMessageResult"
+                - $ref: "#/components/schemas/SearchPostResult"
+                - $ref: "#/components/schemas/SearchPostMessageResult"
+                - $ref: "#/components/schemas/SearchTaskResult"
+                - $ref: "#/components/schemas/SearchTaskMessageResult"
+                - $ref: "#/components/schemas/SearchTaskCollectionResult"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/SearchAccountResult"
+                    Channel: "#/components/schemas/SearchChannelResult"
+                    Chat: "#/components/schemas/SearchChatResult"
+                    ChatMessage: "#/components/schemas/SearchChatMessageResult"
+                    Document: "#/components/schemas/SearchDocumentResult"
+                    DocumentMessage: "#/components/schemas/SearchDocumentMessageResult"
+                    Post: "#/components/schemas/SearchPostResult"
+                    PostMessage: "#/components/schemas/SearchPostMessageResult"
+                    Task: "#/components/schemas/SearchTaskResult"
+                    TaskMessage: "#/components/schemas/SearchTaskMessageResult"
+                    TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
+
+        SearchAccountResult:
+            type: object
+            required: [type, path, title, bodyMatch]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Account
+                path:
+                    $ref: "#/components/schemas/AccountPath"
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+
+        SearchChannelResult:
+            type: object
+            required: [type, path, title, bodyMatch]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Channel
+                path:
+                    $ref: "#/components/schemas/ChannelPath"
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+
+        SearchChatResult:
+            type: object
+            required: [type, path, title, bodyMatch]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Chat
+                path:
+                    $ref: "#/components/schemas/ChatPath"
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+
+        SearchChatMessageResult:
+            type: object
+            required: [type, path, title, bodyMatch, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: ChatMessage
+                path:
+                    $ref: "#/components/schemas/ChatMessagePath"
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatches"
+                title:
+                    const: null
+                author:
+                    $ref: "#/components/schemas/Account"
+
+        SearchDocumentResult:
+            type: object
+            required: [type, path, title, bodyMatch]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Document
+                path:
+                    $ref: "#/components/schemas/DocumentPath"
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+
+        SearchDocumentMessageResult:
+            type: object
+            required: [type, path, title, bodyMatch, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: DocumentMessage
+                path:
+                    $ref: "#/components/schemas/DocumentMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+                author:
+                    $ref: "#/components/schemas/Account"
+
+        SearchPostResult:
+            type: object
+            required: [type, path, title, bodyMatch, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                path:
+                    $ref: "#/components/schemas/PostPath"
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+                author:
+                    $ref: "#/components/schemas/Account"
+
+        SearchPostMessageResult:
+            type: object
+            required: [type, path, title, bodyMatch, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: PostMessage
+                path:
+                    $ref: "#/components/schemas/PostMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+                author:
+                    $ref: "#/components/schemas/Account"
+
+        SearchTaskResult:
+            type: object
+            required: [type, path, title, bodyMatch, status]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Task
+                path:
+                    $ref: "#/components/schemas/TaskPath"
+                title:
+                    type: string
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+
+        SearchTaskMessageResult:
+            type: object
+            required: [type, path, title, bodyMatch, author]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskMessage
+                path:
+                    $ref: "#/components/schemas/TaskMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - type: "null"
+                author:
+                    $ref: "#/components/schemas/Account"
+
+        SearchTaskCollectionResult:
+            type: object
+            required: [type, path, title, bodyMatch]
+            additionalProperties: false
+            properties:
+                type:
+                    const: TaskCollection
+                path:
+                    $ref: "#/components/schemas/TaskCollectionPath"
+                title:
+                    type: string
+                bodyMatch:
+                    const: null
+
+        SearchResultBodyMatches:
+            type: array
+            items:
+                type: object
+                required: [text]
+                additionalProperties: false
+                properties:
+                    text:
+                        type: string
+                    isMatch:
+                        const: true

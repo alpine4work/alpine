@@ -239,6 +239,15 @@ export function isSearchDynamicEntityId(id: SearchEntityId): id is SearchDynamic
     return cast<{[key: string]: true}>(searchDynamicEntityIdTestMap)[idType] === true;
 }
 
+export function isSearchDynamicEntityIdWithoutAccount(
+    id: SearchEntityId,
+): id is Exclude<SearchDynamicEntityId, `Account:${AccountId}`> {
+    const [idType = ""] = id.split(":", 2);
+    if (idType === "Account") return false;
+
+    return cast<{[key: string]: true}>(searchDynamicEntityIdTestMap)[idType] === true;
+}
+
 /**
  * Is the provided `SearchEntityId` a `SearchStaticEntityId`?
  */
@@ -359,6 +368,16 @@ export type SearchDynamicEntityIdObject =
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
     | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
 
+export function parseSearchDynamicEntityIdWithoutAccount(
+    id: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
+): Exclude<SearchDynamicEntityIdObject, {type: "Account"; accountId: AccountId}> {
+    const entity = parseSearchDynamicEntityId(id);
+    if (entity.type !== "Account") return entity;
+
+    throw new InternalError(
+        quote`Account type found in \`SearchDynamicEntityId\` but expected a non-account type`,
+    );
+}
 /**
  * Parse a `SearchDynamicEntityId` into a more convenient to use object format.
  */

@@ -10,8 +10,8 @@ import {join as joinPath} from "path";
 import Yaml from "yaml";
 import {renderApiBrowser} from "~/server/api/internal/shared/api_browser.js";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
+import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/bots_table.js";
-import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
@@ -72,7 +72,7 @@ const apiSpecificationPath = joinPath(
 );
 
 export async function createApiServiceServer(
-    processContext: ServerProcessContext,
+    processContext: ApiServiceProcessContext,
     paths: ApiPathsBase,
     {
         shutdownManager,
@@ -97,7 +97,7 @@ export async function createApiServiceServer(
 }
 
 export async function createApiServiceRequestListener(
-    processContext: ServerProcessContext,
+    processContext: ApiServiceProcessContext,
     paths: ApiPathsBase,
     {
         edgeServiceUrl,
@@ -107,6 +107,10 @@ export async function createApiServiceRequestListener(
         tokenAgent: TokenAgent;
     },
 ) {
+    if (!processContext.languageModel && !import.meta.jest) {
+        throw new InternalError("Missing language model in context");
+    }
+
     const tracer = processContext.tracer.getRoot();
 
     const apiSpecificationString = await fs.readFile(apiSpecificationPath, "utf8");
