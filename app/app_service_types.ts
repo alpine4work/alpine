@@ -13,6 +13,7 @@ export type AppServiceConstants = {
         ServiceCloudflareR2Options & {
             readonly shouldSeedDynamo?: boolean;
             readonly edgeServiceUrl?: string;
+            readonly agentServiceUrl?: string;
             readonly opensearchLocalPort?: string;
             readonly opensearchHost?: string;
             readonly taskRealtimeServiceLocalPort?: string;

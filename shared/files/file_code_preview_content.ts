@@ -160,6 +160,7 @@ const lezerClassHighlighterClasses = [
     "tok-url",
     "tok-variableName",
     "tok-variableName2",
+    "tok-monospace",
 ] as const;
 
 let lezerClassHighlighterByteByClass: Map<string, number> | null = null;

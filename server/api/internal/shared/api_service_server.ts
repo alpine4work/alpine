@@ -555,10 +555,8 @@ export async function createApiServiceRequestListener(
                         let accessTokenPayload: TokenPayload;
 
                         try {
-                            accessTokenPayload = await tokenAgent.publicSide.verifyTokenFromService(
-                                "JobQueueService",
-                                accessToken,
-                            );
+                            ({payload: accessTokenPayload} =
+                                await tokenAgent.publicSide.verifyToken(accessToken));
                         } catch (error) {
                             if (!(error instanceof PermissionDeniedError)) throw error;
 

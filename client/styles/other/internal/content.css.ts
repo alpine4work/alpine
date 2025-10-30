@@ -1950,11 +1950,20 @@ const colorByLezerHighlightSelector: {
         | {color?: string; lightColor?: string; darkColor?: string; weight?: "semi-bold"}
         | null;
 } = {
+    // Used for annotations like `#[derive(Serializable)]` in Rust, and control
+    // like `#`, `**`, etc. in Markdown.
+    //
+    // It's important this comes before everything else in the CSS since other
+    // styles should override. For example `tok-heading tok-meta` should use the
+    // color from `tok-heading`.
+    ".tok-meta": colorSchemeVars["grey-60"],
+
     ".tok-link": codeBlockStringLiteralColor, // Used for `[link](url)` in Markdown
     ".tok-url": null, // Used for `[link](url)` in Markdown
     ".tok-heading": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `# Heading` in Markdown
     ".tok-emphasis": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `_emphasis_` in Markdown
     ".tok-strong": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `**strong**` in Markdown
+    ".tok-monospace": colorSchemeVars["grey-60"], // Used for `` `inline code` `` in Markdown
     ".tok-keyword": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"},
     ".tok-keyword.tok-controlKeyword": codeBlockSecondaryKeywordColor,
     ".tok-keyword.tok-moduleKeyword": codeBlockSecondaryKeywordColor,
@@ -1975,7 +1984,6 @@ const colorByLezerHighlightSelector: {
     ".tok-propertyName": codeBlockValueColor,
     ".tok-operator": null,
     ".tok-comment": colorSchemeVars["grey-50"],
-    ".tok-meta": null, // Used for annotations like `#[derive(Serializable)]` in Rust
     ".tok-punctuation": null,
     ".tok-punctuation2": codeBlockPrimaryKeywordColor, // Used for template string interpolation `${}` in JavaScript
     ".tok-invalid": null,

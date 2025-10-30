@@ -18,6 +18,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AgentDurableObjectEnv = {
     API_SERVICE_URL: string;
@@ -41,6 +42,10 @@ export type AgentWebhookRequest = {
     readonly accountId: AccountId;
     readonly event: ApiBotWebhookEvent;
     readonly room: ApiMessageRoomPathObject;
+};
+
+export type ConversationStateRequest = {
+    readonly storage: DurableObjectStorage;
 };
 
 /**
@@ -68,7 +73,7 @@ export function shouldResetAgentDeleteAllStorageAlarm({
  */
 export abstract class AgentDurableObjectBase<Route> {
     private readonly _state: DurableObjectState;
-    private readonly _env: AgentDurableObjectEnv;
+    protected readonly _env: AgentDurableObjectEnv;
     private readonly _tracer: Lazy<TracerRoot>;
     private readonly _processContext: Lazy<AgentContext>;
     private readonly _openAiClient: Lazy<OpenAiClient>;
@@ -118,6 +123,10 @@ export abstract class AgentDurableObjectBase<Route> {
         });
     }
 
+    public getStorage(): DurableObjectStorage {
+        return this._state.storage;
+    }
+
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
      * request which helps since we can search our logs for all requests to a
@@ -132,6 +141,7 @@ export abstract class AgentDurableObjectBase<Route> {
         context: AgentContext,
         request: Request,
         route: Route,
+        span: TracerSpan,
     ): Promise<Response>;
 
     /**
@@ -165,7 +175,7 @@ export abstract class AgentDurableObjectBase<Route> {
                             if (routeObject === "Webhook") {
                                 return this._fetchWebhook(actionContext, request);
                             } else {
-                                return this._fetch(actionContext, request, routeObject);
+                                return this._fetch(actionContext, request, routeObject, span);
                             }
                         },
                     );

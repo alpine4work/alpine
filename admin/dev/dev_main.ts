@@ -329,6 +329,7 @@ function createArtifacts() {
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
+                `--agentServiceUrl=http://localhost:${agentsDevPort}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,

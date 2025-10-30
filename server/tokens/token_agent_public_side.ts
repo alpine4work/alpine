@@ -240,8 +240,15 @@ export class TokenAgentPublicSide {
         serviceName: TokenServiceName;
         payload: TokenPayload;
     }> {
-        const {iss: issClaim} = decodeJwt(token);
-        const serviceName = TokenServiceNameSchema.deserialize(issClaim ?? null);
+        let issClaim: string | null = null;
+        try {
+            const iss = decodeJwt(token);
+            issClaim = iss.iss ?? null;
+        } catch (error) {
+            throw new PermissionDeniedError(error instanceof Error ? error.message : String(error));
+        }
+
+        const serviceName = TokenServiceNameSchema.deserialize(issClaim);
         const payload = await this.verifyTokenFromService(serviceName, token);
         return {serviceName, payload};
     }

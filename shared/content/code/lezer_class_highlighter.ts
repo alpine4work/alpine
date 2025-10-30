@@ -19,6 +19,7 @@ export const lezerClassHighlighter = new Lazy(() => {
         {tag: tags.heading, class: "tok-heading"},
         {tag: tags.emphasis, class: "tok-emphasis"},
         {tag: tags.strong, class: "tok-strong"},
+        {tag: tags.monospace, class: "tok-monospace"},
         {tag: tags.keyword, class: "tok-keyword"},
         {tag: tags.atom, class: "tok-atom"},
         {tag: tags.bool, class: "tok-bool"},

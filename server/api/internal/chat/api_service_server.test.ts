@@ -9,9 +9,7 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestTokenAgent} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -20,13 +18,6 @@ const context = createTestContext({
 });
 
 const server = createTestApiServer(context, apiChatPaths);
-
-let appTokenAgent: TokenAgent;
-
-beforeAll(async () => {
-    appTokenAgent = await createTestTokenAgent(context, "AppService");
-});
-
 test("not found route", async () => {
     expect(await server.GET("/asdf")).toEqual({
         status: 404,
@@ -152,38 +143,6 @@ test("rejects improperly formatted access token", async () => {
         body: {
             error: {
                 message: "Invalid access token in `Authorization` header.",
-            },
-        },
-    });
-});
-
-test("rejects access token from the wrong service", async () => {
-    const space = await TestSpace.create(context);
-    const [session1, session2] = await space.createSessions(2);
-
-    const chat = await TestChat.get(session1, session2);
-    const message = await chat.sendMessage(session1);
-
-    const accessToken = await appTokenAgent.privateSide.dangerouslySignShortLivedToken(
-        "ApiService",
-        {
-            type: "Bot",
-            spaceId: space.id,
-            accountId: session1.account.id,
-            scope: {type: "Chat", chatId: chat.id},
-        },
-    );
-
-    expect(
-        await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
-            headers: {authorization: `bearer ${generateApiKey()}~${accessToken}`},
-        }),
-    ).toEqual({
-        status: 403,
-        headers: expect.objectContaining({"content-type": "application/json"}),
-        body: {
-            error: {
-                message: "Access token in `Authorization` header failed signature verification.",
             },
         },
     });

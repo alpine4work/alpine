@@ -27,11 +27,11 @@ export class AwsApiService extends Construct {
         createAwsAppOrApiService(this, options, {
             serviceName: "Api",
             secretsName: "ApiServiceSecrets",
-            taskDefinitionOptions: {
+            taskDefinition: {
                 tarballPath: "cyberworlds/server/api/api_image_tarball_load/tarball.tar",
                 containerCommandPath: "/var/www/server/api/api",
             },
-            loadBalancerOptions: {
+            loadBalancer: {
                 domainName: "api.alpine.inc",
                 healthCheckPath: "/healthcheck",
             },

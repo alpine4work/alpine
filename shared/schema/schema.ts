@@ -293,8 +293,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * yourself.
      */
     public static unknown(): Schema<SchemaSerializedValue>;
-    public static unknown<Value extends SchemaSerializedValue>(): Schema<Value>;
-    public static unknown<Value extends SchemaSerializedValue>(): Schema<Value> {
+    public static unknown<Value>(): Schema<Value>;
+    public static unknown<Value>(): Schema<Value> {
         return this._unknown as any;
     }
 

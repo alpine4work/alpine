@@ -2,6 +2,7 @@ import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_re
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/types/api_specification_convenience_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 
@@ -10,7 +11,7 @@ type AgentServiceEnv = {
     HONEYCOMB_API_KEY?: string;
 };
 
-type AgentServiceRoute = "ChatGptWebhook" | "NotFound";
+type AgentServiceRoute = "ChatGptWebhook" | "ChatGptConversationState" | "NotFound";
 
 async function handleFetch(
     request: Request,
@@ -25,6 +26,9 @@ async function handleFetch(
     if (url.pathname === "/chat-gpt/webhook") {
         routeString = "/chat-gpt/webhook";
         route = "ChatGptWebhook";
+    } else if (url.pathname === "/chat-gpt/conversation-state") {
+        routeString = "/chat-gpt/conversation-state";
+        route = "ChatGptConversationState";
     } else {
         routeString = "/*";
         route = "NotFound";
@@ -74,6 +78,41 @@ async function handleFetch(
                         method: request.method,
                         headers: request.headers,
                         body: JSON.stringify(requestBody),
+                    });
+                    addTracerPropagationContextHeader(newRequest.headers, span);
+
+                    return durableObjectStub.fetch(newRequest);
+                }
+                case "ChatGptConversationState": {
+                    const accountId = url.searchParams.get("accountId");
+                    const roomPath = url.searchParams.get("roomPath");
+
+                    if (!accountId)
+                        throw new InvalidArgumentError("Missing `accountId` search param");
+                    if (!roomPath)
+                        throw new InvalidArgumentError("Missing `roomPath` search param");
+
+                    const id = env.ChatGptAgentDurableObjectNamespace.idFromName(
+                        `${accountId}:${roomPath}`,
+                    );
+
+                    const durableObjectStub = env.ChatGptAgentDurableObjectNamespace.get(id, {
+                        // Currently, we only have data in the AWS region `us-east-1`. So place Durable
+                        // Objects in the Eastern North America region so Durable Objects get low
+                        // latency when making calls to `ApiService` in AWS.
+                        //
+                        // Long term, ideally we'll put space data in the nearest AWS region to the
+                        // customer and our Durable Objects should be created near that data center
+                        // as well. Or we'll have DynamoDB replicas in multiple regions.
+                        locationHint: "enam",
+                    });
+
+                    const newUrl = new URL(request.url);
+                    newUrl.pathname = "/conversation-state";
+
+                    const newRequest = new Request(newUrl.toString(), {
+                        method: "GET",
+                        headers: request.headers,
                     });
                     addTracerPropagationContextHeader(newRequest.headers, span);
 

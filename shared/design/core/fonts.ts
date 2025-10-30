@@ -184,6 +184,17 @@ export function createFontStyles({
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
         },
+        "truncate-code-light": {
+            fontFamily: commitMonoFontFamily,
+            fontWeight: 275,
+            fontStyle: "normal",
+            fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+            fontSynthesis: "none",
+            letterSpacing: "-0.02em",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+        },
     } as const;
 }
 

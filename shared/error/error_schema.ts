@@ -83,7 +83,7 @@ export const ErrorSchema = ErrorSchemaWithoutTransform.transform<unknown>({
     deserialize: deserializeError,
 });
 
-function serializeError(error: unknown) {
+export function serializeError(error: unknown) {
     const aggregateErrors: Array<unknown> = [];
 
     const pushAggregateError = (error: unknown) => {

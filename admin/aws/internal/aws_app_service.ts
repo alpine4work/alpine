@@ -31,11 +31,11 @@ export class AwsAppService extends Construct {
         const {taskDefinition} = createAwsAppOrApiService(this, options, {
             serviceName: "App",
             secretsName: "AppServiceSecrets",
-            taskDefinitionOptions: {
+            taskDefinition: {
                 tarballPath: "cyberworlds/app/app_image_tarball_load/tarball.tar",
                 containerCommandPath: "/var/www/app/app_production",
             },
-            loadBalancerOptions: {
+            loadBalancer: {
                 // NOTE(calebmer, 2024-11-13): This is `LoadBalancer2` because we had an old
                 // `LoadBalancer` with an automatically generated `loadBalancerName`. When we
                 // switched to an opinionated `loadBalancerName` in order to do a zero downtime
@@ -45,13 +45,14 @@ export class AwsAppService extends Construct {
                 logicalName: "LoadBalancer2",
                 domainName: "alpine.inc",
                 healthCheckPath: "/api/internal/healthcheck",
-                listenerTargetOptions: {
+                listenerTarget: {
                     // Attempt to route sessions to the same EC2 instance for a day. This is an
                     // optimization that increases in-memory cache hits and not required for
                     // successful operation of the product.
                     stickinessCookieDuration: Duration.days(1),
                 },
             },
+            withAgentServiceUrl: true,
         });
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);

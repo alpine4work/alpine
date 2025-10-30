@@ -167,6 +167,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/api:specification_generate_lib",
     "//shared/avatar:avatar",
     "//shared/avatar/protocol:protocol",
+    "//shared/bots:bots",
     "//shared/chat:chat",
     "//shared/content:content",
     "//shared/content/code:code",

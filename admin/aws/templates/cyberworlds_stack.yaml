@@ -3214,7 +3214,9 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/app/app_production --port=4000
-                                --edgeServiceUrl=https://alpine.inc --opensearchDomainEndpoint=
+                                --edgeServiceUrl=https://alpine.inc
+                                --agentServiceUrl=https://agent-service.cyberworlds.workers.dev
+                                --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint

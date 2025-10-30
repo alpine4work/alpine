@@ -57,7 +57,7 @@ type ApiContentFilteredPathObjectTypeInner<
     [Key in keyof Paths]: Paths[Key]["path"] extends Path ? Paths[Key]["pathObject"] : never;
 }[number];
 
-const apiContentMentionPathObjectTypes = new Set<string>(
+const apiMentionPathObjectTypes = new Set<string>(
     getObjectKeysWithKeyofType(
         cast<Record<ApiMentionPathObject["type"], true>>({
             Account: true,
@@ -66,6 +66,17 @@ const apiContentMentionPathObjectTypes = new Set<string>(
             Post: true,
             Task: true,
             TaskCollection: true,
+        }),
+    ),
+);
+
+const apiMessageRoomPathObjectTypes = new Set<string>(
+    getObjectKeysWithKeyofType(
+        cast<Record<ApiMessageRoomPathObject["type"], true>>({
+            Chat: true,
+            Post: true,
+            DocumentCommentThread: true,
+            Task: true,
         }),
     ),
 );
@@ -158,7 +169,7 @@ type ApiPathsType = [
     },
 ];
 
-export function parseApiPath(path: ApiPath): ApiPathObject {
+export function parseApiPath(path: string): ApiPathObject {
     if (!path.startsWith("/")) {
         throw new InvalidArgumentError("Path doesn’t start with `/`", {
             displayMessage: getDisplayMessage(),
@@ -507,6 +518,17 @@ function parseMessageIndexIfExists(messageIndexString: string): number | null {
     return Number.isSafeInteger(messageIndex) && messageIndex >= 0 ? messageIndex : null;
 }
 
+export function isApiMessageRoomPath(path: ApiPath): path is ApiMessageRoomPath {
+    const pathObject = parseApiPath(path);
+    return isApiMessageRoomPathObject(pathObject);
+}
+
+export function isApiMessageRoomPathObject(
+    pathObject: ApiPathObject,
+): pathObject is ApiMessageRoomPathObject {
+    return apiMessageRoomPathObjectTypes.has(pathObject.type);
+}
+
 export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomPathObject {
     return parseApiPath(path) as ApiMessageRoomPathObject;
 }
@@ -521,7 +543,7 @@ export function parseApiNotMentionPath(path: ApiNotMentionPath): ApiNotMentionPa
 
 export function isApiMentionPath(path: ApiPath): path is ApiMentionPath {
     const pathObject = parseApiPath(path);
-    return apiContentMentionPathObjectTypes.has(pathObject.type);
+    return apiMentionPathObjectTypes.has(pathObject.type);
 }
 
 export function isApiNotMentionPath(path: ApiPath): path is ApiNotMentionPath {

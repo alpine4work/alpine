@@ -61,21 +61,23 @@ export function createAwsAppOrApiService(
     {
         serviceName,
         secretsName,
-        loadBalancerOptions,
-        taskDefinitionOptions,
+        taskDefinition: taskDefinitionOptions,
+        loadBalancer: loadBalancerOptions,
+        withAgentServiceUrl,
     }: {
         serviceName: string;
         secretsName: string;
-        taskDefinitionOptions: {
+        taskDefinition: {
             tarballPath: string;
             containerCommandPath: string;
         };
-        loadBalancerOptions: {
+        loadBalancer: {
             domainName: string;
             healthCheckPath: string;
-            listenerTargetOptions?: Partial<ApplicationTargetGroupProps>;
+            listenerTarget?: Partial<ApplicationTargetGroupProps>;
             logicalName?: string;
         };
+        withAgentServiceUrl?: boolean;
     },
 ) {
     const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
@@ -261,6 +263,9 @@ export function createAwsAppOrApiService(
             `${taskDefinitionOptions.containerCommandPath} ${[
                 `--port=${port}`,
                 "--edgeServiceUrl=https://alpine.inc",
+                ...(withAgentServiceUrl
+                    ? ["--agentServiceUrl=https://agent-service.cyberworlds.workers.dev"]
+                    : []),
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                 `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                 `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
@@ -394,7 +399,7 @@ export function createAwsAppOrApiService(
         // aborted.
         // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html
         deregistrationDelay: Duration.seconds(10),
-        ...loadBalancerOptions.listenerTargetOptions,
+        ...loadBalancerOptions.listenerTarget,
     });
 
     return {taskDefinition};

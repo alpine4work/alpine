@@ -251,6 +251,12 @@ async function createAppService({
         "`edgeServiceUrl` option is required",
     );
 
+    const agentServiceUrl = options.agentServiceUrl ?? null;
+
+    if (process.env.NODE_ENV !== "test") {
+        assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
+    }
+
     const processContext: AppServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
@@ -357,6 +363,7 @@ async function createAppService({
                 const loaderContextModule = new LoaderContextModule(request, {
                     tokenAgent,
                     sessionCookie,
+                    agentServiceUrl,
                 });
 
                 const response = await processContext.with<

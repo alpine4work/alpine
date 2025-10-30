@@ -48,6 +48,7 @@ export const options = {
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     agentServiceLocalPort: {type: "string"},
+    agentServiceUrl: {type: "string"},
     chatGptLocalUnscopedApiKey: {type: "string"},
     chatGptLocalScopedApiKey: {type: "string"},
     ...serviceTokenAgentOptions,

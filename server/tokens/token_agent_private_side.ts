@@ -309,6 +309,35 @@ export class TokenAgentAppServicePrivateSide extends TokenAgentPrivateSide {
 
         return signer.sign(this._servicePrivateKeyForRs256);
     }
+
+    /**
+     * Sign a bot token for `AgentService` to pass through to `ApiService`.
+     * The token expires after 2 minutes, which should leave plenty of time
+     * for the bot to receive the request and make its api.alpine.inc request
+     *
+     * Uses RS256 as the signing algorithm. Which is an asymmetric cryptography
+     * algorithm. So each service has its own private key and other services verify
+     * it against their public key. If a service's private key is discovered by an
+     * attacker they still wouldn't be able to create keys that let them
+     * impersonate another service. (e.g. If `FileProcessorService` is compromised
+     * an attacker couldn't use that access to create a session token as
+     * `AppService`.)
+     *
+     * Dangerous since if an attacker can call this function with whatever input
+     * they want, then they can impersonate any account! So be careful with what
+     * you call this function with.
+     */
+    public dangerouslySignShortLivedTokenForBotConversationState(payload: BotTokenPayload) {
+        // Double check this is a bot token.
+        assert(payload.type === "Bot");
+
+        const currentTime = Date.now();
+
+        // 2 minutes
+        const expirationTime = Math.floor((currentTime + 1000 * 60 * 2) / 1000);
+
+        return this._dangerouslySignToken("ApiService", payload, expirationTime);
+    }
 }
 
 export class TokenAgentJobQueueServicePrivateSide extends TokenAgentPrivateSide {

@@ -1,12 +1,15 @@
 import OpenAi from "openai";
 import {
+    AgentContext,
     AgentDurableObjectBase,
     AgentDurableObjectEnv,
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {
     completeApiMessageStream,
+    createApiClient,
     createApiMessage,
+    getApiMessagesFromStart,
     putApiMessageStreamPart,
 } from "~/server/agents/internal/api_client.js";
 import {
@@ -30,20 +33,28 @@ import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messa
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {getApiMentionPathIfExists} from "~/shared/api/parse_api_path.js";
+import {
+    ApiMessageRoomPathObject,
+    getApiMentionPathIfExists,
+    isApiMessageRoomPathObject,
+    parseApiPath,
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiMessage,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorBase, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {serializeError} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -53,8 +64,9 @@ import {
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-type ChatGptAgentRoute = "NotFound";
+type ChatGptAgentRoute = "NotFound" | "FetchConversationState";
 
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
     constructor(state: DurableObjectState, env: AgentDurableObjectEnv) {
@@ -66,10 +78,23 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             return ["/webhook", "Webhook"];
         }
 
+        if (url.pathname === "/conversation-state") {
+            return ["/conversation-state", "FetchConversationState"];
+        }
+
         return ["/*", "NotFound"];
     }
 
-    protected override async _fetch(): Promise<Response> {
+    protected override async _fetch(
+        context: AgentContext,
+        request: Request,
+        route: ChatGptAgentRoute,
+        span: TracerSpan,
+    ): Promise<Response> {
+        if (route === "FetchConversationState") {
+            return this._fetchConversationState(context, request, span);
+        }
+
         return new Response("404 Not Found", {
             status: 404,
             headers: {"content-type": "text/plain"},
@@ -80,6 +105,89 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
         // message while the agent is responding to a previous request?
         await requestChatGptAgent(tracer, request);
+    }
+
+    private async _fetchConversationState(
+        context: AgentContext,
+        request: Request,
+        span: TracerSpan,
+    ): Promise<Response> {
+        if (request.method !== "GET") {
+            return new Response("405 Method Not Allowed", {
+                status: 405,
+                headers: {"content-type": "text/plain"},
+            });
+        }
+
+        try {
+            const url = new URL(request.url);
+            const accessToken = url.searchParams.get("accessToken");
+            const roomPath = url.searchParams.get("roomPath");
+
+            if (!accessToken) throw new InvalidArgumentError("Missing `accessToken` search param");
+            if (!roomPath) throw new InvalidArgumentError("Missing `roomPath` search param");
+
+            const roomPathObject = parseApiPath(roomPath);
+
+            if (!isApiMessageRoomPathObject(roomPathObject))
+                throw new InvalidArgumentError("Invalid `roomPath` search param");
+
+            await this._authorizeFetchConversationState(span, accessToken, roomPathObject);
+
+            const conversationState = await ChatGptAgentConversationItemCollection.list(
+                this.getStorage(),
+            );
+
+            const items = Array.from(conversationState.values(), ({item}) => item);
+
+            // NOTE(calebmer): We don't use our `Schema` library here since we don't want
+            // to open source our `Schema` code. (Though we will open source
+            // `serializeError()`.)
+            return new Response(JSON.stringify({ok: true, items}), {
+                status: 200,
+                headers: {"content-type": "application/json"},
+            });
+        } catch (error) {
+            span.addException(error);
+
+            return new Response(JSON.stringify({ok: false, error: serializeError(error)}), {
+                status: isSystemError(error) ? 500 : 400,
+                headers: {"content-type": "application/json"},
+            });
+        }
+    }
+
+    private async _authorizeFetchConversationState(
+        span: TracerBase,
+        accessToken: string,
+        roomPathObject: ApiMessageRoomPathObject,
+    ): Promise<void> {
+        const apiClient = createApiClient({
+            baseUrl: assertExists(
+                this._env.API_SERVICE_URL,
+                "Missing `API_SERVICE_URL` environment variable",
+            ),
+            apiKey: assertExists(
+                this._env.CHAT_GPT_API_SERVICE_KEY,
+                "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
+            ),
+            accessToken,
+        });
+
+        const {
+            data: {messages},
+        } = await getApiMessagesFromStart(span, apiClient, roomPathObject, {
+            limit: 1,
+            cursor: null,
+        });
+
+        // Sanity check: Make sure we received at least one message from the API.
+        // Verifying we have access to messages in the provided messaging room.
+        if (messages.length === 0) {
+            throw new FailedPreconditionError(
+                "Can’t fetch conversation state for empty messaging room",
+            );
+        }
     }
 }
 

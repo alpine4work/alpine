@@ -72,6 +72,12 @@ export class LoaderContextModule extends ContextModuleBase {
      */
     public readonly sessionCookie: SessionCookie;
 
+    /**
+     * Defines the Agent Service URL which is where we host our AI agents. This
+     * isn't currently available in integration tests.
+     */
+    public readonly agentServiceUrl: string | null;
+
     // Context modules can't directly mutate `this` so we need an
     // intermediate object.
     private readonly _state: {
@@ -93,15 +99,18 @@ export class LoaderContextModule extends ContextModuleBase {
         {
             tokenAgent,
             sessionCookie,
+            agentServiceUrl,
         }: {
             tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
             sessionCookie: SessionCookie;
+            agentServiceUrl: string | null;
         },
     ) {
         super();
         this._request = request;
         this.tokenAgent = tokenAgent;
         this.sessionCookie = sessionCookie;
+        this.agentServiceUrl = agentServiceUrl;
     }
 
     private _parseCookieHeader() {

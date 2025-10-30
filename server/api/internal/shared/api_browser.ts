@@ -76,7 +76,11 @@ export async function renderApiBrowser({
     // Use Prettier to print the JSON. This way small objects are printed on a
     // single line instead of always printing on multiple lines like
     // `JSON.stringify()` will do.
-    const prettyBody = prettier.format(body, {parser: "json"});
+    const prettyBody = prettier.format(body, {
+        parser: "json",
+        printWidth: 80,
+        tabWidth: 2,
+    });
 
     let highlightedPrettyBodyHtml = "";
 
