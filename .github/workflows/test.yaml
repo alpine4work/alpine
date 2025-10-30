@@ -9,6 +9,11 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v3
 
+            - name: BORKED
+              run: |
+                  echo "https://www.youtube.com/watch?v=GuCVReVGDo8"
+                  exit 1
+
             - name: Check for “[SKIP CI]”
               if: github.ref != 'refs/heads/main'
               uses: ./.github/actions/check-skip-ci
