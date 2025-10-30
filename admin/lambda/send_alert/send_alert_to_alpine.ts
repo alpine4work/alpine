@@ -15,6 +15,7 @@ import {
 import {
     ApiContent,
     ApiContentMentionInlineElement,
+    ApiContentParagraphBlockElement,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
@@ -50,6 +51,55 @@ function createUserElement(
             },
         ],
     };
+}
+
+function createHeaderElements(
+    title: string,
+    actions?: Array<{label: string; url: string}>,
+): Array<ApiContentElement> {
+    const elements: Array<ApiContentElement> = [
+        {
+            type: "Heading",
+            level: 2,
+            elements: [
+                {
+                    type: "Text",
+                    text: title,
+                },
+            ],
+        },
+    ];
+
+    if (actions && actions.length > 0) {
+        const actionElements: Array<ApiContentParagraphBlockElement["elements"][number]> = [];
+
+        actions.forEach((action, index) => {
+            if (index > 0) {
+                actionElements.push({
+                    type: "Text",
+                    text: " • ",
+                });
+            }
+
+            actionElements.push({
+                type: "Text",
+                text: action.label,
+                marks: [
+                    {
+                        type: "Link",
+                        url: action.url,
+                    },
+                ],
+            });
+        });
+
+        elements.push({
+            type: "Paragraph",
+            elements: actionElements,
+        });
+    }
+
+    return elements;
 }
 
 async function sendAlertToAlpine(
@@ -139,30 +189,10 @@ export async function sendPagerDutyAlertToAlpine(
     const incidentData = data.event.data;
 
     const elements: Array<ApiContentElement> = [
-        {
-            type: "Heading",
-            level: 2,
-            elements: [
-                {
-                    type: "Text",
-                    text: "🚨 PagerDuty Incident: ",
-                    marks: [
-                        {
-                            type: "Bold",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: incidentData.title,
-                    marks: [
-                        {
-                            type: "Bold",
-                        },
-                    ],
-                },
-            ],
-        },
+        ...createHeaderElements(`🚨 Incident: ${incidentData.title}`, [
+            {label: "View Incident", url: incidentData.html_url},
+            {label: "Escalation Policy", url: incidentData.escalation_policy.html_url},
+        ]),
         {
             type: "Paragraph",
             elements: [
@@ -211,13 +241,15 @@ export async function sendPagerDutyAlertToAlpine(
                 },
                 {
                     type: "Text",
-                    text: incidentData.service.summary || incidentData.service.id,
-                    marks: [
-                        {
-                            type: "Link",
-                            url: incidentData.service.html_url,
-                        },
-                    ],
+                    text: incidentData.service?.summary || incidentData.service?.id || "Unknown",
+                    marks: incidentData.service
+                        ? [
+                              {
+                                  type: "Link",
+                                  url: incidentData.service.html_url,
+                              },
+                          ]
+                        : undefined,
                 },
             ],
         },
@@ -230,7 +262,7 @@ export async function sendPagerDutyAlertToAlpine(
                 },
                 {
                     type: "Text",
-                    text: incidentData.priority.summary || "Unknown",
+                    text: incidentData.priority?.summary || "Unknown",
                     marks: [
                         {
                             type: "Code",
@@ -261,7 +293,7 @@ export async function sendPagerDutyAlertToAlpine(
                 },
                 {
                     type: "Text",
-                    text: incidentData.incident_type.name,
+                    text: incidentData.incident_type?.name || "Unknown",
                     marks: [
                         {
                             type: "Code",
@@ -317,44 +349,6 @@ export async function sendPagerDutyAlertToAlpine(
         });
     }
 
-    elements.push({
-        type: "Divider",
-    });
-
-    elements.push({
-        type: "Paragraph",
-        elements: [
-            {
-                type: "Text",
-                text: "🔗 Actions: ",
-            },
-            {
-                type: "Text",
-                text: "View Incident",
-                marks: [
-                    {
-                        type: "Link",
-                        url: incidentData.html_url,
-                    },
-                ],
-            },
-            {
-                type: "Text",
-                text: " • ",
-            },
-            {
-                type: "Text",
-                text: "Escalation Policy",
-                marks: [
-                    {
-                        type: "Link",
-                        url: incidentData.escalation_policy.html_url,
-                    },
-                ],
-            },
-        ],
-    });
-
     return await sendAlertToAlpine(channel, channelId, {elements});
 }
 
@@ -371,14 +365,27 @@ export async function sendHoneycombAlertToAlpine(
     console.log("Received Honeycomb event");
     console.debug(JSON.stringify(data, null, 2));
 
-    const elements: Array<ApiContentElement> = [
+    const emoji =
         {
-            type: "Heading",
-            level: 2,
+            triggered: "🚨",
+            ok: "✅",
+        }[data.alert.status] || "ℹ️";
+
+    const elements: Array<ApiContentElement> = createHeaderElements(
+        `${emoji} Alert: ${data.name}`,
+        [
+            {label: "View Trigger", url: data.links.trigger},
+            {label: "View Result", url: data.links.result},
+        ],
+    );
+
+    if (data.alert.status === "ok") {
+        elements.push({
+            type: "Paragraph",
             elements: [
                 {
                     type: "Text",
-                    text: data.name,
+                    text: "Measurement has returned to normal status.",
                     marks: [
                         {
                             type: "Bold",
@@ -386,61 +393,47 @@ export async function sendHoneycombAlertToAlpine(
                     ],
                 },
             ],
-        },
-        {
+        });
+    }
+
+    if (data.description) {
+        elements.push({
             type: "Paragraph",
             elements: [
                 {
                     type: "Text",
-                    text: "Alert ID: ",
-                },
-                {
-                    type: "Text",
-                    text: data.id,
+                    text: data.description,
                     marks: [
                         {
-                            type: "Code",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • Status: ",
-                },
-                {
-                    type: "Text",
-                    text: data.alert.status,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                        {
-                            type: "Highlight",
-                            color: "Orange",
+                            type: "Italic",
                         },
                     ],
                 },
             ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Environment: ",
-                },
-                {
-                    type: "Text",
-                    text: data.environment,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-            ],
-        },
-        {
+        });
+    }
+
+    elements.push({
+        type: "Paragraph",
+        elements: [
+            {
+                type: "Text",
+                text: "Environment: ",
+            },
+            {
+                type: "Text",
+                text: data.environment,
+                marks: [
+                    {
+                        type: "Code",
+                    },
+                ],
+            },
+        ],
+    });
+
+    if (data.alert.status !== "ok") {
+        elements.push({
             type: "Paragraph",
             elements: [
                 {
@@ -457,128 +450,8 @@ export async function sendHoneycombAlertToAlpine(
                     ],
                 },
             ],
-        },
-    ];
-
-    if (data.description) {
-        elements.push({
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Description: ",
-                },
-                {
-                    type: "Text",
-                    text: data.description,
-                    marks: [
-                        {
-                            type: "Italic",
-                        },
-                    ],
-                },
-            ],
         });
     }
-
-    if (data.alert.summary) {
-        elements.push({
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Summary: ",
-                },
-                {
-                    type: "Text",
-                    text: data.alert.summary,
-                    marks: [
-                        {
-                            type: "Italic",
-                        },
-                    ],
-                },
-            ],
-        });
-    }
-
-    if (data.alert.description && data.alert.description !== data.description) {
-        elements.push({
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Alert Description: ",
-                },
-                {
-                    type: "Text",
-                    text: data.alert.description,
-                    marks: [
-                        {
-                            type: "Italic",
-                        },
-                    ],
-                },
-            ],
-        });
-    }
-
-    elements.push(
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Instance ID: ",
-                },
-                {
-                    type: "Text",
-                    text: data.alert.instanceId,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            type: "Divider",
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "🔗 Actions: ",
-                },
-                {
-                    type: "Text",
-                    text: "View Trigger",
-                    marks: [
-                        {
-                            type: "Link",
-                            url: data.links.trigger,
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • ",
-                },
-                {
-                    type: "Text",
-                    text: "View Result",
-                    marks: [
-                        {
-                            type: "Link",
-                            url: data.links.result,
-                        },
-                    ],
-                },
-            ],
-        },
-    );
 
     return await sendAlertToAlpine(channel, channelId, {elements});
 }
@@ -616,30 +489,9 @@ export async function sendGitHubActionsAlertToAlpine(
     }
 
     const elements: Array<ApiContentElement> = [
-        {
-            type: "Heading",
-            level: 2,
-            elements: [
-                {
-                    type: "Text",
-                    text: "🚨 Build Failed: ",
-                    marks: [
-                        {
-                            type: "Bold",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.name,
-                    marks: [
-                        {
-                            type: "Bold",
-                        },
-                    ],
-                },
-            ],
-        },
+        ...createHeaderElements(`🚨 Build Failed: ${data.workflow_run.name}`, [
+            {label: "View Run", url: data.workflow_run.html_url},
+        ]),
         {
             type: "Paragraph",
             elements: [
@@ -654,78 +506,6 @@ export async function sendGitHubActionsAlertToAlpine(
                         {
                             type: "Link",
                             url: data.repository.html_url,
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Workflow: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.name,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: ` • Run #${data.workflow_run.run_number}`,
-                },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Branch: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.head_branch,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • Commit: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.head_sha.substring(0, 7),
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Commit Message: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.head_commit.message,
-                    marks: [
-                        {
-                            type: "Link",
-                            url: `${data.repository.html_url}/commit/${data.workflow_run.head_sha}`,
                         },
                     ],
                 },
@@ -759,148 +539,18 @@ export async function sendGitHubActionsAlertToAlpine(
             elements: [
                 {
                     type: "Text",
-                    text: "Status: ",
+                    text: "Commit: ",
                 },
                 {
                     type: "Text",
-                    text: data.workflow_run.status,
+                    text: data.workflow_run.head_sha.substring(0, 7),
                     marks: [
                         {
                             type: "Code",
                         },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • Conclusion: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.conclusion,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                        {
-                            type: "Highlight",
-                            color: "Red",
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Event: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.event,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: ` • Attempt: #${data.workflow_run.run_attempt}`,
-                },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Started: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.run_started_at,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • Updated: ",
-                },
-                {
-                    type: "Text",
-                    text: data.workflow_run.updated_at,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            type: "Divider",
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "🔗 Actions: ",
-                },
-                {
-                    type: "Text",
-                    text: "View Run",
-                    marks: [
                         {
                             type: "Link",
-                            url: data.workflow_run.html_url,
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • ",
-                },
-                {
-                    type: "Text",
-                    text: "View Jobs",
-                    marks: [
-                        {
-                            type: "Link",
-                            url: data.workflow_run.jobs_url,
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • ",
-                },
-                {
-                    type: "Text",
-                    text: "View Logs",
-                    marks: [
-                        {
-                            type: "Link",
-                            url: data.workflow_run.logs_url,
-                        },
-                    ],
-                },
-                {
-                    type: "Text",
-                    text: " • ",
-                },
-                {
-                    type: "Text",
-                    text: "Rerun",
-                    marks: [
-                        {
-                            type: "Link",
-                            url: data.workflow_run.rerun_url,
+                            url: `${data.repository.html_url}/commit/${data.workflow_run.head_sha}`,
                         },
                     ],
                 },

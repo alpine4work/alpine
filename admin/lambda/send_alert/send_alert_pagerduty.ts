@@ -57,14 +57,16 @@ export type PagerDutyIncidentEventData = {
     title: string;
     incident_type: {
         name: string;
-    };
-    service: PagerDutyService;
+    } | null;
+    service: PagerDutyService | null;
     assignees: Array<PagerDutyUser>;
     escalation_policy: PagerDutyEscalationPolicy;
     teams: Array<PagerDutyTeam>;
-    priority: PagerDutyReference & {
-        type: string;
-    };
+    priority:
+        | (PagerDutyReference & {
+              type: string;
+          })
+        | null;
     urgency: string;
     conference_bridge: {
         conference_number: string;
