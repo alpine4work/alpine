@@ -22,7 +22,8 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
     // `@` opens a mention search/selector interface
     rules.push(
-        new InputRule(/(?:^|\s)@$/, state => {
+        // Allow mention after after whitespace, opening brackets, or opening quotes
+        new InputRule(/(?:^|\s|\p{Ps}|["'`\u201c\u2018])@$/u, state => {
             const {$from, $to} = trimSelectionInvisibleExtensionIntoAdjacentNodes(state.selection);
 
             // Don't open the mention floater if we're in a code block.
