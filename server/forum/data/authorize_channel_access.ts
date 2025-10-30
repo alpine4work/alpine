@@ -19,12 +19,16 @@ export async function authorizeChannelAccess(
     channelId: ChannelId,
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{spaceId: SpaceId; accessPolicy: AccessPolicy}> {
+): Promise<{spaceId: SpaceId; accessPolicy: AccessPolicy; channelName: string}> {
     const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, options);
 
     await authorizeChannelItemAccess(context, channelItem, expectedAccessLevel, options);
 
-    return {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy};
+    return {
+        spaceId: channelItem.spaceId,
+        accessPolicy: channelItem.accessPolicy,
+        channelName: channelItem.name,
+    };
 }
 
 /**

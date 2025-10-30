@@ -106,17 +106,17 @@ async function main() {
             }
 
             for (const [pathName, pathPrefix, idType] of [
-                ["AccountPath", "/accounts/", "AccountId"],
-                ["ChannelPath", "/channels/", "ChannelId"],
-                ["ChatPath", "/chats/", "ChatId"],
-                ["DocumentPath", "/documents/", "DocumentId"],
-                ["PostPath", "/posts/", "PostId"],
-                ["TaskPath", "/tasks/", "TaskId"],
-                ["TaskCollectionPath", "/task-collections/", "TaskCollectionId"],
+                ["AccountPath", "/accounts", "AccountId"],
+                ["ChannelPath", "/channels", "ChannelId"],
+                ["ChatPath", "/chats", "ChatId"],
+                ["DocumentPath", "/documents", "DocumentId"],
+                ["PostPath", "/posts", "PostId"],
+                ["TaskPath", "/tasks", "TaskId"],
+                ["TaskCollectionPath", "/task-collections", "TaskCollectionId"],
             ] as const) {
                 if (options.path === `#/components/schemas/${pathName}`) {
                     return ts.factory.createTemplateLiteralType(
-                        ts.factory.createTemplateHead(pathPrefix),
+                        ts.factory.createTemplateHead(`${pathPrefix}/`),
                         [
                             ts.factory.createTemplateLiteralTypeSpan(
                                 createTsIdType(idType),

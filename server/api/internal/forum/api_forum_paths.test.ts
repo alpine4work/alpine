@@ -250,3 +250,327 @@ test("can read post information with post scope", async () => {
         }),
     });
 });
+
+describe("post creation", () => {
+    test("can create a post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Author", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session, {name: "Test Bot"});
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                channelId: channel.id,
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "This is my new post!"}],
+                        },
+                    ],
+                },
+            },
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                post: {
+                    id: expect.any(String),
+                    author: {
+                        botId: bot.bot.id,
+                        id: bot.action().actor.getBotAccountId(),
+                        name: expect.stringMatching(bot.initialName),
+                        shortName: "Test",
+                        space: {
+                            addedTime: expect.any(String),
+                            role: "Member",
+                        },
+                    },
+                    channel: {
+                        id: channel.id,
+                        name: "Test Channel",
+                    },
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Text",
+                                        text: "This is my new post!",
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    contentPreview: "in Test Channel: This is my new post!",
+                },
+            },
+        });
+    });
+
+    test("can create a post with rich content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Rich Content Channel",
+            access: "Public",
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                channelId: channel.id,
+                content: {
+                    elements: [
+                        {
+                            type: "Heading",
+                            level: 1,
+                            elements: [{type: "Text", text: "Important Announcement"}],
+                        },
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {type: "Text", text: "This is "},
+                                {
+                                    type: "Text",
+                                    text: "bold",
+                                    marks: [{type: "Bold"}],
+                                },
+                                {type: "Text", text: " and "},
+                                {
+                                    type: "Text",
+                                    text: "italic",
+                                    marks: [{type: "Italic"}],
+                                },
+                                {type: "Text", text: " text."},
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                post: {
+                    id: expect.any(String),
+                    author: {
+                        botId: bot.bot.id,
+                        id: bot.action().actor.getBotAccountId(),
+                        name: expect.stringMatching(bot.initialName),
+                        shortName: "Test",
+                        space: {
+                            addedTime: expect.any(String),
+                            role: "Member",
+                        },
+                    },
+                    channel: {
+                        id: channel.id,
+                        name: "Rich Content Channel",
+                    },
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Important Announcement"}],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "This is "},
+                                    {type: "Text", text: "bold", marks: [{type: "Bold"}]},
+                                    {type: "Text", text: " and "},
+                                    {type: "Text", text: "italic", marks: [{type: "Italic"}]},
+                                    {type: "Text", text: " text."},
+                                ],
+                            },
+                        ],
+                    },
+                    contentPreview: "in Rich Content Channel: Important Announcement",
+                },
+            },
+        });
+    });
+
+    test("can’t create post without access to channel", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+
+        expect(
+            await server.POST("/posts", {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    channelId: channel.id,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Unauthorized post"}],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "You aren’t allowed to post in this channel. Ask someone who can share the channel to give you post access.",
+                }),
+            },
+        });
+    });
+
+    test("can’t create post for non-existent channel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.POST("/posts", {
+                headers: {authorization: `bearer ${apiKey}`},
+                body: {
+                    channelId: generateId<ChannelId>(),
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Post to nowhere"}],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message:
+                        "This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.",
+                }),
+            },
+        });
+    });
+
+    test("can’t create post without authorization (no API key)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+
+        expect(
+            await server.POST("/posts", {
+                headers: {},
+                body: {
+                    channelId: channel.id,
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Unauthorized post"}],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).toEqual({
+            status: 401,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: "Missing `Authorization` header.",
+                }),
+            },
+        });
+    });
+
+    test("can create post with empty content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                channelId: channel.id,
+                content: {
+                    elements: [{type: "Paragraph", elements: []}],
+                },
+            },
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                post: {
+                    id: expect.any(String),
+                    author: {
+                        botId: bot.bot.id,
+                        id: bot.action().actor.getBotAccountId(),
+                        name: expect.stringMatching(bot.initialName),
+                        shortName: "Test",
+                        space: {
+                            addedTime: expect.any(String),
+                            role: "Member",
+                        },
+                    },
+                    channel: {
+                        id: channel.id,
+                        name: "Test Channel",
+                    },
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [],
+                            },
+                        ],
+                    },
+                    contentPreview: "in Test Channel:",
+                },
+            },
+        });
+    });
+});

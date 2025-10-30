@@ -1,5 +1,6 @@
 import {
     ServerActionContext,
+    ServerImpersonatedAccountActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -842,7 +843,7 @@ function getSearchAffinityEntityInteractionPoints(
 // these interactions. Since all of these interactions are harder to do on
 // mobile that must mean it's worth more to the user?
 export function markSearchAffinityEntityInteraction(
-    context: ServerSessionActionContext,
+    context: ServerSessionActionContext | ServerImpersonatedAccountActionContext,
     {
         spaceId,
         entityId,

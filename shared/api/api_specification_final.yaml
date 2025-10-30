@@ -342,6 +342,25 @@ paths:
                                     channel:
                                         $ref: "#/components/schemas/Channel"
 
+    /posts:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [channelId, content]
+                            additionalProperties: false
+                            properties:
+                                channelId:
+                                    $ref: "#/components/schemas/ChannelId"
+                                content:
+                                    $ref: "#/components/schemas/Content"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetPost"}
+
     /posts/{id}:
         parameters:
             - name: id
@@ -351,18 +370,7 @@ paths:
         get:
             responses:
                 default: {$ref: "#/components/responses/Error"}
-                "200":
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                required: [spaceId, post]
-                                additionalProperties: false
-                                properties:
-                                    spaceId:
-                                        $ref: "#/components/schemas/SpaceId"
-                                    post:
-                                        $ref: "#/components/schemas/Post"
+                "200": {$ref: "#/components/responses/GetPost"}
 
     /posts/{id}/messages/{index}:
         parameters:
@@ -742,6 +750,19 @@ components:
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
+
+        GetPost:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, post]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            post:
+                                $ref: "#/components/schemas/Post"
 
     requestBodies:
         CreateMessage:

@@ -574,6 +574,41 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/posts": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly get?: never;
+            readonly put?: never;
+            readonly post: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path?: never;
+                    readonly cookie?: never;
+                };
+                readonly requestBody: {
+                    readonly content: {
+                        readonly "application/json": {
+                            readonly channelId: components["schemas"]["ChannelId"];
+                            readonly content: components["schemas"]["Content"];
+                        };
+                    };
+                };
+                readonly responses: {
+                    readonly 200: components["responses"]["GetPost"];
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/posts/{id}": {
             readonly parameters: {
                 readonly query?: never;
@@ -594,17 +629,7 @@ export namespace ApiSpecification {
                 };
                 readonly requestBody?: never;
                 readonly responses: {
-                    readonly 200: {
-                        headers: {
-                            readonly [name: string]: unknown;
-                        };
-                        content: {
-                            readonly "application/json": {
-                                readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly post: components["schemas"]["Post"];
-                            };
-                        };
-                    };
+                    readonly 200: components["responses"]["GetPost"];
                     readonly default: components["responses"]["Error"];
                 };
             };
@@ -1799,6 +1824,17 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
+                    };
+                };
+            };
+            readonly GetPost: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        readonly spaceId: components["schemas"]["SpaceId"];
+                        readonly post: components["schemas"]["Post"];
                     };
                 };
             };

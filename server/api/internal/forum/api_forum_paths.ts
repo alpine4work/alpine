@@ -8,6 +8,7 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
@@ -20,6 +21,10 @@ import {
     putPostCommentStreamPart,
 } from "~/server/forum/data/post_messaging.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {
+    PostContentProsemirrorSchema,
+    assertPostContent,
+} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -36,7 +41,7 @@ import {
 
 export const apiForumPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/channels/${string}` | `/posts/${string}`)
+    keyof ApiPaths & (`/channels/${string}` | `/posts${string}`)
 > = {
     "/channels/{id}": {
         get: async (context, {pathParameters}) => {
@@ -54,6 +59,58 @@ export const apiForumPaths: Pick<
                             context,
                             channel.spaceId,
                             channel.description,
+                        ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/posts": {
+        post: async (context, {requestBody}) => {
+            const channelId = requestBody.channelId;
+
+            const content = assertPostContent(
+                fromApiContent(PostContentProsemirrorSchema, requestBody.content),
+            );
+
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
+            const [post, author, {content: contentWithReferences, references}] =
+                await runAllPromises([
+                    createPost(context, {
+                        channelId,
+                        content,
+                        consistency: "Strong",
+                    }),
+                    getApiAccount(
+                        referencesContext,
+                        referencesContext.actor.getSpaceId(),
+                        referencesContext.actor.getBotAccountId(),
+                    ),
+                    intoApiContentWithReferencesAndReturnReferences(
+                        referencesContext,
+                        referencesContext.actor.getSpaceId(),
+                        "AssertHasNoFiles",
+                        content,
+                    ),
+                ]);
+
+            return {
+                content: {
+                    spaceId: post.spaceId,
+                    post: {
+                        id: post.id,
+                        channel: {
+                            id: channelId,
+                            name: post.channelName,
+                        },
+                        author,
+                        content: contentWithReferences,
+                        contentPreview: createPostSearchEntityTitle(
+                            post.channelName,
+                            content,
+                            getContentReferencesForServerPrintSingleLineTextSnippet(references),
                         ),
                     },
                 },

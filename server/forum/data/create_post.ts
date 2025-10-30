@@ -3,9 +3,12 @@ import {
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
+    ServerImpersonatedAccountActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
@@ -49,27 +52,32 @@ import {ReactionSet} from "~/shared/reactions/reaction_set.js";
  * provided so we can delete the draft.
  */
 export async function createPost(
-    context: ServerSessionActionContext,
+    context: ServerAccountActionContext,
     {
         id: postId = generateId<PostId>(),
         channelId,
         draftId = null,
         content,
+        consistency,
     }: {
         id?: PostId;
         channelId: ChannelId;
         draftId?: PostDraftId | null;
         content: PostContent;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
+    channelName: string;
     getDynamoGeneralRealtimeEventTransaction: (
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
 }> {
-    const {spaceId} = await authorizeChannelAccess(context, channelId, "Edit");
+    const {spaceId, channelName} = await authorizeChannelAccess(context, channelId, "Edit", {
+        consistency,
+    });
 
     const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
 
@@ -83,7 +91,7 @@ export async function createPost(
         // this slightly awkward form to let tests mock different times for post
         // creation.
         createdTime: new Date(Date.now()),
-        authorId: context.actor.getAccountId(),
+        authorId: context.actor.getPossiblyBotAccountId(),
         content,
         contentUpdate: null,
         commentsSummary: {
@@ -157,6 +165,45 @@ export async function createPost(
             }),
         ]);
     }
+
+    afterCreatePost(context, {
+        spaceId,
+        channelId,
+        postId,
+        postItem,
+        content,
+        draftId,
+    });
+
+    return {
+        id: postId,
+        spaceId,
+        createdTime: postItem.createdTime,
+        channelName,
+        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
+    };
+}
+
+function afterCreatePost(
+    originalContext: ServerAccountActionContext,
+    {
+        spaceId,
+        channelId,
+        postId,
+        postItem,
+        content,
+        draftId,
+    }: {
+        spaceId: SpaceId;
+        channelId: ChannelId;
+        postId: PostId;
+        postItem: PostAttributesItem;
+        content: PostContent;
+        draftId: PostDraftId | null;
+    },
+) {
+    const context: ServerAccountActionContext =
+        originalContext.dynamo.unexpectStrongReadConsistency();
 
     // TODO(calebmer): If the Node.js process crashes between the DynamoDB write
     // creating the post and this code, we won't show the newly created post in the
@@ -252,7 +299,7 @@ export async function createPost(
 
                 oldContributionCount =
                     contributorsItem.contributionCountByAccountId.get(
-                        context.actor.getAccountId(),
+                        context.actor.getPossiblyBotAccountId(),
                     ) ?? 0;
 
                 newContributionCount = Math.min(
@@ -271,7 +318,7 @@ export async function createPost(
                 );
 
                 newContributionCountByAccountId.set(
-                    context.actor.getAccountId(),
+                    context.actor.getPossiblyBotAccountId(),
                     newContributionCount,
                 );
 
@@ -340,36 +387,41 @@ export async function createPost(
     // fairly short lived (a couple days). However, we give channels affinity
     // points so you could quickly jump to a channel if you're looking for a
     // certain post inside the channel.
-    context.process.waitUntil(
-        markSearchAffinityEntityInteraction(context, {
-            spaceId,
-            entityId: `Channel:${channelId}`,
-            interaction: {type: "MediumIntentUpdate"},
-        }),
-    );
-
-    // Increase affinity points for all mentioned accounts with a high intent
-    // update since the user clearly wants the attention of the mentioned accounts.
     //
-    // (If a mentioned account doesn't have access to this message should that
-    // still be a high intent update? For now we say yes since the user is
-    // explicitly choosing to reference them.)
-    for (const mentionedAccountId of mentionedAccountIds) {
-        context.process.waitUntil(async () => {
-            if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
-                await markSearchAffinityEntityInteraction(context, {
+    // Importantly, bots do not accrue affinity points.
+    if (context.actor.type !== "Bot") {
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(
+                context as ServerSessionActionContext | ServerImpersonatedAccountActionContext,
+                {
                     spaceId,
-                    entityId: `Account:${mentionedAccountId}`,
-                    interaction: {type: "HighIntentUpdate"},
-                });
-            }
-        });
-    }
+                    entityId: `Channel:${channelId}`,
+                    interaction: {type: "MediumIntentUpdate"},
+                },
+            ),
+        );
 
-    return {
-        id: postId,
-        spaceId,
-        createdTime: postItem.createdTime,
-        getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
-    };
+        // Increase affinity points for all mentioned accounts with a high intent
+        // update since the user clearly wants the attention of the mentioned accounts.
+        //
+        // (If a mentioned account doesn't have access to this message should that
+        // still be a high intent update? For now we say yes since the user is
+        // explicitly choosing to reference them.)
+        for (const mentionedAccountId of mentionedAccountIds) {
+            context.process.waitUntil(async () => {
+                if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
+                    await markSearchAffinityEntityInteraction(
+                        context as
+                            | ServerSessionActionContext
+                            | ServerImpersonatedAccountActionContext,
+                        {
+                            spaceId,
+                            entityId: `Account:${mentionedAccountId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        },
+                    );
+                }
+            });
+        }
+    }
 }
