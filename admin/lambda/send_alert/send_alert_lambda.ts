@@ -5,9 +5,9 @@ import {GitHubActionsEventPayload} from "~/admin/lambda/send_alert/send_alert_gi
 import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeycomb.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
-    sendGitHubActionsToAlpine,
-    sendHoneycombToAlpine,
-    sendPagerDutyToAlpine,
+    sendGitHubActionsAlertToAlpine,
+    sendHoneycombAlertToAlpine,
+    sendPagerDutyAlertToAlpine,
 } from "~/admin/lambda/send_alert/send_alert_to_alpine.js";
 
 // This file implements a Lambda function that processes incoming alert events
@@ -223,27 +223,37 @@ export const handler: Handler<LambdaFunctionUrlEvent, LambdaFunctionUrlResult> =
             };
         }
 
+        let result: {ok: true} | {ok: false; error: string; statusCode?: number} = {ok: true};
+
         // Actually process the event data
         if (validation.source === "pagerduty") {
-            sendPagerDutyToAlpine(alertEvent as PagerDutyEventPayload);
+            result = await sendPagerDutyAlertToAlpine(alertEvent as PagerDutyEventPayload);
         } else if (validation.source === "honeycomb") {
-            sendHoneycombToAlpine(alertEvent as HoneycombEventPayload);
+            result = await sendHoneycombAlertToAlpine(alertEvent as HoneycombEventPayload);
         } else if (validation.source === "github_actions") {
             const eventType = event.headers["x-github-event"];
-            if (!eventType) {
-                console.error("Missing X-GitHub-Event header");
-
-                return {
+            if (eventType) {
+                result = await sendGitHubActionsAlertToAlpine({
+                    type: eventType,
+                    ...alertEvent,
+                } as GitHubActionsEventPayload);
+            } else {
+                result = {
+                    ok: false,
+                    error: "Missing X-GitHub-Event header",
                     statusCode: 400,
-                    headers: {"content-type": "application/json"},
-                    body: JSON.stringify({ok: false, error: "Missing X-GitHub-Event header"}),
                 };
             }
+        }
 
-            sendGitHubActionsToAlpine({
-                type: eventType,
-                ...alertEvent,
-            } as GitHubActionsEventPayload);
+        if (!result.ok) {
+            console.error("Failed to process alert");
+            console.error(result.error);
+            return {
+                statusCode: result.statusCode || 400,
+                headers: {"content-type": "application/json"},
+                body: JSON.stringify({ok: false, error: result.error}),
+            };
         }
 
         return {

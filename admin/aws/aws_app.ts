@@ -230,6 +230,7 @@ function addAwsLifecycleResources(
             GITHUB_ACTIONS_WEBHOOK_SECRET: sendAlertSecrets
                 .secretValueFromJson("gitHubActionsWebhookSecret")
                 .unsafeUnwrap(),
+            ALPINE_API_KEY: sendAlertSecrets.secretValueFromJson("alpineAPIKey").unsafeUnwrap(),
         },
     });
 

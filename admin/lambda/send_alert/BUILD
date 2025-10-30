@@ -10,7 +10,9 @@ ts_project(
     deps = [
         "//:node_modules/@types/aws-lambda",
         "//server/lambda",
+        "//shared/api",
         "//shared/error",
+        "//shared/id",
     ],
 )
 

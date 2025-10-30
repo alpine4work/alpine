@@ -4660,6 +4660,12 @@ Resources:
                             - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:AlertSecrets:SecretString:gitHubActionsWebhookSecret::}}
+                    ALPINE_API_KEY:
+                        Fn::Join:
+                            - ""
+                            - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:AlertSecrets:SecretString:alpineAPIKey::}}
                     NODE_ENV: production
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
                     JOB_QUEUE_URL:
