@@ -55,7 +55,7 @@ function createUserElement(
 async function sendAlertToAlpine(
     channel: string,
     channelId: string,
-    postContent: ApiContent,
+    content: ApiContent,
 ): Promise<SendAlertResult> {
     const alpineAPIKey = process.env.ALPINE_API_KEY;
     if (!alpineAPIKey) {
@@ -67,12 +67,58 @@ async function sendAlertToAlpine(
         };
     }
 
-    console.log(`Sending to ${channel} (${channelId}):`);
-    const body = {content: postContent};
-    console.log(JSON.stringify(body, null, 2));
-    // TODO: Implement actual sending to Alpine
+    // Get base URL and construct API endpoint
+    const edgeServiceUrl = process.env.EDGE_SERVICE_URL;
+    if (!edgeServiceUrl) {
+        console.error("EDGE_SERVICE_URL is not set in environment variables");
+        return {
+            ok: false,
+            error: "EDGE_SERVICE_URL is not set in environment variables",
+            statusCode: 500,
+        };
+    }
 
-    return {ok: true};
+    // Insert api. before the domain name
+    const apiUrl = edgeServiceUrl.replace("://", "://api.") + "/posts";
+    const body = {
+        channelId,
+        content,
+    };
+
+    console.log(`Sending to ${channel}`);
+    console.log(JSON.stringify(body, null, 2));
+
+    try {
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${alpineAPIKey}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Failed to send alert: ${response.status} ${response.statusText}`);
+            console.error(`Response: ${errorText}`);
+            return {
+                ok: false,
+                error: `HTTP ${response.status}: ${response.statusText}`,
+                statusCode: response.status,
+            };
+        }
+
+        return {ok: true};
+    } catch (error) {
+        console.error("Error sending alert:", error);
+        return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+            statusCode: 500,
+        };
+    }
 }
 
 export async function sendPagerDutyAlertToAlpine(
