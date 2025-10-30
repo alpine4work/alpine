@@ -188,8 +188,17 @@ export async function sendPagerDutyAlertToAlpine(
 
     const incidentData = data.event.data;
 
+    const status = incidentData.status.toLowerCase();
+
+    const emoji =
+        {
+            triggered: "🚨",
+            acknowledged: "⚠️",
+            resolved: "✅",
+        }[status] || "ℹ️";
+
     const elements: Array<ApiContentElement> = [
-        ...createHeaderElements(`🚨 Incident: ${incidentData.title}`, [
+        ...createHeaderElements(`${emoji} Incident: ${incidentData.title}`, [
             {label: "View Incident", url: incidentData.html_url},
             {label: "Escalation Policy", url: incidentData.escalation_policy.html_url},
         ]),
@@ -198,20 +207,7 @@ export async function sendPagerDutyAlertToAlpine(
             elements: [
                 {
                     type: "Text",
-                    text: "Incident #",
-                },
-                {
-                    type: "Text",
-                    text: incidentData.number.toString(),
-                    marks: [
-                        {
-                            type: "Link",
-                            url: incidentData.html_url,
-                        },
-                        {
-                            type: "Code",
-                        },
-                    ],
+                    text: `Incident #${incidentData.number}`,
                 },
                 {
                     type: "Text",
@@ -232,6 +228,41 @@ export async function sendPagerDutyAlertToAlpine(
                 },
             ],
         },
+    ];
+
+    if (status === "resolved") {
+        elements.push({type: "Divider"});
+        elements.push({
+            type: "Paragraph",
+            elements: [
+                {
+                    type: "Text",
+                    text: "The incident has been resolved.",
+                    marks: [
+                        {
+                            type: "Bold",
+                        },
+                    ],
+                },
+            ],
+        });
+
+        if (incidentData.resolve_reason) {
+            elements.push({
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Text",
+                        text: incidentData.resolve_reason,
+                    },
+                ],
+            });
+        }
+
+        elements.push({type: "Divider"});
+    }
+
+    elements.push(
         {
             type: "Paragraph",
             elements: [
@@ -320,7 +351,7 @@ export async function sendPagerDutyAlertToAlpine(
                 },
             ],
         },
-    ];
+    );
 
     if (incidentData.assignees.length > 0) {
         elements.push({
@@ -365,11 +396,13 @@ export async function sendHoneycombAlertToAlpine(
     console.log("Received Honeycomb event");
     console.debug(JSON.stringify(data, null, 2));
 
+    const status = data.alert.status.toLowerCase();
+
     const emoji =
         {
             triggered: "🚨",
             ok: "✅",
-        }[data.alert.status] || "ℹ️";
+        }[status] || "ℹ️";
 
     const elements: Array<ApiContentElement> = createHeaderElements(
         `${emoji} Alert: ${data.name}`,
@@ -379,7 +412,7 @@ export async function sendHoneycombAlertToAlpine(
         ],
     );
 
-    if (data.alert.status === "ok") {
+    if (status === "ok") {
         elements.push({
             type: "Paragraph",
             elements: [
@@ -432,7 +465,7 @@ export async function sendHoneycombAlertToAlpine(
         ],
     });
 
-    if (data.alert.status !== "ok") {
+    if (status !== "ok") {
         elements.push({
             type: "Paragraph",
             elements: [
@@ -551,6 +584,20 @@ export async function sendGitHubActionsAlertToAlpine(
                         {
                             type: "Link",
                             url: `${data.repository.html_url}/commit/${data.workflow_run.head_sha}`,
+                        },
+                    ],
+                },
+            ],
+        },
+        {
+            type: "Quote",
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: data.workflow_run.head_commit.message,
                         },
                     ],
                 },
