@@ -1592,7 +1592,7 @@ function* parseApiContentInlineElementFromMarkdown(
             }
 
             const mentionTargetPath = url
-                ? parseApiContentMentionInlineElementTargetPathIfPossible(options.spaceId, url)
+                ? parseApiMentionPathIfPossible(options.spaceId, url)
                 : null;
 
             if (mentionTargetPath === null) {
@@ -1992,10 +1992,7 @@ function* parseApiContentInlineElementFromMarkdown(
     }
 }
 
-export function parseApiContentMentionInlineElementTargetPathIfPossible(
-    spaceId: SpaceId,
-    url: URL,
-): ApiMentionPath | null {
+export function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMentionPath | null {
     const isMentionUrl =
         url?.protocol === "https:" &&
         url.host === "alpine.inc" &&

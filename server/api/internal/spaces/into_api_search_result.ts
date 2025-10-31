@@ -1,7 +1,7 @@
 import {intoApiAccount} from "~/server/api/internal/shared/into_api_account.js";
 import {
     ApiSearchResult,
-    ApiSearchResultBodyMatch,
+    ApiSearchResultBodyMatchItem,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -22,7 +22,7 @@ export function intoApiSearchResult({
     const bodyMatch =
         bodyTextSnippet.length > 0
             ? bodyTextSnippet.map(
-                  (snippet): ApiSearchResultBodyMatch => ({
+                  (snippet): ApiSearchResultBodyMatchItem => ({
                       text: snippet.text,
                       ...(snippet.isHighlighted ? {isMatch: true} : {}),
                   }),
@@ -33,6 +33,7 @@ export function intoApiSearchResult({
         return {
             type: "Account",
             path: `/accounts/${model.id}`,
+            id: model.id,
             title: model.initialData.name,
             bodyMatch: null,
         };
@@ -55,6 +56,7 @@ export function intoApiSearchResult({
             return {
                 type: "Channel",
                 path: `/channels/${entity.channelId}`,
+                id: entity.channelId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
             };
@@ -63,6 +65,7 @@ export function intoApiSearchResult({
             return {
                 type: "Chat",
                 path: `/chats/${entity.chatId}`,
+                id: entity.chatId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
             };
@@ -79,6 +82,8 @@ export function intoApiSearchResult({
             return {
                 type: "ChatMessage",
                 path: `/chats/${entity.chatId}/messages/${entity.messageIndex}`,
+                id: entity.chatId,
+                index: entity.messageIndex,
                 title: null,
                 bodyMatch,
                 author,
@@ -88,6 +93,7 @@ export function intoApiSearchResult({
             return {
                 type: "Document",
                 path: `/documents/${entity.documentId}`,
+                id: entity.documentId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch,
             };
@@ -102,6 +108,9 @@ export function intoApiSearchResult({
             return {
                 type: "DocumentMessage",
                 path: `/documents/${entity.documentId}/threads/${entity.commentThreadId}/messages/${entity.commentIndex}`,
+                id: entity.documentId,
+                threadId: entity.commentThreadId,
+                index: entity.commentIndex,
                 title: null,
                 bodyMatch,
                 author,
@@ -117,6 +126,7 @@ export function intoApiSearchResult({
             return {
                 type: "Post",
                 path: `/posts/${entity.postId}`,
+                id: entity.postId,
                 bodyMatch,
                 author,
                 title: model.initialData.title ?? missingSearchEntityTitle,
@@ -132,6 +142,8 @@ export function intoApiSearchResult({
             return {
                 type: "PostMessage",
                 path: `/posts/${entity.postId}/messages/${entity.commentIndex}`,
+                id: entity.postId,
+                index: entity.commentIndex,
                 title: null,
                 bodyMatch,
                 author,
@@ -143,6 +155,7 @@ export function intoApiSearchResult({
             return {
                 type: "Task",
                 path: `/tasks/${entity.taskId}`,
+                id: entity.taskId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch,
                 status: intoApiTaskStatus(model.initialData.media.displayStatus),
@@ -152,6 +165,7 @@ export function intoApiSearchResult({
             return {
                 type: "TaskCollection",
                 path: `/task-collections/${entity.collectionId}`,
+                id: entity.collectionId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
             };
@@ -166,6 +180,8 @@ export function intoApiSearchResult({
             return {
                 type: "TaskMessage",
                 path: `/tasks/${entity.taskId}/messages/${entity.commentIndex}`,
+                id: entity.taskId,
+                index: entity.commentIndex,
                 title: null,
                 bodyMatch,
                 author,

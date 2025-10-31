@@ -6,7 +6,7 @@ import {gfmTableToMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
-import {getApiContentMentionInlineElementTargetPathNoun} from "~/server/api/markdown/get_api_content_mention_inline_element_target_path_type_noun.js";
+import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {
     ApiMentionPathObject,
@@ -969,14 +969,12 @@ function* printApiContentInlineElementToMarkdown(
                 element.title ??
                 (targetPathObject.type === "Account"
                     ? "Unknown"
-                    : `Unknown ${getApiContentMentionInlineElementTargetPathNoun(
-                          targetPathObject.type,
-                      )}`);
+                    : `Unknown ${getApiMentionPathNoun(targetPathObject.type)}`);
 
-            const targetUrl = printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
-                targetPathObject,
-                {spaceId: options.spaceId, isAccountShortName: element.isAccountShortName},
-            );
+            const targetUrl = printApiMentionPathToMentionLinkUrl(targetPathObject, {
+                spaceId: options.spaceId,
+                isAccountShortName: element.isAccountShortName,
+            });
 
             const childContent: Array<PhrasingContent> = [
                 {
@@ -1008,7 +1006,7 @@ function* printApiContentInlineElementToMarkdown(
     }
 }
 
-export function printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
+export function printApiMentionPathToMentionLinkUrl(
     targetPathObject: ApiMentionPathObject,
     {spaceId, isAccountShortName}: {spaceId: SpaceId; isAccountShortName: boolean | undefined},
 ) {

@@ -521,7 +521,7 @@ describe("printApiMessageRoomPath", () => {
     });
 });
 
-describe("parseApiContentMentionInlineElementTargetPath", () => {
+describe("parseApiMentionPath", () => {
     test("parses account path", () => {
         expect(parseApiMentionPath(`/accounts/${accountId}`)).toEqual({
             type: "Account",
@@ -565,7 +565,7 @@ describe("parseApiContentMentionInlineElementTargetPath", () => {
     });
 });
 
-describe("printApiContentMentionInlineElementTargetPath", () => {
+describe("printApiMentionPath", () => {
     test("prints account path", () => {
         expect(printApiMentionPath({type: "Account", accountId})).toEqual(`/accounts/${accountId}`);
     });
@@ -627,7 +627,7 @@ describe("parseApiContentNonMentionableElementTargetPath", () => {
     });
 });
 
-describe("isApiContentMentionInlineElementTargetPath", () => {
+describe("isApiMentionPath", () => {
     test("returns true for mentionable paths", () => {
         expect(isApiMentionPath(`/accounts/${accountId}`)).toEqual(true);
         expect(isApiMentionPath(`/channels/${channelId}`)).toEqual(true);
@@ -657,7 +657,7 @@ describe("isApiContentMentionInlineElementTargetPath", () => {
     });
 });
 
-describe("getApiContentMentionInlineElementTargetPathIfExists", () => {
+describe("getApiMentionPathIfExists", () => {
     test("returns path for already mentionable paths", () => {
         expect(getApiMentionPathIfExists(`/accounts/${accountId}`)).toEqual(
             `/accounts/${accountId}`,

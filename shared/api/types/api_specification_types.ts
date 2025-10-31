@@ -1164,7 +1164,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["DocumentThreadMessagesListPath"]
                 | components["schemas"]["PostMessagesListPath"]
                 | components["schemas"]["TaskMessagesListPath"];
-            readonly ContentMentionInlineElementTargetPath:
+            readonly MentionPath:
                 | components["schemas"]["AccountPath"]
                 | components["schemas"]["ChannelPath"]
                 | components["schemas"]["DocumentPath"]
@@ -1357,7 +1357,7 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Mention";
-                readonly targetPath: components["schemas"]["ContentMentionInlineElementTargetPath"];
+                readonly targetPath: components["schemas"]["MentionPath"];
                 readonly title?: string;
                 readonly isAccountShortName?: boolean;
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
@@ -1609,7 +1609,7 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Read";
-                readonly targetPath: components["schemas"]["ContentMentionInlineElementTargetPath"];
+                readonly targetPath: components["schemas"]["MentionPath"];
                 readonly title: string;
             };
             readonly BotWebhookEvent: components["schemas"]["BotWebhookNewMessageEvent"];
@@ -1643,6 +1643,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Account";
                 readonly path: components["schemas"]["AccountPath"];
+                readonly id: components["schemas"]["AccountId"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
@@ -1654,8 +1655,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Channel";
                 readonly path: components["schemas"]["ChannelPath"];
+                readonly id: components["schemas"]["ChannelId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
             };
             readonly SearchChatResult: {
                 /**
@@ -1664,6 +1666,7 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Chat";
                 readonly path: components["schemas"]["ChatPath"];
+                readonly id: components["schemas"]["ChatId"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
@@ -1675,7 +1678,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "ChatMessage";
                 readonly path: components["schemas"]["ChatMessagePath"];
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"];
+                readonly id: components["schemas"]["ChatId"];
+                readonly index: number;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
                 /** @constant */
                 readonly title: null;
                 readonly author: components["schemas"]["Account"];
@@ -1687,8 +1692,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Document";
                 readonly path: components["schemas"]["DocumentPath"];
+                readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
             };
             readonly SearchDocumentMessageResult: {
                 /**
@@ -1697,9 +1703,12 @@ export namespace ApiSpecification {
                  */
                 readonly type: "DocumentMessage";
                 readonly path: components["schemas"]["DocumentMessagePath"];
+                readonly id: components["schemas"]["DocumentId"];
+                readonly threadId: components["schemas"]["DocumentThreadId"];
+                readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
             };
             readonly SearchPostResult: {
@@ -1709,8 +1718,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Post";
                 readonly path: components["schemas"]["PostPath"];
+                readonly id: components["schemas"]["PostId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
             };
             readonly SearchPostMessageResult: {
@@ -1720,9 +1730,11 @@ export namespace ApiSpecification {
                  */
                 readonly type: "PostMessage";
                 readonly path: components["schemas"]["PostMessagePath"];
+                readonly id: components["schemas"]["PostId"];
+                readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
             };
             readonly SearchTaskResult: {
@@ -1732,8 +1744,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Task";
                 readonly path: components["schemas"]["TaskPath"];
+                readonly id: components["schemas"]["TaskId"];
                 readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly status: components["schemas"]["TaskStatus"];
             };
             readonly SearchTaskMessageResult: {
@@ -1743,9 +1756,11 @@ export namespace ApiSpecification {
                  */
                 readonly type: "TaskMessage";
                 readonly path: components["schemas"]["TaskMessagePath"];
+                readonly id: components["schemas"]["TaskId"];
+                readonly index: number;
                 /** @constant */
                 readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatches"] | null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
             };
             readonly SearchTaskCollectionResult: {
@@ -1755,11 +1770,12 @@ export namespace ApiSpecification {
                  */
                 readonly type: "TaskCollection";
                 readonly path: components["schemas"]["TaskCollectionPath"];
+                readonly id: components["schemas"]["TaskCollectionId"];
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
             };
-            readonly SearchResultBodyMatches: readonly {
+            readonly SearchResultBodyMatch: readonly {
                 readonly text: string;
                 /** @constant */
                 readonly isMatch?: true;

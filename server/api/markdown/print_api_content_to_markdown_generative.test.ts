@@ -6,8 +6,8 @@ import {
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     isSimpleApiContentTableBlockElementForTest,
-    printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
     printApiContentToMarkdown,
+    printApiMentionPathToMentionLinkUrl,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_code_block_language_definition.js";
 import {ApiMentionPathObject, printApiMentionPath} from "~/shared/api/parse_api_path.js";
@@ -72,27 +72,26 @@ function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
         .map(bytes => encodeId<Value>(bytes));
 }
 
-const ApiContentMentionInlineElementTargetPathObjectArbitrary =
-    createUnionArbitrary<ApiMentionPathObject>({
-        Account: createIdArbitrary<AccountId>().map(accountId => ({
-            type: "Account",
-            accountId,
-        })),
-        Channel: createIdArbitrary<ChannelId>().map(channelId => ({
-            type: "Channel",
-            channelId,
-        })),
-        Document: createIdArbitrary<DocumentId>().map(documentId => ({
-            type: "Document",
-            documentId,
-        })),
-        Post: createIdArbitrary<PostId>().map(postId => ({type: "Post", postId})),
-        Task: createIdArbitrary<TaskId>().map(taskId => ({type: "Task", taskId})),
-        TaskCollection: createIdArbitrary<TaskCollectionId>().map(collectionId => ({
-            type: "TaskCollection",
-            collectionId,
-        })),
-    });
+const ApiMentionPathObjectArbitrary = createUnionArbitrary<ApiMentionPathObject>({
+    Account: createIdArbitrary<AccountId>().map(accountId => ({
+        type: "Account",
+        accountId,
+    })),
+    Channel: createIdArbitrary<ChannelId>().map(channelId => ({
+        type: "Channel",
+        channelId,
+    })),
+    Document: createIdArbitrary<DocumentId>().map(documentId => ({
+        type: "Document",
+        documentId,
+    })),
+    Post: createIdArbitrary<PostId>().map(postId => ({type: "Post", postId})),
+    Task: createIdArbitrary<TaskId>().map(taskId => ({type: "Task", taskId})),
+    TaskCollection: createIdArbitrary<TaskCollectionId>().map(collectionId => ({
+        type: "TaskCollection",
+        collectionId,
+    })),
+});
 
 const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
     fc.record({
@@ -106,15 +105,12 @@ const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElemen
             {
                 weight: 1,
                 arbitrary: fc
-                    .tuple(ApiContentMentionInlineElementTargetPathObjectArbitrary, fc.boolean())
+                    .tuple(ApiMentionPathObjectArbitrary, fc.boolean())
                     .map(([targetPathObject, isAccountShortName]) =>
-                        printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
-                            targetPathObject,
-                            {
-                                spaceId,
-                                isAccountShortName,
-                            },
-                        ),
+                        printApiMentionPathToMentionLinkUrl(targetPathObject, {
+                            spaceId,
+                            isAccountShortName,
+                        }),
                     ),
             },
         ),
@@ -177,9 +173,7 @@ const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElem
 const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElement> =
     fc.record({
         type: fc.constant("Mention"),
-        targetPath: ApiContentMentionInlineElementTargetPathObjectArbitrary.map(path =>
-            printApiMentionPath(path),
-        ),
+        targetPath: ApiMentionPathObjectArbitrary.map(path => printApiMentionPath(path)),
         title: fc.oneof(
             {arbitrary: fc.constant(undefined), weight: 10},
             {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},

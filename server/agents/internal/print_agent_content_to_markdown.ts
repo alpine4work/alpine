@@ -7,7 +7,7 @@ import {
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printMarkdownPhrasingContentText} from "~/server/api/markdown/agent_message_stream.js";
-import {parseApiContentMentionInlineElementTargetPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiMentionPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
@@ -72,9 +72,7 @@ export async function printAgentContentToMarkdownTree(
                 // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g.
                 // a chat message) will be replaced with a missing link. It may make more
                 // sense to create an actual link to the message when possible.
-                const mentionTargetPath = url
-                    ? parseApiContentMentionInlineElementTargetPathIfPossible(spaceId, url)
-                    : null;
+                const mentionTargetPath = url ? parseApiMentionPathIfPossible(spaceId, url) : null;
 
                 if (mentionTargetPath === null) {
                     node.children[index] = {

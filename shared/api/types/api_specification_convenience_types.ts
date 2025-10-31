@@ -1,9 +1,30 @@
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 
+export type ApiAccountPath = ApiSpecification.components["schemas"]["AccountPath"];
+
+export type ApiChannelPath = ApiSpecification.components["schemas"]["ChannelPath"];
+
+export type ApiChatPath = ApiSpecification.components["schemas"]["ChatPath"];
+
+export type ApiChatMessagePath = ApiSpecification.components["schemas"]["ChatMessagePath"];
+
+export type ApiDocumentPath = ApiSpecification.components["schemas"]["DocumentPath"];
+
+export type ApiDocumentMessagePath = ApiSpecification.components["schemas"]["DocumentMessagePath"];
+
+export type ApiPostPath = ApiSpecification.components["schemas"]["PostPath"];
+
+export type ApiPostMessagePath = ApiSpecification.components["schemas"]["PostMessagePath"];
+
+export type ApiTaskPath = ApiSpecification.components["schemas"]["TaskPath"];
+
+export type ApiTaskMessagePath = ApiSpecification.components["schemas"]["TaskMessagePath"];
+
+export type ApiTaskCollectionPath = ApiSpecification.components["schemas"]["TaskCollectionPath"];
+
 export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["MessageRoomPath"];
 
-export type ApiMentionPath =
-    ApiSpecification.components["schemas"]["ContentMentionInlineElementTargetPath"];
+export type ApiMentionPath = ApiSpecification.components["schemas"]["MentionPath"];
 
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
@@ -112,10 +133,10 @@ export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResu
 
 export type ApiSearchResultPath = ApiSpecification.components["schemas"]["SearchResultPath"];
 
-export type ApiSearchResultBodyMatches =
-    ApiSpecification.components["schemas"]["SearchResultBodyMatches"];
+export type ApiSearchResultBodyMatch =
+    ApiSpecification.components["schemas"]["SearchResultBodyMatch"];
 
-export type ApiSearchResultBodyMatch = ApiSearchResultBodyMatches[number];
+export type ApiSearchResultBodyMatchItem = ApiSearchResultBodyMatch[number];
 
 export type ApiErrorResponseBody =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];

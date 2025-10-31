@@ -919,7 +919,7 @@ components:
                 - $ref: "#/components/schemas/PostMessagesListPath"
                 - $ref: "#/components/schemas/TaskMessagesListPath"
 
-        ContentMentionInlineElementTargetPath:
+        MentionPath:
             oneOf:
                 - $ref: "#/components/schemas/AccountPath"
                 - $ref: "#/components/schemas/ChannelPath"
@@ -1224,7 +1224,7 @@ components:
                 type:
                     const: Mention
                 targetPath:
-                    $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
+                    $ref: "#/components/schemas/MentionPath"
                 title:
                     type: string
                     minLength: 1
@@ -1707,7 +1707,7 @@ components:
                 type:
                     const: Read
                 targetPath:
-                    $ref: "#/components/schemas/ContentMentionInlineElementTargetPath"
+                    $ref: "#/components/schemas/MentionPath"
                 title:
                     type: string
 
@@ -1766,13 +1766,15 @@ components:
 
         SearchAccountResult:
             type: object
-            required: [type, path, title, bodyMatch]
+            required: [type, path, id, title, bodyMatch]
             additionalProperties: false
             properties:
                 type:
                     const: Account
                 path:
                     $ref: "#/components/schemas/AccountPath"
+                id:
+                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
@@ -1780,29 +1782,33 @@ components:
 
         SearchChannelResult:
             type: object
-            required: [type, path, title, bodyMatch]
+            required: [type, path, id, title, bodyMatch]
             additionalProperties: false
             properties:
                 type:
                     const: Channel
                 path:
                     $ref: "#/components/schemas/ChannelPath"
+                id:
+                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
 
         SearchChatResult:
             type: object
-            required: [type, path, title, bodyMatch]
+            required: [type, path, id, title, bodyMatch]
             additionalProperties: false
             properties:
                 type:
                     const: Chat
                 path:
                     $ref: "#/components/schemas/ChatPath"
+                id:
+                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
@@ -1810,15 +1816,20 @@ components:
 
         SearchChatMessageResult:
             type: object
-            required: [type, path, title, bodyMatch, author]
+            required: [type, path, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: ChatMessage
                 path:
                     $ref: "#/components/schemas/ChatMessagePath"
+                id:
+                    $ref: "#/components/schemas/ChatId"
+                index:
+                    type: integer
+                    minimum: 0
                 bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatches"
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
                 title:
                     const: null
                 author:
@@ -1826,125 +1837,150 @@ components:
 
         SearchDocumentResult:
             type: object
-            required: [type, path, title, bodyMatch]
+            required: [type, path, id, title, bodyMatch]
             additionalProperties: false
             properties:
                 type:
                     const: Document
                 path:
                     $ref: "#/components/schemas/DocumentPath"
+                id:
+                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
 
         SearchDocumentMessageResult:
             type: object
-            required: [type, path, title, bodyMatch, author]
+            required: [type, path, id, threadId, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: DocumentMessage
                 path:
                     $ref: "#/components/schemas/DocumentMessagePath"
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+                threadId:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
 
         SearchPostResult:
             type: object
-            required: [type, path, title, bodyMatch, author]
+            required: [type, path, id, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: Post
                 path:
                     $ref: "#/components/schemas/PostPath"
+                id:
+                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
 
         SearchPostMessageResult:
             type: object
-            required: [type, path, title, bodyMatch, author]
+            required: [type, path, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: PostMessage
                 path:
                     $ref: "#/components/schemas/PostMessagePath"
+                id:
+                    $ref: "#/components/schemas/PostId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
 
         SearchTaskResult:
             type: object
-            required: [type, path, title, bodyMatch, status]
+            required: [type, path, id, title, bodyMatch, status]
             additionalProperties: false
             properties:
                 type:
                     const: Task
                 path:
                     $ref: "#/components/schemas/TaskPath"
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
 
         SearchTaskMessageResult:
             type: object
-            required: [type, path, title, bodyMatch, author]
+            required: [type, path, id, index, title, bodyMatch, author]
             additionalProperties: false
             properties:
                 type:
                     const: TaskMessage
                 path:
                     $ref: "#/components/schemas/TaskMessagePath"
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatches"
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
 
         SearchTaskCollectionResult:
             type: object
-            required: [type, path, title, bodyMatch]
+            required: [type, path, id, title, bodyMatch]
             additionalProperties: false
             properties:
                 type:
                     const: TaskCollection
                 path:
                     $ref: "#/components/schemas/TaskCollectionPath"
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
 
-        SearchResultBodyMatches:
+        SearchResultBodyMatch:
             type: array
             items:
                 type: object

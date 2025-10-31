@@ -37,12 +37,11 @@ export type ApiMessageRoomPathObject = ApiContentFilteredPathObjectType<ApiMessa
 export type ApiMessageRoomMessagesListPath = `${ApiMessageRoomPath}/messages`;
 
 /**
- * A parsed object representation of `ApiContentMentionInlineElementTargetPath`.
+ * A parsed object representation of `ApiMentionPath`.
  */
 export type ApiMentionPathObject = ApiContentFilteredPathObjectType<ApiMentionPath>;
 
-// All `ApiPath`s excluding mentionable paths
-// (`ApiContentMentionInlineElementTargetPathObject`).
+// All `ApiPath`s excluding mentionable paths (`ApiMentionPathObject`).
 type ApiNotMentionPath = Exclude<ApiPath, ApiMentionPath>;
 
 export type ApiNotMentionPathObject = ApiContentFilteredPathObjectType<ApiNotMentionPath>;

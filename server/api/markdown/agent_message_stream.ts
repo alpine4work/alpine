@@ -4,7 +4,7 @@ import {
     parseMarkdownTree,
 } from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
-    printApiContentMentionInlineElementTargetPathToMentionLinkUrl,
+    printApiMentionPathToMentionLinkUrl,
     printAppUrlFromApiNotMentionPath,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
@@ -240,10 +240,10 @@ export class AgentMessageStream {
 
                             node.children[index] = {
                                 type: "link",
-                                url: printApiContentMentionInlineElementTargetPathToMentionLinkUrl(
-                                    mentionTargetPathObject,
-                                    {spaceId: this._spaceId, isAccountShortName: undefined},
-                                ),
+                                url: printApiMentionPathToMentionLinkUrl(mentionTargetPathObject, {
+                                    spaceId: this._spaceId,
+                                    isAccountShortName: undefined,
+                                }),
                                 children: childNode.children,
                                 position: childNode.position,
                             };

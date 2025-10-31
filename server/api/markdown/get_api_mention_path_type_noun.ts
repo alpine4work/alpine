@@ -1,7 +1,7 @@
 import {ApiMentionPathObject} from "~/shared/api/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
-export function getApiContentMentionInlineElementTargetPathNoun(
+export function getApiMentionPathNoun(
     type: Exclude<ApiMentionPathObject["type"], "Account">,
 ): string {
     switch (type) {
