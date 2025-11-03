@@ -10,8 +10,6 @@ import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData>) {
     return new AccountModel({
-        id: accountModelDataOptions.id ?? generateId<AccountId>(),
-        name: accountModelDataOptions.name ?? "Test Account",
         version: 0,
         nameVersion: 0,
         space: {
@@ -25,6 +23,8 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
         // `expect()` function.
         reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
+        id: accountModelDataOptions.id ?? generateId<AccountId>(),
+        name: accountModelDataOptions.name ?? "Test Account",
     });
 }
 

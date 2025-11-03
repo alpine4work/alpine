@@ -73,6 +73,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/accounts:accounts",
     "//server/accounts/with_spaces:with_spaces",
     "//server/agents:agents_lib",
+    "//server/agents/api:api",
     "//server/alpha:alpha",
     "//server/api:api_lib",
     "//server/api/internal/chat:chat",

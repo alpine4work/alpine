@@ -19,7 +19,7 @@ export async function loadAgentChannelLinkContent({
 }): Promise<Root> {
     const {
         data: {channel},
-    } = await request.apiClient.GET(tracer, "/channels/{id}", {
+    } = await request.apiClient.get(tracer, "/channels/{id}", {
         params: {path: {id: link.channelId}},
     });
 

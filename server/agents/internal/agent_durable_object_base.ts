@@ -1,5 +1,5 @@
 import {addHours, subHours} from "date-fns";
-import {ApiClient, createApiClient} from "~/server/agents/internal/api_client.js";
+import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";

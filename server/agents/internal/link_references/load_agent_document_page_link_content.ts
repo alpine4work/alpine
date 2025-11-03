@@ -139,7 +139,7 @@ async function fetchDocumentContentAndGetFirstPage({
 }): Promise<AgentDocumentPageLink> {
     const {
         data: {document},
-    } = await request.apiClient.GET(tracer, "/documents/{id}", {
+    } = await request.apiClient.get(tracer, "/documents/{id}", {
         params: {path: {id: link.documentId}},
     });
 

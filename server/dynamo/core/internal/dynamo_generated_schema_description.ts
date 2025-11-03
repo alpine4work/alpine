@@ -1853,6 +1853,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "optional": false
                                                                                     }
                                                                                 }
+                                                                            },
+                                                                            "Search": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "type": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Value",
+                                                                                            "value": "Search"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "query": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "String"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
                                                                             }
                                                                         }
                                                                     },

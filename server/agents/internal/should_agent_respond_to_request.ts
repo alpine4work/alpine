@@ -21,7 +21,7 @@ export async function shouldAgentRespondToRequest(
     const chat = await ApiChatCollection.getOrPutDefault(request.storage, chatId, async () => {
         const {
             data: {chat},
-        } = await request.apiClient.GET(tracer, "/chats/{id}", {
+        } = await request.apiClient.get(tracer, "/chats/{id}", {
             params: {path: {id: chatId}},
         });
         return chat;

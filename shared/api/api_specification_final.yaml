@@ -1694,10 +1694,12 @@ components:
         MessageStreamToolCallPartPayloadCall:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
             discriminator:
                 propertyName: type
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
+                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
@@ -1709,6 +1711,16 @@ components:
                 targetPath:
                     $ref: "#/components/schemas/MentionPath"
                 title:
+                    type: string
+
+        MessageStreamToolCallPartPayloadSearchCall:
+            type: object
+            required: [type, query]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Search
+                query:
                     type: string
 
         BotWebhookEvent:

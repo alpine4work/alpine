@@ -30,3 +30,11 @@ export const agentMessagePageTokenLimitCount = 500;
  * [1]: https://platform.openai.com/tokenizer
  */
 export const agentInitializeMessagesTokenLimitCount = 1500;
+
+/**
+ * When the agent uses the `search_alpine` tool, we want Alpine to return up to
+ * 20 results. See conversation here:
+ *
+ * https://app.graphite.dev/github/pr/cyberworlds/cyberworlds/702/search-alpine-chat-tool#comment-PRRC_kwDOH2ktg86Ty1oT
+ */
+export const agentSearchAlpineResultLimitCount = 20;

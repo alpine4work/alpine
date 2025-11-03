@@ -368,9 +368,32 @@ function MessageStreamViewToolCallPart({call}: {call: MessageStreamToolCallPartP
                     top: "0.1875rem",
                 }}
             />{" "}
-            Reading “<span className={sprinkles({fontStyle: "semi-bold"})}>{call.title}</span>”
+            {getToolCallLabel(call)}
         </div>
     );
+}
+
+function getToolCallLabel(call: MessageStreamToolCallPartPayloadCall) {
+    switch (call.type) {
+        case "Read": {
+            return (
+                <>
+                    Reading ”
+                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.title}</span>
+                </>
+            );
+        }
+        case "Search": {
+            return (
+                <>
+                    Searching ”
+                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.query}</span>
+                </>
+            );
+        }
+        default:
+            throw exhaustive(call);
+    }
 }
 
 function MessageStreamViewContentPart({

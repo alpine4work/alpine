@@ -1,5 +1,5 @@
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
-import {agentDocumentPageTokenLimitCount} from "~/server/agents/internal/agent_token_limit_counts.js";
+import {agentDocumentPageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentDocumentPageLink,

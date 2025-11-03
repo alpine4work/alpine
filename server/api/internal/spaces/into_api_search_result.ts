@@ -1,4 +1,3 @@
-import {intoApiAccount} from "~/server/api/internal/shared/into_api_account.js";
 import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,
@@ -13,6 +12,7 @@ import {
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 export function intoApiSearchResult({

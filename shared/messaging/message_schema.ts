@@ -260,6 +260,10 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
         targetPath: Schema.string as Schema<ApiMentionPath>,
         title: Schema.string,
     }),
+    Search: Schema.object({
+        type: Schema.value("Search"),
+        query: Schema.string,
+    }),
 });
 
 export type MessageStreamToolCallPartPayload = SchemaType<

@@ -56,11 +56,11 @@ type ApiClientMethod<Paths extends {}, Method extends HttpMethod, Media extends 
 }>;
 
 export type ApiClient = {
-    GET: ApiClientMethod<ApiSpecification.paths, "get", MediaType>;
-    PUT: ApiClientMethod<ApiSpecification.paths, "put", MediaType>;
-    POST: ApiClientMethod<ApiSpecification.paths, "post", MediaType>;
-    DELETE: ApiClientMethod<ApiSpecification.paths, "delete", MediaType>;
-    PATCH: ApiClientMethod<ApiSpecification.paths, "patch", MediaType>;
+    get: ApiClientMethod<ApiSpecification.paths, "get", MediaType>;
+    put: ApiClientMethod<ApiSpecification.paths, "put", MediaType>;
+    post: ApiClientMethod<ApiSpecification.paths, "post", MediaType>;
+    delete: ApiClientMethod<ApiSpecification.paths, "delete", MediaType>;
+    patch: ApiClientMethod<ApiSpecification.paths, "patch", MediaType>;
 };
 
 export function createApiClient({
@@ -202,11 +202,11 @@ export function createApiClient({
     }
 
     return {
-        GET: createRequest("GET"),
-        PUT: createRequest("PUT"),
-        POST: createRequest("POST"),
-        DELETE: createRequest("DELETE"),
-        PATCH: createRequest("PATCH"),
+        get: createRequest("GET"),
+        put: createRequest("PUT"),
+        post: createRequest("POST"),
+        delete: createRequest("DELETE"),
+        patch: createRequest("PATCH"),
     };
 }
 
@@ -218,12 +218,12 @@ export function getApiMessage(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET(tracer, "/chats/{id}/messages/{index}", {
+            return apiClient.get(tracer, "/chats/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.chatId, index}},
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -234,12 +234,12 @@ export function getApiMessage(
             });
         }
         case "Post": {
-            return apiClient.GET(tracer, "/posts/{id}/messages/{index}", {
+            return apiClient.get(tracer, "/posts/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.postId, index}},
             });
         }
         case "Task": {
-            return apiClient.GET(tracer, "/tasks/{id}/messages/{index}", {
+            return apiClient.get(tracer, "/tasks/{id}/messages/{index}", {
                 params: {path: {id: roomPathObject.taskId, index}},
             });
         }
@@ -256,7 +256,7 @@ export function getApiMessagesFromStart(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET(tracer, "/chats/{id}/messages", {
+            return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.chatId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -264,7 +264,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -275,7 +275,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "Post": {
-            return apiClient.GET(tracer, "/posts/{id}/messages", {
+            return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.postId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -283,7 +283,7 @@ export function getApiMessagesFromStart(
             });
         }
         case "Task": {
-            return apiClient.GET(tracer, "/tasks/{id}/messages", {
+            return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.taskId},
                     query: {limit, cursor: cursor ?? undefined},
@@ -303,7 +303,7 @@ export function getApiMessagesFromEnd(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.GET(tracer, "/chats/{id}/messages", {
+            return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.chatId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -311,7 +311,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.GET(tracer, "/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -322,7 +322,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "Post": {
-            return apiClient.GET(tracer, "/posts/{id}/messages", {
+            return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.postId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -330,7 +330,7 @@ export function getApiMessagesFromEnd(
             });
         }
         case "Task": {
-            return apiClient.GET(tracer, "/tasks/{id}/messages", {
+            return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
                     path: {id: roomPathObject.taskId},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
@@ -350,13 +350,13 @@ export function createApiMessage(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.POST(tracer, "/chats/{id}/messages", {
+            return apiClient.post(tracer, "/chats/{id}/messages", {
                 params: {path: {id: roomPathObject.chatId}},
                 body,
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.POST(tracer, "/documents/{id}/threads/{threadId}/messages", {
+            return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
                         id: roomPathObject.documentId,
@@ -367,13 +367,13 @@ export function createApiMessage(
             });
         }
         case "Post": {
-            return apiClient.POST(tracer, "/posts/{id}/messages", {
+            return apiClient.post(tracer, "/posts/{id}/messages", {
                 params: {path: {id: roomPathObject.postId}},
                 body,
             });
         }
         case "Task": {
-            return apiClient.POST(tracer, "/tasks/{id}/messages", {
+            return apiClient.post(tracer, "/tasks/{id}/messages", {
                 params: {path: {id: roomPathObject.taskId}},
                 body,
             });
@@ -393,13 +393,13 @@ export function putApiMessageStreamPart(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.PUT(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
+            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
                 params: {path: {id: roomPathObject.chatId, index: messageIndex, partIndex}},
                 body,
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.PUT(
+            return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}",
                 {
@@ -416,13 +416,13 @@ export function putApiMessageStreamPart(
             );
         }
         case "Post": {
-            return apiClient.PUT(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
+            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
                 params: {path: {id: roomPathObject.postId, index: messageIndex, partIndex}},
                 body,
             });
         }
         case "Task": {
-            return apiClient.PUT(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
+            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
                 params: {path: {id: roomPathObject.taskId, index: messageIndex, partIndex}},
                 body,
             });
@@ -440,12 +440,12 @@ export function completeApiMessageStream(
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
-            return apiClient.PUT(tracer, "/chats/{id}/messages/{index}/stream/completion", {
+            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/completion", {
                 params: {path: {id: roomPathObject.chatId, index: messageIndex}},
             });
         }
         case "DocumentCommentThread": {
-            return apiClient.PUT(
+            return apiClient.put(
                 tracer,
                 "/documents/{id}/threads/{threadId}/messages/{index}/stream/completion",
                 {
@@ -460,12 +460,12 @@ export function completeApiMessageStream(
             );
         }
         case "Post": {
-            return apiClient.PUT(tracer, "/posts/{id}/messages/{index}/stream/completion", {
+            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/completion", {
                 params: {path: {id: roomPathObject.postId, index: messageIndex}},
             });
         }
         case "Task": {
-            return apiClient.PUT(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
+            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
                 params: {path: {id: roomPathObject.taskId, index: messageIndex}},
             });
         }

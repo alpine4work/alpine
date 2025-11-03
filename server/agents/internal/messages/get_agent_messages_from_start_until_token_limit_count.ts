@@ -1,4 +1,4 @@
-import {ApiClient, getApiMessagesFromStart} from "~/server/agents/internal/api_client.js";
+import {ApiClient, getApiMessagesFromStart} from "~/server/agents/api/api_client.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";

@@ -1,19 +1,20 @@
 import OpenAi from "openai";
 import {
+    completeApiMessageStream,
+    createApiClient,
+    createApiMessage,
+    getApiMessagesFromStart,
+    putApiMessageStreamPart,
+} from "~/server/agents/api/api_client.js";
+import {
     AgentContext,
     AgentDurableObjectBase,
     AgentDurableObjectEnv,
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
 import {
-    completeApiMessageStream,
-    createApiClient,
-    createApiMessage,
-    getApiMessagesFromStart,
-    putApiMessageStreamPart,
-} from "~/server/agents/internal/api_client.js";
-import {
     chatGptReadLinkTool,
+    chatGptSearchAlpineTool,
     getChatGptInstructions,
 } from "~/server/agents/internal/chat_gpt_instructions.js";
 import {
@@ -31,6 +32,7 @@ import {
 import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
+import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
@@ -267,7 +269,7 @@ async function initializeInstructionsInChatGptAgentConversation(
 
     const {
         data: {space},
-    } = await request.apiClient.GET(tracer, "/spaces/{id}", {
+    } = await request.apiClient.get(tracer, "/spaces/{id}", {
         params: {path: {id: request.spaceId}},
     });
 
@@ -482,6 +484,7 @@ async function createChatGptAgentResponse(
         safety_identifier: request.event.authorId,
         tools: [
             chatGptReadLinkTool.get(),
+            chatGptSearchAlpineTool.get(),
             // https://platform.openai.com/docs/guides/tools-web-search
             {type: "web_search"},
         ],
@@ -738,6 +741,26 @@ async function callChatGptAgentFunction(
                 link,
             });
             return printMarkdownTree(markdownTree);
+        }
+        case "search_alpine": {
+            if (
+                !isObject(functionCallArguments) ||
+                typeof functionCallArguments.query !== "string"
+            ) {
+                throw new InvalidArgumentError(
+                    "Invalid `query` string in function call arguments",
+                    {
+                        displayMessage: errorDisplayMessage`The function call’s arguments must be an object with a \`query\` string.`,
+                    },
+                );
+            }
+
+            messageState.pushToolCall({
+                type: "Search",
+                query: functionCallArguments.query,
+            });
+
+            return searchAlpineForAgent(tracer, transaction, request, functionCallArguments.query);
         }
         default: {
             throw new InvalidArgumentError("Unrecognized function name", {

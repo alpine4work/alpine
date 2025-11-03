@@ -19,7 +19,7 @@ export async function loadAgentTaskCollectionLinkContent({
 }): Promise<Root> {
     const {
         data: {taskCollection},
-    } = await request.apiClient.GET(tracer, "/task-collections/{id}", {
+    } = await request.apiClient.get(tracer, "/task-collections/{id}", {
         params: {path: {id: link.collectionId}},
     });
 

@@ -56,6 +56,11 @@ export type CreateAgentLinkOptions =
           };
       }
     | {
+          type: "Chat";
+          chatId: ChatId;
+          name: string;
+      }
+    | {
           type: "ChatMessage";
           chatId: ChatId;
           messageIndex: number;
@@ -128,6 +133,15 @@ export async function createAgentLink(
                 type: "Account",
                 accountId: account.id,
                 name: account.shortName ?? account.name,
+            });
+        }
+        case "Chat": {
+            return actuallyPutAgentLink(storage, {
+                type: "ChatMessages",
+                chatId: options.chatId,
+                label: options.name,
+                rootMessage: null,
+                ...getMessagesListPageInfo(0),
             });
         }
         case "ChatMessage": {

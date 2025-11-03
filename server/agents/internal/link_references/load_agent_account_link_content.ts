@@ -18,7 +18,7 @@ export async function loadAgentAccountLinkContent({
 }): Promise<Root> {
     const {
         data: {account},
-    } = await request.apiClient.GET(tracer, "/spaces/{id}/accounts/{accountId}", {
+    } = await request.apiClient.get(tracer, "/spaces/{id}/accounts/{accountId}", {
         params: {path: {id: request.spaceId, accountId: link.accountId}},
     });
 

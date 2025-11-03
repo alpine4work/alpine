@@ -1,6 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_token_limit_counts.js";
+import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
@@ -275,7 +275,7 @@ async function getPreambleForChatMessages(
 ): Promise<Array<Root["children"][number]>> {
     const {
         data: {chat},
-    } = await request.apiClient.GET(tracer, "/chats/{id}", {
+    } = await request.apiClient.get(tracer, "/chats/{id}", {
         params: {path: {id: link.chatId}},
     });
 
@@ -342,7 +342,7 @@ async function getPreambleForDocumentComments(
     );
 
     if (!documentLink) {
-        const document = await request.apiClient.GET(tracer, "/documents/{id}", {
+        const document = await request.apiClient.get(tracer, "/documents/{id}", {
             params: {path: {id: link.documentId}},
         });
         documentLink = await createAgentLink(transaction, {
@@ -371,7 +371,7 @@ async function getPreambleForTaskComments(
     if (!taskLink) {
         const {
             data: {task},
-        } = await request.apiClient.GET(tracer, "/tasks/{id}", {
+        } = await request.apiClient.get(tracer, "/tasks/{id}", {
             params: {path: {id: link.taskId}},
         });
         taskLink = await createAgentLink(transaction, {type: "Task", task});

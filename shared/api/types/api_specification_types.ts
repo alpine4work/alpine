@@ -1602,7 +1602,9 @@ export namespace ApiSpecification {
                 readonly type: "ToolCall";
                 readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall"];
             };
-            readonly MessageStreamToolCallPartPayloadCall: components["schemas"]["MessageStreamToolCallPartPayloadReadCall"];
+            readonly MessageStreamToolCallPartPayloadCall:
+                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall"]
+                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"];
             readonly MessageStreamToolCallPartPayloadReadCall: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1611,6 +1613,14 @@ export namespace ApiSpecification {
                 readonly type: "Read";
                 readonly targetPath: components["schemas"]["MentionPath"];
                 readonly title: string;
+            };
+            readonly MessageStreamToolCallPartPayloadSearchCall: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Search";
+                readonly query: string;
             };
             readonly BotWebhookEvent: components["schemas"]["BotWebhookNewMessageEvent"];
             readonly BotWebhookNewMessageEvent: {

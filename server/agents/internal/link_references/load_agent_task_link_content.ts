@@ -20,7 +20,7 @@ export async function loadAgentTaskLinkContent({
 }): Promise<Root> {
     const {
         data: {task},
-    } = await request.apiClient.GET(tracer, "/tasks/{id}", {
+    } = await request.apiClient.get(tracer, "/tasks/{id}", {
         params: {path: {id: link.taskId}},
     });
 

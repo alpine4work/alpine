@@ -1,6 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_token_limit_counts.js";
+import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
@@ -302,7 +302,7 @@ async function getPreambleForPostComments(
         // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
         const {
             data: {post},
-        } = await request.apiClient.GET(tracer, "/posts/{id}", {
+        } = await request.apiClient.get(tracer, "/posts/{id}", {
             params: {path: {id: link.postId}},
         });
 
@@ -339,7 +339,7 @@ async function getPostContentElements(
 ): Promise<Root["children"]> {
     const {
         data: {post},
-    } = await request.apiClient.GET(tracer, "/posts/{id}", {
+    } = await request.apiClient.get(tracer, "/posts/{id}", {
         params: {path: {id: link.postId}},
     });
     const postContent = await printAgentContentToMarkdownTree(transaction, post.content, {
