@@ -91,27 +91,23 @@ const chatGptInstructionsTemplate = markdown`
         “Here’s a summary of [My Document](/document/my-document)…”.
     -   Example 2: If you’re referencing a previous document “According to
         [Relevant Document](/document/relevant-document)…”
+-   If ChatGPT doesn’t have the information it needs to respond to a user’s request, then use the
+    \`search_alpine\` tool to find any available documents, tasks, forum posts, chat messages, and
+    more within the current Alpine space.
+    -   If a user provides an Alpine link (e.g. \`[My Task](/task/my-task)\`), use the \`read_link\`
+        tool instead.
+    -   If the user’s request is conceptual or self-contained, answer directly without searching.
+    -   If you don’t find the information you need on the first search, try a different search.
+-   The \`search_alpine\` tool supports limited natural language queries.
+    -   Example 1: “Alice’s documents about …” finds documents written by Alice.
+    -   Example 2: “tasks updated by Bob between October 1st and October 31st” finds tasks updated
+        by Bob in the specified date range.
+    -   Example 3: “Carol’s posts” finds recent posts by Carol.
+    -   When using a date range, always use absolute date ranges instead of relative date ranges
+        (correct: “between October 1st and October 31st”, incorrect: “last month”).
 -   ChatGPT has access to all Alpine resources available to every user in the current conversation.
     If any participant lacks access, ChatGPT does not have access. If access is denied, prompt the
     user to ensure all participants have the necessary permissions.
--   ChatGPT can also use the \`search_alpine\` tool to query Alpine’s Search API when a user’s
-    request depends on workspace information not present in the conversation. The search API
-    supports **natural language queries** across documents, tasks, forum posts, chats, etc.
--   Search results are returned in **Markdown format**, containing:
-    -   A text snippet of the matched body content.
-    -   Any **relevant links**, including a link to the matched entity itself.
--   When summarizing or referencing results, you should:
-    -   Treat snippets as excerpts — if you need more information, read the link.
--   When the user’s request includes a **relative timeframe** (e.g., “last week,” “yesterday,” or
-    “from the past month”), you should:
-    -   Convert it into an explicit date range using the user’s timezone (e.g., “October 13th to
-        October 19th”).
-    -   Mention the interpreted range in your response and **ask the user to confirm** before
-        proceeding with the search.
--   Only use the search tool when information is unavailable in the current context.
-    -   If a user provides an Alpine link (e.g., \`[My Task](/task/my-task)\`), use the
-        \`read_link\` tool instead.
-    -   If the query is conceptual or self-contained, answer directly without searching.
 
 # Instructions
 
@@ -155,7 +151,7 @@ const chatGptInstructionsTemplate = markdown`
     information is needed, stop and seek clarification or escalate.
 `;
 
-const chatGptReadLinkDescription = markdown`
+const chatGptReadLinkToolDescription = markdown`
 Read the contents of an Alpine link (e.g. \`[link text](/link-path)\`).
 
 Will return the content as Markdown with YAML frontmatter (containing e.g. the \`type\` of content
@@ -171,7 +167,7 @@ export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy
     // (which would be more typical for our codebase) under the theory the AI
     // will better understand the tool's purpose with the more human verb "read".
     name: "read_link",
-    description: chatGptReadLinkDescription.get(),
+    description: chatGptReadLinkToolDescription.get(),
     strict: true,
     parameters: {
         type: "object",
@@ -187,16 +183,19 @@ export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy
     },
 }));
 
-const chatGptSearchAlpineDescription = markdown`
-Search the user’s workspace for documents, tasks, messages, and other content. Use this to find
-information or content the user is asking about. The search tool supports natural language queries,
-so your job is to clean up the user’s request into a concise, searchable query.
+const chatGptSearchAlpineToolDescription = markdown`
+Search for documents, tasks, forum posts, chat messages, and more within the current Alpine space.
+
+Will return a Markdown list of search results. Each result will include a link you can use with
+\`read_link\` to read the full content, and a short preview (any matched keywords are bolded).
+
+Write search queries like you would when searching Google.
 `;
 
 export const chatGptSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({
     type: "function",
     name: "search_alpine",
-    description: chatGptSearchAlpineDescription.get(),
+    description: chatGptSearchAlpineToolDescription.get(),
     strict: false,
     parameters: {
         type: "object",
