@@ -378,16 +378,16 @@ function getToolCallLabel(call: MessageStreamToolCallPartPayloadCall) {
         case "Read": {
             return (
                 <>
-                    Reading ”
-                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.title}</span>
+                    Reading “
+                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.title}</span>”
                 </>
             );
         }
         case "Search": {
             return (
                 <>
-                    Searching ”
-                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.query}</span>
+                    Searching “
+                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.query}</span>”
                 </>
             );
         }
