@@ -100,7 +100,7 @@ export async function intoApiContentWithReferencesAndReturnReferences(
                 if (fileAuthorizer === "AssertHasNoFiles") {
                     throw new InternalError("Expected content to not include any referenced files");
                 }
-                return getContentFileReference(context, spaceId, fileId, fileAuthorizer);
+                return getContentFileReference(referencesContext, spaceId, fileId, fileAuthorizer);
             }),
         ),
     ]);
