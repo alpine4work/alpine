@@ -331,10 +331,43 @@ function intoApiContentBlockElement(
             };
         }
         case "checkListItem":
+            // TODO(ifitzsimmons, #ai): Add support for check list items prior to launch.
+            //
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/kkdajt62s0ap8tw1a0ch6fgkgg
+            return {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Text",
+                        text: "(There’s a check list item here but ChatGPT can’t currently see check list items in Alpine.)",
+                    },
+                ],
+            };
         case "fileRow":
         case "fileFloat":
         case "fileRowTable": {
-            throw new UnimplementedError(`${typeName} node isn’t available in the API yet`);
+            // TODO(ifitzsimmons, #ai): Add support for file attachments. Currently,
+            // the agent has no way to actually read file attachments, so there's no
+            // need to spend time implementing this conversion right now. My primary
+            // concern is that I don't want the agent to fail any time it reads content
+            // with attachments.
+            //
+            // If we were to publish our API, we'd also need to make sure that this is
+            // implemented.
+            //
+            // In any case, I'm deprioritizing this work for launch. I'll get back to this
+            // if I have time.
+            //
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/55rd1cnzfvcqeq21qceb4pzpfw
+            return {
+                type: "Paragraph",
+                elements: [
+                    {
+                        type: "Text",
+                        text: "(There’s a file attachment here but ChatGPT can’t currently see files in Alpine.)",
+                    },
+                ],
+            };
         }
         default:
             throw exhaustive(typeName);
