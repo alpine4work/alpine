@@ -6,7 +6,12 @@ import {
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {
+    AccountModel,
+    AccountModelData,
+    AccountModelDataSpaceState,
+} from "~/shared/spaces/account_model.js";
+import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData>) {
     return new AccountModel({
@@ -42,6 +47,28 @@ export function createTestAccountModelWithoutSpace(
         reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
         ...accountModelDataOptions,
     });
+}
+
+export function createTestAccountSpaceData(
+    options: Partial<{
+        version: number;
+        addedTime: Date;
+        state: AccountModelDataSpaceState;
+        role: SpaceRole;
+    }> = {},
+): {
+    version: number;
+    addedTime: Date;
+    state: AccountModelDataSpaceState;
+    role: SpaceRole;
+} {
+    return {
+        version: 0,
+        addedTime: new Date("2025-01-01T00:00:00Z"),
+        state: {type: "Active"},
+        role: "Member",
+        ...options,
+    };
 }
 
 export function intoAccountModelWithoutSpaceAndAvatar(
