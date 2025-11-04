@@ -328,6 +328,7 @@ export class OpensearchContextModule
                     }>;
                 };
                 readonly explanation?: OpensearchSearchHitExplanation;
+                readonly matchedQueries?: ReadonlyArray<string>;
             }
         >;
     }> {
@@ -383,6 +384,7 @@ export class OpensearchContextModule
                 }>;
             };
             readonly explanation?: OpensearchSearchHitExplanation;
+            readonly matchedQueries?: ReadonlyArray<string>;
         }>;
     }> {
         return this._client.searchWithoutSource(

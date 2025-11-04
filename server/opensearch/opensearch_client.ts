@@ -252,6 +252,13 @@ export interface OpensearchClientInterface {
                     }>;
                 };
                 readonly explanation?: OpensearchSearchHitExplanation;
+                /**
+                 * The list of query names that the result matched.
+                 *
+                 * When we query opensearch with filters, we create one query per filter. OpenSearch
+                 * results can match multiple queries.
+                 */
+                readonly matchedQueries?: ReadonlyArray<string>;
             }
         >;
     }>;
@@ -305,6 +312,13 @@ export interface OpensearchClientInterface {
                     };
                 }>;
             };
+            /**
+             * The list of query names that the result matched.
+             *
+             * When we query opensearch with filters, we create one query per filter. OpenSearch
+             * results can match multiple queries.
+             */
+            readonly matchedQueries?: ReadonlyArray<string>;
         }>;
     }>;
 
@@ -711,6 +725,17 @@ type OpensearchSearchHit = {
         };
     };
     _explanation?: OpensearchSearchHitExplanation;
+    /**
+     * A list of queries that the document matched. We can "name" queries by using the
+     * `_name` parameter. We can assign unique `_name`s to each filter.
+     *
+     * > If you want to identify which of these clauses actually caused the matching results,
+     * name each query with the _name parameter... `matched_queries` is an array that lists
+     * the queries that matched these results
+     *
+     * https://docs.opensearch.org/latest/query-dsl/compound/bool/
+     */
+    matched_queries?: Array<string>;
 };
 
 /**
@@ -2191,6 +2216,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }>;
                 };
                 readonly explanation?: OpensearchSearchHitExplanation;
+                readonly matchedQueries?: ReadonlyArray<string>;
             }
         >;
     }> {
@@ -2247,6 +2273,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
             if (hit._explanation) {
                 doc.explanation = hit._explanation;
+            }
+
+            if (hit.matched_queries) {
+                doc.matchedQueries = hit.matched_queries;
             }
 
             return doc;
@@ -2313,6 +2343,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 }>;
             };
             readonly explanation?: OpensearchSearchHitExplanation;
+            readonly matchedQueries?: ReadonlyArray<string>;
         }>;
     }> {
         const {hits} = await this._search(tracer, index, routing, {
@@ -2388,6 +2419,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
             if (hit._explanation) {
                 actualHit.explanation = hit._explanation;
+            }
+
+            if (hit.matched_queries) {
+                actualHit.matchedQueries = hit.matched_queries;
             }
 
             return actualHit;

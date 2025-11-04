@@ -27,6 +27,9 @@ const SearchEntityResultObjectSchema = Schema.object({
         }),
     ),
     explanation: OpensearchSearchHitExplanationSchema.optional(),
+    parsedFilter: Schema.object({
+        summary: Schema.string,
+    }).nullable(),
 });
 
 /**

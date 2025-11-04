@@ -208,7 +208,7 @@ export type SearchNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchDynamicEntityIdObject["type"]>;
     readonly account: {
         readonly field: "Creator" | "MajorContributor" | "AnyContributor";
-        readonly ids: ReadonlyArray<AccountId>;
+        readonly accounts: ReadonlyArray<{readonly id: AccountId; readonly name: string}>;
     } | null;
     readonly time: {
         readonly field: "Created" | "LastUpdated";
@@ -241,7 +241,7 @@ export function parseSearchNaturalLanguageQuery(
         // language parsing of "my" search queries that reference the actor.
         // `actorAccountId` should always be null for Bots, since "ChatGPT's docs" or
         // "ChatGPT's tasks" doesn't really make sense.
-        actorAccountId: AccountId | null;
+        actorAccount: {id: AccountId; name: string} | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -315,7 +315,7 @@ function parseSearchNaturalLanguageFilters(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId | null;
+        actorAccount: {readonly id: AccountId; readonly name: string} | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -323,7 +323,7 @@ function parseSearchNaturalLanguageFilters(
     controlPhrases: ReadonlyArray<View>;
     isLowConfidence: boolean;
 } {
-    const {actorAccountId} = options;
+    const {actorAccount} = options;
 
     const state = new SearchNaturalLanguageParserState(doc, terms);
     const result = new SearchNaturalLanguageParserResult();
@@ -526,7 +526,7 @@ function parseSearchNaturalLanguageFilters(
         // e.g. "my..."
         if (matchTerms.my.isFuzzyMatch(state.term)) {
             state.advanceTerm();
-            if (!actorAccountId) {
+            if (!actorAccount) {
                 // If we don't have an actor account then we can't parse a "my" query.
                 // This is because we don't know who the user is. However, it's possible
                 // that a Bot queries something like "Documents containing text my weekend
@@ -549,7 +549,7 @@ function parseSearchNaturalLanguageFilters(
                                 entityTypes,
                                 account: {
                                     field: "MajorContributor",
-                                    ids: [actorAccountId],
+                                    accounts: [{id: actorAccount.id, name: actorAccount.name}],
                                 },
                                 time: null,
                             },
@@ -579,7 +579,7 @@ function parseSearchNaturalLanguageFilters(
             advanceNounChunkAttemptingToParseEntityTypes({
                 account: {
                     field: "MajorContributor",
-                    ids: [actorAccountId],
+                    accounts: [{id: actorAccount.id, name: actorAccount.name}],
                 },
                 time: null,
             });
@@ -602,7 +602,10 @@ function parseSearchNaturalLanguageFilters(
                                 entityTypes,
                                 account: {
                                     field: "MajorContributor",
-                                    ids: accounts.map(account => account.id),
+                                    accounts: accounts.map(account => ({
+                                        id: account.id,
+                                        name: account.initialData.name,
+                                    })),
                                 },
                                 time: null,
                             },
@@ -632,7 +635,10 @@ function parseSearchNaturalLanguageFilters(
             advanceNounChunkAttemptingToParseEntityTypes({
                 account: {
                     field: "MajorContributor",
-                    ids: accounts.map(account => account.id),
+                    accounts: accounts.map(account => ({
+                        id: account.id,
+                        name: account.initialData.name,
+                    })),
                 },
                 time: null,
             });
@@ -844,7 +850,7 @@ function parseSearchNaturalLanguageFilterModifiers(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId | null;
+        actorAccount: {readonly id: AccountId; readonly name: string} | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
@@ -856,7 +862,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         return {filterStartTerm, filterEndTerm, filter};
     }
 
-    const {actorAccountId} = options;
+    const {actorAccount} = options;
 
     // e.g. "documents created by me and updated last month"
     if (!isFirstModifier && matchTerms.and.isFuzzyMatch(state.term)) {
@@ -888,7 +894,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents created by me" or "messages sent by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
-                if (!actorAccountId) {
+                if (!actorAccount) {
                     // If we don't have an actor account then we can't parse a "my" query.
                     // This is because we don't know who the user is. However, it's possible
                     // that a Bot queries something like "Documents containing text my weekend
@@ -906,7 +912,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            account: {field: "Creator", ids: [actorAccountId]},
+                            account: {
+                                field: "Creator",
+                                accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                            },
                         },
                         allowAccount: false,
                         allowTime,
@@ -926,7 +935,13 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            account: {field: "Creator", ids: accounts.map(account => account.id)},
+                            account: {
+                                field: "Creator",
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
+                            },
                         },
                         allowAccount: false,
                         allowTime,
@@ -970,7 +985,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents written by me" or "posts authored by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
-                if (!actorAccountId) {
+                if (!actorAccount) {
                     // If we don't have an actor account then we can't parse a "my" query.
                     // This is because we don't know who the user is. However, it's possible
                     // that a Bot queries something like "Documents containing text my weekend
@@ -988,7 +1003,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            account: {field: "MajorContributor", ids: [actorAccountId]},
+                            account: {
+                                field: "MajorContributor",
+                                accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                            },
                         },
                         allowAccount: false,
                         allowTime,
@@ -1010,7 +1028,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "MajorContributor",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1061,7 +1082,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
             // e.g. "documents updated by me" or "tasks updated by me"
             if (matchTerms.me.isFuzzyMatch(state.term)) {
-                if (!actorAccountId) {
+                if (!actorAccount) {
                     // If we don't have an actor account then we can't parse a "my" query.
                     // This is because we don't know who the user is. However, it's possible
                     // that a Bot queries something like "Documents containing text my weekend
@@ -1079,7 +1100,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            account: {field: "AnyContributor", ids: [actorAccountId]},
+                            account: {
+                                field: "AnyContributor",
+                                accounts: [{id: actorAccount.id, name: actorAccount.name}],
+                            },
                         },
                         allowAccount: false,
                         allowTime,
@@ -1101,7 +1125,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "AnyContributor",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1141,7 +1168,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
         // e.g. "documents by me" or "messages by me"
         if (allowAccount && matchTerms.me.isFuzzyMatch(state.term)) {
-            if (!actorAccountId) {
+            if (!actorAccount) {
                 // If we don't have an actor account then we can't parse a "my" query.
                 // This is because we don't know who the user is. However, it's possible
                 // that a Bot queries something like "Documents containing text my weekend
@@ -1161,7 +1188,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                         ...filter,
                         account: {
                             field: "MajorContributor",
-                            ids: [actorAccountId],
+                            accounts: [{id: actorAccount.id, name: actorAccount.name}],
                         },
                     },
                     allowAccount: false,
@@ -1185,7 +1212,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "MajorContributor",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1222,7 +1252,7 @@ function parseSearchNaturalLanguageFilterModifiers(
             matchTerms.sent.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.posted.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
-        if (!actorAccountId) {
+        if (!actorAccount) {
             // If we don't have an actor account then we can't parse a "my" query.
             // This is because we don't know who the user is. However, it's possible
             // that a Bot queries something like "Documents containing text my weekend
@@ -1243,7 +1273,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     ...filter,
                     account: {
                         field: "Creator",
-                        ids: [actorAccountId],
+                        accounts: [{id: actorAccount.id, name: actorAccount.name}],
                     },
                 },
                 allowAccount: false,
@@ -1261,7 +1291,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         (matchTerms.wrote.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
-        if (!actorAccountId) {
+        if (!actorAccount) {
             // If we don't have an actor account then we can't parse a "my" query.
             // This is because we don't know who the user is. However, it's possible
             // that a Bot queries something like "Documents containing text my weekend
@@ -1282,7 +1312,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     ...filter,
                     account: {
                         field: "MajorContributor",
-                        ids: [actorAccountId],
+                        accounts: [{id: actorAccount.id, name: actorAccount.name}],
                     },
                 },
                 allowAccount: false,
@@ -1300,7 +1330,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
     ) {
-        if (!actorAccountId) {
+        if (!actorAccount) {
             // If we don't have an actor account then we can't parse a "my" query.
             // This is because we don't know who the user is. However, it's possible
             // that a Bot queries something like "Documents containing text my weekend
@@ -1321,7 +1351,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     ...filter,
                     account: {
                         field: "AnyContributor",
-                        ids: [actorAccountId],
+                        accounts: [{id: actorAccount.id, name: actorAccount.name}],
                     },
                 },
                 allowAccount: false,
@@ -1352,7 +1382,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "Creator",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1379,7 +1412,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "MajorContributor",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1406,7 +1442,10 @@ function parseSearchNaturalLanguageFilterModifiers(
                             ...filter,
                             account: {
                                 field: "AnyContributor",
-                                ids: accounts.map(account => account.id),
+                                accounts: accounts.map(account => ({
+                                    id: account.id,
+                                    name: account.initialData.name,
+                                })),
                             },
                         },
                         allowAccount: false,
@@ -1442,7 +1481,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId | null;
+        actorAccount: {readonly id: AccountId; readonly name: string} | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ) {
@@ -1492,7 +1531,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     options: {
         timeZone: TimeZone;
         currentTime: Date;
-        actorAccountId: AccountId | null;
+        actorAccount: {readonly id: AccountId; readonly name: string} | null;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {

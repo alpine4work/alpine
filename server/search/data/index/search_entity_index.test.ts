@@ -1960,6 +1960,7 @@ test("search by semantics will highlight matching words", async () => {
                           ],
                 ).flat(),
             ],
+            parsedFilter: null,
         }),
     ]);
 });
@@ -2070,6 +2071,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "trains"},
                 {isHighlighted: false, text: " document."},
             ],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2085,6 +2087,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2100,6 +2103,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2113,6 +2117,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2139,6 +2144,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2154,6 +2160,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2167,6 +2174,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2204,6 +2212,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2225,6 +2234,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains! Trains!"}],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2235,6 +2245,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2245,6 +2256,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2262,6 +2274,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2288,6 +2301,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2303,6 +2317,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2340,6 +2355,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2364,6 +2380,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
+            parsedFilter: {summary: "documents by Sara Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2401,6 +2418,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2425,6 +2443,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "Sara"},
             ],
+            parsedFilter: {summary: "documents by Sara Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2435,11 +2454,13 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains!"}],
+            parsedFilter: {summary: "documents by Sara Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
             model: await session2.get(),
             bodyTextSnippet: [],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2453,6 +2474,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "Sara"},
             ],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2470,6 +2492,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 
@@ -2495,6 +2518,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "John"},
                 {isHighlighted: false, text: ". Trains! Trains!"},
             ],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2505,6 +2529,7 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2515,11 +2540,13 @@ test("searches with natural language parsing works", async () => {
                 media: null,
             }),
             bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
+            parsedFilter: {summary: "documents by John Smith"},
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
             model: await session1.get(),
             bodyTextSnippet: [],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2534,6 +2561,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "John"},
                 {isHighlighted: false, text: ". Trains!"},
             ],
+            parsedFilter: null,
         }),
         new SearchEntityResultModel({
             score: expect.any(Number),
@@ -2551,6 +2579,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
+            parsedFilter: null,
         }),
     ]);
 });
@@ -2657,6 +2686,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
                     text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
                 },
             ],
+            parsedFilter: null,
         }),
     ]);
 });
@@ -5114,6 +5144,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                 score: expect.any(Number),
                 model: await session.get(),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -5128,6 +5159,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                     },
                 }),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -5138,6 +5170,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                     media: {type: "Account", account: expect.any(AccountModel)},
                 }),
                 bodyTextSnippet: [{isHighlighted: true, text: "foo"}],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -5148,6 +5181,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                     media: null,
                 }),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
         ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
     );
@@ -5867,6 +5901,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
                     text: " efficitur auctor aliquet, orci sapien iaculis augue, at vehicula libero eros id risus.",
                 },
             ],
+            parsedFilter: null,
         },
     ]);
 
@@ -5929,6 +5964,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
                     text: " nisl. Quisque non urna sapien. Duis quam tellus, mollis ut leo cursus, venenatis mollis orci. Donec dapibus, libero eu aliquet ultrices, turpis massa suscipit augue, a auctor nulla risus sit amet ipsum. Donec leo elit, tincidunt ac lectus vitae, scelerisque commodo lectus. Integer pulvinar blandit sem, et interdum turpis maximus sit amet.",
                 },
             ],
+            parsedFilter: null,
         },
     ]);
 
@@ -5990,6 +6026,7 @@ c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id po
                     text: " in sem ultricies elementum. Suspendisse nibh lacus, dapibus non nisi non, ultrices varius nisi. Nunc ac ipsum aliquet, ullamcorper mi sed, hendrerit libero. Praesent vitae tortor blandit, sodales odio a, rhoncus mauris.",
                 },
             ],
+            parsedFilter: null,
         },
     ]);
 });

@@ -59,7 +59,11 @@ import {
     getSearchEntity,
 } from "~/server/search/data/index/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
-import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
+import {
+    SearchNaturalLanguageFilter,
+    parseSearchNaturalLanguageQuery,
+} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
+import {printSearchNaturalLanguageFilter} from "~/server/search/data/index/internal/print_search_natural_language_filter.js";
 import {
     SearchEntityEmbeddingChunkIndexDocType,
     SearchEntityIndexDefaultGrantType,
@@ -100,6 +104,7 @@ import {
     AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrantWithoutGeneration,
 } from "~/shared/access/access_policy.js";
+import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     ContentReferences,
@@ -112,6 +117,7 @@ import {ContextBatcher} from "~/shared/context/batch_context_module.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -1162,13 +1168,21 @@ export async function searchByKeywords(
 
     const options = debugOptions ?? standardSearchOptions;
 
+    const accountNameIndex = await getSpaceAccountNameSearchIndex(context, spaceId);
+    const actorAccount = accountNameIndex.getByIdIfExists(context.actor.getPossiblyBotAccountId());
+
     const {queryTexts, controlQueryTexts, filters, isLowConfidence} =
         parseSearchNaturalLanguageQuery(queryText, {
             timeZone,
             currentTime,
-            actorAccountId:
-                context.actor.type === "Bot" ? null : context.actor.getPossiblyBotAccountId(),
-            accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+            actorAccount:
+                context.actor.type === "Bot"
+                    ? null
+                    : {
+                          id: context.actor.getAccountId(),
+                          name: actorAccount?.initialData.name ?? missingAccountName,
+                      },
+            accountNameIndex,
         });
 
     type QueryClause = OpensearchQueryClause<
@@ -1300,9 +1314,19 @@ export async function searchByKeywords(
     // updated time then let's use updated time to sort as well.
     const timeFilterFields = new Set<"Created" | "LastUpdated">();
 
+    const parsedFilterByName = new Map<
+        string,
+        {readonly filter: SearchNaturalLanguageFilter; readonly summary: string}
+    >(
+        filters.map((filter, index) => [
+            `filter_${index}`,
+            {filter, summary: printSearchNaturalLanguageFilter(filter, timeZone, currentTime)},
+        ]),
+    );
+
     // If we parsed some filters using natural language, then add them to our
     // query. The filters are "OR"d together so we use a disjunction max query.
-    if (controlQueryTexts.length > 0 || filters.length > 0) {
+    if (controlQueryTexts.length > 0 || parsedFilterByName.size > 0) {
         const createTermQueryClause = (
             flattenedKey: OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>,
             values: ReadonlyArray<JsonValue>,
@@ -1313,90 +1337,92 @@ export async function searchByKeywords(
             return {terms: {[flattenedKey]: new OpensearchQueryValue(values)}};
         };
 
-        const filterClauses = filters.map((filter): QueryClause => {
-            const filterMust: Array<QueryClause> = [
-                createTermQueryClause("type", filter.entityTypes),
-            ];
+        const filterClauses = Array.from(parsedFilterByName.entries()).map(
+            ([filterName, {filter}]): QueryClause => {
+                const filterMust: Array<QueryClause> = [
+                    createTermQueryClause("type", filter.entityTypes),
+                ];
 
-            if (filter.account) {
-                switch (filter.account.field) {
-                    case "Creator": {
-                        filterMust.push(createTermQueryClause("creatorId", filter.account.ids));
-                        break;
+                if (filter.account) {
+                    const accountIds = filter.account.accounts.map(account => account.id);
+                    switch (filter.account.field) {
+                        case "Creator": {
+                            filterMust.push(createTermQueryClause("creatorId", accountIds));
+                            break;
+                        }
+                        case "MajorContributor": {
+                            filterMust.push(
+                                createTermQueryClause("majorContributorIds", accountIds),
+                            );
+                            break;
+                        }
+                        case "AnyContributor": {
+                            filterMust.push(createTermQueryClause("anyContributorIds", accountIds));
+                            break;
+                        }
+                        default:
+                            throw exhaustive(filter.account.field);
                     }
-                    case "MajorContributor": {
-                        filterMust.push(
-                            createTermQueryClause("majorContributorIds", filter.account.ids),
-                        );
-                        break;
-                    }
-                    case "AnyContributor": {
-                        filterMust.push(
-                            createTermQueryClause("anyContributorIds", filter.account.ids),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(filter.account.field);
                 }
-            }
 
-            if (filter.time) {
-                timeFilterFields.add(filter.time.field);
+                if (filter.time) {
+                    timeFilterFields.add(filter.time.field);
 
-                switch (filter.time.field) {
-                    case "Created": {
-                        filterMust.push({
-                            range: {
-                                createdTime: {
-                                    gte: filter.time.range.inclusiveLowerBoundDate
-                                        ? new OpensearchQueryValue(
-                                              filter.time.range.inclusiveLowerBoundDate.toISOString(),
-                                          )
-                                        : undefined,
-                                    lte: filter.time.range.inclusiveUpperBoundDate
-                                        ? new OpensearchQueryValue(
-                                              filter.time.range.inclusiveUpperBoundDate.toISOString(),
-                                          )
-                                        : undefined,
+                    switch (filter.time.field) {
+                        case "Created": {
+                            filterMust.push({
+                                range: {
+                                    createdTime: {
+                                        gte: filter.time.range.inclusiveLowerBoundDate
+                                            ? new OpensearchQueryValue(
+                                                  filter.time.range.inclusiveLowerBoundDate.toISOString(),
+                                              )
+                                            : undefined,
+                                        lte: filter.time.range.inclusiveUpperBoundDate
+                                            ? new OpensearchQueryValue(
+                                                  filter.time.range.inclusiveUpperBoundDate.toISOString(),
+                                              )
+                                            : undefined,
+                                    },
                                 },
-                            },
-                        });
-                        break;
-                    }
-                    case "LastUpdated": {
-                        filterMust.push({
-                            range: {
-                                lastUpdatedTime: {
-                                    gte: filter.time.range.inclusiveLowerBoundDate
-                                        ? new OpensearchQueryValue(
-                                              filter.time.range.inclusiveLowerBoundDate.toISOString(),
-                                          )
-                                        : undefined,
-                                    lte: filter.time.range.inclusiveUpperBoundDate
-                                        ? new OpensearchQueryValue(
-                                              filter.time.range.inclusiveUpperBoundDate.toISOString(),
-                                          )
-                                        : undefined,
+                            });
+                            break;
+                        }
+                        case "LastUpdated": {
+                            filterMust.push({
+                                range: {
+                                    lastUpdatedTime: {
+                                        gte: filter.time.range.inclusiveLowerBoundDate
+                                            ? new OpensearchQueryValue(
+                                                  filter.time.range.inclusiveLowerBoundDate.toISOString(),
+                                              )
+                                            : undefined,
+                                        lte: filter.time.range.inclusiveUpperBoundDate
+                                            ? new OpensearchQueryValue(
+                                                  filter.time.range.inclusiveUpperBoundDate.toISOString(),
+                                              )
+                                            : undefined,
+                                    },
                                 },
-                            },
-                        });
-                        break;
+                            });
+                            break;
+                        }
+                        default:
+                            throw exhaustive(filter.time.field);
                     }
-                    default:
-                        throw exhaustive(filter.time.field);
                 }
-            }
 
-            return {
-                constant_score: {
-                    boost: isLowConfidence
-                        ? options.naturalLanguage.filterConstantScoreIfLowConfidence
-                        : options.naturalLanguage.filterConstantScore,
-                    filter: {bool: {filter: filterMust}},
-                },
-            };
-        });
+                return {
+                    constant_score: {
+                        boost: isLowConfidence
+                            ? options.naturalLanguage.filterConstantScoreIfLowConfidence
+                            : options.naturalLanguage.filterConstantScore,
+                        filter: {bool: {filter: filterMust}},
+                        _name: filterName,
+                    },
+                };
+            },
+        );
 
         const controlQueryTextClause = createQueryTextClause(
             isLowConfidence
@@ -1534,6 +1560,21 @@ export async function searchByKeywords(
                 }
             }
 
+            // Check if a natural language filter matched this result
+            let parsedFilterSummary: string | null = null;
+            if (hit.matchedQueries && hit.matchedQueries.length > 0) {
+                parsedFilterSummary = joinPrettyConjunctionList(
+                    hit.matchedQueries
+                        .map(filterName => {
+                            const parsedFilter = parsedFilterByName.get(filterName);
+                            if (!parsedFilter) return null;
+
+                            return parsedFilter.summary;
+                        })
+                        .filter(isNonNullable),
+                );
+            }
+
             let model: SearchEntityModel | AccountModel;
 
             if (!isSearchEntityModelId(entityId)) {
@@ -1563,6 +1604,7 @@ export async function searchByKeywords(
                           hit.explanation,
                       )
                     : undefined,
+                parsedFilter: parsedFilterSummary ? {summary: parsedFilterSummary} : null,
             });
         }),
     );
@@ -1808,12 +1850,20 @@ export async function searchBySemantics(
 
     const options = debugOptions ?? standardSearchOptions;
 
+    const accountNameIndex = await getSpaceAccountNameSearchIndex(context, spaceId);
+    const actorAccount = accountNameIndex.getByIdIfExists(context.actor.getPossiblyBotAccountId());
+
     const {filters, isLowConfidence} = parseSearchNaturalLanguageQuery(queryText, {
         timeZone,
         currentTime,
-        actorAccountId:
-            context.actor.type === "Bot" ? null : context.actor.getPossiblyBotAccountId(),
-        accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+        actorAccount:
+            context.actor.type === "Bot"
+                ? null
+                : {
+                      id: context.actor.getAccountId(),
+                      name: actorAccount?.initialData.name ?? missingAccountName,
+                  },
+        accountNameIndex,
     });
 
     // If we have high confidence natural language filters then don't perform
@@ -2012,6 +2062,7 @@ export async function searchBySemantics(
                 model,
                 score: hit.score,
                 bodyTextSnippet,
+                parsedFilter: null,
             });
         }),
     );

@@ -1421,6 +1421,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     media: null,
                 }),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1437,6 +1438,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 1"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1453,6 +1455,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 2"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1469,6 +1472,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 3"},
                 ],
+                parsedFilter: null,
             }),
         ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
     );
@@ -1496,6 +1500,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     media: null,
                 }),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1510,6 +1515,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 1"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1524,6 +1530,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 2"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1538,6 +1545,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 3"},
                 ],
+                parsedFilter: null,
             }),
         ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
     );
@@ -1565,6 +1573,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     media: null,
                 }),
                 bodyTextSnippet: [],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1579,6 +1588,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 1"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1593,6 +1603,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 2"},
                 ],
+                parsedFilter: null,
             }),
             new SearchEntityResultModel({
                 score: expect.any(Number),
@@ -1607,6 +1618,7 @@ test("searching for channel shows both the channel and its posts, ranking the ch
                     {isHighlighted: true, text: "Help"},
                     {isHighlighted: false, text: ": Test Post 3"},
                 ],
+                parsedFilter: null,
             }),
         ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
     );

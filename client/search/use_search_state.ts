@@ -375,6 +375,7 @@ export function useSearchState({
                             }),
                             score: Infinity,
                             bodyTextSnippet: [],
+                            parsedFilter: null,
                         }),
                     );
                 }

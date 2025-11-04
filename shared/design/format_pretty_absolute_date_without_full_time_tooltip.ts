@@ -59,7 +59,7 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
         ...baseOptions,
         year: "numeric",
         // If we include a short weekday, always use short months as well.
-        month: withLongMonth || !withWeekday ? "long" : "short",
+        month: withLongMonth && !withWeekday ? "long" : "short",
     });
 
     const isCurrentYear = currentDate.year === time.getFullYear();

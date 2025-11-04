@@ -40,6 +40,7 @@ describe("intoApiSearchResult", () => {
                     model: accountModel,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -68,6 +69,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -98,6 +100,7 @@ describe("intoApiSearchResult", () => {
                         {text: "highlighted", isHighlighted: true},
                         {text: " text", isHighlighted: false},
                     ],
+                    parsedFilter: null,
                 }),
             );
 
@@ -128,6 +131,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Plain text", isHighlighted: false}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -156,6 +160,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -182,6 +187,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -210,6 +216,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -236,6 +243,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -274,6 +282,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Hello world", isHighlighted: true}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -307,6 +316,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Document content", isHighlighted: false}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -333,6 +343,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -372,6 +383,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Great point!", isHighlighted: true}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -415,6 +427,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Post content", isHighlighted: false}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -454,6 +467,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -496,6 +510,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Nice post!", isHighlighted: true}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -533,6 +548,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Task description", isHighlighted: false}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -564,6 +580,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -595,6 +612,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -626,6 +644,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -655,10 +674,11 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
-            expect(result).toEqual({
+            expect(result).toStrictEqual({
                 type: "TaskCollection",
                 path: `/task-collections/${collectionId}`,
                 id: collectionId,
@@ -681,6 +701,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 
@@ -719,6 +740,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [{text: "Working on it", isHighlighted: true}],
+                    parsedFilter: null,
                 }),
             );
 
@@ -751,6 +773,7 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [],
+                    parsedFilter: null,
                 }),
             );
 

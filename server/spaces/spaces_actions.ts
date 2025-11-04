@@ -2602,6 +2602,7 @@ export async function getOurAccountInvitePendingSpaceIds(
 export type SpaceAccountNameSearchIndex = {
     searchNames(queryText: string): Array<AccountModel>;
     searchShortNames(queryText: string): Array<AccountModel>;
+    getByIdIfExists(accountId: AccountId): AccountModel | null;
 };
 
 /**
@@ -2614,7 +2615,7 @@ export async function getSpaceAccountNameSearchIndex(
     context: ServerActionContext,
     spaceId: SpaceId,
 ): Promise<SpaceAccountNameSearchIndex> {
-    const {accountNameIndex, accountShortNameIndex} = await spaceAccountsCache.getData(
+    const {accountNameIndex, accountShortNameIndex, accountById} = await spaceAccountsCache.getData(
         context,
         spaceId,
     );
@@ -2632,6 +2633,7 @@ export async function getSpaceAccountNameSearchIndex(
                 return match.item;
             });
         },
+        getByIdIfExists: accountId => accountById.get(accountId) ?? null,
     };
 }
 

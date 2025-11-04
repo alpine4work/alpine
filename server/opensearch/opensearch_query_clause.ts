@@ -325,6 +325,13 @@ export type OpensearchConstantScoreQueryClause<FlattenedKeys extends string> = {
     constant_score: {
         filter: OpensearchQueryClause<FlattenedKeys>;
         boost: number;
+        /**
+         * Used to name a query. The "name" of the query is returned by any result
+         * that matches the query in the `matched_queries` array.
+         *
+         * https://docs.opensearch.org/latest/query-dsl/compound/bool/
+         */
+        _name?: string;
     };
 };
 
