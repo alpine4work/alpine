@@ -1,5 +1,6 @@
 import {IconContext, Trash} from "phosphor-react";
-import {ReactNode} from "react";
+import {ReactNode, useMemo} from "react";
+import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
@@ -18,6 +19,8 @@ import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {countGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
@@ -36,6 +39,17 @@ export function SearchEntityViewTitle({
     lineClamp?: number;
 }) {
     const spacingScale = useSpacingScale();
+
+    // TODO: Consider using some more sophisticated truncation strategy for long words.
+    // We could pull this into a <Truncate> component and use some JS to measure text width
+    // and insert break points as needed.
+    const shouldBreakWords = useMemo(() => {
+        const words = splitUnicodeDefaultWordBoundary(entityData.title || "");
+        const firstWordLength = countGraphemes(words[0] || "");
+        return entityData.title?.length
+            ? firstWordLength > maxReasonableEnglishWordGraphemeCount
+            : false;
+    }, [entityData.title]);
 
     return (
         <Box
@@ -56,6 +70,7 @@ export function SearchEntityViewTitle({
                 // the right "@" for mentions.
                 // eslint-disable-next-line string-quotes
                 fontFeatureSettings: '"calt" on',
+                wordBreak: shouldBreakWords ? "break-all" : "normal",
             }}
         >
             <SearchEntityViewTitlePrefix

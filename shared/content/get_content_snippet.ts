@@ -6,6 +6,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
 
 /**
  * Get a snippet of content around the provided position. The snippet should
@@ -386,7 +387,7 @@ export function getContentSnippet(
                 if (newTextIndex >= textIndex) break;
             }
 
-            if (newTextIndex - textIndex <= 14) {
+            if (newTextIndex - textIndex <= maxReasonableEnglishWordGraphemeCount) {
                 to += newTextIndex - textIndex;
             }
         }

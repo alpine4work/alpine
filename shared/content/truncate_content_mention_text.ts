@@ -1,4 +1,5 @@
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
 
 export const contentMentionTextTruncatedSuffix = " […]";
 
@@ -6,7 +7,8 @@ export const contentMentionTextSoftMaxGraphemeCount = 130;
 
 // According to Claude, 99% of English words are 14 characters or shorter. So
 // we should safely be able to include an English word before we truncate.
-export const contentMentionTextHardMaxGraphemeCount = contentMentionTextSoftMaxGraphemeCount + 14;
+export const contentMentionTextHardMaxGraphemeCount =
+    contentMentionTextSoftMaxGraphemeCount + maxReasonableEnglishWordGraphemeCount;
 
 export function truncateContentMentionText(string: string) {
     string = string.trim();
