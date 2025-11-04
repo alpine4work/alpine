@@ -22,7 +22,7 @@
 
 function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
     /**
-     * Regular expression to match all IANA top-level domains.
+     * Regular expression to match all IANA top-level domains with .inc added for alpine.inc.
      *
      * List accurate as of 2015/11/24. List taken from:
      * http://data.iana.org/TLD/tlds-alpha-by-domain.txt
@@ -61,7 +61,7 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
         "|(?:hamburg|hangout|haus|healthcare|help|here|hermes|hiphop|hitachi|hiv|hockey|holdings" +
         "|holiday|homedepot|homes|honda|horse|host|hosting|hoteles|hotmail|house|how|hsbc|hyundai" +
         "|h[kmnrtu])" +
-        "|(?:ibm|icbc|ice|icu|ifm|iinet|immo|immobilien|industries|infiniti|info|ing|ink|institute" +
+        "|(?:ibm|icbc|ice|icu|ifm|iinet|immo|immobilien|inc|industries|infiniti|info|ing|ink|institute" +
         "|insure|int|international|investments|ipiranga|irish|ist|istanbul|itau|iwc|i[delmnoqrst])" +
         "|(?:jaguar|java|jcb|jetzt|jewelry|jlc|jll|jobs|joburg|jprs|juegos|j[emop])" +
         "|(?:kaufen|kddi|kia|kim|kinder|kitchen|kiwi|koeln|komatsu|krd|kred|kyoto|k[eghimnprwyz])" +

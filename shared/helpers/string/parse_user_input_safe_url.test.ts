@@ -3,6 +3,8 @@ import {parseUserInputSafeUrl} from "~/shared/helpers/string/parse_user_input_sa
 describe("parseUserInputSafeUrl", () => {
     describe("valid URLs with safe protocols", () => {
         const validUrlsWithSafeProtocols = [
+            "https://alpine.inc",
+            "https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg",
             "https://example.com",
             "http://example.com",
             "mailto:test@example.com",
