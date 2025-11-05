@@ -1,24 +1,24 @@
 /**
- * This is roughly 375 words per page based on the estimated
+ * This is roughly 1500 words per page based on the estimated
  * [one-hundred-tokens-is-about-75-words rule of thumb][1].
  *
- * If the average paragraph / block is about 100 words, this is roughly 3-4
+ * If the average paragraph / block is about 100 words, this is roughly 6-8
  * content blocks (document elements) per page.
  *
  * [1]: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
  */
-export const agentDocumentPageTokenLimitCount = 1000;
+export const agentDocumentPageTokenLimitCount = 2000;
 
 /**
- * This is roughly 375 words per page based on the estimated
+ * This is roughly 750 words per page based on the estimated
  * [one-hundred-tokens-is-about-75-words rule of thumb][1].
  *
- * If the average message is about 100 words, this is roughly 3-4 messages per
+ * If the average message is about 100 words, this is roughly 6-8 messages per
  * page.
  *
  * [1]: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
  */
-export const agentMessagePageTokenLimitCount = 500;
+export const agentMessagePageTokenLimitCount = 1000;
 
 /**
  * The initial token limit for messages to include in context. This is based on

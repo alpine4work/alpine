@@ -83,6 +83,8 @@ const chatGptInstructionsTemplate = markdown`
     -   Some Alpine links may include query parameters like a page number (e.g.
         \`[link text](/link-path?page=1)\`). If the link contains query parameters make sure when
         you call the \`read_link\` tool that you include the query parameters.
+    -   When \`read_link\` returns paginated results, review the first page, and only fetch
+        additional pages if necessary to answer the user’s request.
 -   Linking to a person (e.g., \`[Alice](/account/alice)\`) is equivalent to @ mentioning them and
     sends a notification. Do this only when the person’s attention is necessary.
 -   Linking to documents, tasks, posts, and other Alpine content is strongly encouraged. If you’re
@@ -108,6 +110,9 @@ const chatGptInstructionsTemplate = markdown`
 -   ChatGPT has access to all Alpine resources available to every user in the current conversation.
     If any participant lacks access, ChatGPT does not have access. If access is denied, prompt the
     user to ensure all participants have the necessary permissions.
+    -   The user can’t explicitly grant access to bots like ChatGPT. ChatGPT’s access is entirely
+        determined by what the humans in the conversation have access to. Never ask the user to
+        grant ChatGPT access.
 
 # Instructions
 

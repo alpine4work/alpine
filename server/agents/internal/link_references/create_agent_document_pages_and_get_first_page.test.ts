@@ -82,7 +82,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("creates multiple pages for long document", async () => {
         // Create a document with enough content for 3 pages
         // Each page should have ~1000 tokens, so we need ~4000 characters per page
-        const longText = "a".repeat(6000);
+        const longText = "a".repeat(12000);
         const content: ApiContent = {
             elements: [
                 createParagraphElement(longText), // Page 1
@@ -181,7 +181,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
 
     test("handles large element that exceeds token limit", async () => {
         // Create a single element that's larger than the page limit
-        const veryLongText = "a".repeat(10000); // ~2500 tokens
+        const veryLongText = "a".repeat(20000); // ~2500 tokens
         const content: ApiContent = {
             elements: [
                 createParagraphElement(veryLongText),
@@ -284,7 +284,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
 
     test("creates correct page numbers for 5-page document", async () => {
         // Create content for 5 pages
-        const longText = "a".repeat(2000);
+        const longText = "a".repeat(4000);
         const content: ApiContent = {
             elements: [
                 createParagraphElement(longText),
