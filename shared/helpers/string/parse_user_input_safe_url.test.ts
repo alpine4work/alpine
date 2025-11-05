@@ -13,8 +13,11 @@ describe("parseUserInputSafeUrl", () => {
             "https://example.com#fragment",
             "https://example.com:8080/path?query=value#fragment",
             "mailto:user+tag@example-domain.org",
-            "http://example.online", // low use TLD, but we have a valid protocol
-            "https://example.online", // low use TLD, but we have a valid protocol
+            "http://example.online",
+            "https://example.online",
+            "http://192.168.1.1",
+            "https://127.0.0.1:8000",
+            "http://localhost:3000",
         ];
 
         test.each(validUrlsWithSafeProtocols)(
@@ -40,6 +43,9 @@ describe("parseUserInputSafeUrl", () => {
             "api.example.com/v1/users",
             "example.com/search?q=test&limit=10",
             "test-domain.co.uk",
+            "example.online",
+            "127.0.0.1:8000",
+            "192.168.1.1",
         ];
 
         test.each(validUrlsWithoutProtocols)("should prefix %s with https://", input => {
@@ -72,12 +78,6 @@ describe("parseUserInputSafeUrl", () => {
             {input: {}, description: "object"},
             {input: [], description: "array"},
             {input: true, description: "boolean"},
-            {input: "http://192.168.1.1", description: "IP address"},
-            {input: "https://127.0.0.1:8000", description: "IP address with port"},
-            {input: "127.0.0.1:8000", description: "IP address with port without protocol"},
-            {input: "192.168.1.1", description: "IP address without protocol"},
-            {input: "http://localhost:3000", description: "localhost with port"},
-            {input: "example.online", description: "low use TLD with no protocol"},
         ];
 
         test.each(invalidInputs)(

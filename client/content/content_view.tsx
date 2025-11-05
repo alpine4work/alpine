@@ -1583,8 +1583,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 // Optimization: These are only needed by `<MessagingViewPointerToolbar>` on
                 // desktop clients after server-side render. So reduce the server response size
                 // by not including these properties on initial render.
-                data-room={platform !== "mobile" && !isInitialAppRender && dataRoom}
-                data-index={platform !== "mobile" && !isInitialAppRender && dataIndex}
+                data-room={platform !== "mobile" && !isInitialAppRender ? dataRoom : undefined}
+                data-index={platform !== "mobile" && !isInitialAppRender ? dataIndex : undefined}
                 dangerouslySetInnerHTML={
                     isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
                 }
