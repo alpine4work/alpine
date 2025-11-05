@@ -438,7 +438,7 @@ describe("printAgentLinkPath", () => {
                 },
             };
             expect(printAgentLinkPath(pathObject)).toBe(
-                "/document/faq-common-questions-answers?page=2",
+                "/document/faq-common-questions-and-answers?page=2",
             );
         });
     });

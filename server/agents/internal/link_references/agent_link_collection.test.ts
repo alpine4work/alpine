@@ -58,11 +58,23 @@ describe("normalizeMarkdownLinkLabelForPath", () => {
         test("trims leading and trailing whitespace", () => {
             expect(normalizeMarkdownLinkLabelForPath("  my document  ")).toBe("my-document");
         });
+
+        test("replaces ampersands with “and”", () => {
+            expect(normalizeMarkdownLinkLabelForPath("D&D Notes")).toBe("d-and-d-notes");
+        });
+
+        test("replaces multiple ampersands with “and” when surrounded by spaces", () => {
+            expect(
+                normalizeMarkdownLinkLabelForPath(
+                    "Texas A & M is playing North Carolina A & T this weekend",
+                ),
+            ).toBe("texas-a-and-m-is-playing-north-carolina-a-and-t-th");
+        });
     });
 
     describe("special character handling", () => {
         test("removes special characters", () => {
-            expect(normalizeMarkdownLinkLabelForPath("My Document!@#$%^&*()")).toBe("my-document");
+            expect(normalizeMarkdownLinkLabelForPath("My Document!@#$%^*()")).toBe("my-document");
         });
 
         test("preserves hyphens", () => {
@@ -180,7 +192,7 @@ describe("normalizeMarkdownLinkLabelForPath", () => {
         });
 
         test("handles string with only special characters", () => {
-            expect(normalizeMarkdownLinkLabelForPath("!@#$%^&*()")).toBe("untitled");
+            expect(normalizeMarkdownLinkLabelForPath("!@#$%^*()")).toBe("untitled");
         });
 
         test("handles string with only hyphens", () => {
@@ -285,7 +297,7 @@ describe("normalizeMarkdownLinkLabelForPath", () => {
         });
 
         test("returns untitled when all characters are stripped", () => {
-            expect(normalizeMarkdownLinkLabelForPath("@#$%^&*()")).toBe("untitled");
+            expect(normalizeMarkdownLinkLabelForPath("@#$%^*()")).toBe("untitled");
         });
 
         test("returns untitled for whitespace only", () => {

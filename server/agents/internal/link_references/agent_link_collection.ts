@@ -475,7 +475,11 @@ export function normalizeMarkdownLinkLabelForPath(
     const maxLength = options?.maxLength ?? 50;
     let normalized = label.trim().replace(/\s+/g, " ");
 
-    normalized = normalized.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
+    normalized = normalized
+        .toLowerCase()
+        // Replace ampersands with "and" so `D&D` becomes `d-and-d` instead of `d-d`
+        .replaceAll("&", "-and-")
+        .replaceAll(/[^a-z0-9]+/g, "-");
 
     if (normalized.length > maxLength) {
         normalized = normalized.slice(0, maxLength);
