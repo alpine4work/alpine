@@ -908,21 +908,29 @@ function TaskRowTitleInput(
                             return;
                         }
 
-                        const titleUpdate = titleRef.current.replaceMany(
-                            mapIterable(transaction.steps, step => {
-                                assert(step instanceof ReplaceStep);
-                                return step;
-                            }),
-                        );
+                        const {update: titleUpdate, truncatedCharacterCount} =
+                            titleRef.current.replaceManyWithStepWithTruncatedCharacterCount(
+                                mapIterable(transaction.steps, step => {
+                                    assert(step instanceof ReplaceStep);
+                                    return step;
+                                }),
+                            );
 
-                        const newTitleState = oldTitleState.apply(
-                            transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
-                        );
+                        // If the title was truncated through the model, we don't
+                        // run this optimization. We force update the editor state below.
+                        // See: updateTitleStateRef.current
+                        // TODO: Ideally we'd create a new transaction based on oldTitleState
+                        // with the updated steps instead of skipping this code completely.
+                        if (truncatedCharacterCount === 0) {
+                            const newTitleState = oldTitleState.apply(
+                                transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
+                            );
 
-                        updateTitleStateRef.current = {
-                            titleUpdate,
-                            titleState: newTitleState,
-                        };
+                            updateTitleStateRef.current = {
+                                titleUpdate,
+                                titleState: newTitleState,
+                            };
+                        }
 
                         // We must flush synchronously. Since ProseMirror preserves local DOM
                         // state when we call `updateState()` synchronously but won't otherwise.
@@ -2227,55 +2235,69 @@ function handleTaskRowTitleInputPaste(
                 // If this is the last pasted task then generate a `titleUpdate` that replaces
                 // text in the last task at the current selection.
                 else {
-                    const titleUpdate = assertExists(
-                        taskTitlePluginKey.getState(titleState),
-                    ).replace(titleState.selection.from, titleState.selection.to, pastedTask.title);
+                    const {update: titleUpdate, truncatedCharacterCount: truncatedCharacters} =
+                        assertExists(
+                            taskTitlePluginKey.getState(titleState),
+                        ).replaceManyWithStepWithTruncatedCharacterCount([
+                            {
+                                from: titleState.selection.from,
+                                to: titleState.selection.to,
+                                text: pastedTask.title,
+                            },
+                        ]);
 
-                    const transaction = titleState.tr.replace(
-                        titleState.selection.from,
-                        titleState.selection.to,
-                        new Slice(
-                            Fragment.from(TaskTitleProsemirrorSchema.text(pastedTask.title)),
-                            0,
-                            0,
-                        ),
+                    const pastedTaskTitle = pastedTask.title.substring(
+                        0,
+                        pastedTask.title.length - truncatedCharacters,
                     );
 
-                    // Set the selection to the end of the pasted content.
-                    transaction.setSelection(
-                        TextSelection.near(
-                            transaction.doc.resolve(
-                                titleState.selection.from + pastedTask.title.length,
+                    if (pastedTaskTitle.length > 0) {
+                        const transaction = titleState.tr.replace(
+                            titleState.selection.from,
+                            titleState.selection.to,
+                            new Slice(
+                                Fragment.from(TaskTitleProsemirrorSchema.text(pastedTaskTitle)),
+                                0,
+                                0,
                             ),
-                        ),
-                    );
+                        );
 
-                    const newTitleState = titleState.apply(transaction);
+                        // Set the selection to the end of the pasted content.
+                        transaction.setSelection(
+                            TextSelection.near(
+                                transaction.doc.resolve(
+                                    titleState.selection.from + pastedTaskTitle.length,
+                                ),
+                            ),
+                        );
 
-                    updateTitleStateRef.current = {
-                        titleUpdate,
-                        titleState: newTitleState,
-                    };
+                        const newTitleState = titleState.apply(transaction);
 
-                    actions.push({
-                        type: "UpdateTask",
-                        time: store.clock.now(),
-                        taskId: pastedTaskId,
-                        taskAction: {
-                            type: "UpdateTitle",
+                        updateTitleStateRef.current = {
                             titleUpdate,
-                            withoutUndoMerge,
-                        },
-                    });
-
-                    // If the task used to have no parents but after the paste will be indented then
-                    // we need to manually move focus into the new `<TaskRowView>` component since
-                    // child tasks have a key prefixed by their root parent task.
-                    if (parents.length === 0 && pastedParentTaskIds.length > 0) {
-                        focusTaskTitleSelectionAfterCommit = {
-                            gridKey: `${pastedParentTaskIds[0]!}-${pastedTaskId}`,
-                            selection: transaction.selection,
+                            titleState: newTitleState,
                         };
+
+                        actions.push({
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId: pastedTaskId,
+                            taskAction: {
+                                type: "UpdateTitle",
+                                titleUpdate,
+                                withoutUndoMerge,
+                            },
+                        });
+
+                        // If the task used to have no parents but after the paste will be indented then
+                        // we need to manually move focus into the new `<TaskRowView>` component since
+                        // child tasks have a key prefixed by their root parent task.
+                        if (parents.length === 0 && pastedParentTaskIds.length > 0) {
+                            focusTaskTitleSelectionAfterCommit = {
+                                gridKey: `${pastedParentTaskIds[0]!}-${pastedTaskId}`,
+                                selection: transaction.selection,
+                            };
+                        }
                     }
                 }
 

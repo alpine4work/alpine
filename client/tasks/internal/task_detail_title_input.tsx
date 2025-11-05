@@ -170,21 +170,28 @@ function TaskDetailTitleInput(
                             return;
                         }
 
-                        const titleUpdate = propsRef.current.title.replaceMany(
-                            mapIterable(transaction.steps, step => {
-                                assert(step instanceof ReplaceStep);
-                                return step;
-                            }),
-                        );
+                        const {update: titleUpdate, truncatedCharacterCount} =
+                            propsRef.current.title.replaceManyWithStepWithTruncatedCharacterCount(
+                                mapIterable(transaction.steps, step => {
+                                    assert(step instanceof ReplaceStep);
+                                    return step;
+                                }),
+                            );
 
-                        const newTitleState = oldTitleState.apply(
-                            transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
-                        );
+                        // If the title was truncated through the model, we don't
+                        // run this optimization. We force update the editor state below.
+                        // TODO: Ideally we'd create a new transaction based on oldTitleState
+                        // with the updated steps instead of skipping this code completely.
+                        if (truncatedCharacterCount === 0) {
+                            const newTitleState = oldTitleState.apply(
+                                transaction.setMeta(taskTitlePluginKey, titleUpdate.newTitle),
+                            );
 
-                        updateTitleStateRef.current = {
-                            titleUpdate,
-                            titleState: newTitleState,
-                        };
+                            updateTitleStateRef.current = {
+                                titleUpdate,
+                                titleState: newTitleState,
+                            };
+                        }
 
                         // We must flush synchronously. Since ProseMirror preserves local DOM
                         // state when we call `updateState()` synchronously but won't otherwise.

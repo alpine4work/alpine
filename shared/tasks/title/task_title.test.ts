@@ -19,6 +19,7 @@ import {
     isTaskTitle,
     mergeTaskTitleUpdates,
     realmTaskTitleClientId,
+    taskTitleMaxLength,
 } from "~/shared/tasks/title/task_title.js";
 
 test("can get task title text", () => {
@@ -2126,19 +2127,31 @@ test("handles multiple interleaved updates with undo/redo", () => {
     expect(titleA.getText()).toEqual("HelloWorld");
 });
 
-test("handles large document manipulations", () => {
-    // Create a large text document
-    const largeText = "x".repeat(10000);
+test("handles largest document manipulations", () => {
+    // There are some magic numbers in here. They are related to how many characters
+    // we're inserting and replacing to test within our max length.
+
+    // Create a large text document, leaving room for edits
+    const largeText = "x".repeat(taskTitleMaxLength - 8);
     let title = TaskTitleModel.fromText(largeText);
 
+    const start = 0;
+    const middleReplaceStart = taskTitleMaxLength / 2;
+    const middleReplaceEnd = middleReplaceStart + 10;
+    const end = taskTitleMaxLength - 5;
+
     // Make some edits at various positions
-    title = title.replace(5000, 5010, "MIDDLE").newTitle;
-    title = title.replace(0, 0, "Start: ").newTitle;
-    title = title.replace(10003, 10003, " :End").newTitle;
+    title = title.replace(middleReplaceStart, middleReplaceEnd, "MIDDLE").newTitle;
+    title = title.replace(start, start, "Start: ").newTitle;
+    title = title.replace(end, end, " :End").newTitle;
 
     // Verify results
     expect(title.getText()).toEqual(
-        "Start: " + largeText.substring(0, 5000) + "MIDDLE" + largeText.substring(5010) + " :End",
+        "Start: " +
+            largeText.substring(0, middleReplaceStart) +
+            "MIDDLE" +
+            largeText.substring(middleReplaceEnd) +
+            " :End",
     );
 });
 
@@ -2994,18 +3007,105 @@ test("inserts large content between nodes then deletes it", () => {
     const title = createMultiNodeTitle();
 
     // Insert large text between first and second nodes
-    const largeText = "X".repeat(1000);
+    const largeTextSize = 400;
+    const largeText = "X".repeat(largeTextSize);
     const withLargeText = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
 
     // Verify large text was inserted correctly
     expect(withLargeText.getText()).toContain(largeText);
-    expect(withLargeText.getText().length).toEqual(title.getText().length + 1000);
+    expect(withLargeText.getText().length).toEqual(title.getText().length + largeTextSize);
 
     // Now delete that large text
-    const deleteLargeText = withLargeText.replace(14, 1014, "", {clientIdForTest: 5}).newTitle;
+    const deleteLargeText = withLargeText.replace(14, 14 + largeTextSize, "", {
+        clientIdForTest: 5,
+    }).newTitle;
 
     // Should be back to original text
     expect(deleteLargeText.getText()).toEqual(title.getText());
+});
+
+test("limits text size characters", () => {
+    const title = createMultiNodeTitle();
+
+    // Insert large text between first and second nodes
+    const largeTextSize = taskTitleMaxLength * 2; // Exceeds the character limit
+    const largeText = "X".repeat(largeTextSize);
+    const withLargeText = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
+
+    expect(withLargeText.getText().length).toEqual(taskTitleMaxLength);
+});
+
+test("typing in the middle of a title at the max length does nothing", () => {
+    const title = createMultiNodeTitle();
+
+    // Insert large text between first and second nodes
+    const largeTextSize = taskTitleMaxLength * 2; // Exceeds the character limit
+    const largeText = "X".repeat(largeTextSize);
+    const baseTitle = title.replace(14, 14, largeText, {clientIdForTest: 4}).newTitle;
+    const baseText = baseTitle.getText();
+
+    // Try to insert some text into the middle of the title
+    const newTitle = baseTitle.replace(taskTitleMaxLength / 2, taskTitleMaxLength / 2, "INSERTED", {
+        clientIdForTest: 4,
+    }).newTitle;
+    const newText = newTitle.getText();
+
+    // Text should remain unchanged since we were at max length
+    expect(newText).toEqual(baseText);
+});
+
+[
+    {
+        description: "truncating last update with three steps",
+        stepText: "12",
+        repeatCount: 3,
+        expectedInsertText: "12121",
+    },
+    {
+        description: "truncating last update",
+        stepText: "123",
+        repeatCount: 2,
+        expectedInsertText: "12312",
+    },
+    {
+        description: "truncating last update a little more",
+        stepText: "1234",
+        repeatCount: 2,
+        expectedInsertText: "12341",
+    },
+    {
+        description: "no room for last update",
+        stepText: "12345",
+        repeatCount: 2,
+        expectedInsertText: "12345",
+    },
+    {
+        description: "truncating first update, no room for last",
+        stepText: "123456",
+        repeatCount: 2,
+        expectedInsertText: "12345",
+    },
+].forEach(({stepText, repeatCount, expectedInsertText, description}) => {
+    test(`handles multiple updates at the max length, ${description}`, () => {
+        const largeTextSize = taskTitleMaxLength - 5; // Leave room for 5 chars
+        const largeText = "X".repeat(largeTextSize);
+
+        let title = emptyTaskTitleModel.get();
+        title = title.replace(0, 0, largeText, {clientIdForTest: 4}).newTitle;
+
+        const operations = Array.from({length: repeatCount}, (_, index) => ({
+            pos: largeTextSize + stepText.length * index,
+            text: stepText,
+        }));
+
+        // Apply multiple operations at once using replaceMany
+        const steps = operations.map(op => ({from: op.pos, to: op.pos, text: op.text}));
+
+        // Only left room for 5 characters
+        const expectedTitle = largeText + expectedInsertText;
+        const batchUpdate = title.replaceMany(steps);
+        expect(batchUpdate.newTitle.getText()).toEqual(expectedTitle);
+    });
 });
 
 test("performs multiple operations on overlapping node boundaries", () => {

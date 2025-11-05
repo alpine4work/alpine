@@ -18,6 +18,8 @@ import {decodeId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+export const taskTitleMaxLength = 512;
+
 export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
     nodes: {
         doc: {content: "text*"},
@@ -368,7 +370,7 @@ export function getTaskTitleProsemirrorNodeText(node: Node): string {
         }
     });
 
-    return text;
+    return text.substring(0, taskTitleMaxLength);
 }
 
 /**
@@ -714,10 +716,34 @@ export class TaskTitleModel {
         return this.replaceMany([{from, to, text}], options);
     }
 
+    /**
+     * Create a task title update using the same properties as ProseMirror's
+     * `ReplaceStep` using multiple steps. You can use this to translate
+     * ProseMirror updates into Yjs updates.
+     *
+     * You have to be a little careful to avoid corrupting your task title. See the
+     * comment on `TaskTitleModel` for more information.
+     */
     public replaceMany(
         steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
         options?: {clientIdForTest?: number},
     ): TaskTitleUpdateModel {
+        return this.replaceManyWithStepWithTruncatedCharacterCount(steps, options).update;
+    }
+
+    /**
+     * Create a task title update using the same properties as ProseMirror's
+     * `ReplaceStep` using multiple steps. You can use this to translate
+     * ProseMirror updates into Yjs updates. This also returns extra metadata
+     * useful for tracking UI state based on the steps applied.
+     *
+     * You have to be a little careful to avoid corrupting your task title. See the
+     * comment on `TaskTitleModel` for more information.
+     */
+    public replaceManyWithStepWithTruncatedCharacterCount(
+        steps: Iterable<{from: number; to: number} & ({text: string} | {slice: Slice})>,
+        options?: {clientIdForTest?: number},
+    ): {update: TaskTitleUpdateModel; truncatedCharacterCount: number} {
         const doc = cloneDoc(this._getDoc(), options);
         const fragment = doc.getXmlFragment("doc");
 
@@ -731,6 +757,9 @@ export class TaskTitleModel {
             }
         });
 
+        let isEmptyFromTruncation = true;
+        let truncatedCharacters = 0;
+
         const transaction = doc.transact(transaction => {
             let hasSteps = false;
 
@@ -738,6 +767,8 @@ export class TaskTitleModel {
                 hasSteps = true;
 
                 const {from, to} = step;
+                let finalFrom = from;
+                let finalTo = to;
 
                 let text: string;
                 if ("text" in step) {
@@ -756,15 +787,49 @@ export class TaskTitleModel {
                 assert(Number.isSafeInteger(to), "Step `to` must be an integer");
                 assert(to >= from, "Step `to` must be greater than or equal to `from`");
                 assert(from >= 0, "Step `from` must be greater than or equal to 0");
-
                 assert(from !== to || text.length > 0, "Step must either delete or insert text");
+
+                // Calculate current text length and enforce character limit
+                let currentLength = 0;
+                let child = fragment.firstChild;
+                while (child !== null) {
+                    // Task titles only contain text nodes for now.
+                    assert(child instanceof Y.XmlText);
+                    currentLength += child.length;
+                    child = child.nextSibling;
+                }
+
+                const deletedLength = to - from;
+                const finalLengthAfterDeletion = currentLength - deletedLength;
+                const maxAllowedInsertLength = Math.max(
+                    0,
+                    taskTitleMaxLength - finalLengthAfterDeletion,
+                );
+
+                // isEmptyFromTruncation should only be true if ALL steps result in an empty
+                // text _strictly_ due to truncation. As soon as we see a step that has any allowed
+                // insert length, we know the final result can't be empty due to truncation alone.
+                if (maxAllowedInsertLength > 0) {
+                    isEmptyFromTruncation = false;
+                }
+
+                // Truncate the text if it would exceed the limit
+                if (text.length > maxAllowedInsertLength) {
+                    truncatedCharacters = text.length - maxAllowedInsertLength;
+                    text = text.substring(0, maxAllowedInsertLength);
+
+                    finalTo -= truncatedCharacters;
+                    if (finalFrom > taskTitleMaxLength) {
+                        finalFrom = taskTitleMaxLength;
+                    }
+                }
 
                 // Our task title is a simple string, for now. There shouldn't be nested
                 // `Y.XmlElement`s.
                 assert(fragment.firstChild === null || fragment.firstChild instanceof Y.XmlText);
 
                 if (fragment.firstChild === null) {
-                    assert(to <= 0, "`to` is out of bounds");
+                    assert(finalTo <= 0, "`to` is out of bounds");
 
                     if (text.length > 0) {
                         fragment.insert(0, [new Y.XmlText(text)]);
@@ -779,12 +844,12 @@ export class TaskTitleModel {
 
                         untilToChildLength += toChild.length;
 
-                        if (fromChild === null && from <= untilToChildLength) {
+                        if (fromChild === null && finalFrom <= untilToChildLength) {
                             untilFromChildLength = untilToChildLength;
                             fromChild = toChild;
                         }
 
-                        if (to <= untilToChildLength) break;
+                        if (finalTo <= untilToChildLength) break;
 
                         toChild = toChild.nextSibling;
                     }
@@ -794,8 +859,8 @@ export class TaskTitleModel {
 
                     const fromChildLengthBeforeDelete = fromChild.length;
 
-                    if (from !== to) {
-                        let remainingDeleteLength = to - from;
+                    if (finalFrom !== finalTo) {
+                        let remainingDeleteLength = finalTo - finalFrom;
                         let deleteChild: Y.XmlElement | Y.XmlText | null = fromChild;
 
                         while (remainingDeleteLength > 0) {
@@ -803,7 +868,7 @@ export class TaskTitleModel {
 
                             const deleteFrom =
                                 deleteChild === fromChild
-                                    ? from - (untilFromChildLength - fromChild.length)
+                                    ? finalFrom - (untilFromChildLength - fromChild.length)
                                     : 0;
 
                             const deleteLength = Math.min(
@@ -820,7 +885,7 @@ export class TaskTitleModel {
 
                     if (text.length > 0) {
                         fromChild.insert(
-                            from - (untilFromChildLength - fromChildLengthBeforeDelete),
+                            finalFrom - (untilFromChildLength - fromChildLengthBeforeDelete),
                             text,
                         );
                     }
@@ -843,14 +908,21 @@ export class TaskTitleModel {
             return transaction;
         });
 
-        return new TaskTitleUpdateModel(
-            // @ts-expect-error: TypeScript thinks `update` is null even though we assign
-            // to it in the `"updateV2"` event handler.
-            assertExists(update),
-            getUndoStackItem(transaction),
-            this,
-            new TaskTitleModel(doc),
-        );
+        const finalUpdate: TaskTitleUpdate = isEmptyFromTruncation
+            ? emptyTaskTitle.get()
+            : // TypeScript thinks `update` is null even though we assign to it in the
+              // `"updateV2"` event handler.
+              assertExists<TaskTitleUpdate>(update);
+
+        return {
+            update: new TaskTitleUpdateModel(
+                finalUpdate,
+                getUndoStackItem(transaction),
+                this,
+                new TaskTitleModel(doc),
+            ),
+            truncatedCharacterCount: truncatedCharacters,
+        };
     }
 
     /**
