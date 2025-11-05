@@ -492,7 +492,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                         actions.unshift([
                             {
                                 label: "Cut",
-                                isDisabled: !isEmpty,
+                                isDisabled: isEmpty,
                                 keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
                                 onPress: () => {
                                     document.execCommand("cut");
@@ -500,7 +500,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                             },
                             {
                                 label: "Copy",
-                                isDisabled: !isEmpty,
+                                isDisabled: isEmpty,
                                 keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
                                 onPress: () => {
                                     document.execCommand("copy");
