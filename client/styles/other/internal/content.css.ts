@@ -1730,8 +1730,15 @@ const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacing
         fontSizesBySpacingScale[paragraphActualFontSize][spacingScale].fontSize *
             backgroundFontSizePercentage;
 
-    const get = (method: "floor" | "ceil", resolution: number) =>
-        Math[method]((Math.round(padding * resolution) / resolution / 2) * resolution) / resolution;
+    const get = (method: "floor" | "ceil", resolution: number) => {
+        if (resolution === 1) {
+            // No subpixel rounding needed when resolution is 1.
+            return Math.round(padding / 2);
+        } else {
+            const precision = Math.round(padding * resolution) / resolution / 2;
+            return Math[method](precision * resolution) / resolution;
+        }
+    };
 
     return createObjectFromKeys(resolutions, resolution => ({
         floor: `${get("floor", resolution)}px`,
