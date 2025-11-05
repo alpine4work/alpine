@@ -1,3 +1,4 @@
+/* eslint-disable string-quotes */
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
@@ -151,6 +152,10 @@ describe("searchAlpineForAgent", () => {
         );
 
         expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
 1. [Test Document](/document/test-document)
 
 2. [Test Post](/post/test-post)
@@ -292,6 +297,10 @@ describe("searchAlpineForAgent", () => {
         );
 
         expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
 1. [Test Document](/document/test-document)
 
    **Test Document** test document
@@ -323,6 +332,143 @@ describe("searchAlpineForAgent", () => {
 10. [Test Channel](/channel/test-channel)
 
 11. [John: Unknown chat message](/chat/john-unknown-chat-message)
+`);
+    });
+
+    test("groups results by parsed filter", async () => {
+        const documentId2 = generateId<DocumentId>();
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Document",
+                path: `/documents/${documentId}`,
+                title: "Matching Document 1",
+                bodyMatch: [{text: "content", isMatch: true}],
+                parsedFilter: {summary: "documents created yesterday"},
+                id: documentId,
+            },
+            {
+                type: "Document",
+                path: `/documents/${documentId2}`,
+                title: "Matching Document 2",
+                bodyMatch: null,
+                parsedFilter: {summary: "documents created yesterday"},
+                id: documentId2,
+            },
+            {
+                type: "Post",
+                path: `/posts/${postId}`,
+                title: "Non-matching Post",
+                bodyMatch: [{text: "post content"}],
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: postId,
+            },
+            {
+                type: "Task",
+                path: `/tasks/${taskId}`,
+                title: "Non-matching Task",
+                bodyMatch: null,
+                status: {type: "Open", isActive: true},
+                id: taskId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        );
+
+        expect(result).toEqual(`\
+# Matching results
+
+The following search results are all documents created yesterday.
+
+1. [Matching Document 1](/document/matching-document-1)
+
+   **content**
+
+2. [Matching Document 2](/document/matching-document-2)
+
+# Other results
+
+The following search results are \\_not\\_ documents created yesterday but Alpine thought might be relevant anyway. Use your best judgement when determining if they're actually useful for responding to the user's request.
+
+1. [Non-matching Post](/post/non-matching-post)
+
+   post content
+
+2. [Non-matching Task](/task/non-matching-task)
+`);
+    });
+
+    test("creates multiple parsed filter groups if there are different matched filters.", async () => {
+        const documentId2 = generateId<DocumentId>();
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Document",
+                path: `/documents/${documentId}`,
+                title: "Matching Document 1",
+                bodyMatch: [{text: "content", isMatch: true}],
+                parsedFilter: {summary: "documents created yesterday"},
+                id: documentId,
+            },
+            {
+                type: "Document",
+                path: `/documents/${documentId2}`,
+                title: "Matching Document 2",
+                bodyMatch: null,
+                parsedFilter: {summary: "documents created yesterday"},
+                id: documentId2,
+            },
+            {
+                type: "Post",
+                path: `/posts/${postId}`,
+                title: "Non-matching Post",
+                bodyMatch: [{text: "post content"}],
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: postId,
+                parsedFilter: {summary: "posts created yesterday"},
+            },
+            {
+                type: "Task",
+                path: `/tasks/${taskId}`,
+                title: "Non-matching Task",
+                bodyMatch: null,
+                status: {type: "Open", isActive: true},
+                id: taskId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        );
+
+        expect(result).toEqual(`\
+# Matching results
+
+The following search results are all documents created yesterday.
+
+1. [Matching Document 1](/document/matching-document-1)
+
+   **content**
+
+2. [Matching Document 2](/document/matching-document-2)
+
+# Matching results
+
+The following search results are all posts created yesterday.
+
+1. [Non-matching Post](/post/non-matching-post)
+
+   post content
+
+# Other results
+
+The following search results are \\_not\\_ documents created yesterday or posts created yesterday but Alpine thought might be relevant anyway. Use your best judgement when determining if they're actually useful for responding to the user's request.
+
+1. [Non-matching Task](/task/non-matching-task)
 `);
     });
 });

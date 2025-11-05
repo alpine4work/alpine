@@ -1,6 +1,7 @@
 import {
     ApiSearchResult,
     ApiSearchResultBodyMatch,
+    ApiSearchResultParsedFilter,
     ApiSearchResultPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiTarget} from "~/shared/api/types/api_target.js";
@@ -15,6 +16,7 @@ test("all search results conform to the expected shape", () => {
             readonly path: ApiSearchResultPath;
             readonly title: string | null;
             readonly bodyMatch: ApiSearchResultBodyMatch | null;
+            readonly parsedFilter?: ApiSearchResultParsedFilter | null;
         }
     >();
 

@@ -12,8 +12,9 @@ import {parseApiPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiAccount,
     ApiSearchResult,
-    ApiSearchResultBodyMatch,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -34,19 +35,94 @@ export async function searchAlpineForAgent(
     });
     if (!data || data.results.length === 0) return "No results found";
 
-    const listItems = await runAllPromises(
-        data.results.map(result => getOrderedListItemForSearchEntityResult(transaction, result)),
-    );
+    const matchedFilterToResults: Map<string, Array<ApiSearchResult>> = new Map();
+    for (const result of data.results) {
+        if (result.parsedFilter) {
+            matchedFilterToResults.set(result.parsedFilter.summary, [
+                ...(matchedFilterToResults.get(result.parsedFilter.summary) || []),
+                result,
+            ]);
+        }
+    }
 
-    return printMarkdownTree({
-        type: "root",
-        children: [
+    // Group results by whether they matched a natural language filter
+    const otherResults = data.results.filter(result => !result.parsedFilter);
+
+    const sections: Array<any> = [];
+
+    // Add matching results sections if any results matched a filter
+    if (matchedFilterToResults.size > 0) {
+        for (const [filterText, results] of matchedFilterToResults.entries()) {
+            const matchingListItems = await runAllPromises(
+                results.map(result => getOrderedListItemForSearchEntityResult(transaction, result)),
+            );
+
+            sections.push(
+                {
+                    type: "heading",
+                    depth: 1,
+                    children: [{type: "text", value: "Matching results"}],
+                },
+                {
+                    type: "paragraph",
+                    children: [
+                        {
+                            type: "text",
+                            value: `The following search results are all ${filterText}.`,
+                        },
+                    ],
+                },
+                {
+                    type: "list",
+                    ordered: true,
+                    children: matchingListItems,
+                },
+            );
+        }
+    }
+
+    // Add other results section if there are non-matching results
+    if (otherResults.length > 0) {
+        const otherListItems = await runAllPromises(
+            otherResults.map(result =>
+                getOrderedListItemForSearchEntityResult(transaction, result),
+            ),
+        );
+        const matchFilterSuperset =
+            matchedFilterToResults.size > 0
+                ? joinPrettyConjunctionList(Array.from(matchedFilterToResults.keys()), "or")
+                : null;
+
+        sections.push(
+            {
+                type: "heading",
+                depth: 1,
+                children: [{type: "text", value: "Other results"}],
+            },
+            {
+                type: "paragraph",
+                children: [
+                    {
+                        type: "text",
+                        value:
+                            matchFilterSuperset !== null
+                                ? // eslint-disable-next-line string-quotes
+                                  `The following search results are _not_ ${matchFilterSuperset} but Alpine thought might be relevant anyway. Use your best judgement when determining if they're actually useful for responding to the user's request.`
+                                : "The following search results matched the keyword search but did not match any specific filters.",
+                    },
+                ],
+            },
             {
                 type: "list",
                 ordered: true,
-                children: listItems,
+                children: otherListItems,
             },
-        ],
+        );
+    }
+
+    return printMarkdownTree({
+        type: "root",
+        children: sections,
     });
 }
 
@@ -66,7 +142,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(accountLink, result.bodyMatch);
+            return createListItemWithSnippet(accountLink, result);
         }
         case "Channel": {
             assert(pathObject.type === "Channel");
@@ -78,7 +154,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(channelLink, result.bodyMatch);
+            return createListItemWithSnippet(channelLink, result);
         }
         case "Document": {
             assert(pathObject.type === "Document");
@@ -90,7 +166,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(documentLink, result.bodyMatch);
+            return createListItemWithSnippet(documentLink, result);
         }
         case "Post": {
             assert(pathObject.type === "Post");
@@ -102,7 +178,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(postLink, result.bodyMatch);
+            return createListItemWithSnippet(postLink, result);
         }
         case "Task": {
             assert(pathObject.type === "Task");
@@ -114,7 +190,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(taskLink, result.bodyMatch);
+            return createListItemWithSnippet(taskLink, result);
         }
         case "TaskCollection": {
             assert(pathObject.type === "TaskCollection");
@@ -126,7 +202,7 @@ async function getOrderedListItemForSearchEntityResult(
                 },
             });
 
-            return createListItemWithSnippet(taskCollectionLink, result.bodyMatch);
+            return createListItemWithSnippet(taskCollectionLink, result);
         }
         case "PostMessage": {
             assert(pathObject.type === "PostComment");
@@ -140,7 +216,7 @@ async function getOrderedListItemForSearchEntityResult(
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
             });
 
-            return createListItemWithSnippet(postCommentsLink, result.bodyMatch);
+            return createListItemWithSnippet(postCommentsLink, result);
         }
         case "Chat": {
             assert(pathObject.type === "Chat");
@@ -150,7 +226,7 @@ async function getOrderedListItemForSearchEntityResult(
                 name: result.title,
             });
 
-            return createListItemWithSnippet(chatLink, result.bodyMatch);
+            return createListItemWithSnippet(chatLink, result);
         }
         case "ChatMessage": {
             assert(pathObject.type === "ChatMessage");
@@ -164,7 +240,7 @@ async function getOrderedListItemForSearchEntityResult(
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
             });
 
-            return createListItemWithSnippet(chatMessageLink, result.bodyMatch);
+            return createListItemWithSnippet(chatMessageLink, result);
         }
         case "DocumentMessage": {
             assert(pathObject.type === "DocumentComment");
@@ -179,7 +255,7 @@ async function getOrderedListItemForSearchEntityResult(
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
             });
 
-            return createListItemWithSnippet(documentCommentLink, result.bodyMatch);
+            return createListItemWithSnippet(documentCommentLink, result);
         }
         case "TaskMessage": {
             assert(pathObject.type === "TaskComment");
@@ -193,17 +269,14 @@ async function getOrderedListItemForSearchEntityResult(
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
             });
 
-            return createListItemWithSnippet(taskCommentLink, result.bodyMatch);
+            return createListItemWithSnippet(taskCommentLink, result);
         }
         default:
             throw exhaustive(result);
     }
 }
 
-function createListItemWithSnippet(
-    link: AgentLink,
-    bodyMatch: ApiSearchResultBodyMatch | null,
-): ListItem {
+function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult | null): ListItem {
     const linkToSearchResult: Link = {
         type: "link",
         url: printAgentLinkPath(link),
@@ -215,8 +288,8 @@ function createListItemWithSnippet(
         ],
     };
 
-    const bodyMatchContent: Array<PhrasingContent> = bodyMatch
-        ? bodyMatch.map(({text, isMatch}) => {
+    const bodyMatchContent: Array<PhrasingContent> = result?.bodyMatch
+        ? result.bodyMatch.map(({text, isMatch}) => {
               const textContent: PhrasingContent = {type: "text", value: text};
               if (!isMatch) return textContent;
               return {type: "strong", children: [textContent]};

@@ -1903,6 +1903,8 @@ components:
                     type: string
                 bodyMatch:
                     const: null
+                parsedFilter:
+                    const: null
 
         SearchChannelResult:
             type: object
@@ -1921,6 +1923,8 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchChatResult:
             type: object
@@ -1937,6 +1941,8 @@ components:
                     type: string
                 bodyMatch:
                     const: null
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchChatMessageResult:
             type: object
@@ -1958,6 +1964,8 @@ components:
                     const: null
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchDocumentResult:
             type: object
@@ -1976,6 +1984,8 @@ components:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchDocumentMessageResult:
             type: object
@@ -2001,6 +2011,8 @@ components:
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchPostResult:
             type: object
@@ -2021,6 +2033,8 @@ components:
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchPostMessageResult:
             type: object
@@ -2044,6 +2058,8 @@ components:
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchTaskResult:
             type: object
@@ -2064,6 +2080,8 @@ components:
                         - type: "null"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchTaskMessageResult:
             type: object
@@ -2087,6 +2105,8 @@ components:
                         - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchTaskCollectionResult:
             type: object
@@ -2103,6 +2123,8 @@ components:
                     type: string
                 bodyMatch:
                     const: null
+                parsedFilter:
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
 
         SearchResultBodyMatch:
             type: array
@@ -2115,3 +2137,11 @@ components:
                         type: string
                     isMatch:
                         const: true
+
+        SearchResultParsedFilter:
+            type: object
+            required: [summary]
+            additionalProperties: false
+            properties:
+                summary:
+                    type: string

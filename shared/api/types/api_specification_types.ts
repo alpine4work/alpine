@@ -1657,6 +1657,8 @@ export namespace ApiSpecification {
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
+                /** @constant */
+                readonly parsedFilter?: null;
             };
             readonly SearchChannelResult: {
                 /**
@@ -1668,6 +1670,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["ChannelId"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchChatResult: {
                 /**
@@ -1680,6 +1683,7 @@ export namespace ApiSpecification {
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchChatMessageResult: {
                 /**
@@ -1694,6 +1698,7 @@ export namespace ApiSpecification {
                 /** @constant */
                 readonly title: null;
                 readonly author: components["schemas"]["Account"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentResult: {
                 /**
@@ -1705,6 +1710,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentMessageResult: {
                 /**
@@ -1720,6 +1726,7 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostResult: {
                 /**
@@ -1732,6 +1739,7 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostMessageResult: {
                 /**
@@ -1746,6 +1754,7 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskResult: {
                 /**
@@ -1758,6 +1767,7 @@ export namespace ApiSpecification {
                 readonly title: string;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly status: components["schemas"]["TaskStatus"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskMessageResult: {
                 /**
@@ -1772,6 +1782,7 @@ export namespace ApiSpecification {
                 readonly title: null;
                 readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskCollectionResult: {
                 /**
@@ -1784,12 +1795,16 @@ export namespace ApiSpecification {
                 readonly title: string;
                 /** @constant */
                 readonly bodyMatch: null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchResultBodyMatch: readonly {
                 readonly text: string;
                 /** @constant */
                 readonly isMatch?: true;
             }[];
+            readonly SearchResultParsedFilter: {
+                readonly summary: string;
+            };
         };
         responses: {
             readonly Error: {

@@ -18,6 +18,7 @@ import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 export function intoApiSearchResult({
     model,
     bodyTextSnippet,
+    parsedFilter: resultParsedFilter,
 }: SearchEntityResultModel): ApiSearchResult | null {
     const bodyMatch =
         bodyTextSnippet.length > 0
@@ -50,6 +51,8 @@ export function intoApiSearchResult({
         return null;
     }
 
+    const parsedFilter = resultParsedFilter ?? undefined;
+
     const entity = parseSearchDynamicEntityIdWithoutAccount(searchEntityId);
     switch (entity.type) {
         case "Channel": {
@@ -59,6 +62,7 @@ export function intoApiSearchResult({
                 id: entity.channelId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
+                parsedFilter,
             };
         }
         case "Chat": {
@@ -68,6 +72,7 @@ export function intoApiSearchResult({
                 id: entity.chatId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
+                parsedFilter,
             };
         }
         case "ChatMessage": {
@@ -87,6 +92,7 @@ export function intoApiSearchResult({
                 title: null,
                 bodyMatch,
                 author,
+                parsedFilter,
             };
         }
         case "Document": {
@@ -96,6 +102,7 @@ export function intoApiSearchResult({
                 id: entity.documentId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch,
+                parsedFilter,
             };
         }
         case "DocumentComment": {
@@ -114,6 +121,7 @@ export function intoApiSearchResult({
                 title: null,
                 bodyMatch,
                 author,
+                parsedFilter,
             };
         }
         case "Post": {
@@ -130,6 +138,7 @@ export function intoApiSearchResult({
                 bodyMatch,
                 author,
                 title: model.initialData.title ?? missingSearchEntityTitle,
+                parsedFilter,
             };
         }
         case "PostComment": {
@@ -147,6 +156,7 @@ export function intoApiSearchResult({
                 title: null,
                 bodyMatch,
                 author,
+                parsedFilter,
             };
         }
         case "Task": {
@@ -159,6 +169,7 @@ export function intoApiSearchResult({
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch,
                 status: intoApiTaskStatus(model.initialData.media.displayStatus),
+                parsedFilter,
             };
         }
         case "TaskCollection": {
@@ -168,6 +179,7 @@ export function intoApiSearchResult({
                 id: entity.collectionId,
                 title: model.initialData.title ?? missingSearchEntityTitle,
                 bodyMatch: null,
+                parsedFilter,
             };
         }
         case "TaskComment": {
@@ -185,6 +197,7 @@ export function intoApiSearchResult({
                 title: null,
                 bodyMatch,
                 author,
+                parsedFilter,
             };
         }
         default:

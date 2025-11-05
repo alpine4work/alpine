@@ -136,6 +136,9 @@ export type ApiSearchResultPath = ApiSpecification.components["schemas"]["Search
 export type ApiSearchResultBodyMatch =
     ApiSpecification.components["schemas"]["SearchResultBodyMatch"];
 
+export type ApiSearchResultParsedFilter =
+    ApiSpecification.components["schemas"]["SearchResultParsedFilter"];
+
 export type ApiSearchResultBodyMatchItem = ApiSearchResultBodyMatch[number];
 
 export type ApiErrorResponseBody =

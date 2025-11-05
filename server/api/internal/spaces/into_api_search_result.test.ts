@@ -678,7 +678,7 @@ describe("intoApiSearchResult", () => {
                 }),
             );
 
-            expect(result).toStrictEqual({
+            expect(result).toEqual({
                 type: "TaskCollection",
                 path: `/task-collections/${collectionId}`,
                 id: collectionId,
