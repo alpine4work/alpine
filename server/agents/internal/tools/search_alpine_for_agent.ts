@@ -8,9 +8,15 @@ import {
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {parseApiPath} from "~/shared/api/parse_api_path.js";
+import {
+    ApiMessageRoomPathObject,
+    ApiPathObject,
+    parseApiPath,
+    printApiMessageRoomPath,
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiAccount,
+    ApiMessageRoomPath,
     ApiSearchResult,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -24,7 +30,7 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 export async function searchAlpineForAgent(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
-    request: Pick<AgentWebhookRequest, "spaceId" | "apiClient">,
+    request: Pick<AgentWebhookRequest, "spaceId" | "apiClient" | "room">,
     query: string,
 ): Promise<string> {
     const {data} = await request.apiClient.get(tracer, `/spaces/{id}/search`, {
@@ -35,8 +41,14 @@ export async function searchAlpineForAgent(
     });
     if (!data || data.results.length === 0) return "No results found";
 
+    const results = data.results.filter(
+        result =>
+            !isApiSearchResultInConversationState(printApiMessageRoomPath(request.room), result),
+    );
+    if (results.length === 0) return "No results found";
+
     const matchedFilterToResults: Map<string, Array<ApiSearchResult>> = new Map();
-    for (const result of data.results) {
+    for (const result of results) {
         if (result.parsedFilter) {
             matchedFilterToResults.set(result.parsedFilter.summary, [
                 ...(matchedFilterToResults.get(result.parsedFilter.summary) || []),
@@ -46,7 +58,7 @@ export async function searchAlpineForAgent(
     }
 
     // Group results by whether they matched a natural language filter
-    const otherResults = data.results.filter(result => !result.parsedFilter);
+    const otherResults = results.filter(result => !result.parsedFilter);
 
     const sections: Array<any> = [];
 
@@ -331,5 +343,63 @@ function printMissingSearchEntityTitleForMessage(
             return `${author.shortName}: ${missingSearchEntityTitle} task comment`;
         default:
             throw exhaustive(type);
+    }
+}
+
+// TODO(ifitzsimmons, #ai): Right now, we load all of the messages into the agent conversation.
+// Eventually, we will use pagination to load messages into the agent conversation (likely from
+// the end of the conversation). When that happens, we will need to update this function such
+// that it only returns `true` if the message is in the current room **and** the message is
+// loaded in the conversation state.
+//
+// https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
+function isApiSearchResultInConversationState(
+    currentMessageRoomPath: ApiMessageRoomPath,
+    result: ApiSearchResult,
+): boolean {
+    const pathObject = parseApiPath(result.path);
+    const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(pathObject);
+
+    if (resultMessageRoomPath === null) {
+        return false;
+    } else {
+        return printApiMessageRoomPath(resultMessageRoomPath) === currentMessageRoomPath;
+    }
+}
+
+export function intoApiMessageRoomPathFromPathIfPossible(
+    apiPath: ApiPathObject,
+): ApiMessageRoomPathObject | null {
+    switch (apiPath.type) {
+        case "Account":
+        case "Channel":
+        case "Document":
+        case "TaskCollection":
+        // NOTE(ifitzsimmons, 2025-11-05): Tasks are not loaded with task comments, so if the
+        // current conversation is occurring in task comments, there's no guarantee that the
+        // task data is already loaded in the conversation.
+        case "Task":
+            return null;
+        case "Post":
+        case "PostComment":
+        case "PostComments":
+            return {type: "Post", postId: apiPath.postId};
+        case "Chat":
+        case "ChatMessage":
+        case "ChatMessages":
+            return {type: "Chat", chatId: apiPath.chatId};
+        case "DocumentComment":
+        case "DocumentCommentThread":
+        case "DocumentCommentThreadComments":
+            return {
+                type: "DocumentCommentThread",
+                documentId: apiPath.documentId,
+                commentThreadId: apiPath.commentThreadId,
+            };
+        case "TaskComment":
+        case "TaskComments":
+            return {type: "Task", taskId: apiPath.taskId};
+        default:
+            throw exhaustive(apiPath);
     }
 }

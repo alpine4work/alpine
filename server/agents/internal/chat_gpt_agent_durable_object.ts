@@ -204,6 +204,10 @@ async function requestChatGptAgent(
     // conversation history.
     //
     // TODO(calebmer, #ai): How should we handle the reply feature for the AI?
+    //
+    // TODO(ifitzsimmons, #ai): Don't load all messages at once. Use pagination to
+    // load conversation history instead.
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
     await ensureMessagesInChatGptAgentConversation(tracer, request);
 
     // Send a message from ChatGPT.

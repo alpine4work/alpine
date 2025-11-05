@@ -10,6 +10,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -33,6 +34,8 @@ const apiClient = new ApiClientMock();
 const request = {
     spaceId,
     apiClient,
+    // Default room for tests that don't care about filtering
+    room: {type: "Chat" as const, chatId: generateId<ChatId>()},
 } as const;
 
 afterEach(async () => {
@@ -332,6 +335,451 @@ The following search results matched the keyword search but did not match any sp
 10. [Test Channel](/channel/test-channel)
 
 11. [John: Unknown chat message](/chat/john-unknown-chat-message)
+`);
+    });
+
+    test("returns ‘No results found’ when all results are in the current message room", async () => {
+        const currentChatId = generateId<ChatId>();
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Chat",
+                path: `/chats/${currentChatId}`,
+                title: "Test Chat",
+                bodyMatch: null,
+                id: currentChatId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Chat" as const, chatId: currentChatId},
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        expect(result).toBe("No results found");
+    });
+
+    test("filters out results from current Chat room", async () => {
+        const currentChatId = generateId<ChatId>();
+        const otherChatId = generateId<ChatId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Chat",
+                path: `/chats/${currentChatId}`,
+                title: "Current Chat",
+                bodyMatch: null,
+                id: currentChatId,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${currentChatId}/messages/5`,
+                title: null,
+                bodyMatch: [],
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentChatId,
+                index: 5,
+            },
+            {
+                type: "Chat",
+                path: `/chats/${otherChatId}`,
+                title: "Other Chat",
+                bodyMatch: null,
+                id: otherChatId,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${otherChatId}/messages/3`,
+                title: null,
+                bodyMatch: [],
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherChatId,
+                index: 3,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Chat" as const, chatId: currentChatId},
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        // Should only include results from other chat, not current chat
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Other Chat](/chat/other-chat)
+
+2. [Jane: Unknown chat message](/chat/jane-unknown-chat-message)
+`);
+    });
+
+    test("filters out results from current Post room", async () => {
+        const currentPostId = generateId<PostId>();
+        const otherPostId = generateId<PostId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Post",
+                path: `/posts/${currentPostId}`,
+                title: "Current Post",
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentPostId,
+            },
+            {
+                type: "PostMessage",
+                path: `/posts/${currentPostId}/messages/2`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentPostId,
+                index: 2,
+            },
+            {
+                type: "Post",
+                path: `/posts/${otherPostId}`,
+                title: "Other Post",
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherPostId,
+            },
+            {
+                type: "PostMessage",
+                path: `/posts/${otherPostId}/messages/1`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherPostId,
+                index: 1,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Post" as const, postId: currentPostId},
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        // Should only include results from other post, not current post
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Other Post](/post/other-post)
+
+2. [Jane: Unknown post comment](/post/jane-unknown-post-comment)
+`);
+    });
+
+    test("filters out results from current Task room", async () => {
+        const currentTaskId = generateId<TaskId>();
+        const otherTaskId = generateId<TaskId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Task",
+                path: `/tasks/${currentTaskId}`,
+                title: "Current Task",
+                bodyMatch: null,
+                status: {type: "Open", isActive: true},
+                id: currentTaskId,
+            },
+            {
+                type: "TaskMessage",
+                path: `/tasks/${currentTaskId}/messages/3`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentTaskId,
+                index: 3,
+            },
+            {
+                type: "Task",
+                path: `/tasks/${otherTaskId}`,
+                title: "Other Task",
+                bodyMatch: null,
+                status: {type: "Open", isActive: false},
+                id: otherTaskId,
+            },
+            {
+                type: "TaskMessage",
+                path: `/tasks/${otherTaskId}/messages/1`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherTaskId,
+                index: 1,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Task" as const, taskId: currentTaskId},
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        // Should include task entities (not filtered) but only comments from other task
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Current Task](/task/current-task)
+
+2. [Other Task](/task/other-task)
+
+3. [Jane: Unknown task comment](/task-comments/jane-unknown-task-comment)
+`);
+    });
+
+    test("filters out results from current DocumentCommentThread room", async () => {
+        const currentDocumentId = generateId<DocumentId>();
+        const currentThreadId = generateId<DocumentCommentThreadId>();
+        const otherDocumentId = generateId<DocumentId>();
+        const otherThreadId = generateId<DocumentCommentThreadId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Document",
+                path: `/documents/${currentDocumentId}`,
+                title: "Current Document",
+                bodyMatch: null,
+                id: currentDocumentId,
+            },
+            {
+                type: "DocumentMessage",
+                path: `/documents/${currentDocumentId}/threads/${currentThreadId}/messages/2`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentDocumentId,
+                index: 2,
+                threadId: currentThreadId,
+            },
+            {
+                type: "Document",
+                path: `/documents/${otherDocumentId}`,
+                title: "Other Document",
+                bodyMatch: null,
+                id: otherDocumentId,
+            },
+            {
+                type: "DocumentMessage",
+                path: `/documents/${otherDocumentId}/threads/${otherThreadId}/messages/1`,
+                title: null,
+                bodyMatch: null,
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherDocumentId,
+                index: 1,
+                threadId: otherThreadId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {
+                type: "DocumentCommentThread" as const,
+                documentId: currentDocumentId,
+                commentThreadId: currentThreadId,
+            },
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        // Should include both documents (not message rooms) and messages from other thread
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Current Document](/document/current-document)
+
+2. [Other Document](/document/other-document)
+
+3. [Jane: Unknown document comment](/document-thread/jane-unknown-document-comment)
+`);
+    });
+
+    test("returns ‘No results found’ when all results are filtered out", async () => {
+        const currentChatId = generateId<ChatId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Chat",
+                path: `/chats/${currentChatId}`,
+                title: "Current Chat",
+                bodyMatch: null,
+                id: currentChatId,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${currentChatId}/messages/1`,
+                title: null,
+                bodyMatch: [],
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: currentChatId,
+                index: 1,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${currentChatId}/messages/2`,
+                title: null,
+                bodyMatch: [],
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: currentChatId,
+                index: 2,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Chat" as const, chatId: currentChatId},
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        expect(result).toBe("No results found");
+    });
+
+    test("handles DocumentMessage search results with body matches", async () => {
+        const currentDocumentId = generateId<DocumentId>();
+        const currentThreadId = generateId<DocumentCommentThreadId>();
+        const otherDocumentId = generateId<DocumentId>();
+        const otherThreadId = generateId<DocumentCommentThreadId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "DocumentMessage",
+                path: `/documents/${otherDocumentId}/threads/${otherThreadId}/messages/1`,
+                title: null,
+                bodyMatch: [
+                    {text: "Important", isMatch: true},
+                    {text: " document comment "},
+                    {text: "keyword", isMatch: true},
+                ],
+                author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
+                id: otherDocumentId,
+                index: 1,
+                threadId: otherThreadId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {
+                type: "DocumentCommentThread" as const,
+                documentId: currentDocumentId,
+                commentThreadId: currentThreadId,
+            },
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Jane: Unknown document comment](/document-thread/jane-unknown-document-comment)
+
+   **Important** document comment **keyword**
+`);
+    });
+
+    test("does not filter non-message-room entities (Accounts, Channels, Documents, TaskCollections)", async () => {
+        const currentChatId = generateId<ChatId>();
+
+        const results: Array<ApiSearchResult> = [
+            {
+                type: "Account",
+                path: `/accounts/${accountId}`,
+                title: "Test Account",
+                bodyMatch: null,
+                id: accountId,
+            },
+            {
+                type: "Channel",
+                path: `/channels/${channelId}`,
+                title: "Test Channel",
+                bodyMatch: null,
+                id: channelId,
+            },
+            {
+                type: "Document",
+                path: `/documents/${documentId}`,
+                title: "Test Document",
+                bodyMatch: null,
+                id: documentId,
+            },
+            {
+                type: "TaskCollection",
+                path: `/task-collections/${taskCollectionId}`,
+                title: "Test Collection",
+                bodyMatch: null,
+                id: taskCollectionId,
+            },
+        ];
+
+        apiClient.mockGet("/spaces/{id}/search", {data: {results}});
+
+        const requestWithRoom = {
+            ...request,
+            room: {type: "Chat", chatId: currentChatId} as const,
+        };
+
+        const result = await storage.transaction(async transaction =>
+            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        );
+
+        // All non-message-room entities should be included regardless of current room
+        expect(result).toEqual(`\
+# Other results
+
+The following search results matched the keyword search but did not match any specific filters.
+
+1. [Test Account](/account/test-account)
+
+2. [Test Channel](/channel/test-channel)
+
+3. [Test Document](/document/test-document)
+
+4. [Test Collection](/task-collection/test-collection)
 `);
     });
 
