@@ -1731,8 +1731,12 @@ const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacing
             backgroundFontSizePercentage;
 
     const get = (method: "floor" | "ceil", resolution: number) => {
+        // We don't precisely know the right way to round for each resolution.
+        // We just keep trying different variations of this function until it
+        // works in all the browser we care about and don't get gaps/overlaps like [these][1].
+        //
+        // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/6n9gamewskx95xr8cgwhpdtefc
         if (resolution === 1) {
-            // No subpixel rounding needed when resolution is 1.
             return Math.round(padding / 2);
         } else {
             const precision = Math.round(padding * resolution) / resolution / 2;
@@ -1741,8 +1745,8 @@ const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacing
     };
 
     return createObjectFromKeys(resolutions, resolution => ({
-        floor: `${get("floor", resolution)}px`,
-        ceil: `${get("ceil", resolution)}px`,
+        top: `${get("floor", resolution)}px`,
+        bottom: `${get("ceil", resolution)}px`,
     }));
 });
 
@@ -1767,8 +1771,8 @@ const inlineBackgroundPaddingPx = createObjectFromKeys(allSpacingScales, spacing
  * right values.
  */
 export const inlineBackgroundPadding = createGlobalTheme(":root", {
-    top: inlineBackgroundPaddingPx.small[1].floor,
-    bottom: inlineBackgroundPaddingPx.small[1].ceil,
+    top: inlineBackgroundPaddingPx.small[1].top,
+    bottom: inlineBackgroundPaddingPx.small[1].bottom,
 });
 
 for (const spacingScale of allSpacingScales) {
@@ -1781,8 +1785,8 @@ for (const spacingScale of allSpacingScales) {
         if (resolution === 1) {
             globalStyle(selector, {
                 vars: assignVars(inlineBackgroundPadding, {
-                    top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
-                    bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                    top: inlineBackgroundPaddingPx[spacingScale][resolution].top,
+                    bottom: inlineBackgroundPaddingPx[spacingScale][resolution].bottom,
                 }),
             });
         } else {
@@ -1790,8 +1794,8 @@ for (const spacingScale of allSpacingScales) {
                 "@media": {
                     [`(min-resolution: ${resolution}x)`]: {
                         vars: assignVars(inlineBackgroundPadding, {
-                            top: inlineBackgroundPaddingPx[spacingScale][resolution].floor,
-                            bottom: inlineBackgroundPaddingPx[spacingScale][resolution].ceil,
+                            top: inlineBackgroundPaddingPx[spacingScale][resolution].top,
+                            bottom: inlineBackgroundPaddingPx[spacingScale][resolution].bottom,
                         }),
                     },
                 },
