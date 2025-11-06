@@ -909,6 +909,27 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
+        test("race condition: can create lots of messages at the exact same time", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const createMessageCount = 8;
+
+            const messages = await runAllPromises(
+                createArrayWithLength(createMessageCount, index =>
+                    createMessage(context.action(session1), {
+                        roomKey: room.key,
+                        parent: null,
+                        content: createSimpleMessageContent(`Message ${index + 1}`),
+                        fileIds: [],
+                    }),
+                ),
+            );
+
+            expect(messages.map(message => message.index).sort((a, b) => a - b)).toEqual(
+                createArrayWithLength(createMessageCount, index => room.messageCount + index),
+            );
+        });
+
         test("can create message from a different account", async () => {
             const room = await createRoom(context.action(session1), space.id);
 

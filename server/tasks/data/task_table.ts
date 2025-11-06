@@ -5791,23 +5791,28 @@ export async function createTaskComment(
         );
 
         await DynamoTableSchema.executeTransaction(context, [
-            TaskTable.transactionCreateItem({
-                partitionType: "Task",
-                sortRangeType: "Comments",
-                taskId,
-                commentIndex,
-                authorId,
-                createdTime,
-                payload: {
-                    type: "Content",
-                    parent,
-                    content,
-                    contentUpdate: null,
-                    fileIds,
-                    clerical: isStream ? {type: "Stream"} : undefined,
-                    reactionsByPos: emptyMap,
+            TaskTable.transactionCreateItem(
+                {
+                    partitionType: "Task",
+                    sortRangeType: "Comments",
+                    taskId,
+                    commentIndex,
+                    authorId,
+                    createdTime,
+                    payload: {
+                        type: "Content",
+                        parent,
+                        content,
+                        contentUpdate: null,
+                        fileIds,
+                        clerical: isStream ? {type: "Stream"} : undefined,
+                        reactionsByPos: emptyMap,
+                    },
                 },
-            }),
+                // Retry in case of a race condition where another process writes to this
+                // `commentIndex` before us.
+                {isConditionCheckErrorRetriable: true},
+            ),
             commentsSummaryItem !== null
                 ? TaskTable.transactionDirectlyUpdateItem({
                       ...commentsSummaryItem,
@@ -5816,14 +5821,19 @@ export async function createTaskComment(
                       mentionCountByAccountId: newMentionCountByAccountId,
                       updateLockVersion: commentsSummaryItem.updateLockVersion,
                   })
-                : TaskTable.transactionCreateItem({
-                      partitionType: "Task",
-                      sortRangeType: "CommentsSummary",
-                      taskId,
-                      nextCommentIndex: commentIndex + 1,
-                      commentCountByAuthorId: newCommentCountByAuthorId,
-                      mentionCountByAccountId: newMentionCountByAccountId,
-                  }),
+                : TaskTable.transactionCreateItem(
+                      {
+                          partitionType: "Task",
+                          sortRangeType: "CommentsSummary",
+                          taskId,
+                          nextCommentIndex: commentIndex + 1,
+                          commentCountByAuthorId: newCommentCountByAuthorId,
+                          mentionCountByAccountId: newMentionCountByAccountId,
+                      },
+                      // Retry in case of a race condition where another process writes to this
+                      // `commentIndex` before us.
+                      {isConditionCheckErrorRetriable: true},
+                  ),
 
             // If this is a stream comment then create the stream state item.
             // Create-or-replace is safe since we know the comment index doesn't exist from

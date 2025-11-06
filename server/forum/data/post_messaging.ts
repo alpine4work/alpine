@@ -231,23 +231,28 @@ export async function createPostComment(
         );
 
         await DynamoTableSchema.executeTransaction(context, [
-            ForumTable.transactionCreateItem({
-                partitionType: "Post",
-                sortRangeType: "Comments",
-                postId,
-                commentIndex,
-                authorId,
-                createdTime,
-                payload: {
-                    type: "Content",
-                    parent,
-                    content,
-                    contentUpdate: null,
-                    fileIds,
-                    clerical: isStream ? {type: "Stream"} : undefined,
-                    reactionsByPos: emptyMap,
+            ForumTable.transactionCreateItem(
+                {
+                    partitionType: "Post",
+                    sortRangeType: "Comments",
+                    postId,
+                    commentIndex,
+                    authorId,
+                    createdTime,
+                    payload: {
+                        type: "Content",
+                        parent,
+                        content,
+                        contentUpdate: null,
+                        fileIds,
+                        clerical: isStream ? {type: "Stream"} : undefined,
+                        reactionsByPos: emptyMap,
+                    },
                 },
-            }),
+                // Retry in case of a race condition where another process writes to this
+                // `commentIndex` before us.
+                {isConditionCheckErrorRetriable: true},
+            ),
 
             // Ok for us to not tell the client about a comment summary update through our
             // general realtime system. Instead, comment counts will be updated through the

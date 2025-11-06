@@ -815,23 +815,28 @@ function sendChatMessageForAccount(
         await DynamoTableSchema.executeTransaction(
             context,
             [
-                ChatTable.transactionCreateItem({
-                    partitionType: "Chat",
-                    sortRangeType: "Messages",
-                    chatId,
-                    messageIndex,
-                    authorId,
-                    createdTime,
-                    payload: {
-                        type: "Content",
-                        parent,
-                        content,
-                        contentUpdate: null,
-                        fileIds,
-                        clerical,
-                        reactionsByPos: emptyMap,
+                ChatTable.transactionCreateItem(
+                    {
+                        partitionType: "Chat",
+                        sortRangeType: "Messages",
+                        chatId,
+                        messageIndex,
+                        authorId,
+                        createdTime,
+                        payload: {
+                            type: "Content",
+                            parent,
+                            content,
+                            contentUpdate: null,
+                            fileIds,
+                            clerical,
+                            reactionsByPos: emptyMap,
+                        },
                     },
-                }),
+                    // Retry in case of a race condition where another process writes to this
+                    // `messageIndex` before us.
+                    {isConditionCheckErrorRetriable: true},
+                ),
                 ChatTable.transactionDirectlyUpdateItemAttribute(
                     {partitionType: "Chat", sortRangeType: "Attributes", chatId},
                     "messagesSummary",

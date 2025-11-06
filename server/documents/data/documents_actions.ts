@@ -4525,24 +4525,29 @@ export async function createDocumentComment(
         );
 
         await DynamoTableSchema.executeTransaction(context, [
-            DocumentsTable.transactionCreateItem({
-                partitionType: "DocumentCommentThread",
-                sortRangeType: "Comments",
-                documentId,
-                commentThreadId,
-                commentIndex,
-                authorId,
-                createdTime,
-                payload: {
-                    type: "Content",
-                    parent,
-                    content,
-                    contentUpdate: null,
-                    fileIds,
-                    clerical: isStream ? {type: "Stream"} : undefined,
-                    reactionsByPos: emptyMap,
+            DocumentsTable.transactionCreateItem(
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    authorId,
+                    createdTime,
+                    payload: {
+                        type: "Content",
+                        parent,
+                        content,
+                        contentUpdate: null,
+                        fileIds,
+                        clerical: isStream ? {type: "Stream"} : undefined,
+                        reactionsByPos: emptyMap,
+                    },
                 },
-            }),
+                // Retry in case of a race condition where another process writes to this
+                // `commentIndex` before us.
+                {isConditionCheckErrorRetriable: true},
+            ),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
                 commentThreadItem,
                 "commentsSummary",
