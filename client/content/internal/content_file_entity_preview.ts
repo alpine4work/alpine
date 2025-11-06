@@ -11,6 +11,7 @@ import {
     appendImageHtmlForSelection,
     appendSelectionBoundaryHtml,
 } from "~/client/content/internal/content_file_preview.js";
+import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
@@ -238,8 +239,12 @@ export function addContentFileEntityPreviewBehavior(
         onShiftMouseDown,
         isLongPressDisabled,
         onLongPress,
-        onPress: () => {
-            navigate(printFileEntityIdIntoPath(spaceId, fileEntityId));
+        onPress: event => {
+            handleContentLinkClick(
+                event,
+                printFileEntityIdIntoPath(spaceId, fileEntityId),
+                navigate,
+            );
         },
         onDragStart: dataTransfer => {
             const clipboardSerializer =

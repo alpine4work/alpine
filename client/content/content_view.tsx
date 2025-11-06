@@ -862,7 +862,9 @@ export function ContentView<Content extends ContentWithReferences>({
                         return;
                     }
 
-                    handleContentLinkClick(event, navigate);
+                    assert(event.currentTarget instanceof HTMLAnchorElement);
+
+                    handleContentLinkClick(event, event.currentTarget.href, navigate);
                 };
 
                 const handlePointerLeave = () => {

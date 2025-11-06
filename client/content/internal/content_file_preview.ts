@@ -28,9 +28,11 @@ import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedIconSvg} from "~/client/icons/file_dotted_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
@@ -1263,7 +1265,7 @@ export function addContentFilePreviewBehaviorBase(
         onDragStart,
     }: {
         isInert?: boolean;
-        onPress?: () => void;
+        onPress?: (event: PointerEvent) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
         isLongPressDisabled?: () => boolean;
         onLongPress?: () => void;
@@ -1285,10 +1287,15 @@ export function addContentFilePreviewBehaviorBase(
 
         const wasEventPreviouslyDefaultPrevented = event.defaultPrevented;
 
+        const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
+            event,
+            getClientInfo(),
+        );
+
         isPointerDownAndOver =
             !wasEventPreviouslyDefaultPrevented &&
             event.button === 0 &&
-            !isModifiedPointerEvent(event);
+            !(isModifiedPointerEvent(event) && !isOpenLinkInSeparateTabEvent);
 
         if (isPointerDownAndOver) {
             // Normally ProseMirror sets `element.draggable = true` on node selection
@@ -1382,7 +1389,7 @@ export function addContentFilePreviewBehaviorBase(
         isLongPress = false;
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (event: PointerEvent) => {
         assert(!isInert);
 
         const wasPointerDownAndOver = isPointerDownAndOver;
@@ -1391,7 +1398,7 @@ export function addContentFilePreviewBehaviorBase(
         if (!wasPointerDownAndOver) return;
         if (wasLongPress) return;
 
-        onPress?.();
+        onPress?.(event);
     };
 
     const handlePointerLeave = resetPointerState;

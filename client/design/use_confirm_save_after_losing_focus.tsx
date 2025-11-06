@@ -1,6 +1,5 @@
-import {Ref, useRef} from "react";
+import {Ref} from "react";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 
 /**
  * Helper for building editable elements that save inline. When the user
@@ -15,8 +14,8 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
     isDisabled,
     shouldConfirmSave,
     isConfirmingSave,
-    onConfirmSave: _onConfirmSave,
-    onCancelSave: _onCancelSave,
+    onConfirmSave,
+    onCancelSave,
 }: {
     isDisabled?: boolean;
     shouldConfirmSave: boolean;
@@ -24,13 +23,6 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
     onConfirmSave: () => void;
     onCancelSave: () => void;
 }): Ref<RefElement> {
-    const onConfirmSaveRef = useRef(_onConfirmSave);
-    const onCancelSaveRef = useRef(_onCancelSave);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        onConfirmSaveRef.current = _onConfirmSave;
-        onCancelSaveRef.current = _onCancelSave;
-    });
-
     // Show a confirmation dialog if:
     //
     // - Someone clicks outside the element
@@ -44,13 +36,13 @@ export function useConfirmSaveAfterLosingFocus<RefElement extends HTMLElement>({
         // If the user didn't type anything then close without asking
         // for confirmation.
         if (!shouldConfirmSave) {
-            onCancelSaveRef.current();
+            onCancelSave();
             return;
         }
 
         // Cancel the outside press and ask the user to confirm first.
         event.preventDefault();
         event.stopPropagation();
-        onConfirmSaveRef.current();
+        onConfirmSave();
     });
 }

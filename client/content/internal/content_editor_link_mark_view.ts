@@ -117,7 +117,7 @@ export function createContentEditorLinkMarkViewConstructor({
             // Only process pointer up events that started on our element.
             if (!wasPointerDownAndOver) return;
 
-            handleContentLinkClick(event, onNavigate);
+            handleContentLinkClick(event, dom.href, onNavigate);
         });
 
         let pointerEnterDelayTimeout: Timeout | null = null;

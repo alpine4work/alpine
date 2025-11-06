@@ -58,7 +58,7 @@ export function createContentEditorMentionNodeViewConstructor({
 
         let previousHtml = htmlStore.getSnapshot();
         const dom = previousHtml.generateNode();
-        assert(dom instanceof HTMLElement);
+        assert(dom instanceof HTMLAnchorElement);
 
         // Whenever the content mention text changes, we want to update our mention
         // node with the right value.
@@ -118,7 +118,7 @@ export function createContentEditorMentionNodeViewConstructor({
             if (event.shiftKey || event.altKey) {
                 // Do nothing. We selected the mention in `pointerdown`.
             } else {
-                handleContentLinkClick(event, onNavigate);
+                handleContentLinkClick(event, dom.href, onNavigate);
             }
         });
 

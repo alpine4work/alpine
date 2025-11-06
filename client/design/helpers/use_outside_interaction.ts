@@ -2,13 +2,24 @@ import {RefCallback, useCallback, useEffect, useRef} from "react";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {modalStyles} from "~/client/styles/styles.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+
+let outsideInteractionEventEmitter: EventEmitter<Event> | null = null;
+
+/**
+ * Dispatch an event that's not normally considered an outside interaction as
+ * an outside interaction, triggering any `useOutsideInteraction()` hooks.
+ */
+export function dispatchOutsideInteractionEvent(event: Event) {
+    outsideInteractionEventEmitter?.emit(event);
+}
 
 /**
  * If the user pressed an element outside of the returned ref then we call the
  * provided callback.
  */
 export function useOutsidePress(onOutsidePress: (event: Event) => void) {
-    return useOutsideInteraction(onOutsidePress, {withoutFocus: true});
+    return useOutsideInteraction(onOutsidePress, {withOnlyPress: true});
 }
 
 export function useOutsideInteraction(
@@ -19,11 +30,9 @@ export function useOutsideInteraction(
               onInsideInteraction?: (event: Event) => void;
           },
     {
-        withoutPress = false,
-        withoutFocus = false,
+        withOnlyPress = false,
     }: {
-        withoutPress?: boolean;
-        withoutFocus?: boolean;
+        withOnlyPress?: boolean;
     } = {},
 ): RefCallback<HTMLElement> {
     const ref = useRef<HTMLElement | null>(null);
@@ -34,7 +43,7 @@ export function useOutsideInteraction(
     });
 
     useEffect(() => {
-        const listener = (event: Event) => {
+        const listener = (event: Event, alwaysOutsideInteraction: boolean = false) => {
             // We don't want to call our listener if the component this is attached to
             // hasn't mounted.
             if (!ref.current) return;
@@ -71,7 +80,10 @@ export function useOutsideInteraction(
                 }
             }
 
-            if (event.target instanceof Element && !isElementOwnedBy(ref.current, event.target)) {
+            if (
+                alwaysOutsideInteraction ||
+                (event.target instanceof Element && !isElementOwnedBy(ref.current, event.target))
+            ) {
                 const onOutsideInteraction =
                     typeof eventsRef.current !== "function"
                         ? eventsRef.current.onOutsideInteraction
@@ -88,30 +100,34 @@ export function useOutsideInteraction(
             }
         };
 
+        const alwaysOutsideInteractionListener = (event: Event) => {
+            listener(event, true);
+        };
+
         // Use capture events so that our outside interaction handler runs before
         // everyone else. If it's being used to close an overlay then that will happen
         // first.
 
-        if (!withoutPress) {
-            window.addEventListener("pointerdown", listener, true);
-            window.addEventListener("touchstart", listener, true);
-        }
+        window.addEventListener("pointerdown", listener, true);
+        window.addEventListener("touchstart", listener, true);
 
-        if (!withoutFocus) {
+        if (!withOnlyPress) {
             window.addEventListener("focus", listener, true);
+
+            outsideInteractionEventEmitter ??= new EventEmitter();
+            outsideInteractionEventEmitter.addListener(alwaysOutsideInteractionListener);
         }
 
         return () => {
-            if (!withoutPress) {
-                window.removeEventListener("pointerdown", listener, true);
-                window.removeEventListener("touchstart", listener, true);
-            }
+            window.removeEventListener("pointerdown", listener, true);
+            window.removeEventListener("touchstart", listener, true);
 
-            if (!withoutFocus) {
+            if (!withOnlyPress) {
                 window.removeEventListener("focus", listener, true);
+                outsideInteractionEventEmitter?.removeListener(alwaysOutsideInteractionListener);
             }
         };
-    }, [withoutFocus, withoutPress]);
+    }, [withOnlyPress]);
 
     return useCallback((element: HTMLElement | null) => {
         ref.current = element;
