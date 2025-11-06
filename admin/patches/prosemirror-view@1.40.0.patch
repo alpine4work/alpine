@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed80435de4ac0 100644
+index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..0f4684185c9c346d3f27c4acfc5d86c2559ffd6b 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -216,8 +216,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -48,76 +48,65 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
      var _target = !_after ? null : _after.nodeType == 3 ? textRange(_after, 0, supportEmptyRange ? 0 : 1) : _after.nodeType == 1 ? _after : null;
      if (_target) return flattenV(singleRect(_target, -1), true);
    }
-@@ -1472,10 +1498,68 @@ var NodeViewDesc = function (_ViewDesc4) {
+@@ -1472,10 +1498,57 @@ var NodeViewDesc = function (_ViewDesc4) {
    }]);
    return NodeViewDesc;
  }(ViewDesc);
-+
-+// NOTE(imjoshin): Copied from prosemirror-model for the patch in docViewDesc
-+function compareDeep(a, b) {
-+  if (a === b) return true
-+  if (!(a && typeof a == "object") ||
-+    !(b && typeof b == "object")) return false
-+  let array = Array.isArray(a)
-+  if (Array.isArray(b) != array) return false
-+  if (array) {
-+    if (a.length != b.length) return false
-+    for (let i = 0; i < a.length; i++) if (!compareDeep(a[i], b[i])) return false
-+  } else {
-+    for (let p in a) if (!(p in b) || !compareDeep(a[p], b[p])) return false
-+    for (let p in b) if (!(p in a)) return false
-+  }
-+  return true
-+}
 +
  function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
    applyOuterDeco(dom, outerDeco, doc);
    var docView = new NodeViewDesc(undefined, doc, outerDeco, innerDeco, dom, dom, dom, view, 0);
    if (docView.contentDOM) docView.updateChildren(view, 0);
 +
-+  // NOTE(imjoshin): When our documents change, ProseMirror's node will check
-+  // if the root document node has any attributes that changed. If any attributes
-+  // change, the view gets destroyed and recreated. This creates a new node tree,
-+  // and all components rerender. When creating the BlobsArt cover, we discovered
-+  // rerendering our canvases takes ~50ms each. If there are multiple on a page,
-+  // there's a visible blocking render.
++  // NOTE(calebmer): By default when a ProseMirror node's attributes change, the
++  // DOM element rendering the node is destroyed and recreated. You can customize
++  // this behavior with `nodeViews` passed into `EditorView`. For example we have
++  // a custom node view for the `table` node so when its attributes change we
++  // update the table DOM's classes and styles instead of completely destroying
++  // and recreating the table DOM node.
++  // 
++  // However, you can't add a custom node view for the root doc node. So
++  // attribute changes on the root doc node always destroys and recreates the
++  // entire ProseMirror DOM!
 +  //
-+  // To solve this, we add a ignoreDocAttrsForUpdate prop to the EditorView.
-+  // If any attributes are causing the rerender, we'll override the
-+  // "should I update" response from ProseMirror and prevent the rerender.
++  // When creating the `BlobsArt` cover, we discovered rerendering our canvases
++  // takes ~50ms each. If there are multiple on a page, there's a visible
++  // blocking render.
++  //
++  // To solve this, we add a `ignoreDocAttrsForUpdate` prop to the EditorView.
++  // When this prop is true, if we re-render a root doc node and it has
++  // different attributes then we ignore the attribute changes and pretend
++  // like the doc didn't update at all.
 +  if (view.ignoreDocAttrsForUpdate) {
-+    const originalDocViewUpdate = docView.update;
++    // This function is the same as `NodeViewDesc.update()` except we change the
++    // implementation of `Node.sameMarkup()` to one that ignores differences in
++    // attributes.
++    // 
++    // See:
++    // https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/viewdesc.ts#L854-L861
 +    docView.update = function (node, outerDeco, innerDeco, view) {
-+      const originalUpdateResponse = originalDocViewUpdate.apply(this, [node, outerDeco, innerDeco, view]);
-+
-+      // The original detected no changes
-+      if (originalUpdateResponse) {
-+        return true;
-+      }
-+
-+      const markupMatches = node.sameMarkup(docView.node);
-+
-+      // Even though our markup matches, the original saw something different (i.e. dirty)
-+      // In this case, trust it
-+      if (markupMatches && !originalUpdateResponse) {
++      if (
++        this.dirty == NODE_DIRTY ||
++        // Copied from `Node.sameMarkup()` in `prosemirror-model` except without the
++        // `compareDeep()` attributes check.
++        // 
++        // See:
++        // https://github.com/ProseMirror/prosemirror-model/blob/c7092c91b3a994aefffb78d4fbfe25766959d99c/src/node.ts#L121-L133
++        !(node.type == this.node.type && prosemirrorModel.Mark.sameSet(node.marks, this.node.marks || prosemirrorModel.Mark.none))
++      ) {
 +        return false;
 +      }
 +
-+      const attributesMatch = compareDeep(node.attrs, docView.node.attrs);
++      this.updateInner(node, outerDeco, innerDeco, view);
 +
-+      // if it was the attributes that changed, ignore the update
-+      if (!attributesMatch) {
-+        return true;
-+      }
-+
-+      return false;
++      return true;
 +    };
 +  }
 +
    return docView;
  }
  var TextViewDesc = function (_NodeViewDesc) {
-@@ -2338,6 +2422,14 @@ function apply(view, sel) {
+@@ -2338,6 +2411,14 @@ function apply(view, sel) {
    view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
    return true;
  }
@@ -132,7 +121,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
  function selectHorizontally(view, dir, mods) {
    var sel = view.state.selection;
    if (sel instanceof prosemirrorState.TextSelection) {
-@@ -2352,6 +2444,16 @@ function selectHorizontally(view, dir, mods) {
+@@ -2352,6 +2433,16 @@ function selectHorizontally(view, dir, mods) {
      } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
        var next = moveSelectionBlock(view.state, dir);
        if (next && next instanceof prosemirrorState.NodeSelection) return apply(view, next);
@@ -149,7 +138,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
        return false;
      } else if (!(mac && mods.indexOf("m") > -1)) {
        var _$head = sel.$head,
-@@ -2703,6 +2805,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2703,6 +2794,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
        html = f(html, view);
      });
      dom = readHTML(html);
@@ -162,7 +151,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
      if (webkit) restoreReplacedSpaces(dom);
    }
    var contextNode = dom && dom.querySelector("[data-pm-slice]");
-@@ -3499,7 +3607,9 @@ editHandlers.drop = function (view, _event) {
+@@ -3499,7 +3596,9 @@ editHandlers.drop = function (view, _event) {
    }
    var move = !!(dragging && dragMoves(view, event));
    if (view.someProp("handleDrop", function (f) {
@@ -173,7 +162,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
    })) {
      event.preventDefault();
      return;
-@@ -3538,9 +3648,33 @@ handlers.focus = function (view) {
+@@ -3538,9 +3637,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -210,7 +199,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
    }
  };
  handlers.blur = function (view, _event) {
-@@ -4209,6 +4343,7 @@ var DOMObserver = function () {
+@@ -4209,6 +4332,7 @@ var DOMObserver = function () {
      this.currentSelection = new SelectionState();
      this.onCharData = null;
      this.suppressingSelectionUpdates = false;
@@ -218,7 +207,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
      this.lastChangedTextNode = null;
      this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
        for (var i = 0; i < mutations.length; i++) _this11.queue.push(mutations[i]);
-@@ -4295,13 +4430,25 @@ var DOMObserver = function () {
+@@ -4295,13 +4419,25 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
@@ -245,7 +234,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
      }
    }, {
      key: "setCurSelection",
-@@ -4858,6 +5005,10 @@ var EditorView = function () {
+@@ -4858,6 +4994,10 @@ var EditorView = function () {
    function EditorView(place, props) {
      var _this15 = this;
      _classCallCheck(this, EditorView);
@@ -256,7 +245,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
      this._root = null;
      this.focused = false;
      this.trackWrites = null;
-@@ -4889,6 +5040,8 @@ var EditorView = function () {
+@@ -4889,6 +5029,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -265,7 +254,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..da6c608f31a7aa70bf8291101f5ed804
    }
    _createClass(EditorView, [{
      key: "composing",
-@@ -5284,3 +5437,7 @@ exports.DecorationSet = DecorationSet;
+@@ -5284,3 +5426,7 @@ exports.DecorationSet = DecorationSet;
  exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
@@ -348,7 +337,7 @@ index 31d9a81fcd5b095612450b892805122f000909c4..cb246e42425776d18cb4214573d2b0d9
 +    startDOM: DOMNode,
 +): void;
 diff --git a/dist/index.js b/dist/index.js
-index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d83e20973 100644
+index 2358e14a51b18a7050f17eb4c045c4e2422a4360..957705b7f38f48df46d973f8c1e404a54173f62b 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -220,16 +220,38 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -411,80 +400,68 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
              after = after.nextSibling;
          let target = !after ? null : after.nodeType == 3 ? textRange(after, 0, (supportEmptyRange ? 0 : 1))
              : after.nodeType == 1 ? after : null;
-@@ -1499,6 +1523,24 @@ class NodeViewDesc extends ViewDesc {
+@@ -1499,6 +1523,7 @@ class NodeViewDesc extends ViewDesc {
      }
      get domAtom() { return this.node.isAtom; }
  }
 +
-+// NOTE(imjoshin): Copied from prosemirror-model for the patch in docViewDesc
-+function compareDeep(a, b) {
-+    if (a === b) return true
-+    if (!(a && typeof a == "object") ||
-+        !(b && typeof b == "object")) return false
-+    let array = Array.isArray(a)
-+    if (Array.isArray(b) != array) return false
-+    if (array) {
-+        if (a.length != b.length) return false
-+        for (let i = 0; i < a.length; i++) if (!compareDeep(a[i], b[i])) return false
-+    } else {
-+        for (let p in a) if (!(p in b) || !compareDeep(a[p], b[p])) return false
-+        for (let p in b) if (!(p in a)) return false
-+    }
-+    return true
-+}
-+
  // Create a view desc for the top-level document node, to be exported
  // and used by the view class.
  function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
-@@ -1506,6 +1548,47 @@ function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
+@@ -1506,6 +1531,52 @@ function docViewDesc(doc, outerDeco, innerDeco, dom, view) {
      let docView = new NodeViewDesc(undefined, doc, outerDeco, innerDeco, dom, dom, dom, view, 0);
      if (docView.contentDOM)
          docView.updateChildren(view, 0);
 +
-+    // NOTE(imjoshin): When our documents change, ProseMirror's node will check
-+    // if the root document node has any attributes that changed. If any attributes
-+    // change, the view gets destroyed and recreated. This creates a new node tree,
-+    // and all components rerender. When creating the BlobsArt cover, we discovered
-+    // rerendering our canvases takes ~50ms each. If there are multiple on a page,
-+    // there's a visible blocking render.
++    // NOTE(calebmer): By default when a ProseMirror node's attributes change, the
++    // DOM element rendering the node is destroyed and recreated. You can customize
++    // this behavior with `nodeViews` passed into `EditorView`. For example we have
++    // a custom node view for the `table` node so when its attributes change we
++    // update the table DOM's classes and styles instead of completely destroying
++    // and recreating the table DOM node.
++    // 
++    // However, you can't add a custom node view for the root doc node. So
++    // attribute changes on the root doc node always destroys and recreates the
++    // entire ProseMirror DOM!
 +    //
-+    // To solve this, we add a ignoreDocAttrsForUpdate prop to the EditorView.
-+    // If any attributes are causing the rerender, we'll override the
-+    // "should I update" response from ProseMirror and prevent the rerender.
++    // When creating the `BlobsArt` cover, we discovered rerendering our canvases
++    // takes ~50ms each. If there are multiple on a page, there's a visible
++    // blocking render.
++    //
++    // To solve this, we add a `ignoreDocAttrsForUpdate` prop to the EditorView.
++    // When this prop is true, if we re-render a root doc node and it has
++    // different attributes then we ignore the attribute changes and pretend
++    // like the doc didn't update at all.
 +    if (view.ignoreDocAttrsForUpdate) {
-+        const originalDocViewUpdate = docView.update;
++        // This function is the same as `NodeViewDesc.update()` except we change the
++        // implementation of `Node.sameMarkup()` to one that ignores differences in
++        // attributes.
++        // 
++        // See:
++        // https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/viewdesc.ts#L854-L861
 +        docView.update = function (node, outerDeco, innerDeco, view) {
-+            const originalUpdateResponse = originalDocViewUpdate.apply(this, [node, outerDeco, innerDeco, view]);
-+
-+            // The original detected no changes
-+            if (originalUpdateResponse) {
-+                return true;
-+            }
-+
-+            const markupMatches = node.sameMarkup(docView.node);
-+
-+            // Even though our markup matches, the original saw something different (i.e. dirty)
-+            // In this case, trust it
-+            if (markupMatches && !originalUpdateResponse) {
++            if (
++                this.dirty == NODE_DIRTY ||
++                // Copied from `Node.sameMarkup()` in `prosemirror-model` except without the
++                // `compareDeep()` attributes check.
++                // 
++                // See:
++                // https://github.com/ProseMirror/prosemirror-model/blob/c7092c91b3a994aefffb78d4fbfe25766959d99c/src/node.ts#L121-L133
++                !(node.type == this.node.type && Mark.sameSet(node.marks, this.node.marks || Mark.none))
++            ) {
 +                return false;
 +            }
 +
-+            const attributesMatch = compareDeep(node.attrs, docView.node.attrs);
++            this.updateInner(node, outerDeco, innerDeco, view);
 +
-+            // if it was the attributes that changed, ignore the update
-+            if (!attributesMatch) {
-+                return true;
-+            }
-+
-+            return false;
++            return true;
 +        };
 +    }
-+
 +
      return docView;
  }
  class TextViewDesc extends NodeViewDesc {
-@@ -2416,6 +2499,14 @@ function apply(view, sel) {
+@@ -2416,6 +2487,14 @@ function apply(view, sel) {
      view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
      return true;
  }
@@ -499,7 +476,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
  function selectHorizontally(view, dir, mods) {
      let sel = view.state.selection;
      if (sel instanceof TextSelection) {
-@@ -2433,6 +2524,16 @@ function selectHorizontally(view, dir, mods) {
+@@ -2433,6 +2512,16 @@ function selectHorizontally(view, dir, mods) {
              let next = moveSelectionBlock(view.state, dir);
              if (next && (next instanceof NodeSelection))
                  return apply(view, next);
@@ -516,7 +493,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
              return false;
          }
          else if (!(mac && mods.indexOf("m") > -1)) {
-@@ -2844,6 +2945,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2844,6 +2933,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
      else {
          view.someProp("transformPastedHTML", f => { html = f(html, view); });
          dom = readHTML(html);
@@ -527,7 +504,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3749,7 +3854,9 @@ editHandlers.drop = (view, _event) => {
+@@ -3749,7 +3842,9 @@ editHandlers.drop = (view, _event) => {
          slice = parseFromClipboard(view, getText(event.dataTransfer), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
      }
      let move = !!(dragging && dragMoves(view, event));
@@ -538,7 +515,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
          event.preventDefault();
          return;
      }
-@@ -3796,10 +3903,34 @@ handlers.focus = view => {
+@@ -3796,10 +3891,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -577,7 +554,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4563,6 +4694,7 @@ class DOMObserver {
+@@ -4563,6 +4682,7 @@ class DOMObserver {
          this.currentSelection = new SelectionState;
          this.onCharData = null;
          this.suppressingSelectionUpdates = false;
@@ -585,7 +562,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
          this.lastChangedTextNode = null;
          this.observer = window.MutationObserver &&
              new window.MutationObserver(mutations => {
-@@ -4631,8 +4763,13 @@ class DOMObserver {
+@@ -4631,8 +4751,13 @@ class DOMObserver {
          setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
@@ -600,7 +577,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4645,6 +4782,10 @@ class DOMObserver {
+@@ -4645,6 +4770,10 @@ class DOMObserver {
                  return this.flushSoon();
          }
          this.flush();
@@ -611,7 +588,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
      }
      setCurSelection() {
          this.currentSelection.set(this.view.domSelectionRange());
-@@ -5257,6 +5398,9 @@ class EditorView {
+@@ -5257,6 +5386,9 @@ class EditorView {
      added to the document.
      */
      constructor(place, props) {
@@ -621,7 +598,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
          this._root = null;
          /**
          @internal
-@@ -5319,6 +5463,8 @@ class EditorView {
+@@ -5319,6 +5451,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -630,7 +607,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..3151c465db5cdff8aded6def1037151d
      }
      /**
      Holds `true` when a
-@@ -5820,3 +5966,8 @@ function checkStateComponent(plugin) {
+@@ -5820,3 +5954,8 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard };
