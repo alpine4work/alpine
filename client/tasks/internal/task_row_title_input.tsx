@@ -2030,7 +2030,11 @@ function handleTaskRowTitleInputPaste(
         return false;
     };
 
-    for (const node of slice?.content.content ?? []) {
+    for (const originalNode of slice?.content.content ?? []) {
+        const node = originalNode.isText
+            ? schema.node("paragraph", {}, [originalNode])
+            : originalNode;
+
         // Ignore empty nodes or non-text nodes (e.g. files and dividers).
         if (!doesNodeHaveText(node)) continue;
 
