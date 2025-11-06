@@ -97,12 +97,20 @@ export function MessageStreamView({
         posAttributeOffset += content.doc.content.size;
     }
 
+    let lastRenderedPart: MessageStreamPartPayload | null = null;
+
     for (let index = 0; index < stream.parts.length; index++) {
         const part = stream.parts[index]!;
 
+        // Only show tool calls that are active. Since we only make one call at a time,
+        // we know that the tool call is *not active* if there a more recent stream part!
+        if (part.payload.type === "ToolCall") {
+            if (stream.parts[index + 1]) continue;
+        }
+
         let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
 
-        if (index === 0) {
+        if (lastRenderedPart === null) {
             if (isContentEmpty) {
                 previousBlockNodeTypeName = null;
             } else {
@@ -110,14 +118,11 @@ export function MessageStreamView({
                     .name as ContentBlockNodeTypeName;
             }
         } else {
-            const previousPart = stream.parts[index - 1]!;
-
             // TODO(calebmer, #ai): List items are getting the wrong amount of spacing. We
             // should have less spacing between each list item.
             previousBlockNodeTypeName =
-                previousPart.payload.type === "Content"
-                    ? (previousPart.payload.content.lastChild!.type
-                          .name as ContentBlockNodeTypeName)
+                lastRenderedPart.type === "Content"
+                    ? (lastRenderedPart.content.lastChild!.type.name as ContentBlockNodeTypeName)
                     : // HACK: Something with standalone margin.
                       "fileRow";
         }
@@ -131,18 +136,34 @@ export function MessageStreamView({
                 posAttributeOffset={posAttributeOffset}
                 withUserSelectNone={withUserSelectNone}
                 getClipboardSerializerPrefix={
-                    isContentEmpty && index === 0 ? getClipboardSerializerPrefix : undefined
+                    isContentEmpty && lastRenderedPart === null
+                        ? getClipboardSerializerPrefix
+                        : undefined
                 }
                 previousBlockNodeTypeName={previousBlockNodeTypeName}
                 jumpAnimation={jumpAnimation}
             />,
         );
 
+        lastRenderedPart = part.payload;
+
         if (part.payload.type === "Content") {
             posAttributeOffset += part.payload.content.content.size;
         }
     }
 
+    // Show the thinking indicator if
+    // 1. There are no stream parts yet
+    // 2. There are stream parts, but the last part is not `Content` or a `ToolCall`.
+    //    Event though stream parts are currently typed as `ToolCall` or `Content`,
+    //    we'll need to handle `Reasoning` parts in the future. While the model is
+    //    reasoning between tool calls, we'll show the thinking indicator.
+    const shouldShowThinkingIndicator =
+        (isContentEmpty && stream.parts.length === 0) ||
+        (stream.parts.length > 0 &&
+            !new Set(["Content", "ToolCall"]).has(
+                stream.parts[stream.parts.length - 1]!.payload.type,
+            ));
     return (
         <div
             style={{
@@ -152,9 +173,7 @@ export function MessageStreamView({
             }}
         >
             {children}
-            {((isContentEmpty && stream.parts.length === 0) ||
-                (stream.parts.length > 0 &&
-                    stream.parts[stream.parts.length - 1]!.payload.type !== "Content")) &&
+            {shouldShowThinkingIndicator &&
                 (() => {
                     let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
 
@@ -348,12 +367,15 @@ function MessageStreamViewToolCallPart({call}: {call: MessageStreamToolCallPartP
 
     return (
         <div
-            className={sprinkles({
-                color: "grey-60",
-                fontSize: "100",
-                fontStyle: "truncate",
-                userSelect: "text",
-            })}
+            className={classNames(
+                pulseAnimationClassName,
+                sprinkles({
+                    color: "grey-60",
+                    fontSize: "100",
+                    fontStyle: "truncate",
+                    userSelect: "text",
+                }),
+            )}
             style={{lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`}}
         >
             <MagnifyingGlass
