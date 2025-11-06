@@ -34,7 +34,7 @@ function createUserElement(
     if (alpineId) {
         const mention: ApiContentMentionInlineElement = {
             type: "Mention",
-            targetPath: `/accounts/${alpineId}`,
+            target: {path: `/accounts/${alpineId}`},
             isAccountShortName: true,
         };
 

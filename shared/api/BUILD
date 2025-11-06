@@ -40,10 +40,12 @@ ts_project(
     deps = [
         "//:node_modules/@types/mustache",
         "//:node_modules/@types/prettier",
+        "//:node_modules/immer",
         "//:node_modules/mustache",
         "//:node_modules/openapi-typescript",
         "//:node_modules/prettier",
         "//:node_modules/typescript",
+        "//:node_modules/yaml",
         "//server/helpers/node",
         "//shared/content",
         "//shared/files",

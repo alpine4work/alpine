@@ -1507,7 +1507,7 @@ test("mention with short name format", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/accounts/${accountId}`,
+                        target: {path: `/accounts/${accountId}`},
                         isAccountShortName: true,
                     },
                 ],
@@ -1530,7 +1530,7 @@ test("channel mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/channels/${channelId}`,
+                        target: {path: `/channels/${channelId}`},
                     },
                 ],
             },
@@ -1554,7 +1554,7 @@ test("document mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/documents/${documentId}`,
+                        target: {path: `/documents/${documentId}`},
                     },
                 ],
             },
@@ -1576,7 +1576,7 @@ test("post mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/posts/${postId}`,
+                        target: {path: `/posts/${postId}`},
                     },
                 ],
             },
@@ -1598,7 +1598,7 @@ test("task mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/tasks/${taskId}`,
+                        target: {path: `/tasks/${taskId}`},
                     },
                 ],
             },
@@ -1620,7 +1620,7 @@ test("task collection mention", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/task-collections/${collectionId}`,
+                        target: {path: `/task-collections/${collectionId}`},
                     },
                 ],
             },

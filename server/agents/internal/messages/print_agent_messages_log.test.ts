@@ -5,7 +5,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
@@ -29,7 +29,7 @@ function createTestAgentMessage({
 }: {
     author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
     createdTime: Date;
-    content: ApiContent | string;
+    content: ApiContentResponse | string;
 }) {
     return storage.transaction(transaction => {
         if (author === "Alice") {
@@ -323,7 +323,7 @@ Hello
 });
 
 test("text property uses `printAgentContentToMarkdown()` result", async () => {
-    const content: ApiContent = {
+    const content: ApiContentResponse = {
         elements: [
             {
                 type: "Paragraph",

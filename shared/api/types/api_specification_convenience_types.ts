@@ -26,33 +26,67 @@ export type ApiMessageRoomPath = ApiSpecification.components["schemas"]["Message
 
 export type ApiMentionPath = ApiSpecification.components["schemas"]["MentionPath"];
 
+export type ApiMentionTarget = ApiSpecification.components["schemas"]["MentionTarget"];
+
+export type ApiMentionTargetResponse =
+    ApiSpecification.components["schemas"]["MentionTarget_Response"];
+
 export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
+export type ApiContentResponse = ApiSpecification.components["schemas"]["Content_Response"];
+
 export type ApiContentBlockElement = ApiSpecification.components["schemas"]["ContentBlockElement"];
+
+export type ApiContentBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentBlockElement_Response"];
 
 export type ApiContentParagraphBlockElement =
     ApiSpecification.components["schemas"]["ContentParagraphBlockElement"];
 
+export type ApiContentParagraphBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentParagraphBlockElement_Response"];
+
 export type ApiContentUnorderedListBlockElement =
     ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement"];
+
+export type ApiContentUnorderedListBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_Response"];
 
 export type ApiContentOrderedListBlockElement =
     ApiSpecification.components["schemas"]["ContentOrderedListBlockElement"];
 
+export type ApiContentOrderedListBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_Response"];
+
 export type ApiContentListBlockElement =
     ApiSpecification.components["schemas"]["ContentListBlockElement"];
+
+export type ApiContentListBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentListBlockElement_Response"];
 
 export type ApiContentListBlockElementItem =
     ApiSpecification.components["schemas"]["ContentListBlockElementItem"];
 
+export type ApiContentListBlockElementItemResponse =
+    ApiSpecification.components["schemas"]["ContentListBlockElementItem_Response"];
+
 export type ApiContentQuoteBlockElement =
     ApiSpecification.components["schemas"]["ContentQuoteBlockElement"];
+
+export type ApiContentQuoteBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElement_Response"];
 
 export type ApiContentQuoteBlockElementBlockElement =
     ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement"];
 
+export type ApiContentQuoteBlockElementBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement_Response"];
+
 export type ApiContentHeadingBlockElement =
     ApiSpecification.components["schemas"]["ContentHeadingBlockElement"];
+
+export type ApiContentHeadingBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentHeadingBlockElement_Response"];
 
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
@@ -60,14 +94,23 @@ export type ApiContentDividerBlockElement =
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 
-export type ApiContentTableBlockElementRow =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementRow"];
+export type ApiContentTableBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentTableBlockElement_Response"];
+
+export type ApiContentTableBlockElementRowResponse =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response"];
 
 export type ApiContentTableBlockElementCell =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCell"];
 
+export type ApiContentTableBlockElementCellResponse =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCell_Response"];
+
 export type ApiContentTableBlockElementCellBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement"];
+
+export type ApiContentTableBlockElementCellBlockElementResponse =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response"];
 
 export type ApiContentCodeBlockElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement"];
@@ -81,6 +124,9 @@ export type ApiContentCodeBlockElementTextInlineElementMark =
 export type ApiContentInlineElement =
     ApiSpecification.components["schemas"]["ContentInlineElement"];
 
+export type ApiContentInlineElementResponse =
+    ApiSpecification.components["schemas"]["ContentInlineElement_Response"];
+
 export type ApiContentTextInlineElement =
     ApiSpecification.components["schemas"]["ContentTextInlineElement"];
 
@@ -89,6 +135,9 @@ export type ApiContentBreakInlineElement =
 
 export type ApiContentMentionInlineElement =
     ApiSpecification.components["schemas"]["ContentMentionInlineElement"];
+
+export type ApiContentMentionInlineElementResponse =
+    ApiSpecification.components["schemas"]["ContentMentionInlineElement_Response"];
 
 export type ApiContentInlineElementMark =
     ApiSpecification.components["schemas"]["ContentInlineElementMark"];
@@ -116,18 +165,25 @@ export type ApiChat = ApiSpecification.components["schemas"]["Chat"];
 
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
-export type ApiMessage = ApiSpecification.components["schemas"]["Message"];
+export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
-export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessagePayload"];
+export type ApiMessagePayloadResponse =
+    ApiSpecification.components["schemas"]["MessagePayload_Response"];
 
 export type ApiMessageStreamPartPayload =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
 
-export type ApiMessageContentPayload =
-    ApiSpecification.components["schemas"]["MessageContentPayload"];
+export type ApiMessageStreamPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
+
+export type ApiMessageContentPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
+
+export type ApiMessageStreamToolCallPartPayloadCallResponse =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
 
 export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
 

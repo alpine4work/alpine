@@ -11,6 +11,8 @@ import {
     ApiTaskMessagePath,
     ApiTaskPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {
     AccountId,
     ChannelId,
@@ -22,7 +24,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 
-export type ApiTarget =
+export type ApiTargetResponse =
     | {
           readonly type: "Account";
           readonly path: ApiAccountPath;
@@ -83,3 +85,7 @@ export type ApiTarget =
           readonly path: ApiTaskCollectionPath;
           readonly id: TaskCollectionId;
       };
+
+export type ApiTarget =
+    | DistributiveOmit<ApiTargetResponse, Exclude<DistributiveKeyOf<ApiTargetResponse>, "path">>
+    | DistributiveOmit<ApiTargetResponse, "path">;

@@ -1,4 +1,5 @@
 import {Draft, castDraft, produce} from "immer";
+import {printApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -185,11 +186,23 @@ function normalizeApiContentInlineElements(
                 delete element.title;
             }
 
+            // If we're using the non-path form of `target` then convert to path form.
+            if (!isDeepEqual(Object.keys(element.target), ["path"])) {
+                element.target = {
+                    path: hasOwnProperty(element.target, "path")
+                        ? element.target.path
+                        : printApiMentionPath(element.target),
+                };
+            }
+
             // `isAccountShortName` can only be true for account targets. Otherwise set
             // to undefined.
             if (
                 element.isAccountShortName === false ||
-                (element.isAccountShortName && !element.targetPath.startsWith("/accounts/"))
+                (element.isAccountShortName &&
+                    !(hasOwnProperty(element.target, "path")
+                        ? element.target.path.startsWith("/accounts/")
+                        : element.target.type === "Account"))
             ) {
                 element.isAccountShortName = undefined;
             }

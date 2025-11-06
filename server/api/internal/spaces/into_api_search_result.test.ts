@@ -195,7 +195,7 @@ describe("intoApiSearchResult", () => {
                 type: "Channel",
                 path: `/channels/${channelId}`,
                 id: channelId,
-                title: "Unknown",
+                title: "Unknown channel",
                 bodyMatch: null,
             });
         });
@@ -251,7 +251,7 @@ describe("intoApiSearchResult", () => {
                 type: "Chat",
                 path: `/chats/${chatId}`,
                 id: chatId,
-                title: "Unknown",
+                title: "Unknown chat",
                 bodyMatch: null,
             });
         });
@@ -351,7 +351,7 @@ describe("intoApiSearchResult", () => {
                 type: "Document",
                 path: `/documents/${documentId}`,
                 id: documentId,
-                title: "Unknown",
+                title: "Unknown document",
                 bodyMatch: null,
             });
         });
@@ -475,7 +475,7 @@ describe("intoApiSearchResult", () => {
                 type: "Post",
                 path: `/posts/${postId}`,
                 id: postId,
-                title: "Unknown",
+                title: "Unknown post",
                 bodyMatch: null,
                 author: expect.objectContaining({
                     id: authorId,
@@ -652,7 +652,7 @@ describe("intoApiSearchResult", () => {
                 type: "Task",
                 path: `/tasks/${taskId}`,
                 id: taskId,
-                title: "Unknown",
+                title: "Unknown task",
                 bodyMatch: null,
                 status: {type: "Open", isActive: true},
             });
@@ -709,7 +709,7 @@ describe("intoApiSearchResult", () => {
                 type: "TaskCollection",
                 path: `/task-collections/${collectionId}`,
                 id: collectionId,
-                title: "Unknown",
+                title: "Unknown task collection",
                 bodyMatch: null,
             });
         });

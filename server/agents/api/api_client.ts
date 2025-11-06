@@ -9,7 +9,7 @@ import {
 } from "openapi-typescript-helpers";
 import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {
-    ApiContent,
+    ApiContentResponse,
     ApiErrorResponseBody,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -219,15 +219,15 @@ export function getApiMessage(
     switch (roomPathObject.type) {
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.chatId, index}},
+                params: {path: {id: roomPathObject.id, index}},
             });
         }
         case "DocumentCommentThread": {
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages/{index}", {
                 params: {
                     path: {
-                        id: roomPathObject.documentId,
-                        threadId: roomPathObject.commentThreadId,
+                        id: roomPathObject.id,
+                        threadId: roomPathObject.threadId,
                         index,
                     },
                 },
@@ -235,12 +235,12 @@ export function getApiMessage(
         }
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.postId, index}},
+                params: {path: {id: roomPathObject.id, index}},
             });
         }
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages/{index}", {
-                params: {path: {id: roomPathObject.taskId, index}},
+                params: {path: {id: roomPathObject.id, index}},
             });
         }
         default:
@@ -258,7 +258,7 @@ export function getApiMessagesFromStart(
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.chatId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
@@ -267,8 +267,8 @@ export function getApiMessagesFromStart(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: roomPathObject.documentId,
-                        threadId: roomPathObject.commentThreadId,
+                        id: roomPathObject.id,
+                        threadId: roomPathObject.threadId,
                     },
                     query: {limit, cursor: cursor ?? undefined},
                 },
@@ -277,7 +277,7 @@ export function getApiMessagesFromStart(
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.postId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
@@ -285,7 +285,7 @@ export function getApiMessagesFromStart(
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.taskId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined},
                 },
             });
@@ -305,7 +305,7 @@ export function getApiMessagesFromEnd(
         case "Chat": {
             return apiClient.get(tracer, "/chats/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.chatId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
@@ -314,8 +314,8 @@ export function getApiMessagesFromEnd(
             return apiClient.get(tracer, "/documents/{id}/threads/{threadId}/messages", {
                 params: {
                     path: {
-                        id: roomPathObject.documentId,
-                        threadId: roomPathObject.commentThreadId,
+                        id: roomPathObject.id,
+                        threadId: roomPathObject.threadId,
                     },
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
@@ -324,7 +324,7 @@ export function getApiMessagesFromEnd(
         case "Post": {
             return apiClient.get(tracer, "/posts/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.postId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
@@ -332,7 +332,7 @@ export function getApiMessagesFromEnd(
         case "Task": {
             return apiClient.get(tracer, "/tasks/{id}/messages", {
                 params: {
-                    path: {id: roomPathObject.taskId},
+                    path: {id: roomPathObject.id},
                     query: {limit, cursor: cursor ?? undefined, from: "end"},
                 },
             });
@@ -346,35 +346,30 @@ export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
-    body: {isStream?: boolean; content: ApiContent},
+    body: {isStream?: boolean; content: ApiContentResponse},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {
             return apiClient.post(tracer, "/chats/{id}/messages", {
-                params: {path: {id: roomPathObject.chatId}},
+                params: {path: {id: roomPathObject.id}},
                 body,
             });
         }
         case "DocumentCommentThread": {
             return apiClient.post(tracer, "/documents/{id}/threads/{threadId}/messages", {
-                params: {
-                    path: {
-                        id: roomPathObject.documentId,
-                        threadId: roomPathObject.commentThreadId,
-                    },
-                },
+                params: {path: {id: roomPathObject.id, threadId: roomPathObject.threadId}},
                 body,
             });
         }
         case "Post": {
             return apiClient.post(tracer, "/posts/{id}/messages", {
-                params: {path: {id: roomPathObject.postId}},
+                params: {path: {id: roomPathObject.id}},
                 body,
             });
         }
         case "Task": {
             return apiClient.post(tracer, "/tasks/{id}/messages", {
-                params: {path: {id: roomPathObject.taskId}},
+                params: {path: {id: roomPathObject.id}},
                 body,
             });
         }
@@ -394,7 +389,7 @@ export function putApiMessageStreamPart(
     switch (roomPathObject.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.chatId, index: messageIndex, partIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
                 body,
             });
         }
@@ -405,8 +400,8 @@ export function putApiMessageStreamPart(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.documentId,
-                            threadId: roomPathObject.commentThreadId,
+                            id: roomPathObject.id,
+                            threadId: roomPathObject.threadId,
                             index: messageIndex,
                             partIndex,
                         },
@@ -417,13 +412,13 @@ export function putApiMessageStreamPart(
         }
         case "Post": {
             return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.postId, index: messageIndex, partIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
                 body,
             });
         }
         case "Task": {
             return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/parts/{partIndex}", {
-                params: {path: {id: roomPathObject.taskId, index: messageIndex, partIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex, partIndex}},
                 body,
             });
         }
@@ -441,7 +436,7 @@ export function completeApiMessageStream(
     switch (roomPathObject.type) {
         case "Chat": {
             return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.chatId, index: messageIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
             });
         }
         case "DocumentCommentThread": {
@@ -451,8 +446,8 @@ export function completeApiMessageStream(
                 {
                     params: {
                         path: {
-                            id: roomPathObject.documentId,
-                            threadId: roomPathObject.commentThreadId,
+                            id: roomPathObject.id,
+                            threadId: roomPathObject.threadId,
                             index: messageIndex,
                         },
                     },
@@ -461,12 +456,12 @@ export function completeApiMessageStream(
         }
         case "Post": {
             return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.postId, index: messageIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
             });
         }
         case "Task": {
             return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/completion", {
-                params: {path: {id: roomPathObject.taskId, index: messageIndex}},
+                params: {path: {id: roomPathObject.id, index: messageIndex}},
             });
         }
         default:

@@ -1,15 +1,17 @@
 import {Mark, Node} from "prosemirror-model";
+import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
+import {printApiMentionTargetResponse} from "~/shared/api/parse_api_path.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentInlineElement,
+    ApiContentBlockElementResponse,
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
-    ApiContentListBlockElement,
-    ApiContentListBlockElementItem,
-    ApiContentMentionInlineElement,
-    ApiContentTableBlockElementCell,
-    ApiContentTableBlockElementRow,
+    ApiContentInlineElementResponse,
+    ApiContentListBlockElementItemResponse,
+    ApiContentListBlockElementResponse,
+    ApiContentResponse,
+    ApiContentTableBlockElementCellResponse,
+    ApiContentTableBlockElementRowResponse,
+    ApiMentionPath,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -44,7 +46,10 @@ export type ApiContentMarkdownIntoOptions = {
 /**
  * Convert ProseMirror content into the format returned by the API.
  */
-export function intoApiContent(node: Node, options: ApiContentMarkdownIntoOptions): ApiContent {
+export function intoApiContent(
+    node: Node,
+    options: ApiContentMarkdownIntoOptions,
+): ApiContentResponse {
     assert(node.type.name === "doc");
     return {elements: Array.from(intoApiContentBlockElements(node.content.content, options))};
 }
@@ -57,7 +62,7 @@ type ApiContentListBlockElementWorkingItem = {
 function* intoApiContentBlockElements(
     nodes: ReadonlyArray<Node>,
     options: ApiContentMarkdownIntoOptions,
-): IterableIterator<ApiContentBlockElement> {
+): IterableIterator<ApiContentBlockElementResponse> {
     let nodeIndex = 0;
     while (nodeIndex < nodes.length) {
         const node = nodes[nodeIndex]!;
@@ -116,10 +121,10 @@ function* intoApiContentBlockElements(
 function* intoApiContentListBlockElements(
     items: Array<ApiContentListBlockElementWorkingItem>,
     options: ApiContentMarkdownIntoOptions,
-): IterableIterator<ApiContentListBlockElement> {
+): IterableIterator<ApiContentListBlockElementResponse> {
     let lastElement:
-        | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItem>}
-        | {type: "OrderedList"; items: Array<ApiContentListBlockElementItem>}
+        | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItemResponse>}
+        | {type: "OrderedList"; items: Array<ApiContentListBlockElementItemResponse>}
         | null = null;
 
     for (const item of items) {
@@ -148,7 +153,7 @@ function* intoApiContentListBlockElements(
         switch (typeName) {
             case undefined:
             case "unorderedListItem": {
-                const elementItem: ApiContentListBlockElementItem = {
+                const elementItem: ApiContentListBlockElementItemResponse = {
                     elements,
                     nestedListElements,
                 };
@@ -166,7 +171,7 @@ function* intoApiContentListBlockElements(
                 break;
             }
             case "orderedListItem": {
-                const elementItem: ApiContentListBlockElementItem = {
+                const elementItem: ApiContentListBlockElementItemResponse = {
                     elements,
                     nestedListElements,
                 };
@@ -198,7 +203,7 @@ function intoApiContentBlockElement(
     typeName: Exclude<ContentBlockNodeTypeName, "unorderedListItem" | "orderedListItem">,
     node: Node,
     options: ApiContentMarkdownIntoOptions,
-): ApiContentBlockElement {
+): ApiContentBlockElementResponse {
     switch (typeName) {
         case "paragraph": {
             return {
@@ -247,45 +252,50 @@ function intoApiContentBlockElement(
         case "table": {
             let columnWidth = 2;
 
-            const rows = node.content.content.map((rowNode): ApiContentTableBlockElementRow => {
-                assert(rowNode.type.name === "tableRow");
+            const rows = node.content.content.map(
+                (rowNode): ApiContentTableBlockElementRowResponse => {
+                    assert(rowNode.type.name === "tableRow");
 
-                columnWidth = Math.max(columnWidth, rowNode.content.content.length);
+                    columnWidth = Math.max(columnWidth, rowNode.content.content.length);
 
-                return {
-                    cells: rowNode.content.content.map(
-                        (cellNode): ApiContentTableBlockElementCell => {
-                            assert(cellNode.type.name === "tableCell");
+                    return {
+                        cells: rowNode.content.content.map(
+                            (cellNode): ApiContentTableBlockElementCellResponse => {
+                                assert(cellNode.type.name === "tableCell");
 
-                            return {
-                                elements: Array.from(
-                                    intoApiContentBlockElements(cellNode.content.content, options),
-                                    element => {
-                                        switch (element.type) {
-                                            case "Paragraph":
-                                            case "UnorderedList":
-                                            case "OrderedList":
-                                            case "Quote":
-                                            case "Code": {
-                                                return element;
+                                return {
+                                    elements: Array.from(
+                                        intoApiContentBlockElements(
+                                            cellNode.content.content,
+                                            options,
+                                        ),
+                                        element => {
+                                            switch (element.type) {
+                                                case "Paragraph":
+                                                case "UnorderedList":
+                                                case "OrderedList":
+                                                case "Quote":
+                                                case "Code": {
+                                                    return element;
+                                                }
+                                                case "Table":
+                                                case "Heading":
+                                                case "Divider": {
+                                                    throw new InternalError(
+                                                        quote`${element.type} block element isn’t supported in \`Table\` block element`,
+                                                    );
+                                                }
+                                                default:
+                                                    throw exhaustive(element);
                                             }
-                                            case "Table":
-                                            case "Heading":
-                                            case "Divider": {
-                                                throw new InternalError(
-                                                    quote`${element.type} block element isn’t supported in \`Table\` block element`,
-                                                );
-                                            }
-                                            default:
-                                                throw exhaustive(element);
-                                        }
-                                    },
-                                ),
-                            };
-                        },
-                    ),
-                };
-            });
+                                        },
+                                    ),
+                                };
+                            },
+                        ),
+                    };
+                },
+            );
 
             return {
                 type: "Table",
@@ -377,14 +387,14 @@ function intoApiContentBlockElement(
 function intoApiContentInlineElements(
     nodes: ReadonlyArray<Node>,
     options: ApiContentMarkdownIntoOptions,
-): ReadonlyArray<ApiContentInlineElement> {
+): ReadonlyArray<ApiContentInlineElementResponse> {
     return nodes.map(node => intoApiContentInlineElement(node, options));
 }
 
 function intoApiContentInlineElement(
     node: Node,
     options: ApiContentMarkdownIntoOptions,
-): ApiContentInlineElement {
+): ApiContentInlineElementResponse {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
     switch (typeName) {
@@ -413,8 +423,14 @@ function intoApiContentInlineElement(
             if (mention.type === "Account") {
                 return {
                     type: "Mention",
-                    targetPath: `/accounts/${mention.accountId}`,
-                    title: options.getAccountMentionTitleIfExists(mention.accountId, mention),
+                    target: {
+                        type: "Account",
+                        path: `/accounts/${mention.accountId}`,
+                        id: mention.accountId,
+                    },
+                    title:
+                        options.getAccountMentionTitleIfExists(mention.accountId, mention) ??
+                        "Unknown",
                     isAccountShortName: mention.isShort,
                     marks:
                         node.marks.length > 0
@@ -422,7 +438,7 @@ function intoApiContentInlineElement(
                             : undefined,
                 };
             } else {
-                let targetPath: ApiContentMentionInlineElement["targetPath"];
+                let targetPath: ApiMentionPath;
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
                 switch (entityIdObject.type) {
@@ -445,10 +461,16 @@ function intoApiContentInlineElement(
                         throw exhaustive(entityIdObject);
                 }
 
+                const target = printApiMentionTargetResponse(targetPath);
+
                 return {
                     type: "Mention",
-                    targetPath,
-                    title: options.getSearchEntityMentionTitleIfExists(mention.entityId),
+                    target,
+                    title:
+                        options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
+                        (target.type === "Account"
+                            ? "Unknown"
+                            : `Unknown ${getApiMentionPathNoun(target.type)}`),
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

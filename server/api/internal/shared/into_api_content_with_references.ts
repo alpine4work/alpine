@@ -6,7 +6,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     ContentReferencesFile,
@@ -36,7 +36,7 @@ export async function intoApiContentWithReferences(
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     node: Node,
-): Promise<ApiContent> {
+): Promise<ApiContentResponse> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(
         context,
         spaceId,
@@ -50,7 +50,7 @@ export async function intoApiMessageContentWithReferences(
     context: ServerAccountActionContext,
     spaceId: SpaceId,
     node: MessageContent,
-): Promise<ApiContent> {
+): Promise<ApiContentResponse> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(
         context,
         spaceId,
@@ -67,7 +67,7 @@ export async function intoApiContentWithReferencesAndReturnReferences(
     fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
     node: Node,
 ): Promise<{
-    content: ApiContent;
+    content: ApiContentResponse;
     references: {
         accountById: ReadonlyMap<AccountId, AccountModel>;
         searchEntityById: ReadonlyMap<SearchMentionEntityId, ContentReferencesSearchEntity>;

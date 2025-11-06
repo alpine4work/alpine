@@ -6,7 +6,7 @@ import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js"
 import {printEscapedMarkdownLinkLabel} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
@@ -19,7 +19,7 @@ export async function parseAgentContentToMarkdownRoot({
     transaction: DurableObjectTransactionInterface;
     request: Pick<AgentWebhookRequest, "spaceId">;
     frontmatter: Record<string, AgentLink | string | number | boolean | undefined>;
-    content?: ApiContent;
+    content?: ApiContentResponse;
 }): Promise<Root> {
     const markdownTree = await printAgentContentToMarkdownTree(
         transaction,

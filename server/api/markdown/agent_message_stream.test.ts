@@ -2508,7 +2508,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    targetPath: `/documents/${documentId}`,
+                                    target: {path: `/documents/${documentId}`},
                                 },
                             ],
                         },
@@ -2536,7 +2536,7 @@ test("streams link formatting correctly (with reference)", async () => {
                                 },
                                 {
                                     type: "Mention",
-                                    targetPath: `/documents/${documentId}`,
+                                    target: {path: `/documents/${documentId}`},
                                 },
                                 {
                                     type: "Text",
@@ -2848,7 +2848,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    targetPath: `/documents/${documentId}`,
+                                    target: {path: `/documents/${documentId}`},
                                 },
                             ],
                         },
@@ -2876,7 +2876,7 @@ test("streams link formatting correctly character by character (with reference)"
                                 },
                                 {
                                     type: "Mention",
-                                    targetPath: `/documents/${documentId}`,
+                                    target: {path: `/documents/${documentId}`},
                                 },
                                 {
                                     type: "Text",

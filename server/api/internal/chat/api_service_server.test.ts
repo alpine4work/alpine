@@ -789,7 +789,7 @@ test("invalid request body throws a validation error", async () => {
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
             error: {
-                message: "Invalid request body (path: `#/content/elements/0`).",
+                message: "Invalid request body (path: `#/content/elements/0/type`).",
             },
         },
     });

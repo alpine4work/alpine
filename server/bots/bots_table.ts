@@ -558,16 +558,16 @@ async function actuallyCallBotWebhook(
 
     switch (roomPathObject.type) {
         case "Chat":
-            scope = {type: "Chat", chatId: roomPathObject.chatId};
+            scope = {type: "Chat", chatId: roomPathObject.id};
             break;
         case "DocumentCommentThread":
-            scope = {type: "Document", documentId: roomPathObject.documentId};
+            scope = {type: "Document", documentId: roomPathObject.id};
             break;
         case "Post":
-            scope = {type: "Post", postId: roomPathObject.postId};
+            scope = {type: "Post", postId: roomPathObject.id};
             break;
         case "Task":
-            scope = {type: "Task", taskId: roomPathObject.taskId};
+            scope = {type: "Task", taskId: roomPathObject.id};
             break;
         default:
             throw exhaustive(roomPathObject);

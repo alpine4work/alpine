@@ -354,7 +354,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly document: components["schemas"]["Document"];
+                                readonly document: components["schemas"]["Document_Response"];
                             };
                         };
                     };
@@ -559,7 +559,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly channel: components["schemas"]["Channel"];
+                                readonly channel: components["schemas"]["Channel_Response"];
                             };
                         };
                     };
@@ -866,7 +866,7 @@ export namespace ApiSpecification {
                         content: {
                             readonly "application/json": {
                                 readonly spaceId: components["schemas"]["SpaceId"];
-                                readonly task: components["schemas"]["Task"];
+                                readonly task: components["schemas"]["Task_Response"];
                             };
                         };
                     };
@@ -1183,6 +1183,140 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskPath"]
                 | components["schemas"]["TaskMessagePath"]
                 | components["schemas"]["TaskCollectionPath"];
+            readonly AccountTarget_Response: {
+                readonly path: components["schemas"]["AccountPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Account";
+                readonly id: components["schemas"]["AccountId"];
+            };
+            readonly AccountTarget:
+                | {
+                      readonly path: components["schemas"]["AccountPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "Account";
+                      readonly id: components["schemas"]["AccountId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly ChannelTarget_Response: {
+                readonly path: components["schemas"]["ChannelPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Channel";
+                readonly id: components["schemas"]["ChannelId"];
+            };
+            readonly ChannelTarget:
+                | {
+                      readonly path: components["schemas"]["ChannelPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "Channel";
+                      readonly id: components["schemas"]["ChannelId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly DocumentTarget_Response: {
+                readonly path: components["schemas"]["DocumentPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Document";
+                readonly id: components["schemas"]["DocumentId"];
+            };
+            readonly DocumentTarget:
+                | {
+                      readonly path: components["schemas"]["DocumentPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "Document";
+                      readonly id: components["schemas"]["DocumentId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly PostTarget_Response: {
+                readonly path: components["schemas"]["PostPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Post";
+                readonly id: components["schemas"]["PostId"];
+            };
+            readonly PostTarget:
+                | {
+                      readonly path: components["schemas"]["PostPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "Post";
+                      readonly id: components["schemas"]["PostId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly TaskTarget_Response: {
+                readonly path: components["schemas"]["TaskPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Task";
+                readonly id: components["schemas"]["TaskId"];
+            };
+            readonly TaskTarget:
+                | {
+                      readonly path: components["schemas"]["TaskPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "Task";
+                      readonly id: components["schemas"]["TaskId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly TaskCollectionTarget_Response: {
+                readonly path: components["schemas"]["TaskCollectionPath"];
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "TaskCollection";
+                readonly id: components["schemas"]["TaskCollectionId"];
+            };
+            readonly TaskCollectionTarget:
+                | {
+                      readonly path: components["schemas"]["TaskCollectionPath"];
+                  }
+                | ({
+                      /** @constant */
+                      readonly type: "TaskCollection";
+                      readonly id: components["schemas"]["TaskCollectionId"];
+                  } & {
+                      readonly [key: string]: "path";
+                  });
+            readonly MentionTarget:
+                | components["schemas"]["AccountTarget"]
+                | components["schemas"]["ChannelTarget"]
+                | components["schemas"]["DocumentTarget"]
+                | components["schemas"]["PostTarget"]
+                | components["schemas"]["TaskTarget"]
+                | components["schemas"]["TaskCollectionTarget"];
+            readonly MentionTarget_Response:
+                | components["schemas"]["AccountTarget_Response"]
+                | components["schemas"]["ChannelTarget_Response"]
+                | components["schemas"]["DocumentTarget_Response"]
+                | components["schemas"]["PostTarget_Response"]
+                | components["schemas"]["TaskTarget_Response"]
+                | components["schemas"]["TaskCollectionTarget_Response"];
             readonly Content: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement"][];
             };
@@ -1357,8 +1491,19 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Mention";
-                readonly targetPath: components["schemas"]["MentionPath"];
+                readonly target: components["schemas"]["MentionTarget"];
                 readonly title?: string;
+                readonly isAccountShortName?: boolean;
+                readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
+            };
+            readonly ContentMentionInlineElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Mention";
+                readonly target: components["schemas"]["MentionTarget_Response"];
+                readonly title: string;
                 readonly isAccountShortName?: boolean;
                 readonly marks?: readonly components["schemas"]["ContentInlineElementMark"][];
             };
@@ -1611,7 +1756,7 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Read";
-                readonly targetPath: components["schemas"]["MentionPath"];
+                readonly target: components["schemas"]["MentionTarget"];
                 readonly title: string;
             };
             readonly MessageStreamToolCallPartPayloadSearchCall: {
@@ -1647,155 +1792,154 @@ export namespace ApiSpecification {
                 | components["schemas"]["SearchTaskMessageResult"]
                 | components["schemas"]["SearchTaskCollectionResult"];
             readonly SearchAccountResult: {
+                readonly path: components["schemas"]["AccountPath"];
+                readonly title: string;
+                /** @constant */
+                readonly bodyMatch: null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Account";
-                readonly path: components["schemas"]["AccountPath"];
                 readonly id: components["schemas"]["AccountId"];
-                readonly title: string;
-                /** @constant */
-                readonly bodyMatch: null;
-                /** @constant */
-                readonly parsedFilter?: null;
             };
             readonly SearchChannelResult: {
+                readonly path: components["schemas"]["ChannelPath"];
+                readonly title: string;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Channel";
-                readonly path: components["schemas"]["ChannelPath"];
                 readonly id: components["schemas"]["ChannelId"];
-                readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
-                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchChatResult: {
+                readonly path: components["schemas"]["ChatPath"];
+                readonly title: string;
+                /** @constant */
+                readonly bodyMatch: null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Chat";
-                readonly path: components["schemas"]["ChatPath"];
                 readonly id: components["schemas"]["ChatId"];
-                readonly title: string;
-                /** @constant */
-                readonly bodyMatch: null;
-                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchChatMessageResult: {
+                readonly path: components["schemas"]["ChatMessagePath"];
+                /** @constant */
+                readonly title: null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "ChatMessage";
-                readonly path: components["schemas"]["ChatMessagePath"];
                 readonly id: components["schemas"]["ChatId"];
                 readonly index: number;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"];
-                /** @constant */
-                readonly title: null;
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentResult: {
+                readonly path: components["schemas"]["DocumentPath"];
+                readonly title: string;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Document";
-                readonly path: components["schemas"]["DocumentPath"];
                 readonly id: components["schemas"]["DocumentId"];
-                readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
-                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchDocumentMessageResult: {
+                readonly path: components["schemas"]["DocumentMessagePath"];
+                /** @constant */
+                readonly title: null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "DocumentMessage";
-                readonly path: components["schemas"]["DocumentMessagePath"];
                 readonly id: components["schemas"]["DocumentId"];
                 readonly threadId: components["schemas"]["DocumentThreadId"];
                 readonly index: number;
-                /** @constant */
-                readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostResult: {
+                readonly path: components["schemas"]["PostPath"];
+                readonly title: string;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Post";
-                readonly path: components["schemas"]["PostPath"];
                 readonly id: components["schemas"]["PostId"];
-                readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchPostMessageResult: {
+                readonly path: components["schemas"]["PostMessagePath"];
+                /** @constant */
+                readonly title: null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "PostMessage";
-                readonly path: components["schemas"]["PostMessagePath"];
                 readonly id: components["schemas"]["PostId"];
                 readonly index: number;
-                /** @constant */
-                readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskResult: {
+                readonly path: components["schemas"]["TaskPath"];
+                readonly title: string;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Task";
-                readonly path: components["schemas"]["TaskPath"];
                 readonly id: components["schemas"]["TaskId"];
-                readonly title: string;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly status: components["schemas"]["TaskStatus"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskMessageResult: {
+                readonly path: components["schemas"]["TaskMessagePath"];
+                /** @constant */
+                readonly title: null;
+                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "TaskMessage";
-                readonly path: components["schemas"]["TaskMessagePath"];
                 readonly id: components["schemas"]["TaskId"];
                 readonly index: number;
-                /** @constant */
-                readonly title: null;
-                readonly bodyMatch: components["schemas"]["SearchResultBodyMatch"] | null;
                 readonly author: components["schemas"]["Account"];
                 readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchTaskCollectionResult: {
+                readonly path: components["schemas"]["TaskCollectionPath"];
+                readonly title: string;
+                /** @constant */
+                readonly bodyMatch: null;
+                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "TaskCollection";
-                readonly path: components["schemas"]["TaskCollectionPath"];
                 readonly id: components["schemas"]["TaskCollectionId"];
-                readonly title: string;
-                /** @constant */
-                readonly bodyMatch: null;
-                readonly parsedFilter?: components["schemas"]["SearchResultParsedFilter"];
             };
             readonly SearchResultBodyMatch: readonly {
                 readonly text: string;
@@ -1804,6 +1948,185 @@ export namespace ApiSpecification {
             }[];
             readonly SearchResultParsedFilter: {
                 readonly summary: string;
+            };
+            readonly ContentInlineElement_Response:
+                | components["schemas"]["ContentTextInlineElement"]
+                | components["schemas"]["ContentBreakInlineElement"]
+                | components["schemas"]["ContentMentionInlineElement_Response"];
+            readonly MessageStreamToolCallPartPayloadReadCall_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Read";
+                readonly target: components["schemas"]["MentionTarget_Response"];
+                readonly title: string;
+            };
+            readonly ContentParagraphBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Paragraph";
+                readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
+            };
+            readonly ContentHeadingBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Heading";
+                readonly level: number;
+                readonly elements: readonly components["schemas"]["ContentInlineElement_Response"][];
+            };
+            readonly MessageStreamToolCallPartPayloadCall_Response:
+                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"];
+            readonly ContentBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentQuoteBlockElement_Response"]
+                | components["schemas"]["ContentHeadingBlockElement_Response"]
+                | components["schemas"]["ContentDividerBlockElement"]
+                | components["schemas"]["ContentTableBlockElement_Response"]
+                | components["schemas"]["ContentCodeBlockElement"];
+            readonly ContentListBlockElementItem_Response: {
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
+            };
+            readonly ContentQuoteBlockElementBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"];
+            readonly ContentTableBlockElementCellBlockElement_Response:
+                | components["schemas"]["ContentParagraphBlockElement_Response"]
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentQuoteBlockElement_Response"]
+                | components["schemas"]["ContentCodeBlockElement"];
+            readonly MessageStreamToolCallPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "ToolCall";
+                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
+            };
+            readonly Content_Response: {
+                readonly elements: readonly components["schemas"]["ContentBlockElement_Response"][];
+            };
+            readonly ContentUnorderedListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "UnorderedList";
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
+            };
+            readonly ContentOrderedListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "OrderedList";
+                readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
+            };
+            readonly ContentQuoteBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Quote";
+                readonly elements: readonly components["schemas"]["ContentQuoteBlockElementBlockElement_Response"][];
+            };
+            readonly ContentTableBlockElementCell_Response: {
+                readonly elements: readonly components["schemas"]["ContentTableBlockElementCellBlockElement_Response"][];
+            };
+            readonly MessageStreamPartPayload_Response:
+                | components["schemas"]["MessageStreamContentPartPayload_Response"]
+                | components["schemas"]["MessageStreamToolCallPartPayload_Response"];
+            readonly ContentListBlockElement_Response:
+                | components["schemas"]["ContentUnorderedListBlockElement_Response"]
+                | components["schemas"]["ContentOrderedListBlockElement_Response"];
+            readonly ContentTableBlockElementRow_Response: {
+                readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
+            };
+            readonly Document_Response: {
+                readonly id: components["schemas"]["DocumentId"];
+                readonly title: string;
+                readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly Channel_Response: {
+                readonly id: components["schemas"]["ChannelId"];
+                readonly name: components["schemas"]["LabelString"];
+                readonly description: components["schemas"]["Content_Response"];
+            };
+            readonly Post_Response: {
+                readonly id: components["schemas"]["PostId"];
+                readonly author: components["schemas"]["Account"];
+                readonly channel?: components["schemas"]["ChannelPreview"];
+                readonly content: components["schemas"]["Content_Response"];
+                readonly contentPreview: string;
+            };
+            readonly Task_Response: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: {
+                    /** Format: date */
+                    readonly date: string;
+                };
+                /** @enum {string} */
+                readonly priority?: "Low" | "Medium" | "High" | "Urgent";
+                readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly MessageContentPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Content";
+                readonly parent?: components["schemas"]["MessageContentPayloadMessageParent"];
+                readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly MessageStreamPart_Response: {
+                readonly index: number;
+                readonly version: number;
+                readonly payload: components["schemas"]["MessageStreamPartPayload_Response"];
+            };
+            readonly MessageStreamContentPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Content";
+                readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly ContentTableBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Table";
+                readonly width: number;
+                readonly hasHeaderRow?: boolean;
+                readonly hasHeaderColumn?: boolean;
+                readonly columns: readonly {
+                    readonly width: number;
+                }[];
+                readonly rows: readonly components["schemas"]["ContentTableBlockElementRow_Response"][];
+            };
+            readonly MessagePayload_Response:
+                | components["schemas"]["MessageContentPayload_Response"]
+                | components["schemas"]["MessageDeletedPayload"];
+            readonly Message_Response: {
+                readonly index: number;
+                readonly author: components["schemas"]["Account"];
+                /** Format: date-time */
+                readonly createdTime: DateString;
+                readonly payload: components["schemas"]["MessagePayload_Response"];
             };
         };
         responses: {
@@ -1827,7 +2150,7 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly message: components["schemas"]["Message"];
+                        readonly message: components["schemas"]["Message_Response"];
                     };
                 };
             };
@@ -1840,7 +2163,7 @@ export namespace ApiSpecification {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly totalMessageCount: number;
                         readonly nextCursor: number | null;
-                        readonly messages: readonly components["schemas"]["Message"][];
+                        readonly messages: readonly components["schemas"]["Message_Response"][];
                     };
                 };
             };
@@ -1875,7 +2198,7 @@ export namespace ApiSpecification {
                 content: {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
-                        readonly post: components["schemas"]["Post"];
+                        readonly post: components["schemas"]["Post_Response"];
                     };
                 };
             };

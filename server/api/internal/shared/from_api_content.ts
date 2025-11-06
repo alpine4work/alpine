@@ -1,6 +1,6 @@
 import {Mark, Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {intoApiContentParagraphBlockElement} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
+import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -193,14 +193,14 @@ function fromApiContentMentionInlineElement(
     element: ApiContentMentionInlineElement,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
-    const targetPathObject = parseApiMentionPath(element.targetPath);
+    const targetPathObject = parseApiMentionTarget(element.target);
 
     let mention: ContentMention;
 
     if (targetPathObject.type === "Account") {
         mention = {
             type: "Account",
-            accountId: targetPathObject.accountId,
+            accountId: targetPathObject.id,
             isShort: element.isAccountShortName ?? false,
         };
     } else {
@@ -208,23 +208,23 @@ function fromApiContentMentionInlineElement(
 
         switch (targetPathObject.type) {
             case "Document": {
-                entityId = `Document:${targetPathObject.documentId}`;
+                entityId = `Document:${targetPathObject.id}`;
                 break;
             }
             case "Channel": {
-                entityId = `Channel:${targetPathObject.channelId}`;
+                entityId = `Channel:${targetPathObject.id}`;
                 break;
             }
             case "Task": {
-                entityId = `Task:${targetPathObject.taskId}`;
+                entityId = `Task:${targetPathObject.id}`;
                 break;
             }
             case "TaskCollection": {
-                entityId = `TaskCollection:${targetPathObject.collectionId}`;
+                entityId = `TaskCollection:${targetPathObject.id}`;
                 break;
             }
             case "Post": {
-                entityId = `Post:${targetPathObject.postId}`;
+                entityId = `Post:${targetPathObject.id}`;
                 break;
             }
             default:

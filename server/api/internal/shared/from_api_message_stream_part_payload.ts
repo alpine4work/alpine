@@ -1,6 +1,8 @@
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {printApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -11,13 +13,38 @@ export function fromApiMessageStreamPartPayload(
     payload: ApiMessageStreamPartPayload,
 ): MessageStreamPartPayload {
     switch (payload.type) {
-        case "ToolCall":
-            return payload;
         case "Content": {
             const content = assertMessageContent(
                 fromApiContent(MessageContentProsemirrorSchema, payload.content),
             );
             return {type: "Content", content};
+        }
+        case "ToolCall": {
+            switch (payload.call.type) {
+                case "Read": {
+                    return {
+                        type: "ToolCall",
+                        call: {
+                            type: "Read",
+                            targetPath: hasOwnProperty(payload.call.target, "path")
+                                ? payload.call.target.path
+                                : printApiMentionPath(payload.call.target),
+                            title: payload.call.title,
+                        },
+                    };
+                }
+                case "Search": {
+                    return {
+                        type: "ToolCall",
+                        call: {
+                            type: "Search",
+                            query: payload.call.query,
+                        },
+                    };
+                }
+                default:
+                    throw exhaustive(payload.call);
+            }
         }
         default:
             throw exhaustive(payload);

@@ -6,6 +6,7 @@ import {
     parseApiNotMentionPath,
     parseApiPath,
     printApiMentionPath,
+    printApiMentionTargetResponse,
     printApiMessageRoomPath,
     printApiPath,
 } from "~/shared/api/parse_api_path.js";
@@ -55,7 +56,7 @@ describe("parseApiPath", () => {
         test("parses account path", () => {
             expect(parseApiPath(`/accounts/${accountId}`)).toEqual({
                 type: "Account",
-                accountId,
+                id: accountId,
             });
         });
 
@@ -76,7 +77,7 @@ describe("parseApiPath", () => {
         test("parses channel path", () => {
             expect(parseApiPath(`/channels/${channelId}`)).toEqual({
                 type: "Channel",
-                channelId,
+                id: channelId,
             });
         });
 
@@ -97,28 +98,28 @@ describe("parseApiPath", () => {
         test("parses chat path", () => {
             expect(parseApiPath(`/chats/${chatId}`)).toEqual({
                 type: "Chat",
-                chatId,
+                id: chatId,
             });
         });
 
         test("parses chat messages list path", () => {
             expect(parseApiPath(`/chats/${chatId}/messages`)).toEqual({
                 type: "ChatMessages",
-                chatId,
+                id: chatId,
             });
         });
 
         test("parses chat message path", () => {
             expect(parseApiPath(`/chats/${chatId}/messages/0`)).toEqual({
                 type: "ChatMessage",
-                chatId,
-                messageIndex: 0,
+                id: chatId,
+                index: 0,
             });
 
             expect(parseApiPath(`/chats/${chatId}/messages/42`)).toEqual({
                 type: "ChatMessage",
-                chatId,
-                messageIndex: 42,
+                id: chatId,
+                index: 42,
             });
         });
 
@@ -156,7 +157,7 @@ describe("parseApiPath", () => {
         test("parses document path", () => {
             expect(parseApiPath(`/documents/${documentId}`)).toEqual({
                 type: "Document",
-                documentId,
+                id: documentId,
             });
         });
 
@@ -165,8 +166,8 @@ describe("parseApiPath", () => {
                 parseApiPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
             ).toEqual({
                 type: "DocumentCommentThread",
-                documentId,
-                commentThreadId: documentCommentThreadId,
+                id: documentId,
+                threadId: documentCommentThreadId,
             });
         });
 
@@ -177,8 +178,8 @@ describe("parseApiPath", () => {
                 ),
             ).toEqual({
                 type: "DocumentCommentThreadComments",
-                documentId,
-                commentThreadId: documentCommentThreadId,
+                id: documentId,
+                threadId: documentCommentThreadId,
             });
         });
 
@@ -189,9 +190,9 @@ describe("parseApiPath", () => {
                 ),
             ).toEqual({
                 type: "DocumentComment",
-                documentId,
-                commentThreadId: documentCommentThreadId,
-                commentIndex: 0,
+                id: documentId,
+                threadId: documentCommentThreadId,
+                index: 0,
             });
 
             expect(
@@ -200,9 +201,9 @@ describe("parseApiPath", () => {
                 ),
             ).toEqual({
                 type: "DocumentComment",
-                documentId,
-                commentThreadId: documentCommentThreadId,
-                commentIndex: 15,
+                id: documentId,
+                threadId: documentCommentThreadId,
+                index: 15,
             });
         });
 
@@ -252,28 +253,28 @@ describe("parseApiPath", () => {
         test("parses post path", () => {
             expect(parseApiPath(`/posts/${postId}`)).toEqual({
                 type: "Post",
-                postId,
+                id: postId,
             });
         });
 
         test("parses post comments list path", () => {
             expect(parseApiPath(`/posts/${postId}/messages`)).toEqual({
                 type: "PostComments",
-                postId,
+                id: postId,
             });
         });
 
         test("parses post comment path", () => {
             expect(parseApiPath(`/posts/${postId}/messages/0`)).toEqual({
                 type: "PostComment",
-                postId,
-                commentIndex: 0,
+                id: postId,
+                index: 0,
             });
 
             expect(parseApiPath(`/posts/${postId}/messages/7`)).toEqual({
                 type: "PostComment",
-                postId,
-                commentIndex: 7,
+                id: postId,
+                index: 7,
             });
         });
 
@@ -306,28 +307,28 @@ describe("parseApiPath", () => {
         test("parses task path", () => {
             expect(parseApiPath(`/tasks/${taskId}`)).toEqual({
                 type: "Task",
-                taskId,
+                id: taskId,
             });
         });
 
         test("parses task comments list path", () => {
             expect(parseApiPath(`/tasks/${taskId}/messages`)).toEqual({
                 type: "TaskComments",
-                taskId,
+                id: taskId,
             });
         });
 
         test("parses task comment path", () => {
             expect(parseApiPath(`/tasks/${taskId}/messages/0`)).toEqual({
                 type: "TaskComment",
-                taskId,
-                commentIndex: 0,
+                id: taskId,
+                index: 0,
             });
 
             expect(parseApiPath(`/tasks/${taskId}/messages/99`)).toEqual({
                 type: "TaskComment",
-                taskId,
-                commentIndex: 99,
+                id: taskId,
+                index: 99,
             });
         });
 
@@ -360,7 +361,7 @@ describe("parseApiPath", () => {
         test("parses task collection path", () => {
             expect(parseApiPath(`/task-collections/${taskCollectionId}`)).toEqual({
                 type: "TaskCollection",
-                collectionId: taskCollectionId,
+                id: taskCollectionId,
             });
         });
 
@@ -380,37 +381,41 @@ describe("parseApiPath", () => {
 
 describe("printApiPath", () => {
     test("prints account path", () => {
-        expect(printApiPath({type: "Account", accountId})).toEqual(`/accounts/${accountId}`);
+        expect(printApiPath({type: "Account", id: accountId})).toEqual(`/accounts/${accountId}`);
     });
 
     test("prints channel path", () => {
-        expect(printApiPath({type: "Channel", channelId})).toEqual(`/channels/${channelId}`);
+        expect(printApiPath({type: "Channel", id: channelId})).toEqual(`/channels/${channelId}`);
     });
 
     test("prints chat path", () => {
-        expect(printApiPath({type: "Chat", chatId})).toEqual(`/chats/${chatId}`);
+        expect(printApiPath({type: "Chat", id: chatId})).toEqual(`/chats/${chatId}`);
     });
 
     test("prints chat messages list path", () => {
-        expect(printApiPath({type: "ChatMessages", chatId})).toEqual(`/chats/${chatId}/messages`);
+        expect(printApiPath({type: "ChatMessages", id: chatId})).toEqual(
+            `/chats/${chatId}/messages`,
+        );
     });
 
     test("prints chat message path", () => {
-        expect(printApiPath({type: "ChatMessage", chatId, messageIndex: 5})).toEqual(
+        expect(printApiPath({type: "ChatMessage", id: chatId, index: 5})).toEqual(
             `/chats/${chatId}/messages/5`,
         );
     });
 
     test("prints document path", () => {
-        expect(printApiPath({type: "Document", documentId})).toEqual(`/documents/${documentId}`);
+        expect(printApiPath({type: "Document", id: documentId})).toEqual(
+            `/documents/${documentId}`,
+        );
     });
 
     test("prints document comment thread path", () => {
         expect(
             printApiPath({
                 type: "DocumentCommentThread",
-                documentId,
-                commentThreadId: documentCommentThreadId,
+                id: documentId,
+                threadId: documentCommentThreadId,
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
@@ -419,8 +424,8 @@ describe("printApiPath", () => {
         expect(
             printApiPath({
                 type: "DocumentCommentThreadComments",
-                documentId,
-                commentThreadId: documentCommentThreadId,
+                id: documentId,
+                threadId: documentCommentThreadId,
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}/messages`);
     });
@@ -429,43 +434,47 @@ describe("printApiPath", () => {
         expect(
             printApiPath({
                 type: "DocumentComment",
-                documentId,
-                commentThreadId: documentCommentThreadId,
-                commentIndex: 3,
+                id: documentId,
+                threadId: documentCommentThreadId,
+                index: 3,
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}/messages/3`);
     });
 
     test("prints post path", () => {
-        expect(printApiPath({type: "Post", postId})).toEqual(`/posts/${postId}`);
+        expect(printApiPath({type: "Post", id: postId})).toEqual(`/posts/${postId}`);
     });
 
     test("prints post comments list path", () => {
-        expect(printApiPath({type: "PostComments", postId})).toEqual(`/posts/${postId}/messages`);
+        expect(printApiPath({type: "PostComments", id: postId})).toEqual(
+            `/posts/${postId}/messages`,
+        );
     });
 
     test("prints post comment path", () => {
-        expect(printApiPath({type: "PostComment", postId, commentIndex: 2})).toEqual(
+        expect(printApiPath({type: "PostComment", id: postId, index: 2})).toEqual(
             `/posts/${postId}/messages/2`,
         );
     });
 
     test("prints task path", () => {
-        expect(printApiPath({type: "Task", taskId})).toEqual(`/tasks/${taskId}`);
+        expect(printApiPath({type: "Task", id: taskId})).toEqual(`/tasks/${taskId}`);
     });
 
     test("prints task comments list path", () => {
-        expect(printApiPath({type: "TaskComments", taskId})).toEqual(`/tasks/${taskId}/messages`);
+        expect(printApiPath({type: "TaskComments", id: taskId})).toEqual(
+            `/tasks/${taskId}/messages`,
+        );
     });
 
     test("prints task comment path", () => {
-        expect(printApiPath({type: "TaskComment", taskId, commentIndex: 10})).toEqual(
+        expect(printApiPath({type: "TaskComment", id: taskId, index: 10})).toEqual(
             `/tasks/${taskId}/messages/10`,
         );
     });
 
     test("prints task collection path", () => {
-        expect(printApiPath({type: "TaskCollection", collectionId: taskCollectionId})).toEqual(
+        expect(printApiPath({type: "TaskCollection", id: taskCollectionId})).toEqual(
             `/task-collections/${taskCollectionId}`,
         );
     });
@@ -475,14 +484,14 @@ describe("parseApiMessageRoomPath", () => {
     test("parses chat path", () => {
         expect(parseApiMessageRoomPath(`/chats/${chatId}`)).toEqual({
             type: "Chat",
-            chatId,
+            id: chatId,
         });
     });
 
     test("parses channel path", () => {
         expect(parseApiMessageRoomPath(`/channels/${channelId}` as any)).toEqual({
             type: "Channel",
-            channelId,
+            id: channelId,
         });
     });
 
@@ -491,33 +500,33 @@ describe("parseApiMessageRoomPath", () => {
             parseApiMessageRoomPath(`/documents/${documentId}/threads/${documentCommentThreadId}`),
         ).toEqual({
             type: "DocumentCommentThread",
-            documentId,
-            commentThreadId: documentCommentThreadId,
+            id: documentId,
+            threadId: documentCommentThreadId,
         });
     });
 });
 
 describe("printApiMessageRoomPath", () => {
     test("prints chat path", () => {
-        expect(printApiMessageRoomPath({type: "Chat", chatId})).toEqual(`/chats/${chatId}`);
+        expect(printApiMessageRoomPath({type: "Chat", id: chatId})).toEqual(`/chats/${chatId}`);
     });
 
     test("prints document comment thread path", () => {
         expect(
             printApiMessageRoomPath({
                 type: "DocumentCommentThread",
-                documentId,
-                commentThreadId: documentCommentThreadId,
+                id: documentId,
+                threadId: documentCommentThreadId,
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
 
     test("prints post path", () => {
-        expect(printApiMessageRoomPath({type: "Post", postId})).toEqual(`/posts/${postId}`);
+        expect(printApiMessageRoomPath({type: "Post", id: postId})).toEqual(`/posts/${postId}`);
     });
 
     test("prints task path", () => {
-        expect(printApiMessageRoomPath({type: "Task", taskId})).toEqual(`/tasks/${taskId}`);
+        expect(printApiMessageRoomPath({type: "Task", id: taskId})).toEqual(`/tasks/${taskId}`);
     });
 });
 
@@ -525,76 +534,196 @@ describe("parseApiMentionPath", () => {
     test("parses account path", () => {
         expect(parseApiMentionPath(`/accounts/${accountId}`)).toEqual({
             type: "Account",
-            accountId,
+            id: accountId,
         });
     });
 
     test("parses channel path", () => {
         expect(parseApiMentionPath(`/channels/${channelId}`)).toEqual({
             type: "Channel",
-            channelId,
+            id: channelId,
         });
     });
 
     test("parses document path", () => {
         expect(parseApiMentionPath(`/documents/${documentId}`)).toEqual({
             type: "Document",
-            documentId,
+            id: documentId,
         });
     });
 
     test("parses post path", () => {
         expect(parseApiMentionPath(`/posts/${postId}`)).toEqual({
             type: "Post",
-            postId,
+            id: postId,
         });
     });
 
     test("parses task path", () => {
         expect(parseApiMentionPath(`/tasks/${taskId}`)).toEqual({
             type: "Task",
-            taskId,
+            id: taskId,
         });
     });
 
     test("parses task collection path", () => {
         expect(parseApiMentionPath(`/task-collections/${taskCollectionId}`)).toEqual({
             type: "TaskCollection",
-            collectionId: taskCollectionId,
+            id: taskCollectionId,
         });
     });
 });
 
 describe("printApiMentionPath", () => {
     test("prints account path", () => {
-        expect(printApiMentionPath({type: "Account", accountId})).toEqual(`/accounts/${accountId}`);
+        expect(printApiMentionPath({type: "Account", id: accountId})).toEqual(
+            `/accounts/${accountId}`,
+        );
     });
 
     test("prints channel path", () => {
-        expect(printApiMentionPath({type: "Channel", channelId})).toEqual(`/channels/${channelId}`);
+        expect(printApiMentionPath({type: "Channel", id: channelId})).toEqual(
+            `/channels/${channelId}`,
+        );
     });
 
     test("prints document path", () => {
-        expect(printApiMentionPath({type: "Document", documentId})).toEqual(
+        expect(printApiMentionPath({type: "Document", id: documentId})).toEqual(
             `/documents/${documentId}`,
         );
     });
 
     test("prints post path", () => {
-        expect(printApiMentionPath({type: "Post", postId})).toEqual(`/posts/${postId}`);
+        expect(printApiMentionPath({type: "Post", id: postId})).toEqual(`/posts/${postId}`);
     });
 
     test("prints task path", () => {
-        expect(printApiMentionPath({type: "Task", taskId})).toEqual(`/tasks/${taskId}`);
+        expect(printApiMentionPath({type: "Task", id: taskId})).toEqual(`/tasks/${taskId}`);
     });
 
     test("prints task collection path", () => {
         expect(
             printApiMentionPath({
                 type: "TaskCollection",
-                collectionId: taskCollectionId,
+                id: taskCollectionId,
             }),
         ).toEqual(`/task-collections/${taskCollectionId}`);
+    });
+});
+
+describe("printApiMentionTargetResponse", () => {
+    // NOTE(calebmer): These tests use `Object.entries()` to make sure the order
+    // of properties in the object is what we expect.
+
+    test("prints account path response from string", () => {
+        const result = printApiMentionTargetResponse(`/accounts/${accountId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/accounts/${accountId}`],
+            ["type", "Account"],
+            ["id", accountId],
+        ]);
+    });
+
+    test("prints account path response from object", () => {
+        const result = printApiMentionTargetResponse({type: "Account", id: accountId});
+        expect(Object.entries(result)).toEqual([
+            ["path", `/accounts/${accountId}`],
+            ["type", "Account"],
+            ["id", accountId],
+        ]);
+    });
+
+    test("prints channel path response from string", () => {
+        const result = printApiMentionTargetResponse(`/channels/${channelId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/channels/${channelId}`],
+            ["type", "Channel"],
+            ["id", channelId],
+        ]);
+    });
+
+    test("prints channel path response from object", () => {
+        const result = printApiMentionTargetResponse({type: "Channel", id: channelId});
+        expect(Object.entries(result)).toEqual([
+            ["path", `/channels/${channelId}`],
+            ["type", "Channel"],
+            ["id", channelId],
+        ]);
+    });
+
+    test("prints document path response from string", () => {
+        const result = printApiMentionTargetResponse(`/documents/${documentId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/documents/${documentId}`],
+            ["type", "Document"],
+            ["id", documentId],
+        ]);
+    });
+
+    test("prints document path response from object", () => {
+        const result = printApiMentionTargetResponse({type: "Document", id: documentId});
+        expect(Object.entries(result)).toEqual([
+            ["path", `/documents/${documentId}`],
+            ["type", "Document"],
+            ["id", documentId],
+        ]);
+    });
+
+    test("prints post path response from string", () => {
+        const result = printApiMentionTargetResponse(`/posts/${postId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/posts/${postId}`],
+            ["type", "Post"],
+            ["id", postId],
+        ]);
+    });
+
+    test("prints post path response from object", () => {
+        const result = printApiMentionTargetResponse({type: "Post", id: postId});
+        expect(Object.entries(result)).toEqual([
+            ["path", `/posts/${postId}`],
+            ["type", "Post"],
+            ["id", postId],
+        ]);
+    });
+
+    test("prints task path response from string", () => {
+        const result = printApiMentionTargetResponse(`/tasks/${taskId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/tasks/${taskId}`],
+            ["type", "Task"],
+            ["id", taskId],
+        ]);
+    });
+
+    test("prints task path response from object", () => {
+        const result = printApiMentionTargetResponse({type: "Task", id: taskId});
+        expect(Object.entries(result)).toEqual([
+            ["path", `/tasks/${taskId}`],
+            ["type", "Task"],
+            ["id", taskId],
+        ]);
+    });
+
+    test("prints task collection path response from string", () => {
+        const result = printApiMentionTargetResponse(`/task-collections/${taskCollectionId}`);
+        expect(Object.entries(result)).toEqual([
+            ["path", `/task-collections/${taskCollectionId}`],
+            ["type", "TaskCollection"],
+            ["id", taskCollectionId],
+        ]);
+    });
+
+    test("prints task collection path response from object", () => {
+        const result = printApiMentionTargetResponse({
+            type: "TaskCollection",
+            id: taskCollectionId,
+        });
+        expect(Object.entries(result)).toEqual([
+            ["path", `/task-collections/${taskCollectionId}`],
+            ["type", "TaskCollection"],
+            ["id", taskCollectionId],
+        ]);
     });
 });
 
@@ -602,14 +731,14 @@ describe("parseApiContentNonMentionableElementTargetPath", () => {
     test("parses chat path", () => {
         expect(parseApiNotMentionPath(`/chats/${chatId}`)).toEqual({
             type: "Chat",
-            chatId,
+            id: chatId,
         });
     });
 
     test("parses chat messages list path", () => {
         expect(parseApiNotMentionPath(`/chats/${chatId}/messages`)).toEqual({
             type: "ChatMessages",
-            chatId,
+            id: chatId,
         });
     });
 
@@ -620,9 +749,9 @@ describe("parseApiContentNonMentionableElementTargetPath", () => {
             ),
         ).toEqual({
             type: "DocumentComment",
-            documentId,
-            commentThreadId: documentCommentThreadId,
-            commentIndex: 0,
+            id: documentId,
+            threadId: documentCommentThreadId,
+            index: 0,
         });
     });
 });

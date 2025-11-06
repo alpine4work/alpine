@@ -3,7 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {putAgentLocalDocumentContent} from "~/server/agents/internal/link_references/agent_local_document_content_collection.js";
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/internal/link_references/create_agent_document_pages_and_get_first_page.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -24,7 +24,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     }
 
     test("creates single page for short document", async () => {
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [
                 createParagraphElement("Short paragraph 1."),
                 createParagraphElement("Short paragraph 2."),
@@ -60,7 +60,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("throws for empty document", async () => {
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [],
         };
 
@@ -83,7 +83,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
         // Create a document with enough content for 3 pages
         // Each page should have ~1000 tokens, so we need ~4000 characters per page
         const longText = "a".repeat(12000);
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [
                 createParagraphElement(longText), // Page 1
                 createParagraphElement(longText), // Page 2
@@ -160,7 +160,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
             elements.push(createParagraphElement(`Paragraph ${i}: ${"x".repeat(180)}`));
         }
 
-        const content: ApiContent = {elements};
+        const content: ApiContentResponse = {elements};
         const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
 
         const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
@@ -182,7 +182,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("handles large element that exceeds token limit", async () => {
         // Create a single element that's larger than the page limit
         const veryLongText = "a".repeat(20000); // ~2500 tokens
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [
                 createParagraphElement(veryLongText),
                 createParagraphElement("Next element"),
@@ -212,7 +212,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("handles single large element that exceeds token limit", async () => {
         // Create a single element that's larger than the page limit
         const veryLongText = "a".repeat(5000); // ~1250 tokens
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [createParagraphElement(veryLongText)],
         };
 
@@ -235,7 +235,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("handles document with one element", async () => {
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [createParagraphElement("Single paragraph")],
         };
 
@@ -259,7 +259,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("preserves correct document version in page links", async () => {
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [
                 createParagraphElement("a".repeat(2000)),
                 createParagraphElement("b".repeat(2000)),
@@ -285,7 +285,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("creates correct page numbers for 5-page document", async () => {
         // Create content for 5 pages
         const longText = "a".repeat(4000);
-        const content: ApiContent = {
+        const content: ApiContentResponse = {
             elements: [
                 createParagraphElement(longText),
                 createParagraphElement(longText),
@@ -315,11 +315,11 @@ describe("createDocumentPagesAndGetFirstPage", () => {
 
     describe("document versions", () => {
         test("handles multiple versions of same document", async () => {
-            const content1: ApiContent = {
+            const content1: ApiContentResponse = {
                 elements: [createParagraphElement("Version 1 content")],
             };
 
-            const content2: ApiContent = {
+            const content2: ApiContentResponse = {
                 elements: [createParagraphElement("Version 2 content with more text")],
             };
 
@@ -356,7 +356,7 @@ describe("createDocumentPagesAndGetFirstPage", () => {
 
     describe("serialization", () => {
         test("serialized page can be reconstructed", async () => {
-            const content: ApiContent = {
+            const content: ApiContentResponse = {
                 elements: [createParagraphElement("Test content for serialization")],
             };
 

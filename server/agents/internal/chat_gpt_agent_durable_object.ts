@@ -42,7 +42,7 @@ import {
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
 import {
-    ApiMessage,
+    ApiMessageResponse,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -402,7 +402,7 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
 function createChatGptAgentEmptyStreamMessage(
     tracer: TracerBase,
     request: AgentWebhookRequest,
-): Promise<ApiMessage> {
+): Promise<ApiMessageResponse> {
     return request.storage.transaction(async transaction => {
         const conversation = await ChatGptAgentConversationStore.new(transaction);
 
@@ -732,7 +732,7 @@ async function callChatGptAgentFunction(
             if (mentionApiPath) {
                 messageState.pushToolCall({
                     type: "Read",
-                    targetPath: mentionApiPath,
+                    target: {path: mentionApiPath},
                     title: printAgentPlainTextLabel(link),
                 });
             }

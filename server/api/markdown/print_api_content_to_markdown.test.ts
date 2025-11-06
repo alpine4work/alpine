@@ -4450,7 +4450,7 @@ test("mention with code mark", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "@alice",
                             marks: [{type: "Code"}],
                         },
@@ -4476,7 +4476,7 @@ test("mention with code mark in sentence", async () => {
                         {type: "Text", text: "Ask "},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "@bob",
                             marks: [{type: "Code"}],
                         },
@@ -4503,7 +4503,7 @@ test("mention and text both with code mark", async () => {
                         {type: "Text", text: "The user ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "@charlie",
                             marks: [{type: "Code"}],
                         },
@@ -4531,14 +4531,14 @@ test("multiple mentions with code marks", async () => {
                         {type: "Text", text: "CC: ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId1}`,
+                            target: {path: `/accounts/${accountId1}`},
                             title: "@eve",
                             marks: [{type: "Code"}],
                         },
                         {type: "Text", text: " and ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId2}`,
+                            target: {path: `/accounts/${accountId2}`},
                             title: "@frank",
                             marks: [{type: "Code"}],
                         },
@@ -4565,7 +4565,7 @@ test("break and mention both with code marks", async () => {
                         {type: "Text", text: "User: ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "@grace",
                             marks: [{type: "Code"}],
                         },
@@ -4593,7 +4593,7 @@ test("mention without code mark between code text", async () => {
                         {type: "Text", text: "Code before ", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "@henry",
                         },
                         {type: "Text", text: " code after", marks: [{type: "Code"}]},
@@ -4618,7 +4618,7 @@ test("mention with isAccountShortName and code mark", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: "iris",
                             isAccountShortName: true,
                             marks: [{type: "Code"}],
@@ -4644,7 +4644,7 @@ test("mention without title and with code mark", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/tasks/${taskId}`,
+                            target: {path: `/tasks/${taskId}`},
                             marks: [{type: "Code"}],
                         },
                     ],
@@ -4671,7 +4671,7 @@ test("complex paragraph with mixed code marks", async () => {
                         {type: "Text", text: "getUserData(", marks: [{type: "Code"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId1}`,
+                            target: {path: `/accounts/${accountId1}`},
                             title: "@jack",
                             marks: [{type: "Code"}],
                         },
@@ -4682,7 +4682,7 @@ test("complex paragraph with mixed code marks", async () => {
                         {type: "Text", text: "Author: "},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId2}`,
+                            target: {path: `/accounts/${accountId2}`},
                             title: "@kate",
                         },
                     ],
@@ -5495,7 +5495,7 @@ test("account mention", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             isAccountShortName: false,
                             marks: [],
                         },
@@ -5520,7 +5520,7 @@ test("task mention with empty title", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/tasks/${taskId}`,
+                            target: {path: `/tasks/${taskId}`},
                             title: "",
                             isAccountShortName: false,
                             marks: [],
@@ -5590,7 +5590,7 @@ test("mention with link mark", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/tasks/${taskId}`,
+                            target: {path: `/tasks/${taskId}`},
                             title: undefined,
                             isAccountShortName: false,
                             marks: [{type: "Link", url: "http://a.aa"}],
@@ -5619,7 +5619,7 @@ test("mention with strike mark", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/documents/${documentId}`,
+                            target: {path: `/documents/${documentId}`},
                             title: undefined,
                             isAccountShortName: false,
                             marks: [{type: "Strike"}],
@@ -5896,7 +5896,7 @@ test("mention with link that contains HTML unsafe character", async () => {
                     elements: [
                         {
                             type: "Mention",
-                            targetPath: `/task-collections/${collectionId}`,
+                            target: {path: `/task-collections/${collectionId}`},
                             title: "",
                             isAccountShortName: false,
                             marks: [{type: "Link", url: "http://a.aa/&"}],
@@ -5923,7 +5923,7 @@ test("break followed by mention with link", async () => {
                         {type: "Break", marks: []},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: undefined,
                             isAccountShortName: false,
                             marks: [{type: "Link", url: "http://a.aa"}],
@@ -5950,7 +5950,7 @@ test("marked break followed by mention with link", async () => {
                         {type: "Break", marks: [{type: "Bold"}]},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {path: `/accounts/${accountId}`},
                             title: undefined,
                             isAccountShortName: false,
                             marks: [{type: "Link", url: "http://a.aa"}],
@@ -5977,7 +5977,7 @@ test("mention inside math like text", async () => {
                         {type: "Text", text: "$_", marks: []},
                         {
                             type: "Mention",
-                            targetPath: `/documents/${documentId}`,
+                            target: {path: `/documents/${documentId}`},
                             title: undefined,
                             isAccountShortName: false,
                             marks: [],
@@ -6182,7 +6182,7 @@ test("two breaks followed by a mention with a link mark", async () => {
                         {type: "Break", marks: []},
                         {
                             type: "Mention",
-                            targetPath: `/posts/${postId}`,
+                            target: {path: `/posts/${postId}`},
                             title: "",
                             isAccountShortName: false,
                             marks: [{type: "Link", url: "http://a.aa"}],

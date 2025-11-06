@@ -260,11 +260,7 @@ export async function createApiServiceRequestListener(
         });
     });
 
-    const ajv = new Ajv({
-        strict: false,
-        // `discriminator` is a OpenAPI feature that's not enabled by default.
-        discriminator: true,
-    });
+    const ajv = new Ajv({strict: false});
 
     // Support formats like `date-time` from the OpenAPI specification.
     addAjvFormats(ajv);

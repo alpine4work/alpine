@@ -1613,7 +1613,7 @@ function* parseApiContentInlineElementFromMarkdown(
 
                 yield {
                     type: "Mention",
-                    targetPath: mentionTargetPath,
+                    target: {path: mentionTargetPath},
                     isAccountShortName: isAccountShortName || undefined,
                     marks: markStack.getMarks(),
                 };

@@ -3,7 +3,7 @@
 import {Mark, Node} from "prosemirror-model";
 import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
 import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
@@ -75,7 +75,7 @@ function normalizeNode(node: Node): Node {
     return node.type.create(attrs, content, node.marks);
 }
 
-function testIntoApiContent(node: Node, content: ApiContent) {
+function testIntoApiContent(node: Node, content: ApiContentResponse) {
     expect(
         fromApiContent(
             node.type.schema,
@@ -94,7 +94,7 @@ function testIntoApiContent(node: Node, content: ApiContent) {
     ).toEqual(content);
 }
 
-function testIntoApiContentOnly(node: Node, content: ApiContent) {
+function testIntoApiContentOnly(node: Node, content: ApiContentResponse) {
     // Only test the intoApiContent conversion (not round-trip)
     // This is for cases where the schema doesn't support certain marks
     expect(
@@ -1297,7 +1297,8 @@ test("converts account mention into API content", () => {
                     {type: "Text", text: "Hello "},
                     {
                         type: "Mention",
-                        targetPath: `/accounts/${accountId}`,
+                        target: {type: "Account", path: `/accounts/${accountId}`, id: accountId},
+                        title: "Unknown",
                         isAccountShortName: false,
                     },
                     {type: "Text", text: "!"},
@@ -1323,7 +1324,8 @@ test("converts account mention with short name into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/accounts/${accountId}`,
+                        target: {type: "Account", path: `/accounts/${accountId}`, id: accountId},
+                        title: "Unknown",
                         isAccountShortName: true,
                     },
                 ],
@@ -1348,7 +1350,12 @@ test("converts document mention into API content", () => {
                     {type: "Text", text: "See "},
                     {
                         type: "Mention",
-                        targetPath: `/documents/${documentId}`,
+                        target: {
+                            type: "Document",
+                            path: `/documents/${documentId}`,
+                            id: documentId,
+                        },
+                        title: "Unknown document",
                     },
                 ],
             },
@@ -1371,7 +1378,8 @@ test("converts channel mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/channels/${channelId}`,
+                        target: {type: "Channel", path: `/channels/${channelId}`, id: channelId},
+                        title: "Unknown channel",
                     },
                 ],
             },
@@ -1391,7 +1399,13 @@ test("converts task mention into API content", () => {
         elements: [
             {
                 type: "Paragraph",
-                elements: [{type: "Mention", targetPath: `/tasks/${taskId}`}],
+                elements: [
+                    {
+                        type: "Mention",
+                        target: {type: "Task", path: `/tasks/${taskId}`, id: taskId},
+                        title: "Unknown task",
+                    },
+                ],
             },
         ],
     });
@@ -1412,7 +1426,12 @@ test("converts task collection mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        targetPath: `/task-collections/${taskCollectionId}`,
+                        target: {
+                            type: "TaskCollection",
+                            path: `/task-collections/${taskCollectionId}`,
+                            id: taskCollectionId,
+                        },
+                        title: "Unknown task collection",
                     },
                 ],
             },
@@ -1432,7 +1451,13 @@ test("converts post mention into API content", () => {
         elements: [
             {
                 type: "Paragraph",
-                elements: [{type: "Mention", targetPath: `/posts/${postId}`}],
+                elements: [
+                    {
+                        type: "Mention",
+                        target: {type: "Post", path: `/posts/${postId}`, id: postId},
+                        title: "Unknown post",
+                    },
+                ],
             },
         ],
     });
@@ -1593,7 +1618,12 @@ test("converts marked mention into API content", () => {
                         {type: "Text", text: "Hello "},
                         {
                             type: "Mention",
-                            targetPath: `/accounts/${accountId}`,
+                            target: {
+                                type: "Account",
+                                path: `/accounts/${accountId}`,
+                                id: accountId,
+                            },
+                            title: "Unknown",
                             isAccountShortName: false,
                             marks: [{type: "Bold"}, {type: "Italic"}],
                         },

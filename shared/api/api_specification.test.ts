@@ -58,8 +58,9 @@ function validate(specification: JsonValue) {
             }
         } else if (isObject(value)) {
             if (value.type === "object") {
-                // Rule: Require `additionalProperties: false` to be set on all object schemas.
-                if (value.additionalProperties !== false) {
+                // Rule: Require `additionalProperties: false` (or a schema is fine too) to be
+                // set on all object schemas.
+                if (value.additionalProperties !== false && !isObject(value.additionalProperties)) {
                     addError(
                         quote`\`additionalProperties\` must be set to \`false\` on all object schemas in the API specification`,
                     );
@@ -224,12 +225,13 @@ function validate(specification: JsonValue) {
                     addError(quote`Response name ${key} must be \`PascalCase\``);
                 }
 
-                // Rule: Schema names should be `PascalCase` since it's a type name.
+                // Rule: Schema names should be `PascalCase` since it's a type name. Or
+                // `PascalCase_Specialization`.
                 if (
                     path[0] === "components" &&
                     path[1] === "schemas" &&
                     path.length === 2 &&
-                    !/^[A-Z][a-zA-Z0-9]+$/.test(key)
+                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)?$/.test(key)
                 ) {
                     errors.push(
                         quote`Schema name ${key} must be \`PascalCase\` (path: ${printPath()})`,

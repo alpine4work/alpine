@@ -6,6 +6,21 @@
 #
 # - There are some template variables you can use that'll be replaced (for
 #   example `idRegExp` in Mustache curly brackets).
+#
+# - Schema names that end with an underscore (e.g. `_Response`) are
+#   "specializations" of the base type (e.g.
+#   `ContentMentionInlineElement_Response` is a specialization of
+#   `ContentMentionInlineElement`).
+#
+#   Specializations create entirely new type hierarchies that use the
+#   specialized type instead of the base type. For example, we generate
+#   `ContentInlineElement_Response` that references
+#   `ContentMentionInlineElement_Response` instead of
+#   `ContentMentionInlineElement`.
+#
+#   We also update any schema references used in request bodies or responses
+#   to use the `_Request` or `_Response` specialization respectively if such a
+#   specialization is available.
 
 openapi: 3.0.0
 info:
@@ -1001,6 +1016,214 @@ components:
                 - $ref: "#/components/schemas/TaskCollectionPath"
 
         # =========================================================================== #
+        #                                   Targets                                   #
+        # =========================================================================== #
+
+        AccountTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/AccountPath"
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+
+        AccountTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/AccountPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: Account
+                      id:
+                          $ref: "#/components/schemas/AccountId"
+
+        ChannelTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/ChannelPath"
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+
+        ChannelTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/ChannelPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: Channel
+                      id:
+                          $ref: "#/components/schemas/ChannelId"
+
+        DocumentTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/DocumentPath"
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+
+        DocumentTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/DocumentPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: Document
+                      id:
+                          $ref: "#/components/schemas/DocumentId"
+
+        PostTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/PostPath"
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+
+        PostTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/PostPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: Post
+                      id:
+                          $ref: "#/components/schemas/PostId"
+
+        TaskTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/TaskPath"
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+
+        TaskTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/TaskPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: Task
+                      id:
+                          $ref: "#/components/schemas/TaskId"
+
+        TaskCollectionTarget_Response:
+            type: object
+            required: [type, path, id]
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/TaskCollectionPath"
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+
+        TaskCollectionTarget:
+            oneOf:
+                - type: object
+                  required: [path]
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/TaskCollectionPath"
+                - type: object
+                  required: [type, id]
+                  additionalProperties: {const: path}
+                  properties:
+                      type:
+                          const: TaskCollection
+                      id:
+                          $ref: "#/components/schemas/TaskCollectionId"
+
+        MentionTarget:
+            oneOf:
+                - $ref: "#/components/schemas/AccountTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
+
+        # NOTE(calebmer): We define both `MentionTarget` and `MentionTarget_Response`
+        # (instead of letting our build step generate `MentionTarget_Response`) because
+        # the `discriminator` property doesn't work for `MentionTarget`.
+        MentionTarget_Response:
+            oneOf:
+                - $ref: "#/components/schemas/AccountTarget_Response"
+                - $ref: "#/components/schemas/ChannelTarget_Response"
+                - $ref: "#/components/schemas/DocumentTarget_Response"
+                - $ref: "#/components/schemas/PostTarget_Response"
+                - $ref: "#/components/schemas/TaskTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/AccountTarget_Response"
+                    Channel: "#/components/schemas/ChannelTarget_Response"
+                    Document: "#/components/schemas/DocumentTarget_Response"
+                    Post: "#/components/schemas/PostTarget_Response"
+                    Task: "#/components/schemas/TaskTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
+
+        # =========================================================================== #
         #                                   Content                                   #
         # =========================================================================== #
 
@@ -1292,13 +1515,35 @@ components:
 
         ContentMentionInlineElement:
             type: object
-            required: [type, targetPath]
+            required: [type, target]
             additionalProperties: false
             properties:
                 type:
                     const: Mention
-                targetPath:
-                    $ref: "#/components/schemas/MentionPath"
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                # TODO(calebmer, #public-api): Document that this will be ignored if you try to
+                # create content with a `title`. This property exists solely as a convenience
+                # for code that wants to operate on both `ContentMentionInlineElement` and
+                # `ContentMentionInlineElement_Response` (which will always have a title).
+                title:
+                    type: string
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+
+        ContentMentionInlineElement_Response:
+            type: object
+            required: [type, target, title]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
                 # TODO(calebmer, #public-api): Document that `title` is loaded using the search
                 # index so may be stale by up to 90s! (60s for slow document reindexing + 10s
                 # for OpenSearch refresh interval. Say 90s to give us enough buffer.)
@@ -1801,13 +2046,13 @@ components:
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, targetPath, title]
+            required: [type, target, title]
             additionalProperties: false
             properties:
                 type:
                     const: Read
-                targetPath:
-                    $ref: "#/components/schemas/MentionPath"
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
                 title:
                     type: string
 
@@ -1890,33 +2135,29 @@ components:
 
         SearchAccountResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required: [path, title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                type:
-                    const: Account
                 path:
                     $ref: "#/components/schemas/AccountPath"
-                id:
-                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
-                    const: null
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
 
         SearchChannelResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required: [path, title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                type:
-                    const: Channel
                 path:
                     $ref: "#/components/schemas/ChannelPath"
-                id:
-                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
@@ -1925,43 +2166,47 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
 
         SearchChatResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required: [path, title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                type:
-                    const: Chat
                 path:
                     $ref: "#/components/schemas/ChatPath"
-                id:
-                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
 
         SearchChatMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required: [path, title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                type:
-                    const: ChatMessage
                 path:
                     $ref: "#/components/schemas/ChatMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                type:
+                    const: ChatMessage
                 id:
                     $ref: "#/components/schemas/ChatId"
                 index:
                     type: integer
                     minimum: 0
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
-                title:
-                    const: null
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -1969,15 +2214,11 @@ components:
 
         SearchDocumentResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required: [path, title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                type:
-                    const: Document
                 path:
                     $ref: "#/components/schemas/DocumentPath"
-                id:
-                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
@@ -1986,16 +2227,26 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
 
         SearchDocumentMessageResult:
             type: object
-            required: [type, path, id, threadId, index, title, bodyMatch, author]
+            required: [path, title, bodyMatch, type, id, threadId, index, author]
             additionalProperties: false
             properties:
-                type:
-                    const: DocumentMessage
                 path:
                     $ref: "#/components/schemas/DocumentMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: DocumentMessage
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 threadId:
@@ -2003,12 +2254,6 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -2016,21 +2261,21 @@ components:
 
         SearchPostResult:
             type: object
-            required: [type, path, id, title, bodyMatch, author]
+            required: [path, title, bodyMatch, type, id, author]
             additionalProperties: false
             properties:
-                type:
-                    const: Post
                 path:
                     $ref: "#/components/schemas/PostPath"
-                id:
-                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -2038,24 +2283,24 @@ components:
 
         SearchPostMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required: [path, title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                type:
-                    const: PostMessage
                 path:
                     $ref: "#/components/schemas/PostMessagePath"
-                id:
-                    $ref: "#/components/schemas/PostId"
-                index:
-                    type: integer
-                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: PostMessage
+                id:
+                    $ref: "#/components/schemas/PostId"
+                index:
+                    type: integer
+                    minimum: 0
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -2063,21 +2308,21 @@ components:
 
         SearchTaskResult:
             type: object
-            required: [type, path, id, title, bodyMatch, status]
+            required: [path, title, bodyMatch, type, id, status]
             additionalProperties: false
             properties:
-                type:
-                    const: Task
                 path:
                     $ref: "#/components/schemas/TaskPath"
-                id:
-                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
@@ -2085,24 +2330,24 @@ components:
 
         SearchTaskMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required: [path, title, bodyMatch, type, id, index, author]
             additionalProperties: false
             properties:
-                type:
-                    const: TaskMessage
                 path:
                     $ref: "#/components/schemas/TaskMessagePath"
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                index:
-                    type: integer
-                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: TaskMessage
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
@@ -2110,21 +2355,21 @@ components:
 
         SearchTaskCollectionResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required: [path, title, bodyMatch, type, id]
             additionalProperties: false
             properties:
-                type:
-                    const: TaskCollection
                 path:
                     $ref: "#/components/schemas/TaskCollectionPath"
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
 
         SearchResultBodyMatch:
             type: array

@@ -4,8 +4,8 @@ import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
-    ApiMessage,
-    ApiMessagePayload,
+    ApiMessagePayloadResponse,
+    ApiMessageResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -18,7 +18,7 @@ export async function intoApiMessage(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     message: MessageItem,
-): Promise<ApiMessage> {
+): Promise<ApiMessageResponse> {
     const [author, payload, streamParts] = await runAllPromises([
         getApiAccount(context, spaceId, message.authorId, {consistency: "StrongWithinCache"}),
         intoApiMessagePayload(context, spaceId, message.payload),
@@ -93,7 +93,7 @@ async function intoApiMessagePayload(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     payload: MessagePayload,
-): Promise<ApiMessagePayload> {
+): Promise<ApiMessagePayloadResponse> {
     switch (payload.type) {
         case "Deleted": {
             return {type: "Deleted"};

@@ -5,103 +5,112 @@ info:
     title: Alpine API
     description: The Alpine REST API.
     version: 1.0.0
-
 servers:
     - url: https://api.alpine.inc
-
 paths:
     /accounts/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/AccountId"}
+              schema:
+                  $ref: "#/components/schemas/AccountId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [account]
+                                required:
+                                    - account
                                 additionalProperties: false
                                 properties:
                                     account:
                                         $ref: "#/components/schemas/AccountWithoutSpace"
-
+                default:
+                    $ref: "#/components/responses/Error"
     /spaces/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/SpaceId"}
+              schema:
+                  $ref: "#/components/schemas/SpaceId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [space]
+                                required:
+                                    - space
                                 additionalProperties: false
                                 properties:
                                     space:
                                         $ref: "#/components/schemas/Space"
-
+                default:
+                    $ref: "#/components/responses/Error"
     /spaces/{id}/accounts/{accountId}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/SpaceId"}
+              schema:
+                  $ref: "#/components/schemas/SpaceId"
             - name: accountId
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/AccountId"}
+              schema:
+                  $ref: "#/components/schemas/AccountId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [account]
+                                required:
+                                    - account
                                 additionalProperties: false
                                 properties:
                                     account:
                                         $ref: "#/components/schemas/Account"
-
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChatId"}
+              schema:
+                  $ref: "#/components/schemas/ChatId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, chat]
+                                required:
+                                    - spaceId
+                                    - chat
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     chat:
                                         $ref: "#/components/schemas/Chat"
-
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChatId"}
+              schema:
+                  $ref: "#/components/schemas/ChatId"
             - name: index
               in: path
               required: true
@@ -110,15 +119,17 @@ paths:
                   minimum: 0
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}/messages:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChatId"}
+              schema:
+                  $ref: "#/components/schemas/ChatId"
         get:
             parameters:
                 - name: limit
@@ -136,23 +147,30 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
+                      enum:
+                          - start
+                          - end
                       default: start
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessages"}
+                "200":
+                    $ref: "#/components/responses/GetMessages"
+                default:
+                    $ref: "#/components/responses/Error"
         post:
-            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            requestBody:
+                $ref: "#/components/requestBodies/CreateMessage"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}/stream/completion:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChatId"}
+              schema:
+                  $ref: "#/components/schemas/ChatId"
             - name: index
               in: path
               required: true
@@ -161,15 +179,17 @@ paths:
                   minimum: 0
         put:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChatId"}
+              schema:
+                  $ref: "#/components/schemas/ChatId"
             - name: index
               in: path
               required: true
@@ -186,41 +206,47 @@ paths:
             requestBody:
                 $ref: "#/components/requestBodies/PutMessageStreamPart"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPart"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, document]
+                                required:
+                                    - spaceId
+                                    - document
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     document:
-                                        $ref: "#/components/schemas/Document"
-
+                                        $ref: "#/components/schemas/Document_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
             - name: threadId
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
             - name: index
               in: path
               required: true
@@ -229,19 +255,22 @@ paths:
                   minimum: 0
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
             - name: threadId
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
         get:
             parameters:
                 - name: limit
@@ -259,27 +288,35 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
+                      enum:
+                          - start
+                          - end
                       default: start
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessages"}
+                "200":
+                    $ref: "#/components/responses/GetMessages"
+                default:
+                    $ref: "#/components/responses/Error"
         post:
-            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            requestBody:
+                $ref: "#/components/requestBodies/CreateMessage"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}/stream/completion:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
             - name: threadId
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
             - name: index
               in: path
               required: true
@@ -288,19 +325,22 @@ paths:
                   minimum: 0
         put:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
             - name: threadId
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
             - name: index
               in: path
               required: true
@@ -317,31 +357,35 @@ paths:
             requestBody:
                 $ref: "#/components/requestBodies/PutMessageStreamPart"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPart"
+                default:
+                    $ref: "#/components/responses/Error"
     /channels/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/ChannelId"}
+              schema:
+                  $ref: "#/components/schemas/ChannelId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, channel]
+                                required:
+                                    - spaceId
+                                    - channel
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     channel:
-                                        $ref: "#/components/schemas/Channel"
-
+                                        $ref: "#/components/schemas/Channel_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts:
         post:
             requestBody:
@@ -350,7 +394,9 @@ paths:
                     application/json:
                         schema:
                             type: object
-                            required: [channelId, content]
+                            required:
+                                - channelId
+                                - content
                             additionalProperties: false
                             properties:
                                 channelId:
@@ -358,26 +404,30 @@ paths:
                                 content:
                                     $ref: "#/components/schemas/Content"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetPost"}
-
+                "200":
+                    $ref: "#/components/responses/GetPost"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/PostId"}
+              schema:
+                  $ref: "#/components/schemas/PostId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetPost"}
-
+                "200":
+                    $ref: "#/components/responses/GetPost"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/PostId"}
+              schema:
+                  $ref: "#/components/schemas/PostId"
             - name: index
               in: path
               required: true
@@ -386,15 +436,17 @@ paths:
                   minimum: 0
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/messages:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/PostId"}
+              schema:
+                  $ref: "#/components/schemas/PostId"
         get:
             parameters:
                 - name: limit
@@ -412,23 +464,30 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
+                      enum:
+                          - start
+                          - end
                       default: start
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessages"}
+                "200":
+                    $ref: "#/components/responses/GetMessages"
+                default:
+                    $ref: "#/components/responses/Error"
         post:
-            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            requestBody:
+                $ref: "#/components/requestBodies/CreateMessage"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}/stream/completion:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/PostId"}
+              schema:
+                  $ref: "#/components/schemas/PostId"
             - name: index
               in: path
               required: true
@@ -437,15 +496,17 @@ paths:
                   minimum: 0
         put:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/PostId"}
+              schema:
+                  $ref: "#/components/schemas/PostId"
             - name: index
               in: path
               required: true
@@ -462,15 +523,17 @@ paths:
             requestBody:
                 $ref: "#/components/requestBodies/PutMessageStreamPart"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPart"
+                default:
+                    $ref: "#/components/responses/Error"
     /spaces/{id}/search:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/SpaceId"}
+              schema:
+                  $ref: "#/components/schemas/SpaceId"
         get:
             parameters:
                 - name: query
@@ -486,48 +549,53 @@ paths:
                       maximum: 100
                       default: 10
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [results]
+                                required:
+                                    - results
                                 additionalProperties: false
                                 properties:
                                     results:
                                         type: array
                                         items:
                                             $ref: "#/components/schemas/SearchResult"
-
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema:
+                  $ref: "#/components/schemas/TaskId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, task]
+                                required:
+                                    - spaceId
+                                    - task
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     task:
-                                        $ref: "#/components/schemas/Task"
-
+                                        $ref: "#/components/schemas/Task_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema:
+                  $ref: "#/components/schemas/TaskId"
             - name: index
               in: path
               required: true
@@ -536,15 +604,17 @@ paths:
                   minimum: 0
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/messages:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema:
+                  $ref: "#/components/schemas/TaskId"
         get:
             parameters:
                 - name: limit
@@ -562,23 +632,30 @@ paths:
                   in: query
                   schema:
                       type: string
-                      enum: [start, end]
+                      enum:
+                          - start
+                          - end
                       default: start
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessages"}
+                "200":
+                    $ref: "#/components/responses/GetMessages"
+                default:
+                    $ref: "#/components/responses/Error"
         post:
-            requestBody: {$ref: "#/components/requestBodies/CreateMessage"}
+            requestBody:
+                $ref: "#/components/requestBodies/CreateMessage"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessage"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessage"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}/stream/completion:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema:
+                  $ref: "#/components/schemas/TaskId"
             - name: index
               in: path
               required: true
@@ -587,15 +664,17 @@ paths:
                   minimum: 0
         put:
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskId"}
+              schema:
+                  $ref: "#/components/schemas/TaskId"
             - name: index
               in: path
               required: true
@@ -612,31 +691,35 @@ paths:
             requestBody:
                 $ref: "#/components/requestBodies/PutMessageStreamPart"
             responses:
-                default: {$ref: "#/components/responses/Error"}
-                "200": {$ref: "#/components/responses/GetMessageStreamPart"}
-
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPart"
+                default:
+                    $ref: "#/components/responses/Error"
     /task-collections/{id}:
         parameters:
             - name: id
               in: path
               required: true
-              schema: {$ref: "#/components/schemas/TaskCollectionId"}
+              schema:
+                  $ref: "#/components/schemas/TaskCollectionId"
         get:
             responses:
-                default: {$ref: "#/components/responses/Error"}
                 "200":
                     content:
                         application/json:
                             schema:
                                 type: object
-                                required: [spaceId, taskCollection]
+                                required:
+                                    - spaceId
+                                    - taskCollection
                                 additionalProperties: false
                                 properties:
                                     spaceId:
                                         $ref: "#/components/schemas/SpaceId"
                                     taskCollection:
                                         $ref: "#/components/schemas/TaskCollection"
-
+                default:
+                    $ref: "#/components/responses/Error"
 webhooks:
     bot:
         post:
@@ -646,7 +729,13 @@ webhooks:
                     application/json:
                         schema:
                             type: object
-                            required: [spaceId, accountId, attempt, accessToken, eventId, event]
+                            required:
+                                - spaceId
+                                - accountId
+                                - attempt
+                                - accessToken
+                                - eventId
+                                - event
                             additionalProperties: false
                             properties:
                                 spaceId:
@@ -664,9 +753,8 @@ webhooks:
                                     $ref: "#/components/schemas/BotWebhookEvent"
             responses:
                 "200":
-                    description:
-                        Return a 200 status to indicate that the data was received successfully
-
+                    description: Return a 200 status to indicate that the data was received
+                        successfully
 components:
     responses:
         Error:
@@ -674,39 +762,43 @@ components:
                 application/json:
                     schema:
                         type: object
-                        required: [error]
+                        required:
+                            - error
                         additionalProperties: false
                         properties:
                             error:
                                 type: object
-                                required: [message]
+                                required:
+                                    - message
                                 additionalProperties: false
                                 properties:
                                     message:
                                         type: string
-                                        description:
-                                            A human-readable message providing more details about
-                                            the error.
-
+                                        description: A human-readable message providing more details about the error.
         GetMessage:
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, message]
+                        required:
+                            - spaceId
+                            - message
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             message:
-                                $ref: "#/components/schemas/Message"
-
+                                $ref: "#/components/schemas/Message_Response"
         GetMessages:
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, nextCursor, totalMessageCount, messages]
+                        required:
+                            - spaceId
+                            - nextCursor
+                            - totalMessageCount
+                            - messages
                         additionalProperties: false
                         properties:
                             spaceId:
@@ -714,56 +806,60 @@ components:
                             totalMessageCount:
                                 type: integer
                             nextCursor:
-                                type: [integer, "null"]
+                                type:
+                                    - integer
+                                    - "null"
                                 minimum: 0
                             messages:
                                 type: array
                                 items:
-                                    $ref: "#/components/schemas/Message"
-
+                                    $ref: "#/components/schemas/Message_Response"
         GetMessageStreamCompletion:
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, completion]
+                        required:
+                            - spaceId
+                            - completion
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             completion:
                                 type: object
-                                required: [completedTime]
+                                required:
+                                    - completedTime
                                 additionalProperties: false
                                 properties:
                                     completedTime:
                                         type: string
                                         format: date-time
-
         GetMessageStreamPart:
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId]
+                        required:
+                            - spaceId
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
-
         GetPost:
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [spaceId, post]
+                        required:
+                            - spaceId
+                            - post
                         additionalProperties: false
                         properties:
                             spaceId:
                                 $ref: "#/components/schemas/SpaceId"
                             post:
-                                $ref: "#/components/schemas/Post"
-
+                                $ref: "#/components/schemas/Post_Response"
     requestBodies:
         CreateMessage:
             required: true
@@ -771,154 +867,124 @@ components:
                 application/json:
                     schema:
                         type: object
-                        required: [content]
+                        required:
+                            - content
                         additionalProperties: false
                         properties:
                             isStream:
                                 type: boolean
                             content:
                                 $ref: "#/components/schemas/Content"
-
         PutMessageStreamPart:
             required: true
             content:
                 application/json:
                     schema:
                         type: object
-                        required: [payload]
+                        required:
+                            - payload
                         additionalProperties: false
                         properties:
                             payload:
                                 $ref: "#/components/schemas/MessageStreamPartPayload"
-
     schemas:
         LabelString:
             type: string
             minLength: 1
             maxLength: 50
-
         AccountId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         BotId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         BotWebhookEventId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         ChannelId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         ChatId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         DocumentId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         DocumentThreadId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         PostId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         SpaceId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         TaskId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         TaskCollectionId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         AccountPath:
             type: string
             pattern: ^/accounts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         ChannelPath:
             type: string
             pattern: ^/channels/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         ChatPath:
             type: string
             pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         ChatMessagePath:
             type: string
             pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-
         ChatMessagesListPath:
             type: string
             pattern: ^/chats/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-
         DocumentPath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         DocumentMessagePath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-
         DocumentThreadPath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         DocumentThreadMessagesListPath:
             type: string
             pattern: ^/documents/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/threads/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-
         PostPath:
             type: string
             pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         PostMessagePath:
             type: string
             pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-
         PostMessagesListPath:
             type: string
             pattern: ^/posts/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-
         TaskPath:
             type: string
             pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         TaskCollectionPath:
             type: string
             pattern: ^/task-collections/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
-
         TaskMessagePath:
             type: string
             pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages/(?:[0-9]|[1-9][0-9]+)$
-
         TaskMessagesListPath:
             type: string
             pattern: ^/tasks/[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]/messages$
-
         MessageRoomPath:
             oneOf:
                 - $ref: "#/components/schemas/ChatPath"
                 - $ref: "#/components/schemas/DocumentThreadPath"
                 - $ref: "#/components/schemas/PostPath"
                 - $ref: "#/components/schemas/TaskPath"
-
         MessagesListPath:
             oneOf:
                 - $ref: "#/components/schemas/ChatMessagesListPath"
                 - $ref: "#/components/schemas/DocumentThreadMessagesListPath"
                 - $ref: "#/components/schemas/PostMessagesListPath"
                 - $ref: "#/components/schemas/TaskMessagesListPath"
-
         MentionPath:
             oneOf:
                 - $ref: "#/components/schemas/AccountPath"
@@ -927,7 +993,6 @@ components:
                 - $ref: "#/components/schemas/PostPath"
                 - $ref: "#/components/schemas/TaskPath"
                 - $ref: "#/components/schemas/TaskCollectionPath"
-
         SearchResultPath:
             oneOf:
                 - $ref: "#/components/schemas/AccountPath"
@@ -941,17 +1006,245 @@ components:
                 - $ref: "#/components/schemas/TaskPath"
                 - $ref: "#/components/schemas/TaskMessagePath"
                 - $ref: "#/components/schemas/TaskCollectionPath"
-
+        AccountTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/AccountPath"
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
+        AccountTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/AccountPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: Account
+                      id:
+                          $ref: "#/components/schemas/AccountId"
+        ChannelTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/ChannelPath"
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
+        ChannelTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/ChannelPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: Channel
+                      id:
+                          $ref: "#/components/schemas/ChannelId"
+        DocumentTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/DocumentPath"
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
+        DocumentTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/DocumentPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: Document
+                      id:
+                          $ref: "#/components/schemas/DocumentId"
+        PostTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/PostPath"
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
+        PostTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/PostPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: Post
+                      id:
+                          $ref: "#/components/schemas/PostId"
+        TaskTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/TaskPath"
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
+        TaskTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/TaskPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: Task
+                      id:
+                          $ref: "#/components/schemas/TaskId"
+        TaskCollectionTarget_Response:
+            type: object
+            required:
+                - type
+                - path
+                - id
+            additionalProperties: false
+            properties:
+                path:
+                    $ref: "#/components/schemas/TaskCollectionPath"
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
+        TaskCollectionTarget:
+            oneOf:
+                - type: object
+                  required:
+                      - path
+                  additionalProperties: false
+                  properties:
+                      path:
+                          $ref: "#/components/schemas/TaskCollectionPath"
+                - type: object
+                  required:
+                      - type
+                      - id
+                  additionalProperties:
+                      const: path
+                  properties:
+                      type:
+                          const: TaskCollection
+                      id:
+                          $ref: "#/components/schemas/TaskCollectionId"
+        MentionTarget:
+            oneOf:
+                - $ref: "#/components/schemas/AccountTarget"
+                - $ref: "#/components/schemas/ChannelTarget"
+                - $ref: "#/components/schemas/DocumentTarget"
+                - $ref: "#/components/schemas/PostTarget"
+                - $ref: "#/components/schemas/TaskTarget"
+                - $ref: "#/components/schemas/TaskCollectionTarget"
+        MentionTarget_Response:
+            oneOf:
+                - $ref: "#/components/schemas/AccountTarget_Response"
+                - $ref: "#/components/schemas/ChannelTarget_Response"
+                - $ref: "#/components/schemas/DocumentTarget_Response"
+                - $ref: "#/components/schemas/PostTarget_Response"
+                - $ref: "#/components/schemas/TaskTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Account: "#/components/schemas/AccountTarget_Response"
+                    Channel: "#/components/schemas/ChannelTarget_Response"
+                    Document: "#/components/schemas/DocumentTarget_Response"
+                    Post: "#/components/schemas/PostTarget_Response"
+                    Task: "#/components/schemas/TaskTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
         Content:
             type: object
             additionalProperties: false
-            required: [elements]
+            required: &a18
+                - elements
             properties:
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentBlockElement"
-
         ContentBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
@@ -959,9 +1252,11 @@ components:
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
                 - $ref: "#/components/schemas/ContentHeadingBlockElement"
-                - $ref: "#/components/schemas/ContentDividerBlockElement"
+                - &a12
+                  $ref: "#/components/schemas/ContentDividerBlockElement"
                 - $ref: "#/components/schemas/ContentTableBlockElement"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - &a13
+                  $ref: "#/components/schemas/ContentCodeBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
@@ -973,19 +1268,19 @@ components:
                     Divider: "#/components/schemas/ContentDividerBlockElement"
                     Table: "#/components/schemas/ContentTableBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
-
         ContentParagraphBlockElement:
             type: object
-            required: [type, elements]
+            required: &a6
+                - type
+                - elements
             additionalProperties: false
             properties:
-                type:
+                type: &a7
                     const: Paragraph
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
-
         ContentListBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
@@ -995,36 +1290,38 @@ components:
                 mapping:
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
-
         ContentUnorderedListBlockElement:
             type: object
-            required: [type, items]
+            required: &a19
+                - type
+                - items
             additionalProperties: false
             properties:
-                type:
+                type: &a20
                     const: UnorderedList
                 items:
                     type: array
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentListBlockElementItem"
-
         ContentOrderedListBlockElement:
             type: object
-            required: [type, items]
+            required: &a21
+                - type
+                - items
             additionalProperties: false
             properties:
-                type:
+                type: &a22
                     const: OrderedList
                 items:
                     type: array
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentListBlockElementItem"
-
         ContentListBlockElementItem:
             type: object
-            required: [elements]
+            required: &a14
+                - elements
             additionalProperties: false
             properties:
                 elements:
@@ -1035,20 +1332,20 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentListBlockElement"
-
         ContentQuoteBlockElement:
             type: object
-            required: [type, elements]
+            required: &a23
+                - type
+                - elements
             additionalProperties: false
             properties:
-                type:
+                type: &a24
                     const: Quote
                 elements:
                     type: array
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement"
-
         ContentQuoteBlockElementBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
@@ -1060,15 +1357,17 @@ components:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
-
         ContentHeadingBlockElement:
             type: object
-            required: [type, level, elements]
+            required: &a8
+                - type
+                - level
+                - elements
             additionalProperties: false
             properties:
-                type:
+                type: &a9
                     const: Heading
-                level:
+                level: &a10
                     type: integer
                     minimum: 1
                     maximum: 3
@@ -1076,34 +1375,38 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
-
         ContentDividerBlockElement:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Divider
-
         ContentTableBlockElement:
             type: object
-            required: [type, width, columns, rows]
+            required: &a53
+                - type
+                - width
+                - columns
+                - rows
             additionalProperties: false
             properties:
-                type:
+                type: &a54
                     const: Table
-                width:
+                width: &a55
                     type: number
-                hasHeaderRow:
+                hasHeaderRow: &a56
                     type: boolean
-                hasHeaderColumn:
+                hasHeaderColumn: &a57
                     type: boolean
-                columns:
+                columns: &a58
                     type: array
                     minItems: 2
                     items:
                         type: object
-                        required: [width]
+                        required:
+                            - width
                         additionalProperties: false
                         properties:
                             width:
@@ -1113,10 +1416,10 @@ components:
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementRow"
-
         ContentTableBlockElementRow:
             type: object
-            required: [cells]
+            required: &a26
+                - cells
             additionalProperties: false
             properties:
                 cells:
@@ -1124,24 +1427,24 @@ components:
                     minItems: 2
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCell"
-
         ContentTableBlockElementCell:
             type: object
-            required: [elements]
+            required: &a25
+                - elements
             additionalProperties: false
             properties:
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement"
-
         ContentTableBlockElementCellBlockElement:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
-                - $ref: "#/components/schemas/ContentCodeBlockElement"
+                - &a15
+                  $ref: "#/components/schemas/ContentCodeBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
@@ -1150,37 +1453,77 @@ components:
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
                     Quote: "#/components/schemas/ContentQuoteBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
-
         ContentCodeBlockElement:
             type: object
-            required: [type, language, lines]
+            required:
+                - type
+                - language
+                - lines
             additionalProperties: false
             properties:
                 type:
                     const: Code
                 language:
                     type: string
-                    enum: ["text","javascript","html","css","sql","python","typescript","shell","java","json","markdown","csharp","cpp","c","php","go","yaml","powershell","rust","kotlin","ruby","lua","xml","dart","swift","assembly","webassembly","scala","r","elixir","objectivec","perl","haskell","solidity","clojure","erlang","ocaml"]
+                    enum:
+                        - text
+                        - javascript
+                        - html
+                        - css
+                        - sql
+                        - python
+                        - typescript
+                        - shell
+                        - java
+                        - json
+                        - markdown
+                        - csharp
+                        - cpp
+                        - c
+                        - php
+                        - go
+                        - yaml
+                        - powershell
+                        - rust
+                        - kotlin
+                        - ruby
+                        - lua
+                        - xml
+                        - dart
+                        - swift
+                        - assembly
+                        - webassembly
+                        - scala
+                        - r
+                        - elixir
+                        - objectivec
+                        - perl
+                        - haskell
+                        - solidity
+                        - clojure
+                        - erlang
+                        - ocaml
                 lines:
                     type: array
                     minItems: 1
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementLine"
-
         ContentCodeBlockElementLine:
             type: object
-            required: [elements]
+            required:
+                - elements
             additionalProperties: false
             properties:
                 elements:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
-
         ContentInlineElement:
             oneOf:
-                - $ref: "#/components/schemas/ContentTextInlineElement"
-                - $ref: "#/components/schemas/ContentBreakInlineElement"
+                - &a1
+                  $ref: "#/components/schemas/ContentTextInlineElement"
+                - &a2
+                  $ref: "#/components/schemas/ContentBreakInlineElement"
                 - $ref: "#/components/schemas/ContentMentionInlineElement"
             discriminator:
                 propertyName: type
@@ -1188,10 +1531,11 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement"
-
         ContentTextInlineElement:
             type: object
-            required: [type, text]
+            required:
+                - type
+                - text
             additionalProperties: false
             properties:
                 type:
@@ -1203,10 +1547,10 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
-
         ContentBreakInlineElement:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
@@ -1215,16 +1559,37 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
-
         ContentMentionInlineElement:
             type: object
-            required: [type, targetPath]
+            required:
+                - type
+                - target
             additionalProperties: false
             properties:
                 type:
                     const: Mention
-                targetPath:
-                    $ref: "#/components/schemas/MentionPath"
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                title:
+                    type: string
+                isAccountShortName:
+                    type: boolean
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElementMark"
+        ContentMentionInlineElement_Response:
+            type: object
+            required:
+                - type
+                - target
+                - title
+            additionalProperties: false
+            properties:
+                type:
+                    const: Mention
+                target:
+                    $ref: "#/components/schemas/MentionTarget_Response"
                 title:
                     type: string
                     minLength: 1
@@ -1234,7 +1599,6 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElementMark"
-
         ContentInlineElementMark:
             oneOf:
                 - $ref: "#/components/schemas/ContentInlineElementBoldMark"
@@ -1254,59 +1618,60 @@ components:
                     Code: "#/components/schemas/ContentInlineElementCodeMark"
                     Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
                     Comment: "#/components/schemas/ContentInlineElementCommentMark"
-
         ContentInlineElementBoldMark:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Bold
-
         ContentInlineElementItalicMark:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Italic
-
         ContentInlineElementStrikeMark:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Strike
-
         ContentInlineElementLinkMark:
             type: object
-            required: [type, url]
+            required:
+                - type
+                - url
             additionalProperties: false
             properties:
                 type:
                     const: Link
                 url:
                     type: string
-
         ContentInlineElementCodeMark:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Code
-
         ContentInlineElementHighlightMark:
             type: object
-            required: [type, color]
+            required:
+                - type
+                - color
             additionalProperties: false
             properties:
                 type:
                     const: Highlight
                 color:
                     $ref: "#/components/schemas/ContentInlineElementHighlightMarkColor"
-
         ContentInlineElementHighlightMarkColor:
             type: string
             enum:
@@ -1315,20 +1680,22 @@ components:
                 - Green
                 - Blue
                 - Purple
-
         ContentInlineElementCommentMark:
             type: object
-            required: [type, threadId]
+            required:
+                - type
+                - threadId
             additionalProperties: false
             properties:
                 type:
                     const: Comment
                 threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
-
         ContentCodeBlockElementTextInlineElement:
             type: object
-            required: [type, text]
+            required:
+                - type
+                - text
             additionalProperties: false
             properties:
                 type:
@@ -1341,7 +1708,6 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElementMark"
-
         ContentCodeBlockElementTextInlineElementMark:
             oneOf:
                 - $ref: "#/components/schemas/ContentInlineElementBoldMark"
@@ -1359,10 +1725,12 @@ components:
                     Link: "#/components/schemas/ContentInlineElementLinkMark"
                     Highlight: "#/components/schemas/ContentInlineElementHighlightMark"
                     Comment: "#/components/schemas/ContentInlineElementCommentMark"
-
         AccountWithoutSpace:
             type: object
-            required: [id, name, shortName]
+            required:
+                - id
+                - name
+                - shortName
             additionalProperties: false
             properties:
                 id:
@@ -1373,20 +1741,24 @@ components:
                     $ref: "#/components/schemas/LabelString"
                 botId:
                     $ref: "#/components/schemas/BotId"
-
         Space:
             type: object
-            required: [id, name]
+            required:
+                - id
+                - name
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/SpaceId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-
         Account:
             type: object
-            required: [id, name, shortName, space]
+            required:
+                - id
+                - name
+                - shortName
+                - space
             additionalProperties: false
             properties:
                 id:
@@ -1401,19 +1773,25 @@ components:
                     $ref: "#/components/schemas/BotId"
                 space:
                     type: object
-                    required: [role, addedTime]
+                    required:
+                        - role
+                        - addedTime
                     additionalProperties: false
                     properties:
                         role:
                             type: string
-                            enum: [Owner, Admin, Member]
+                            enum:
+                                - Owner
+                                - Admin
+                                - Member
                         addedTime:
                             type: string
                             format: date-time
                         inactive:
                             oneOf:
                                 - type: object
-                                  required: [type]
+                                  required:
+                                      - type
                                   additionalProperties: false
                                   properties:
                                       type:
@@ -1422,15 +1800,17 @@ components:
                                           type: string
                                           format: date-time
                                 - type: object
-                                  required: [type]
+                                  required:
+                                      - type
                                   additionalProperties: false
                                   properties:
                                       type:
                                           const: InvitePending
-
         Chat:
             type: object
-            required: [id, members]
+            required:
+                - id
+                - members
             additionalProperties: false
             properties:
                 id:
@@ -1439,75 +1819,87 @@ components:
                     type: array
                     items:
                         type: object
-                        required: [account]
+                        required:
+                            - account
                         additionalProperties: false
                         properties:
                             account:
                                 $ref: "#/components/schemas/Account"
-
         Document:
             type: object
-            required: [id, title, content]
+            required: &a27
+                - id
+                - title
+                - content
             additionalProperties: false
             properties:
-                id:
+                id: &a28
                     $ref: "#/components/schemas/DocumentId"
-                title:
+                title: &a29
                     type: string
                 content:
                     $ref: "#/components/schemas/Content"
-
         DocumentPreview:
             type: object
-            required: [id, title]
+            required:
+                - id
+                - title
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
-
         ChannelPreview:
             type: object
-            required: [id, name]
+            required:
+                - id
+                - name
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/ChannelId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-
         Channel:
             type: object
-            required: [id, name, description]
+            required: &a30
+                - id
+                - name
+                - description
             additionalProperties: false
             properties:
-                id:
+                id: &a31
                     $ref: "#/components/schemas/ChannelId"
-                name:
+                name: &a32
                     $ref: "#/components/schemas/LabelString"
                 description:
                     $ref: "#/components/schemas/Content"
-
         Post:
             type: object
-            required: [id, author, content, contentPreview]
+            required: &a33
+                - id
+                - author
+                - content
+                - contentPreview
             additionalProperties: false
             properties:
-                id:
+                id: &a34
                     $ref: "#/components/schemas/PostId"
-                author:
+                author: &a35
                     $ref: "#/components/schemas/Account"
-                channel:
+                channel: &a36
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
-                contentPreview:
+                contentPreview: &a37
                     type: string
-
         PostPreview:
             type: object
-            required: [id, author, contentPreview]
+            required:
+                - id
+                - author
+                - contentPreview
             additionalProperties: false
             properties:
                 id:
@@ -1518,37 +1910,47 @@ components:
                     $ref: "#/components/schemas/ChannelPreview"
                 contentPreview:
                     type: string
-
         Task:
             type: object
-            required: [id, status, title, content]
+            required: &a38
+                - id
+                - status
+                - title
+                - content
             additionalProperties: false
             properties:
-                id:
+                id: &a39
                     $ref: "#/components/schemas/TaskId"
-                status:
+                status: &a40
                     $ref: "#/components/schemas/TaskStatus"
-                title:
+                title: &a41
                     type: string
-                assignee:
+                assignee: &a42
                     $ref: "#/components/schemas/Account"
-                due:
+                due: &a43
                     type: object
-                    required: [date]
+                    required:
+                        - date
                     additionalProperties: false
                     properties:
                         date:
                             type: string
                             format: date
-                priority:
+                priority: &a44
                     type: string
-                    enum: [Low, Medium, High, Urgent]
+                    enum:
+                        - Low
+                        - Medium
+                        - High
+                        - Urgent
                 content:
                     $ref: "#/components/schemas/Content"
-
         TaskPreview:
             type: object
-            required: [id, status, title]
+            required:
+                - id
+                - status
+                - title
             additionalProperties: false
             properties:
                 id:
@@ -1557,11 +1959,12 @@ components:
                     $ref: "#/components/schemas/TaskStatus"
                 title:
                     type: string
-
         TaskStatus:
             oneOf:
                 - type: object
-                  required: [type, isActive]
+                  required:
+                      - type
+                      - isActive
                   additionalProperties: false
                   properties:
                       type:
@@ -1569,56 +1972,62 @@ components:
                       isActive:
                           type: boolean
                 - type: object
-                  required: [type]
+                  required:
+                      - type
                   additionalProperties: false
                   properties:
                       type:
                           const: Closed
-
         TaskCollection:
             type: object
-            required: [id, name]
+            required:
+                - id
+                - name
             additionalProperties: false
             properties:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
                 name:
                     $ref: "#/components/schemas/LabelString"
-
         Message:
             type: object
-            required: [index, author, createdTime, payload]
+            required: &a60
+                - index
+                - author
+                - createdTime
+                - payload
             additionalProperties: false
             properties:
-                index:
+                index: &a61
                     type: integer
                     minimum: 0
-                author:
+                author: &a62
                     $ref: "#/components/schemas/Account"
-                createdTime:
+                createdTime: &a63
                     type: string
                     format: date-time
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
-
         MessagePayload:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
+                - &a59
+                  $ref: "#/components/schemas/MessageDeletedPayload"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageContentPayload"
                     Deleted: "#/components/schemas/MessageDeletedPayload"
-
         MessageContentPayload:
             type: object
-            required: [type, content]
+            required: &a45
+                - type
+                - content
             additionalProperties: false
             properties:
-                type:
+                type: &a46
                     const: Content
-                parent:
+                parent: &a47
                     oneOf:
                         - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
                     discriminator:
@@ -1627,10 +2036,11 @@ components:
                             Message: "#/components/schemas/MessageContentPayloadMessageParent"
                 content:
                     $ref: "#/components/schemas/Content"
-
         MessageContentPayloadMessageParent:
             type: object
-            required: [type, index]
+            required:
+                - type
+                - index
             additionalProperties: false
             properties:
                 type:
@@ -1638,29 +2048,30 @@ components:
                 index:
                     type: integer
                     minimum: 0
-
         MessageDeletedPayload:
             type: object
-            required: [type]
+            required:
+                - type
             additionalProperties: false
             properties:
                 type:
                     const: Deleted
-
         MessageStreamPart:
             type: object
-            required: [index, version, payload]
+            required: &a48
+                - index
+                - version
+                - payload
             additionalProperties: false
             properties:
-                index:
+                index: &a49
                     type: integer
                     minimum: 0
-                version:
+                version: &a50
                     type: integer
                     minimum: 0
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
-
         MessageStreamPartPayload:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload"
@@ -1670,59 +2081,63 @@ components:
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
-
         MessageStreamContentPartPayload:
             type: object
-            required: [type, content]
+            required: &a51
+                - type
+                - content
             additionalProperties: false
             properties:
-                type:
+                type: &a52
                     const: Content
                 content:
                     $ref: "#/components/schemas/Content"
-
         MessageStreamToolCallPartPayload:
             type: object
-            required: [type, call]
+            required: &a16
+                - type
+                - call
             additionalProperties: false
             properties:
-                type:
+                type: &a17
                     const: ToolCall
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall"
-
         MessageStreamToolCallPartPayloadCall:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+                - &a11
+                  $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
             discriminator:
                 propertyName: type
                 mapping:
                     Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
                     Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-
         MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, targetPath, title]
+            required: &a3
+                - type
+                - target
+                - title
             additionalProperties: false
             properties:
-                type:
+                type: &a4
                     const: Read
-                targetPath:
-                    $ref: "#/components/schemas/MentionPath"
-                title:
+                target:
+                    $ref: "#/components/schemas/MentionTarget"
+                title: &a5
                     type: string
-
         MessageStreamToolCallPartPayloadSearchCall:
             type: object
-            required: [type, query]
+            required:
+                - type
+                - query
             additionalProperties: false
             properties:
                 type:
                     const: Search
                 query:
                     type: string
-
         BotWebhookEvent:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
@@ -1730,10 +2145,13 @@ components:
                 propertyName: type
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
-
         BotWebhookNewMessageEvent:
             type: object
-            required: [type, roomPath, index, authorId]
+            required:
+                - type
+                - roomPath
+                - index
+                - authorId
             additionalProperties: false
             properties:
                 type:
@@ -1747,7 +2165,6 @@ components:
                     $ref: "#/components/schemas/AccountId"
                 wasMentioned:
                     type: boolean
-
         SearchResult:
             oneOf:
                 - $ref: "#/components/schemas/SearchAccountResult"
@@ -1775,36 +2192,40 @@ components:
                     Task: "#/components/schemas/SearchTaskResult"
                     TaskMessage: "#/components/schemas/SearchTaskMessageResult"
                     TaskCollection: "#/components/schemas/SearchTaskCollectionResult"
-
         SearchAccountResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
             additionalProperties: false
             properties:
-                type:
-                    const: Account
                 path:
                     $ref: "#/components/schemas/AccountPath"
-                id:
-                    $ref: "#/components/schemas/AccountId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
-                    const: null
-
+                    $ref: "#/components/schemas/SearchResultParsedFilter"
+                type:
+                    const: Account
+                id:
+                    $ref: "#/components/schemas/AccountId"
         SearchChannelResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
             additionalProperties: false
             properties:
-                type:
-                    const: Channel
                 path:
                     $ref: "#/components/schemas/ChannelPath"
-                id:
-                    $ref: "#/components/schemas/ChannelId"
                 title:
                     type: string
                 bodyMatch:
@@ -1813,59 +2234,73 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
+                type:
+                    const: Channel
+                id:
+                    $ref: "#/components/schemas/ChannelId"
         SearchChatResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
             additionalProperties: false
             properties:
-                type:
-                    const: Chat
                 path:
                     $ref: "#/components/schemas/ChatPath"
-                id:
-                    $ref: "#/components/schemas/ChatId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
         SearchChatMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - index
+                - author
             additionalProperties: false
             properties:
-                type:
-                    const: ChatMessage
                 path:
                     $ref: "#/components/schemas/ChatMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    $ref: "#/components/schemas/SearchResultBodyMatch"
+                type:
+                    const: ChatMessage
                 id:
                     $ref: "#/components/schemas/ChatId"
                 index:
                     type: integer
                     minimum: 0
-                bodyMatch:
-                    $ref: "#/components/schemas/SearchResultBodyMatch"
-                title:
-                    const: null
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchDocumentResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
             additionalProperties: false
             properties:
-                type:
-                    const: Document
                 path:
                     $ref: "#/components/schemas/DocumentPath"
-                id:
-                    $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
                 bodyMatch:
@@ -1874,16 +2309,33 @@ components:
                         - type: "null"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
+                type:
+                    const: Document
+                id:
+                    $ref: "#/components/schemas/DocumentId"
         SearchDocumentMessageResult:
             type: object
-            required: [type, path, id, threadId, index, title, bodyMatch, author]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - threadId
+                - index
+                - author
             additionalProperties: false
             properties:
-                type:
-                    const: DocumentMessage
                 path:
                     $ref: "#/components/schemas/DocumentMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: DocumentMessage
                 id:
                     $ref: "#/components/schemas/DocumentId"
                 threadId:
@@ -1891,145 +2343,464 @@ components:
                 index:
                     type: integer
                     minimum: 0
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchPostResult:
             type: object
-            required: [type, path, id, title, bodyMatch, author]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - author
             additionalProperties: false
             properties:
-                type:
-                    const: Post
                 path:
                     $ref: "#/components/schemas/PostPath"
-                id:
-                    $ref: "#/components/schemas/PostId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: Post
+                id:
+                    $ref: "#/components/schemas/PostId"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchPostMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - index
+                - author
             additionalProperties: false
             properties:
-                type:
-                    const: PostMessage
                 path:
                     $ref: "#/components/schemas/PostMessagePath"
+                title:
+                    const: null
+                bodyMatch:
+                    oneOf:
+                        - $ref: "#/components/schemas/SearchResultBodyMatch"
+                        - type: "null"
+                type:
+                    const: PostMessage
                 id:
                     $ref: "#/components/schemas/PostId"
                 index:
                     type: integer
                     minimum: 0
-                title:
-                    const: null
-                bodyMatch:
-                    oneOf:
-                        - $ref: "#/components/schemas/SearchResultBodyMatch"
-                        - type: "null"
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchTaskResult:
             type: object
-            required: [type, path, id, title, bodyMatch, status]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - status
             additionalProperties: false
             properties:
-                type:
-                    const: Task
                 path:
                     $ref: "#/components/schemas/TaskPath"
-                id:
-                    $ref: "#/components/schemas/TaskId"
                 title:
                     type: string
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: Task
+                id:
+                    $ref: "#/components/schemas/TaskId"
                 status:
                     $ref: "#/components/schemas/TaskStatus"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchTaskMessageResult:
             type: object
-            required: [type, path, id, index, title, bodyMatch, author]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
+                - index
+                - author
             additionalProperties: false
             properties:
-                type:
-                    const: TaskMessage
                 path:
                     $ref: "#/components/schemas/TaskMessagePath"
-                id:
-                    $ref: "#/components/schemas/TaskId"
-                index:
-                    type: integer
-                    minimum: 0
                 title:
                     const: null
                 bodyMatch:
                     oneOf:
                         - $ref: "#/components/schemas/SearchResultBodyMatch"
                         - type: "null"
+                type:
+                    const: TaskMessage
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                index:
+                    type: integer
+                    minimum: 0
                 author:
                     $ref: "#/components/schemas/Account"
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
         SearchTaskCollectionResult:
             type: object
-            required: [type, path, id, title, bodyMatch]
+            required:
+                - path
+                - title
+                - bodyMatch
+                - type
+                - id
             additionalProperties: false
             properties:
-                type:
-                    const: TaskCollection
                 path:
                     $ref: "#/components/schemas/TaskCollectionPath"
-                id:
-                    $ref: "#/components/schemas/TaskCollectionId"
                 title:
                     type: string
                 bodyMatch:
                     const: null
                 parsedFilter:
                     $ref: "#/components/schemas/SearchResultParsedFilter"
-
+                type:
+                    const: TaskCollection
+                id:
+                    $ref: "#/components/schemas/TaskCollectionId"
         SearchResultBodyMatch:
             type: array
             items:
                 type: object
-                required: [text]
+                required:
+                    - text
                 additionalProperties: false
                 properties:
                     text:
                         type: string
                     isMatch:
                         const: true
-
         SearchResultParsedFilter:
             type: object
-            required: [summary]
+            required:
+                - summary
             additionalProperties: false
             properties:
                 summary:
                     type: string
+        ContentInlineElement_Response:
+            oneOf:
+                - *a1
+                - *a2
+                - $ref: "#/components/schemas/ContentMentionInlineElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Text: "#/components/schemas/ContentTextInlineElement"
+                    Break: "#/components/schemas/ContentBreakInlineElement"
+                    Mention: "#/components/schemas/ContentMentionInlineElement_Response"
+        MessageStreamToolCallPartPayloadReadCall_Response:
+            type: object
+            required: *a3
+            additionalProperties: false
+            properties:
+                type: *a4
+                target:
+                    $ref: "#/components/schemas/MentionTarget_Response"
+                title: *a5
+        ContentParagraphBlockElement_Response:
+            type: object
+            required: *a6
+            additionalProperties: false
+            properties:
+                type: *a7
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+        ContentHeadingBlockElement_Response:
+            type: object
+            required: *a8
+            additionalProperties: false
+            properties:
+                type: *a9
+                level: *a10
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentInlineElement_Response"
+        MessageStreamToolCallPartPayloadCall_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
+                - *a11
+            discriminator:
+                propertyName: type
+                mapping:
+                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
+                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
+        ContentBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
+                - $ref: "#/components/schemas/ContentHeadingBlockElement_Response"
+                - *a12
+                - $ref: "#/components/schemas/ContentTableBlockElement_Response"
+                - *a13
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
+                    Heading: "#/components/schemas/ContentHeadingBlockElement_Response"
+                    Divider: "#/components/schemas/ContentDividerBlockElement"
+                    Table: "#/components/schemas/ContentTableBlockElement_Response"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+        ContentListBlockElementItem_Response:
+            type: object
+            required: *a14
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement_Response"
+        ContentQuoteBlockElementBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+        ContentTableBlockElementCellBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentQuoteBlockElement_Response"
+                - *a15
+            discriminator:
+                propertyName: type
+                mapping:
+                    Paragraph: "#/components/schemas/ContentParagraphBlockElement_Response"
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+                    Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
+                    Code: "#/components/schemas/ContentCodeBlockElement"
+        MessageStreamToolCallPartPayload_Response:
+            type: object
+            required: *a16
+            additionalProperties: false
+            properties:
+                type: *a17
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
+        Content_Response:
+            type: object
+            additionalProperties: false
+            required: *a18
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentBlockElement_Response"
+        ContentUnorderedListBlockElement_Response:
+            type: object
+            required: *a19
+            additionalProperties: false
+            properties:
+                type: *a20
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentOrderedListBlockElement_Response:
+            type: object
+            required: *a21
+            additionalProperties: false
+            properties:
+                type: *a22
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElementItem_Response"
+        ContentQuoteBlockElement_Response:
+            type: object
+            required: *a23
+            additionalProperties: false
+            properties:
+                type: *a24
+                elements:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentQuoteBlockElementBlockElement_Response"
+        ContentTableBlockElementCell_Response:
+            type: object
+            required: *a25
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        MessageStreamPartPayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
+                    ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+        ContentListBlockElement_Response:
+            oneOf:
+                - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                - $ref: "#/components/schemas/ContentOrderedListBlockElement_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement_Response"
+                    OrderedList: "#/components/schemas/ContentOrderedListBlockElement_Response"
+        ContentTableBlockElementRow_Response:
+            type: object
+            required: *a26
+            additionalProperties: false
+            properties:
+                cells:
+                    type: array
+                    minItems: 2
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementCell_Response"
+        Document_Response:
+            type: object
+            required: *a27
+            additionalProperties: false
+            properties:
+                id: *a28
+                title: *a29
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        Channel_Response:
+            type: object
+            required: *a30
+            additionalProperties: false
+            properties:
+                id: *a31
+                name: *a32
+                description:
+                    $ref: "#/components/schemas/Content_Response"
+        Post_Response:
+            type: object
+            required: *a33
+            additionalProperties: false
+            properties:
+                id: *a34
+                author: *a35
+                channel: *a36
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+                contentPreview: *a37
+        Task_Response:
+            type: object
+            required: *a38
+            additionalProperties: false
+            properties:
+                id: *a39
+                status: *a40
+                title: *a41
+                assignee: *a42
+                due: *a43
+                priority: *a44
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        MessageContentPayload_Response:
+            type: object
+            required: *a45
+            additionalProperties: false
+            properties:
+                type: *a46
+                parent: *a47
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        MessageStreamPart_Response:
+            type: object
+            required: *a48
+            additionalProperties: false
+            properties:
+                index: *a49
+                version: *a50
+                payload:
+                    $ref: "#/components/schemas/MessageStreamPartPayload_Response"
+        MessageStreamContentPartPayload_Response:
+            type: object
+            required: *a51
+            additionalProperties: false
+            properties:
+                type: *a52
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        ContentTableBlockElement_Response:
+            type: object
+            required: *a53
+            additionalProperties: false
+            properties:
+                type: *a54
+                width: *a55
+                hasHeaderRow: *a56
+                hasHeaderColumn: *a57
+                columns: *a58
+                rows:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentTableBlockElementRow_Response"
+        MessagePayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - *a59
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
+        Message_Response:
+            type: object
+            required: *a60
+            additionalProperties: false
+            properties:
+                index: *a61
+                author: *a62
+                createdTime: *a63
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"

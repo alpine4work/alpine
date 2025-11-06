@@ -149,7 +149,7 @@ async function getOrderedListItemForSearchEntityResult(
             const accountLink = await createAgentLink(transaction, {
                 type: "Account",
                 account: {
-                    id: pathObject.accountId,
+                    id: pathObject.id,
                     name: result.title,
                 },
             });
@@ -161,7 +161,7 @@ async function getOrderedListItemForSearchEntityResult(
             const channelLink = await createAgentLink(transaction, {
                 type: "Channel",
                 channel: {
-                    id: pathObject.channelId,
+                    id: pathObject.id,
                     name: result.title,
                 },
             });
@@ -173,7 +173,7 @@ async function getOrderedListItemForSearchEntityResult(
             const documentLink = await createAgentLink(transaction, {
                 type: "Document",
                 document: {
-                    id: pathObject.documentId,
+                    id: pathObject.id,
                     title: result.title,
                 },
             });
@@ -185,7 +185,7 @@ async function getOrderedListItemForSearchEntityResult(
             const postLink = await createAgentLink(transaction, {
                 type: "Post",
                 post: {
-                    id: pathObject.postId,
+                    id: pathObject.id,
                     contentPreview: result.title,
                 },
             });
@@ -197,7 +197,7 @@ async function getOrderedListItemForSearchEntityResult(
             const taskLink = await createAgentLink(transaction, {
                 type: "Task",
                 task: {
-                    id: pathObject.taskId,
+                    id: pathObject.id,
                     title: result.title,
                 },
             });
@@ -209,7 +209,7 @@ async function getOrderedListItemForSearchEntityResult(
             const taskCollectionLink = await createAgentLink(transaction, {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: pathObject.collectionId,
+                    id: pathObject.id,
                     name: result.title,
                 },
             });
@@ -221,8 +221,8 @@ async function getOrderedListItemForSearchEntityResult(
 
             const postCommentsLink = await createAgentLink(transaction, {
                 type: "PostComment",
-                postId: pathObject.postId,
-                commentIndex: pathObject.commentIndex,
+                postId: pathObject.id,
+                commentIndex: pathObject.index,
                 // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
@@ -234,7 +234,7 @@ async function getOrderedListItemForSearchEntityResult(
             assert(pathObject.type === "Chat");
             const chatLink = await createAgentLink(transaction, {
                 type: "Chat",
-                chatId: pathObject.chatId,
+                chatId: pathObject.id,
                 name: result.title,
             });
 
@@ -245,8 +245,8 @@ async function getOrderedListItemForSearchEntityResult(
 
             const chatMessageLink = await createAgentLink(transaction, {
                 type: "ChatMessage",
-                chatId: pathObject.chatId,
-                messageIndex: pathObject.messageIndex,
+                chatId: pathObject.id,
+                messageIndex: pathObject.index,
                 // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
@@ -259,9 +259,9 @@ async function getOrderedListItemForSearchEntityResult(
 
             const documentCommentLink = await createAgentLink(transaction, {
                 type: "DocumentComment",
-                documentId: pathObject.documentId,
-                commentThreadId: pathObject.commentThreadId,
-                commentIndex: pathObject.commentIndex,
+                documentId: pathObject.id,
+                commentThreadId: pathObject.threadId,
+                commentIndex: pathObject.index,
                 // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
@@ -274,8 +274,8 @@ async function getOrderedListItemForSearchEntityResult(
 
             const taskCommentLink = await createAgentLink(transaction, {
                 type: "TaskComment",
-                taskId: pathObject.taskId,
-                commentIndex: pathObject.commentIndex,
+                taskId: pathObject.id,
+                commentIndex: pathObject.index,
                 // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
                 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
                 preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
@@ -383,22 +383,22 @@ export function intoApiMessageRoomPathFromPathIfPossible(
         case "Post":
         case "PostComment":
         case "PostComments":
-            return {type: "Post", postId: apiPath.postId};
+            return {type: "Post", id: apiPath.id};
         case "Chat":
         case "ChatMessage":
         case "ChatMessages":
-            return {type: "Chat", chatId: apiPath.chatId};
+            return {type: "Chat", id: apiPath.id};
         case "DocumentComment":
         case "DocumentCommentThread":
         case "DocumentCommentThreadComments":
             return {
                 type: "DocumentCommentThread",
-                documentId: apiPath.documentId,
-                commentThreadId: apiPath.commentThreadId,
+                id: apiPath.id,
+                threadId: apiPath.threadId,
             };
         case "TaskComment":
         case "TaskComments":
-            return {type: "Task", taskId: apiPath.taskId};
+            return {type: "Task", id: apiPath.id};
         default:
             throw exhaustive(apiPath);
     }

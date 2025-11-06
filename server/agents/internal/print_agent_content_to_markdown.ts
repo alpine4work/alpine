@@ -140,7 +140,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Account",
                 account: {
-                    id: pathObject.accountId,
+                    id: pathObject.id,
                     name: rawOriginalLinkLabel,
                 },
             });
@@ -149,7 +149,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Channel",
                 channel: {
-                    id: pathObject.channelId,
+                    id: pathObject.id,
                     name: rawOriginalLinkLabel,
                 },
             });
@@ -158,7 +158,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Document",
                 document: {
-                    id: pathObject.documentId,
+                    id: pathObject.id,
                     title: rawOriginalLinkLabel,
                 },
             });
@@ -167,7 +167,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Post",
                 post: {
-                    id: pathObject.postId,
+                    id: pathObject.id,
                     contentPreview: rawOriginalLinkLabel,
                 },
             });
@@ -176,7 +176,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Task",
                 task: {
-                    id: pathObject.taskId,
+                    id: pathObject.id,
                     title: rawOriginalLinkLabel,
                 },
             });
@@ -185,7 +185,7 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: pathObject.collectionId,
+                    id: pathObject.id,
                     name: rawOriginalLinkLabel,
                 },
             });

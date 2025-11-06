@@ -16,7 +16,7 @@ export async function shouldAgentRespondToRequest(
     // If this isn't a chat, the agent only responds if mentioned.
     if (request.room.type !== "Chat") return false;
 
-    const {chatId} = request.room;
+    const {id: chatId} = request.room;
 
     const chat = await ApiChatCollection.getOrPutDefault(request.storage, chatId, async () => {
         const {

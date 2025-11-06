@@ -36,6 +36,7 @@ import {
     ApiContentTableBlockElementCellBlockElement,
     ApiContentTextInlineElement,
     ApiContentUnorderedListBlockElement,
+    ApiMentionTarget,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -73,24 +74,12 @@ function createIdArbitrary<Value extends Id>(): Arbitrary<Value> {
 }
 
 const ApiMentionPathObjectArbitrary = createUnionArbitrary<ApiMentionPathObject>({
-    Account: createIdArbitrary<AccountId>().map(accountId => ({
-        type: "Account",
-        accountId,
-    })),
-    Channel: createIdArbitrary<ChannelId>().map(channelId => ({
-        type: "Channel",
-        channelId,
-    })),
-    Document: createIdArbitrary<DocumentId>().map(documentId => ({
-        type: "Document",
-        documentId,
-    })),
-    Post: createIdArbitrary<PostId>().map(postId => ({type: "Post", postId})),
-    Task: createIdArbitrary<TaskId>().map(taskId => ({type: "Task", taskId})),
-    TaskCollection: createIdArbitrary<TaskCollectionId>().map(collectionId => ({
-        type: "TaskCollection",
-        collectionId,
-    })),
+    Account: createIdArbitrary<AccountId>().map(id => ({type: "Account", id})),
+    Channel: createIdArbitrary<ChannelId>().map(id => ({type: "Channel", id})),
+    Document: createIdArbitrary<DocumentId>().map(id => ({type: "Document", id})),
+    Post: createIdArbitrary<PostId>().map(id => ({type: "Post", id})),
+    Task: createIdArbitrary<TaskId>().map(id => ({type: "Task", id})),
+    TaskCollection: createIdArbitrary<TaskCollectionId>().map(id => ({type: "TaskCollection", id})),
 });
 
 const ApiContentInlineElementLinkMarkArbitrary: Arbitrary<ApiContentInlineElementLinkMark> =
@@ -173,7 +162,9 @@ const ApiContentBreakInlineElementArbitrary: Arbitrary<ApiContentBreakInlineElem
 const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElement> =
     fc.record({
         type: fc.constant("Mention"),
-        targetPath: ApiMentionPathObjectArbitrary.map(path => printApiMentionPath(path)),
+        target: fc.record({
+            path: ApiMentionPathObjectArbitrary.map(path => printApiMentionPath(path)),
+        }) as Arbitrary<ApiMentionTarget>,
         title: fc.oneof(
             {arbitrary: fc.constant(undefined), weight: 10},
             {arbitrary: fc.string({unit: "grapheme-ascii"}), weight: 10},

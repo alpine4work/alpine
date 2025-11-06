@@ -2,7 +2,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/agents/internal/durable_object_storage_collection.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -27,13 +27,13 @@ export type AgentLocalDocumentKey = `/local/document/${DocumentId}-${number}`;
 // the collection and update the document's dedupe number.
 const AgentLocalDocumentContentCollection = new DurableObjectStorageCollection<
     AgentLocalDocumentKey,
-    ApiContent
+    ApiContentResponse
 >("a5");
 
 export async function putAgentLocalDocumentContent(
     storage: DurableObjectStorageInterface,
     documentId: DocumentId,
-    documentContent: ApiContent,
+    documentContent: ApiContentResponse,
 ) {
     let dedupeNumber = 1;
     let documentKey: AgentLocalDocumentKey = `/local/document/${documentId}-${dedupeNumber}`;
