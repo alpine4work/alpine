@@ -257,6 +257,7 @@ export class AwsJobQueueService extends Construct {
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
                     `--schedulerJobQueueRoleArn=${schedulerRole.roleArn}`,
                     "--edgeServiceUrl=https://alpine.inc",
+                    "--resourceServiceUrl=https://resources.alpine.inc",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     `--taskRealtimeServiceSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,

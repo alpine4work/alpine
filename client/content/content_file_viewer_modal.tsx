@@ -113,10 +113,11 @@ export function ContentFileViewerModal({
         if (loadedLoaderDataPromiseResolverRef.current === loaderDataPromiseResolver) return;
         loadedLoaderDataPromiseResolverRef.current = loaderDataPromiseResolver;
 
-        loadContentFileViewerData({spaceId: space.id, file, platform}).then(
-            loaderDataPromiseResolver.resolve,
-            loaderDataPromiseResolver.reject,
-        );
+        void loadContentFileViewerData({
+            spaceId: space.id,
+            file,
+            platform,
+        }).then(loaderDataPromiseResolver.resolve, loaderDataPromiseResolver.reject);
     }, [file, loaderDataPromiseResolver, platform, space.id]);
 
     const [delayState, setDelayState] = useState<{startTime: number} | null>(() => ({

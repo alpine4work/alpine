@@ -15,6 +15,8 @@ import {
     isAvatarVariant,
 } from "~/shared/avatar/avatar_entity_path.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
@@ -29,7 +31,8 @@ type ResourceServiceSharedResources = {
 };
 
 type ResourceServiceRoute =
-    | {type: "Upload"; spaceId: SpaceId; fileId: FileId}
+    | {type: "File"; spaceId: SpaceId; fileId: FileId}
+    | {type: "FileDownload"; spaceId: SpaceId; fileId: FileId}
     | {
           type: "AccountAvatar";
           avatarEntityPath: AvatarEntityPath;
@@ -53,13 +56,26 @@ const routeMap: ReadonlyArray<{
     ) => ResourceServiceRoute | null;
 }> = [
     {
-        pattern: new URLPattern({pathname: "/uploads/:spaceId/:fileId"}),
+        pattern: new URLPattern({pathname: "/files/:spaceId/:fileId"}),
         getRoute: patternGroups => {
             if (!isId<SpaceId>(patternGroups.spaceId!) || !isId<FileId>(patternGroups.fileId!)) {
                 return null;
             }
             return {
-                type: "Upload",
+                type: "File",
+                spaceId: patternGroups.spaceId,
+                fileId: patternGroups.fileId,
+            };
+        },
+    },
+    {
+        pattern: new URLPattern({pathname: "/download/files/:spaceId/:fileId"}),
+        getRoute: patternGroups => {
+            if (!isId<SpaceId>(patternGroups.spaceId!) || !isId<FileId>(patternGroups.fileId!)) {
+                return null;
+            }
+            return {
+                type: "FileDownload",
                 spaceId: patternGroups.spaceId,
                 fileId: patternGroups.fileId,
             };
@@ -270,26 +286,94 @@ async function actuallyHandleFetch(
         throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
     }
 
+    let response: Response;
+
     switch (route.type) {
         case "AccountAvatar":
         case "SpaceAvatar": {
-            return fetchAvatar(executionContext, env, tokenAgent, request, url, span, route);
+            response = await fetchAvatar(
+                executionContext,
+                env,
+                tokenAgent,
+                request,
+                url,
+                span,
+                route,
+            );
+            break;
         }
-        case "Upload": {
-            return fetchUploadedFile(executionContext, env, tokenAgent, request, url, span, route);
+        case "File": {
+            response = await fetchUploadedFile(
+                executionContext,
+                env,
+                tokenAgent,
+                request,
+                url,
+                span,
+                route,
+            );
+            break;
+        }
+        // We separate out the download route from the File route so we can set the `Content-Disposition` header to
+        // force the browser to download the file instead of navigating to it. This is to get around the
+        // fact that cross-origin requests are not supported from anchor tags with the `download` attribute.[1]
+        //
+        // [1]: https://chromestatus.com/feature/4969697975992320
+        case "FileDownload": {
+            // Strip out the `/download` prefix from the URL so the signature is valid.
+            const fileUrl = new URL(`/files/${route.spaceId}/${route.fileId}${url.search}`, url);
+            response = await fetchUploadedFile(
+                executionContext,
+                env,
+                tokenAgent,
+                request,
+                fileUrl,
+                span,
+                route,
+            );
+
+            if (response.ok) {
+                const contentType = response.headers.get("Content-Type");
+                if (!contentType) {
+                    throw new InternalError(
+                        "Missing `Content-Type` header in file download response",
+                    );
+                }
+
+                const canonicalizedContentType = canonicalizeFileContentTypeIfExists(contentType);
+                if (!canonicalizedContentType) {
+                    throw new InternalError(
+                        "Unsupported `Content-Type` header in file download response",
+                    );
+                }
+
+                const filename =
+                    getContentFileDownloadNameFromContentType(canonicalizedContentType);
+                // eslint-disable-next-line string-quotes
+                response.headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+            }
+
+            break;
         }
         case "HealthCheck": {
-            return new Response("200 OK", {status: 200, headers: {"content-type": "text/plain"}});
+            response = new Response("200 OK", {
+                status: 200,
+                headers: {"content-type": "text/plain"},
+            });
+            break;
         }
         case "NotFound": {
-            return new Response("404 Not Found", {
+            response = new Response("404 Not Found", {
                 status: 404,
                 headers: {"content-type": "text/plain"},
             });
+            break;
         }
         default:
             throw exhaustive(route);
     }
+
+    return response;
 }
 
 // eslint-disable-next-line import/no-default-export

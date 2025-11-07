@@ -12,7 +12,7 @@ In production, this service is hosted at `https://resources.alpine.inc`, and in 
 
 ## Routes
 
-`/uploads/:spaceId/:fileId` → User uploaded files
+`/files/:spaceId/:fileId` → User uploaded files
 
 `/avatars/account/:accountId/:avatarId(-variant)` → Account avatars
 

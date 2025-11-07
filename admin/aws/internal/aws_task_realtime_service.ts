@@ -283,6 +283,7 @@ export class AwsTaskRealtimeService extends Construct {
                     `--portBase=${portBase}`,
                     `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     "--edgeServiceUrl=https://alpine.inc",
+                    "--resourceServiceUrl=https://resources.alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,

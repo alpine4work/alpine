@@ -266,6 +266,7 @@ export function createAwsAppOrApiService(
                 ...(withAgentServiceUrl
                     ? ["--agentServiceUrl=https://agent-service.cyberworlds.workers.dev"]
                     : []),
+                `--resourceServiceUrl=https://resources.alpine.inc`,
                 `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                 `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                 `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,

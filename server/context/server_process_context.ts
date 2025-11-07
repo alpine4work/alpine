@@ -14,7 +14,7 @@ import {TaskContextModuleBase} from "~/server/context/task_context_module_base.j
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -115,13 +115,13 @@ export type ServerProcessContextModules = {
     tasks: TaskContextModuleBase;
 
     /**
-     * Access non-sensitive server-wide immutable constants.
+     * Access non-sensitive app-wide immutable constants.
      *
      * This is used for sharing constants that are relevant to multiple services
      * during runtime and may vary by environment. This *should not* be used to
      * store secrets or other sensitive information!
      */
-    constants: ServerConstantsContextModule;
+    constants: ConstantsContextModule;
 
     // Access injected functions.
     //

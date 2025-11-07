@@ -33,7 +33,10 @@ export function ContentFilePdfViewer({
     const platform = usePlatform();
     const {space} = useSpaceContext();
 
-    const src = getContentFileViewerSrc({spaceId: space.id, file});
+    const src = getContentFileViewerSrc({
+        spaceId: space.id,
+        file,
+    });
 
     const viewerAspectRatio = viewerWidth / viewerHeight;
 

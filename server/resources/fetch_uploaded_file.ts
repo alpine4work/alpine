@@ -304,6 +304,20 @@ export async function fetchUploadedFile(
             );
         }
 
+        // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
+        // domains can access files via CORS mode.
+        const origin = request.headers.get("Origin");
+        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
+
+        // If there is no origin header, then this isn't a CORS request
+        if (origin && trustedOrigins.includes(origin)) {
+            responseHeaders.set("Access-Control-Allow-Origin", origin);
+            responseHeaders.set("Vary", "Origin");
+        }
+
+        // This header will prevent no-cors requests from outside the same site as the request origin.
+        responseHeaders.set("Cross-Origin-Resource-Policy", "same-site");
+
         return new Response(response.body, {
             status: response.status,
             headers: responseHeaders,

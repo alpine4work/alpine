@@ -125,6 +125,10 @@ export function renderContentFileAudioPlayer(
         containerHtml.appendChild(audioHtml);
         audioHtml.setAttribute("preload", "none");
         audioHtml.setAttribute("style", "pointer-events: none; width: 0; height: 0; opacity: 0");
+
+        // Needed to get a proper CORS response from the resource service where our files are hosted.
+        audioHtml.setAttribute("crossorigin", "anonymous");
+
         audioHtml.setAttribute("src", audioSrc);
     }
 

@@ -22,7 +22,6 @@ export function getFileRegistry(spaceId: SpaceId): FileRegistry {
 
 export function useFileRegistry(): FileRegistry {
     const {space} = useSpaceContext();
-
     return getOrSetDefaultMapValue(
         useGlobalContext(FileRegistryContext),
         space.id,

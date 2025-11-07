@@ -215,7 +215,7 @@ function renderRootBodyScripts(platform: Platform) {
                     __html: "if (window.__NativeMobileBridge) { requestAnimationFrame(() => requestAnimationFrame(() => window.__NativeMobileBridge.health.ready())); }",
                 }}
             />
-            <Scripts />
+            <Scripts crossOrigin="anonymous" />
         </>
     );
 }

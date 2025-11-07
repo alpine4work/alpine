@@ -13,7 +13,7 @@ import {
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -29,7 +29,7 @@ export type FileProcessorProcessContextModules = {
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
     jobs: JobsContextModule;
-    constants: ServerConstantsContextModule;
+    constants: ConstantsContextModule;
     r2: CloudflareR2ContextModule;
     files: FilesContextModuleBase;
 };

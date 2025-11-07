@@ -19,7 +19,7 @@ import {ServiceOptions} from "~/server/node/run_service.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -46,7 +46,7 @@ export type LambdaActionContextModules = {
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
     jobs: JobsContextModule;
-    constants: ServerConstantsContextModule;
+    constants: ConstantsContextModule;
     r2: CloudflareR2ContextModule;
     files: FilesContextModule;
     cache: CacheContextModule;
@@ -100,9 +100,9 @@ export function createLambdaActionContext({
         }),
         files: new FilesContextModule({
             tokenAgent: tokenAgent,
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
+            resourceServiceUrl: assertExists(
+                options.resourceServiceUrl,
+                "`resourceServiceUrl` option is required",
             ),
         }),
     });
@@ -154,6 +154,7 @@ export async function getLambdaActionContextOptions(
         fileProcessorHeavyJobQueueUrl: process.env.FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL || "not-used",
         fileProcessorLightJobQueueUrl: process.env.FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL || "not-used",
         edgeServiceUrl: process.env.EDGE_SERVICE_URL || "not-used",
+        resourceServiceUrl: process.env.RESOURCES_SERVICE_URL || "not-used",
         // Cloudflare R2 options
         cloudflareR2LocalDataPath: process.env.CLOUDFLARE_R2_LOCAL_DATA_PATH || "/tmp/r2", // Not used in
         cloudflareAccountId: assertExists(

@@ -1,26 +1,28 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 
-export type ServerConstantsContextModuleOptions = {
+export type ConstantsContextModuleOptions = {
     readonly edgeServiceUrl: string;
+    readonly resourceServiceUrl: string;
 };
 
 /**
  * This context makes broadly useful immutable constants available at runtime.
- * @param {string} options.edgeServiceUrl - Defines the Edge Service URL which is the entrypoint into Alpine.
  */
-export class ServerConstantsContextModule
-    extends ContextModuleBase
-    implements ForkableContextModuleBase
-{
+export class ConstantsContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     public readonly edgeServiceUrl: string;
+    public readonly resourceServiceUrl: string;
 
-    constructor(options: ServerConstantsContextModuleOptions) {
+    constructor(options: ConstantsContextModuleOptions) {
         super();
         this.edgeServiceUrl = options.edgeServiceUrl;
+        this.resourceServiceUrl = options.resourceServiceUrl;
     }
 
     public fork() {
-        return new ServerConstantsContextModule({edgeServiceUrl: this.edgeServiceUrl});
+        return new ConstantsContextModule({
+            edgeServiceUrl: this.edgeServiceUrl,
+            resourceServiceUrl: this.resourceServiceUrl,
+        });
     }
 }

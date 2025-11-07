@@ -104,6 +104,7 @@ export async function sendNotificationDigestForInbox(
                     spaceName,
                     digestContent,
                     baseUrl: context.constants.edgeServiceUrl,
+                    resourceServiceUrl: context.constants.resourceServiceUrl,
                     unsubscribeUrl,
                 },
             });

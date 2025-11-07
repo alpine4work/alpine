@@ -77,15 +77,18 @@ export async function createApiServiceServer(
     {
         shutdownManager,
         edgeServiceUrl,
+        resourceServiceUrl,
         tokenAgent,
     }: {
         shutdownManager: ShutdownManager;
         edgeServiceUrl: string;
+        resourceServiceUrl: string;
         tokenAgent: TokenAgent;
     },
 ) {
     const requestListener = await createApiServiceRequestListener(processContext, paths, {
         edgeServiceUrl,
+        resourceServiceUrl,
         tokenAgent,
     });
 
@@ -101,9 +104,11 @@ export async function createApiServiceRequestListener(
     paths: ApiPathsBase,
     {
         edgeServiceUrl,
+        resourceServiceUrl,
         tokenAgent,
     }: {
         edgeServiceUrl: string;
+        resourceServiceUrl: string;
         tokenAgent: TokenAgent;
     },
 ) {
@@ -199,7 +204,7 @@ export async function createApiServiceRequestListener(
                         return renderApiBrowser({
                             request,
                             response,
-                            edgeServiceUrl,
+                            resourceServiceUrl,
                             url,
                             route,
                         });

@@ -65,7 +65,8 @@ export function createTestApiServer(context: TestContext, paths: ApiPathsBase): 
         };
 
         server = await createApiServiceRequestListener(context, paths, {
-            edgeServiceUrl: "https://test.alpine.inc",
+            edgeServiceUrl: "https://test.cyberworlds.dev",
+            resourceServiceUrl: "https://resources.cyberworlds.dev",
             tokenAgent: apiTokenAgent,
         });
     });

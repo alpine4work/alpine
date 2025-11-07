@@ -382,6 +382,7 @@ export class AwsFileProcessorService extends Construct {
                     `--port=${port}`,
                     "--temporaryDirectoryPath=/var/www-data/files",
                     "--edgeServiceUrl=https://alpine.inc",
+                    "--resourceServiceUrl=https://resources.alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,

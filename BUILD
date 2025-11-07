@@ -18,6 +18,7 @@ exports_files([
     "tsconfig.bazel.json",
     "Package.swift",
     "pnpm-lock.yaml",
+    "vite-env.d.ts",
 ])
 
 ts_config(
@@ -104,6 +105,12 @@ copy_to_bin(
         "tsconfig.bazel.json",
         "tsconfig.json",
     ],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "global_types_files",
+    srcs = ["vite-env.d.ts"],
     visibility = ["//visibility:public"],
 )
 

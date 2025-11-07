@@ -30,13 +30,13 @@ const selectionDarkColor = (() => {
 export async function renderApiBrowser({
     request,
     response,
-    edgeServiceUrl,
+    resourceServiceUrl,
     url,
     route: findMyWayPath,
 }: {
     request: Request;
     response: Response;
-    edgeServiceUrl: string;
+    resourceServiceUrl: string;
     url: URL;
     route: string;
 }) {
@@ -115,11 +115,11 @@ export async function renderApiBrowser({
         <meta charset="utf-8">
         <meta name="robots" content="noindex">
         <title>${openApiPath} | Alpine API</title>
-        <link rel="preload" href="${edgeServiceUrl}/fonts/commit-mono.v1.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+        <link rel="preload" href="${resourceServiceUrl}/fonts/commit-mono.v1.woff2" as="font" type="font/woff2" crossorigin="anonymous">
         <style>
             @font-face {
                 font-family: "Commit Mono";
-                src: url(${edgeServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(${edgeServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(${edgeServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2');
+                src: url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2');
                 font-weight: 100 900;
                 font-style: normal;
                 font-display: swap;

@@ -42,6 +42,7 @@ export type DigestEntry = {
 
 export function NotificationDigestEmailTemplate({
     baseUrl,
+    resourceServiceUrl,
     locale,
     localizedDigestTime,
     spaceName,
@@ -49,6 +50,7 @@ export function NotificationDigestEmailTemplate({
     digestContent,
 }: {
     baseUrl: string;
+    resourceServiceUrl: string;
     locale: Locale;
     localizedDigestTime: ZonedDateTime;
     spaceName: string;
@@ -129,16 +131,16 @@ export function NotificationDigestEmailTemplate({
             globalStyles={`
                 @media (prefers-color-scheme: dark) {
                     .chat-brand-icon {
-                        background-image: url('${baseUrl}/icons/chat_brand_icon_dark.png') !important;
+                        background-image: url('${resourceServiceUrl}/icons/chat_brand_icon_dark.png') !important;
                     }
                     .document-brand-icon {
-                        background-image: url('${baseUrl}/icons/document_brand_icon_dark.png') !important;
+                        background-image: url('${resourceServiceUrl}/icons/document_brand_icon_dark.png') !important;
                     }
                     .post-brand-icon {
-                        background-image: url('${baseUrl}/icons/post_brand_icon_dark.png') !important;
+                        background-image: url('${resourceServiceUrl}/icons/post_brand_icon_dark.png') !important;
                     }
                     .task-brand-icon {
-                        background-image: url('${baseUrl}/icons/task_brand_icon_dark.png') !important;
+                        background-image: url('${resourceServiceUrl}/icons/task_brand_icon_dark.png') !important;
                     }
                 }
             `}
@@ -280,7 +282,7 @@ export function NotificationDigestEmailTemplate({
 // This uses a background image to support css-based light/dark mode.
 // An `Img` version is included but hidden as some email clients won't render background images via
 // CSS `url` if no `img` tags are present in the document.
-function getBrandIcon(brandIconType: string, baseUrl: string) {
+function getBrandIcon(brandIconType: string, resourceServiceUrl: string) {
     switch (brandIconType) {
         case "Post":
             return (
@@ -288,7 +290,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                     className="post-brand-icon"
                     style={{
                         // eslint-disable-next-line string-quotes
-                        backgroundImage: `url('${baseUrl}/icons/post_brand_icon_light.png')`,
+                        backgroundImage: `url('${resourceServiceUrl}/icons/post_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
                         width: "20px",
@@ -305,7 +307,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                     className="chat-brand-icon"
                     style={{
                         // eslint-disable-next-line string-quotes
-                        backgroundImage: `url('${baseUrl}/icons/chat_brand_icon_light.png')`,
+                        backgroundImage: `url('${resourceServiceUrl}/icons/chat_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
                         width: "20px",
@@ -322,7 +324,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                     className="document-brand-icon"
                     style={{
                         // eslint-disable-next-line string-quotes
-                        backgroundImage: `url('${baseUrl}/icons/document_brand_icon_light.png')`,
+                        backgroundImage: `url('${resourceServiceUrl}/icons/document_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
                         width: "20px",
@@ -339,7 +341,7 @@ function getBrandIcon(brandIconType: string, baseUrl: string) {
                     className="task-brand-icon"
                     style={{
                         // eslint-disable-next-line string-quotes
-                        backgroundImage: `url('${baseUrl}/icons/task_brand_icon_light.png')`,
+                        backgroundImage: `url('${resourceServiceUrl}/icons/task_brand_icon_light.png')`,
                         // Force new stacking context to force this element and its background to be placed on top.
                         opacity: 0.999,
                         width: "20px",

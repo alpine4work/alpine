@@ -83,9 +83,9 @@ export async function run({
         }),
         files: new FilesContextModule({
             tokenAgent: tokenAgent,
-            edgeServiceUrl: assertExists(
-                options.edgeServiceUrl,
-                "`edgeServiceUrl` option is required",
+            resourceServiceUrl: assertExists(
+                options.resourceServiceUrl,
+                "`resourceServiceUrl` option is required",
             ),
         }),
     });

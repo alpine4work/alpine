@@ -153,36 +153,42 @@ async function actuallyUploadFile(
 
             const currentUrl = new URL(window.location.href);
 
-            const isSameOrigin =
-                currentUrl.protocol === input.url.protocol &&
-                currentUrl.hostname === input.url.hostname &&
-                currentUrl.port === input.url.port;
+            const currentOrigin = currentUrl.origin;
+            const resourceServiceOrigin = __RESOURCE_SERVICE_URL__
+                ? new URL(__RESOURCE_SERVICE_URL__).origin
+                : currentOrigin;
+
+            const isSameOrigin = currentOrigin === input.url.origin;
+            const isResourceService = currentOrigin === resourceServiceOrigin;
 
             downloadPromise = fetchWithTracer(
                 context.tracer.getTracer(),
-                // If `input.url` is from the same origin as `window.location.href` then we
-                // don't need to use our CORS proxy. Skip the CORS proxy for better
+                // If `input.url` is from the same origin as `window.location.href` or from our resource service,
+                // then we don't need to use our CORS proxy. Skip the CORS proxy for better
                 // performance.
-                isSameOrigin
+                isSameOrigin || isResourceService
                     ? input.url
                     : new URL(
                           `/files/cors-proxy/${encodeURIComponent(input.url.toString())}`,
                           currentUrl,
                       ),
                 {
-                    serviceName: "EdgeService",
+                    serviceName: isResourceService ? "ResourceService" : "EdgeService",
                     // If we're not using the CORS proxy our route needs to be `/*` since we don't
                     // know the route pattern. However, we do sniff to see if the route looks like
                     // `/files/:spaceId/:fileId` and use that pattern if possible.
-                    route: isSameOrigin
-                        ? input.url.pathname.startsWith("/files/") &&
-                          input.url.pathname.slice(7).length === idLength * 2 + 1
-                            ? "/files/:spaceId/:fileId"
-                            : "/*"
-                        : "/files/cors-proxy/:url",
+                    route:
+                        isSameOrigin || isResourceService
+                            ? input.url.pathname.startsWith("/files/") &&
+                              input.url.pathname.slice(7).length === idLength * 2 + 1
+                                ? "/files/:spaceId/:fileId"
+                                : "/*"
+                            : "/files/cors-proxy/:url",
                     method: "GET",
                     // To use the CORS proxy you must be authenticated with Alpine to prevent abuse.
-                    credentials: isSameOrigin ? undefined : "include",
+                    credentials: isSameOrigin || isResourceService ? undefined : "include",
+                    // Allow cors requests to resource service since it implements CORS controls.
+                    mode: isResourceService ? "cors" : undefined,
                 },
                 async response => {
                     // Throw an error instead of attaching HTML/JSON file if the response doesn't

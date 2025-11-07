@@ -252,6 +252,9 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
         );
 
+        const resourceServiceUrl =
+            env.RESOURCE_SERVICE_URL ?? `http://localhost:${edgeServicePort}`;
+
         appServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/app/app_test.sh"),
             [
@@ -280,6 +283,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
             ],
             {
                 env: process.env,
@@ -354,6 +358,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
                 // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
@@ -388,6 +393,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=${context.getSqsLocalFileProcessorJobQueueUrl()}`,
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
@@ -436,6 +442,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--fileProcessorLightJobQueueUrl=${context.getSqsLocalFileProcessorLightJobQueueUrl()}`,
                 `--fileProcessorHeavyJobQueueUrl=${context.getSqsLocalFileProcessorHeavyJobQueueUrl()}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--temporaryDirectoryPath=${fileProcessorServiceTemporaryDirectoryPath}`,
             ],
             {

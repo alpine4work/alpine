@@ -96,6 +96,11 @@ export async function run({
         "`edgeServiceUrl` option is required",
     );
 
+    const resourceServiceUrl = assertExists(
+        options.resourceServiceUrl,
+        "`resourceServiceUrl` option is required",
+    );
+
     const tokenAgent = await createServiceTokenAgent({
         serviceName: "ApiService",
         options,
@@ -170,7 +175,7 @@ export async function run({
         }),
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
-        files: new FilesContextModule({tokenAgent, edgeServiceUrl}),
+        files: new FilesContextModule({tokenAgent, resourceServiceUrl}),
         edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
             tokenAgent,
@@ -189,6 +194,7 @@ export async function run({
 
     const server = await createApiServiceServer(processContext, apiPaths, {
         shutdownManager,
+        resourceServiceUrl,
         edgeServiceUrl,
         tokenAgent,
     });

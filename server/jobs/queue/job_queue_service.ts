@@ -280,10 +280,15 @@ export async function run({
         "`edgeServiceUrl` option is required",
     );
 
+    const resourceServiceUrl = assertExists(
+        options.resourceServiceUrl,
+        "`resourceServiceUrl` option is required",
+    );
+
     const processContext: JobQueueServiceProcessContext = basicProcessContext.clone({
         opensearch: createServiceOpensearchContextModule(awsSigner, options),
         r2: createServiceCloudflareR2ContextModule(options),
-        files: new FilesContextModule({tokenAgent, edgeServiceUrl}),
+        files: new FilesContextModule({tokenAgent, resourceServiceUrl}),
         edge: new EdgeServiceContextModule({tokenAgent, edgeServiceUrl}),
         tasks: new TaskContextModule({
             tokenAgent,

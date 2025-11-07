@@ -1,3 +1,5 @@
+declare const __RESOURCE_SERVICE_URL__: string;
+
 /**
  * `import.meta` [env variables provided by Vite][1].
  *

@@ -6,7 +6,6 @@ import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_fi
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
 import {ContentFilePdfViewer} from "~/client/content/internal/content_file_pdf_viewer.js";
-import {getContentFileDownloadName} from "~/client/content/internal/content_file_preview.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {ContentFileVideoViewerMobile} from "~/client/content/internal/content_file_video_viewer_mobile.js";
 import {
@@ -42,6 +41,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {isFileModelDataLoading} from "~/shared/files/file_model.js";
+import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
@@ -67,6 +67,7 @@ export function ContentFileViewerModalMobile({
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
 }) {
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
     const {space} = useSpaceContext();
 
     const [navigationBarRef, navigationBarSize] = useResizeObserver();
@@ -85,11 +86,11 @@ export function ContentFileViewerModalMobile({
         let url: string | undefined;
 
         if (file.alternative && !file.alternative.isProcessing && file.alternative.ok) {
-            url = `/files/${space.id}/${file.id}${file.signedUrlSearch}&variant=${
-                file.alternative.isImagePreviewContent ? "preview" : "alternative"
-            }`;
+            url = `${resourceServiceUrl}/files/${space.id}/${file.id}${
+                file.signedUrlSearch
+            }&variant=${file.alternative.isImagePreviewContent ? "preview" : "alternative"}`;
         } else if (!file.alternative && !file.isUploading) {
-            url = `/files/${space.id}/${file.id}${file.signedUrlSearch}`;
+            url = `${resourceServiceUrl}/files/${space.id}/${file.id}${file.signedUrlSearch}`;
         }
 
         if (!url) {
@@ -99,7 +100,7 @@ export function ContentFileViewerModalMobile({
         }
 
         // eslint-disable-next-line no-global-fetch
-        const response = await fetch(url);
+        const response = await fetch(url, {mode: "cors"});
 
         if (!response.ok) {
             throw new InternalError(
@@ -119,9 +120,13 @@ export function ContentFileViewerModalMobile({
             try {
                 await navigator.share({
                     files: [
-                        new File([blob], getContentFileDownloadName(file), {
-                            type: contentType,
-                        }),
+                        new File(
+                            [blob],
+                            getContentFileDownloadNameFromContentType(file.contentType),
+                            {
+                                type: contentType,
+                            },
+                        ),
                     ],
                 });
             } catch (error) {

@@ -197,6 +197,7 @@ export class AwsLambdaBase extends Construct {
             FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL: options.sqs.getFileProcessorLightJobQueueUrl(),
             FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL: options.sqs.getFileProcessorHeavyJobQueueUrl(),
             EDGE_SERVICE_URL: "https://alpine.inc",
+            RESOURCE_SERVICE_URL: "https://resources.alpine.inc",
             ...(options.honeycombApiKey ? {HONEYCOMB_API_KEY: options.honeycombApiKey} : {}),
         };
     }

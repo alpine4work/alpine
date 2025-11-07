@@ -25,6 +25,11 @@ export default defineConfig(({mode}) => {
         build: {
             outDir: "./app/build",
         },
+        // Vite will rewrite asset URLs to be prefixed with this value on build.
+        // In development, Vite ignores the origin portion of the URL[1] and we override it with an
+        // inline config in `app_service_wrapper.ts`.
+        // [1]: https://vite.dev/config/shared-options.html#base
+        base: process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "/",
         // Disable transpiling with `esbuild`. The files Vite serves to the browser are
         // `.js` files that have already been compiled by Bazel and SWC.
         esbuild: false,
@@ -51,6 +56,14 @@ export default defineConfig(({mode}) => {
                 include: [],
                 esbuildOptions: {preserveSymlinks: false},
             },
+        },
+        define: {
+            // This is set to an empty string outside of production, mostly for integration tests. In integration tests we serve assets from
+            // app service, but we don't know the port ahead of time, so an empty string allows us to fall back to relative urls.
+            // We override this for dev in `app_service_wrapper.ts` to the actual service url.
+            __RESOURCE_SERVICE_URL__: JSON.stringify(
+                process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "",
+            ),
         },
         plugins: [
             process.env.VITE_CONFIG_WITHOUT_REMIX_PLUGIN !== "true" &&

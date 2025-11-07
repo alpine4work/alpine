@@ -7,6 +7,7 @@ import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -31,6 +32,8 @@ const createdTime = new Date();
 
 const space = createTestSpaceModel();
 
+const resourceServiceUrl = "http://localhost";
+
 const currentAccount = createTestAccountModel({
     id: generateId<AccountId>(),
     version: 0,
@@ -48,6 +51,10 @@ const context: AppContext = Context.new({
     tracer: new TracerContextModule(testTracer),
     rpc: new TestRpcContextModule(),
     react: ReactContextModule.newForClient(),
+    constants: new ConstantsContextModule({
+        edgeServiceUrl: "https://test.cyberworlds.dev",
+        resourceServiceUrl: resourceServiceUrl,
+    }),
 });
 
 function TestContextProvider({children}: {children: ReactNode}) {
@@ -150,7 +157,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(0);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
     );
 
     import.meta.jest.advanceTimersByTime(1000 * 60);
@@ -158,7 +165,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(0);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
     );
 
     import.meta.jest.advanceTimersByTime(1000 * 25);
@@ -166,7 +173,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(1);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
     );
 
     const expirationTime2Seconds = Math.round((Date.now() + 1000 * 60 * 62) / 1000);
@@ -180,7 +187,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(1);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
     );
 
     import.meta.jest.advanceTimersByTime(1000 * 60 * 61);
@@ -188,7 +195,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(1);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
     );
 
     import.meta.jest.advanceTimersByTime(1000 * 25);
@@ -196,7 +203,7 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(2);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
     );
 
     import.meta.jest.advanceTimersByTime(1000 * 60);
@@ -215,6 +222,6 @@ test("will refresh signed URL when it’s about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(2);
     expect(screen.getByRole("img")).toHaveAttribute(
         "src",
-        `/files/${space.id}/${fileId}?exp=${expirationTime3Seconds}&sig=test-image-c&width=600`,
+        `${resourceServiceUrl}/files/${space.id}/${fileId}?exp=${expirationTime3Seconds}&sig=test-image-c&width=600`,
     );
 });

@@ -137,6 +137,7 @@ function renderAccountImageAvatarDesign(avatarDesign: AccountImageAvatarDesign) 
     );
 
     const avatarHtml = new HtmlElementGenerator("img");
+    avatarHtml.setAttribute("crossorigin", "anonymous");
     avatarHtml.setAttribute("src", imageUrl);
     const innerHtmlStyleString = [
         "width: 100%",

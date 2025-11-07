@@ -96,6 +96,7 @@ const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
 const resourcesDevPort = parsePort(env.RESOURCES_DEV_PORT);
 const resourcesDevInspectorPort = parsePort(env.RESOURCES_DEV_INSPECTOR_PORT);
 const resourcesDevPrivatePorts = parsePorts(env.RESOURCES_DEV_PRIVATE_PORTS);
+const resourceServiceUrl = `http://localhost:${resourcesDevPort}`;
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
@@ -330,6 +331,7 @@ function createArtifacts() {
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--agentServiceUrl=http://localhost:${agentsDevPort}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -449,6 +451,7 @@ function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
@@ -480,6 +483,7 @@ function createArtifacts() {
                 // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
                 `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
@@ -516,6 +520,7 @@ function createArtifacts() {
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--edgeServiceUrl=${edgeServiceUrl}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Remove original job queue url
                 `--fileProcessorJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorJobQueue`,
@@ -550,6 +555,7 @@ function createArtifacts() {
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,

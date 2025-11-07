@@ -4,7 +4,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -16,12 +16,14 @@ export const serverBasicProcessContextOptions = {
     jobQueueUrl: {type: "string"},
     fileProcessorJobQueueUrl: {type: "string"},
     edgeServiceUrl: {type: "string"},
+    resourceServiceUrl: {type: "string"},
     fileProcessorHeavyJobQueueUrl: {type: "string"},
     fileProcessorLightJobQueueUrl: {type: "string"},
 } as const;
 
 export type ServerBasicProcessContextOptions = {
     readonly edgeServiceUrl?: string;
+    readonly resourceServiceUrl?: string;
     readonly ensureLocalCachePath?: string;
     readonly dynamoLocalPort?: string;
     readonly jobQueueUrl?: string;
@@ -80,7 +82,7 @@ export function createServerBasicProcessContextModulesWithoutShutdownManager({
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
     jobs: JobsContextModule;
-    constants: ServerConstantsContextModule;
+    constants: ConstantsContextModule;
 } {
     return {
         process: new ProcessContextModule({
@@ -128,10 +130,14 @@ export function createServerBasicProcessContextModulesWithoutShutdownManager({
                 ),
             }),
         ),
-        constants: new ServerConstantsContextModule({
+        constants: new ConstantsContextModule({
             edgeServiceUrl: assertExists(
                 options.edgeServiceUrl,
                 "`edgeServiceUrl` option is required",
+            ),
+            resourceServiceUrl: assertExists(
+                options.resourceServiceUrl,
+                "`resourceServiceUrl` option is required",
             ),
         }),
     };

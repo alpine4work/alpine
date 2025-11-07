@@ -65,10 +65,7 @@ import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {
-    FileContentType,
-    getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {
     FileImagePreviewPlaceholder,
     fileImagePreviewPlaceholderBaseSize,
@@ -80,6 +77,7 @@ import {
     FileImagePreviewSize,
 } from "~/shared/files/file_preview.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
+import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
@@ -573,6 +571,7 @@ function renderContentFileImagePreviewInner(
         withoutInteractivity: boolean;
     },
 ) {
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
     const adjustments = getFileImagePreviewRenderingAdjustments(filePreviewPlaceholder);
 
     if (
@@ -626,9 +625,9 @@ function renderContentFileImagePreviewInner(
     // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
     // signatures that haven't expired.
     if (!file.isSignedUrlExpired && filePreview.content !== "Processing") {
-        const imageSourceBase = `/files/${spaceId}/${file.id}${file.signedUrlSearch}${
-            filePreview.content !== undefined ? "&variant=preview" : ""
-        }`;
+        const imageSourceBase = `${resourceServiceUrl}/files/${spaceId}/${file.id}${
+            file.signedUrlSearch
+        }${filePreview.content !== undefined ? "&variant=preview" : ""}`;
 
         let image1xSource: string;
         let image2xSource: string;
@@ -993,6 +992,9 @@ function actuallyRenderFileImagePreviewContent({
     // re-create the file `<img>` element but since the file is cached we shouldn't
     // have to show the loading indicator.
     imageHtml.setAttribute("decoding", "sync");
+
+    // Needed to get a proper CORS response from the resource service where our files are hosted.
+    imageHtml.setAttribute("crossorigin", "anonymous");
 
     const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
     const firstSrc = srcs[0]!.trim();
@@ -2025,17 +2027,16 @@ export function handleDownloadContentFile({
 
     const downloadLinkElement = document.createElement("a");
 
-    downloadLinkElement.setAttribute("download", getContentFileDownloadName(file));
+    // Setting the `download` attribute is not strictly necessary since we're setting the `Content-Disposition` header
+    // in ResourceService to force the browser to download the file instead of navigating to it, but just in case the header
+    // is not set for some reason we'll still set the `download` attribute.
+    downloadLinkElement.setAttribute(
+        "download",
+        getContentFileDownloadNameFromContentType(file.contentType),
+    );
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
 
-    downloadLinkElement.href = `/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
+    downloadLinkElement.href = `${resourceServiceUrl}/download/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
 
     downloadLinkElement.click();
-}
-
-export function getContentFileDownloadName(file: FileModelData) {
-    return (
-        getFileContentTypeNoun(file.contentType) +
-        "." +
-        getFileContentTypePreferredExtension(file.contentType)
-    );
 }

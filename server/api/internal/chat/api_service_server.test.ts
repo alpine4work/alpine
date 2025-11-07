@@ -29,13 +29,13 @@ test("not found route", async () => {
 test("redirects favicon request", async () => {
     expect(await server.GET("/favicon.ico")).toEqual({
         status: 301,
-        headers: expect.objectContaining({location: "https://test.alpine.inc/favicon.ico"}),
+        headers: expect.objectContaining({location: "https://test.cyberworlds.dev/favicon.ico"}),
         body: "",
     });
 
     expect(await server.GET("/favicon.svg")).toEqual({
         status: 301,
-        headers: expect.objectContaining({location: "https://test.alpine.inc/favicon.svg"}),
+        headers: expect.objectContaining({location: "https://test.cyberworlds.dev/favicon.svg"}),
         body: "",
     });
 });

@@ -113,12 +113,6 @@ async function handleFetch(
     //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
     // Fast path for static asset requests. We don't want to trace these requests
     // or perform any other request/response manipulation.
-    //
-    // NOTE(calebmer, 2024-09-26): A minor optimization here would be to move asset
-    // serving to its own subdomain. For example, `static.alpine.inc`. That way the
-    // browser wouldn't send session cookies to the subdomain. Some assets like
-    // `favicon.ico` need to live on our root domain but all our JavaScript bundles
-    // could go to `static.alpine.inc`.
     if (
         appStaticManifestPaths.has(url.pathname) ||
         url.pathname.startsWith("/assets/") ||

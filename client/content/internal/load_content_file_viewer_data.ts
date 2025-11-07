@@ -177,23 +177,23 @@ export function getContentFileViewerSrc({
     file: FileModelRegistryData;
     asPreview?: boolean;
 }): string | null {
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
     if (asPreview) {
         if (file.preview?.type !== "Image") return null;
         if (file.preview.content === "Processing" || file.preview.content === "Error") return null;
-
-        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=preview`;
+        return `${resourceServiceUrl}/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=preview`;
     }
 
     if (file.alternative) {
         if (file.alternative.isProcessing || !file.alternative.ok) return null;
 
-        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=${
+        return `${resourceServiceUrl}/files/${spaceId}/${file.id}${file.signedUrlSearch}&variant=${
             file.alternative.isImagePreviewContent ? "preview" : "alternative"
         }`;
     } else {
         if (file.isUploading) return null;
 
-        return `/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
+        return `${resourceServiceUrl}/files/${spaceId}/${file.id}${file.signedUrlSearch}`;
     }
 }
 
@@ -248,9 +248,15 @@ async function loadContentFileVideoViewerMobile({
     const src = getContentFileViewerSrc({spaceId, file});
     if (!src) return {type: "VideoMobile", videoElement: null};
 
-    const previewSrc = getContentFileViewerSrc({spaceId, file, asPreview: true});
+    const previewSrc = getContentFileViewerSrc({
+        spaceId,
+        file,
+        asPreview: true,
+    });
 
     const videoElement = document.createElement("video");
+    // Needed to get a proper CORS response from the resource service where our files are hosted.
+    videoElement.crossOrigin = "anonymous";
     videoElement.preload = "metadata";
     videoElement.controls = true;
     if (previewSrc !== null) videoElement.poster = previewSrc;
@@ -278,6 +284,7 @@ async function loadContentFileAudioViewerMobile({
     if (!src) return {type: "AudioMobile", audioElement: null};
 
     const audio = new Audio();
+    audio.crossOrigin = "anonymous";
     audio.preload = "metadata";
     audio.controls = true;
     audio.src = src;
@@ -300,6 +307,7 @@ async function loadContentFileCodeViewer({
     spaceId: SpaceId;
     file: FileModelRegistryData;
 }): Promise<ContentFileViewerLoaderData> {
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
     const languageId =
         getFileContentTypeContentCodeBlockLanguageIdIfExists(file.contentType) ?? "text";
 
@@ -309,7 +317,10 @@ async function loadContentFileCodeViewer({
         await language.getParser()?.promise,
         (async () => {
             // eslint-disable-next-line no-global-fetch
-            const response = await fetch(`/files/${spaceId}/${file.id}${file.signedUrlSearch}`);
+            const response = await fetch(
+                `${resourceServiceUrl}/files/${spaceId}/${file.id}${file.signedUrlSearch}`,
+                {mode: "cors"},
+            );
 
             if (!response.ok) {
                 throw new InternalError(

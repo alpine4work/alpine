@@ -2426,7 +2426,8 @@ Resources:
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --edgeServiceUrl=https://alpine.inc --jobQueueUrl="
+                              - " --edgeServiceUrl=https://alpine.inc
+                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
@@ -3216,6 +3217,7 @@ Resources:
                             - - /var/www/app/app_production --port=4000
                                 --edgeServiceUrl=https://alpine.inc
                                 --agentServiceUrl=https://agent-service.cyberworlds.workers.dev
+                                --resourceServiceUrl=https://resources.alpine.inc
                                 --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
@@ -4178,7 +4180,9 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/server/api/api --port=4000
-                                --edgeServiceUrl=https://alpine.inc --opensearchDomainEndpoint=
+                                --edgeServiceUrl=https://alpine.inc
+                                --resourceServiceUrl=https://resources.alpine.inc
+                                --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
@@ -5170,7 +5174,8 @@ Resources:
                               - Fn::GetAtt:
                                     - JobQueueServiceSchedulerRoleEB4C6CF6
                                     - Arn
-                              - " --edgeServiceUrl=https://alpine.inc --ecsCluster="
+                              - " --edgeServiceUrl=https://alpine.inc
+                                --resourceServiceUrl=https://resources.alpine.inc --ecsCluster="
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
@@ -6272,6 +6277,7 @@ Resources:
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
                     NODE_ENV: production
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/resize_file/resize_file_lambda_binary.runfiles
                     SECRET_ARN:
                         Fn::Join:
@@ -6461,6 +6467,7 @@ Resources:
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
                     NODE_ENV: production
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/resize_avatar/resize_avatar_lambda_binary.runfiles
                     SECRET_ARN:
                         Fn::Join:
@@ -6665,6 +6672,7 @@ Resources:
                     JOB_QUEUE_URL:
                         Ref: SqsJobQueue62388F96
                     NODE_ENV: production
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
                     SECRET_ARN:
                         Fn::Join:
@@ -6871,6 +6879,7 @@ Resources:
                     FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     HONEYCOMB_API_KEY:
                         Fn::Join:
                             - ""
@@ -7154,7 +7163,8 @@ Resources:
                             - ""
                             - - /var/www/server/files/processor/processor --port=4000
                                 --temporaryDirectoryPath=/var/www-data/files
-                                --edgeServiceUrl=https://alpine.inc --jobQueueUrl=
+                                --edgeServiceUrl=https://alpine.inc
+                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
@@ -7538,6 +7548,7 @@ Resources:
                     FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorHeavyJobQueueA7996724
                     EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/admin/lambda/schedule_deploy/schedule_deploy_lambda_binary.runfiles
             PackageType: Image
             Role:

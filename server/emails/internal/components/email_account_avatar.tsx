@@ -1,6 +1,7 @@
 import {Img, Text} from "@react-email/components";
 import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
     Spacing,
@@ -14,7 +15,6 @@ import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {
     AccountAvatarDesign,
     AccountDefaultAvatarDesign,
-    AccountImageAvatarDesign,
     getAccountAvatarDesign,
     getAccountFallbackDefaultAvatarDesign,
 } from "~/shared/spaces/get_account_avatar_design.js";
@@ -83,13 +83,15 @@ function EmailAccountAvatarInner({
                             width={width}
                         />
                     </div>
-                    <div style={{maxHeight: "0", opacity: 0.999}}>
-                        <EmailAccountAvatarWithImage
-                            height={height}
-                            width={width}
-                            avatarDesign={avatarDesign}
-                        />
-                    </div>
+                    {accountData.avatar && (
+                        <div style={{maxHeight: "0", opacity: 0.999}}>
+                            <EmailAccountAvatarWithImage
+                                height={height}
+                                width={width}
+                                avatar={accountData.avatar}
+                            />
+                        </div>
+                    )}
                 </>
             );
         }
@@ -112,13 +114,14 @@ function EmailAccountAvatarInner({
 function EmailAccountAvatarWithImage({
     width,
     height,
-    avatarDesign,
+    avatar,
 }: {
     width: number;
     height: number;
-    avatarDesign: AccountImageAvatarDesign;
+    avatar: AvatarModel;
 }) {
-    const imageUrl = `data:${avatarContentType};base64,${encodeBase64(avatarDesign.content)}`;
+    const imageUrl = `data:${avatarContentType};base64,${encodeBase64(avatar.content!)}`;
+
     return (
         <div
             style={{

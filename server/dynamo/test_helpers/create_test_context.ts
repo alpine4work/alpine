@@ -74,8 +74,8 @@ import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {
-    ServerConstantsContextModule,
-    ServerConstantsContextModuleOptions,
+    ConstantsContextModule,
+    ConstantsContextModuleOptions,
 } from "~/shared/context/constants_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -359,10 +359,11 @@ export function createTestContext(
         assert((globalThis as any)[testTimeoutSymbol] === newTestTimeout);
     }
 
-    const environmentConstants: ServerConstantsContextModuleOptions = {
+    const environmentConstants: ConstantsContextModuleOptions = {
         edgeServiceUrl: env.EDGE_SERVICE_URL ?? "https://test.cyberworlds.dev",
+        resourceServiceUrl: env.RESOURCE_SERVICE_URL ?? "http://localhost",
     };
-    const constantsContextModule = new ServerConstantsContextModule(environmentConstants);
+    const constantsContextModule = new ConstantsContextModule(environmentConstants);
 
     let temporaryDirectoryPath: string | null = null;
     let dynamoLocal: DynamoLocal | null = null;

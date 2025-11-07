@@ -4761,6 +4761,7 @@ Resources:
                                           - ":"
                                           - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                     EDGE_SERVICE_URL: https://alpine.inc
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/admin/lambda/send_alert/send_alert_lambda_binary.runfiles
             PackageType: Image
             Role:

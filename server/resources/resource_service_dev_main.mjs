@@ -120,6 +120,10 @@ async function main() {
     );
     const config = toml.parse(configString);
 
+    const corsTrustedOrigins = ["http://localhost:3000"];
+
+    const resourceServiceUrl = `http://localhost:${port}`;
+
     const miniflare = new Miniflare({
         name: config.name,
         modules: true,
@@ -142,6 +146,8 @@ async function main() {
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
+            CORS_TRUSTED_ORIGINS: corsTrustedOrigins,
+            RESOURCE_SERVICE_URL: resourceServiceUrl,
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,

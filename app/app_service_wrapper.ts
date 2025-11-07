@@ -82,7 +82,7 @@ export async function run({
     // Serve static assets in integration tests.
     //
     // - When running with `dev` static assets are served by Vite
-    // - When running in production static assets are served by `EdgeService`
+    // - When running in production static assets are served by `ResourceService`
     const serveStaticMiddleware =
         process.env.NODE_ENV !== "production" && !isViteDevEnabled
             ? createServeStaticMiddleware(staticPath, {
@@ -215,6 +215,9 @@ export async function run({
             root: rootPath,
             cacheDir: joinPath(runfilesPath, "cyberworlds/app/optimize_deps"),
             configFile: joinPath(rootPath, "vite.config.mjs"),
+            define: {
+                __RESOURCE_SERVICE_URL__: JSON.stringify("http://localhost:3070"),
+            },
             server: {
                 middlewareMode: true,
 

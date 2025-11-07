@@ -98,7 +98,6 @@ export default async function handleRequest(
             status: responseStatusCode,
             headers: responseHeaders,
         });
-
         finishSpan();
         return response;
     } catch (error) {

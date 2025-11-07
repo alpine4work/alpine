@@ -35,7 +35,7 @@ import {
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DataLossError,
@@ -565,7 +565,7 @@ export async function getAccountIdByEmailAddressIfExists(
 export async function regenerateOneTimePasswordSignIn(
     context: Context<
         DynamoContextModules & {email: EmailContextModuleBase} & {
-            constants: ServerConstantsContextModule;
+            constants: ConstantsContextModule;
         }
     >,
     emailAddress: EmailAddress,

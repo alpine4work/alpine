@@ -64,7 +64,10 @@ export function renderContentFileVideoPlayer(
         withoutInteractivity: boolean;
     },
 ) {
-    const videoSrc = getContentFileViewerSrc({spaceId, file});
+    const videoSrc = getContentFileViewerSrc({
+        spaceId,
+        file,
+    });
 
     if (videoSrc === null) {
         const processingHtml = new HtmlElementGenerator("div");
@@ -164,6 +167,9 @@ export function renderContentFileVideoPlayer(
         // `filePreview.videoDuration`. We don't need to load from the server until the
         // user hits play.
         videoHtml.setAttribute("preload", "none");
+
+        // Needed to get a proper CORS response from the resource service where our files are hosted.
+        videoHtml.setAttribute("crossorigin", "anonymous");
 
         videoHtml.setAttribute("src", videoSrc);
     }

@@ -23,3 +23,7 @@ bucket_name = "cyberworlds-app-static"
 [[r2_buckets]]
 binding = "FilesBucket"
 bucket_name = "cyberworlds-files"
+
+[vars]
+CORS_TRUSTED_ORIGINS = ["https://alpine.inc"]
+RESOURCE_SERVICE_URL = "https://resources.alpine.inc"

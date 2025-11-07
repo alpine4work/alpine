@@ -38,12 +38,18 @@ export abstract class FilesContextModuleBase
 
 export class FilesContextModule extends FilesContextModuleBase {
     private readonly _tokenAgent: TokenAgent;
-    private readonly _edgeServiceUrl: string;
+    private readonly _resourceServiceUrl: string;
 
-    constructor({tokenAgent, edgeServiceUrl}: {tokenAgent: TokenAgent; edgeServiceUrl: string}) {
+    constructor({
+        tokenAgent,
+        resourceServiceUrl,
+    }: {
+        tokenAgent: TokenAgent;
+        resourceServiceUrl: string;
+    }) {
         super();
         this._tokenAgent = tokenAgent;
-        this._edgeServiceUrl = edgeServiceUrl;
+        this._resourceServiceUrl = resourceServiceUrl;
     }
 
     public override async dangerouslySignFileUrlWithoutAuthorization(
@@ -51,8 +57,10 @@ export class FilesContextModule extends FilesContextModuleBase {
         fileId: FileId,
     ): Promise<URL> {
         return this._tokenAgent.privateSide.dangerouslySignUrl(
-            "EdgeService",
-            new URL(`${this._edgeServiceUrl}/files/${spaceId}/${fileId}`),
+            // TODO(rmtobin, 2025-10-28, #files-edge-service): Sign for both services for backwards
+            // compatibility. Switch to just ResourceService when EdgeService stops serving files.
+            ["ResourceService", "EdgeService"],
+            new URL(`${this._resourceServiceUrl}/files/${spaceId}/${fileId}`),
             // Expire the signed URL after one full day, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
@@ -101,7 +109,7 @@ export class FilesContextModule extends FilesContextModuleBase {
     public fork() {
         return new FilesContextModule({
             tokenAgent: this._tokenAgent,
-            edgeServiceUrl: this._edgeServiceUrl,
+            resourceServiceUrl: this._resourceServiceUrl,
         });
     }
 }

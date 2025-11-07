@@ -19,7 +19,7 @@ import {
     runIndexEveryTaskActionStep2Of2,
     runIndexTaskInitialAssigneePositionMigration,
 } from "~/server/tasks/data/task_table.js";
-import {ServerConstantsContextModule} from "~/shared/context/constants_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -31,7 +31,7 @@ export const allMigrations: {
             tracer: TracerContextModule;
             dynamo: DynamoContextModule;
             jobs: JobsContextModule;
-            constants: ServerConstantsContextModule;
+            constants: ConstantsContextModule;
             opensearch: OpensearchContextModule;
             chatInjection: ChatInjectionContextModule;
             documentsInjection: DocumentsInjectionContextModule;

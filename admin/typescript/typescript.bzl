@@ -68,7 +68,9 @@ def ts_project(
 
     _ts_project(
         name = name,
-        srcs = srcs,
+        # Our global type definition files need to be available to all `ts_project()`s so type checking
+        # works across all our typescript files.
+        srcs = ["//:global_types_files"] + srcs,
         deps = deps,
         # All `ts_project()`s take `package_light.json` as a runtime dependency (which
         # is `package.json` in the build tree). We need this runtime dependency since

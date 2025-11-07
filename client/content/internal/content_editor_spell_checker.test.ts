@@ -4,6 +4,7 @@ import {ContentEditorSpellChecker} from "~/client/content/internal/content_edito
 import {AppContext} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {searchWordTypingDebounceMs} from "~/client/search/core/search_word_typing_debounce_ms.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -37,6 +38,10 @@ const context: AppContext = Context.new({
     tracer: new TracerContextModule(testTracer),
     rpc: new TestRpcContextModule(),
     react: ReactContextModule.newForClient(),
+    constants: new ConstantsContextModule({
+        edgeServiceUrl: "https://test.cyberworlds.dev",
+        resourceServiceUrl: "http://localhost",
+    }),
 });
 
 // Loop until we see lints set. If they're never set, the given test will

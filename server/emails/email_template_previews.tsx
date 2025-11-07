@@ -17,6 +17,7 @@ import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 
 const emailPreviewBaseUrl = "http://localhost:3000";
+const emailPreviewResourceServiceUrl = "http://localhost:3070";
 
 const emailTemplatePreviews: {
     [K in keyof EmailTemplates]: NonEmptyArray<{
@@ -60,6 +61,7 @@ const emailTemplatePreviews: {
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
                 baseUrl: emailPreviewBaseUrl,
+                resourceServiceUrl: emailPreviewResourceServiceUrl,
                 unsubscribeUrl: new URL(
                     `/s/1234567890/notifications/unsubscribe?accountId=1234567890&emailType=digest`,
                     emailPreviewBaseUrl,

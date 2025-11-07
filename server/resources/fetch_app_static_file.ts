@@ -67,6 +67,21 @@ export async function fetchAppStaticFile(
         headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
     }
 
+    // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
+    // domains can access static files via CORS mode.
+    const origin = request.headers.get("Origin");
+    const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
+
+    // If there is no origin header, then this isn't a CORS request
+    if (origin && trustedOrigins.includes(origin)) {
+        headers.set("Access-Control-Allow-Origin", origin);
+        headers.set("Vary", "Origin");
+    }
+
+    // This header will allow no-cors requests from outside the same site as the request origin.
+    // Useful for embedding static files in emails.
+    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+
     const response = new Response(object.body, {headers});
 
     // Put the R2 object in Cloudflare's cache to speed up future requests.

@@ -87,6 +87,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
     override serializeNodeInner(node: Node, options: {document?: Document}): globalThis.Node {
         const document = options.document ?? window.document;
 
+        const resourceServiceUrl = __RESOURCE_SERVICE_URL__
+            ? __RESOURCE_SERVICE_URL__
+            : window.location.origin;
+
         if (node.type.name === "unorderedListItem")
             return this._serializeListItemNode("ul", node, options);
         if (node.type.name === "orderedListItem")
@@ -300,7 +304,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     "src",
                     new URL(
                         printFileEntityIdIntoPath(this._getSpaceId(), fileId),
-                        window.location.href,
+                        resourceServiceUrl,
                     ).toString(),
                 );
 
@@ -324,7 +328,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     "src",
                     new URL(
                         `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
-                        window.location.href,
+                        resourceServiceUrl,
                     ).toString(),
                 );
 
@@ -364,7 +368,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     "src",
                     new URL(
                         `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
-                        window.location.href,
+                        resourceServiceUrl,
                     ).toString(),
                 );
 
@@ -401,7 +405,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     "src",
                     new URL(
                         `/files/${this._getSpaceId()}/${fileId}${fileReference.signedUrlSearch}`,
-                        window.location.href,
+                        resourceServiceUrl,
                     ).toString(),
                 );
 
@@ -436,7 +440,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                             `/files/${this._getSpaceId()}/${fileId}${
                                 fileReference ? fileReference.signedUrlSearch : ""
                             }`,
-                            window.location.href,
+                            resourceServiceUrl,
                         ).toString(),
                     );
 
