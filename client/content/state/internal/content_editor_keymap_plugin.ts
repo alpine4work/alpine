@@ -835,8 +835,10 @@ export function buildContentEditorKeymapPlugin(
                 const index = state.selection.$from.index(depth);
                 if (!(index - 1 >= 0)) continue;
 
+                // If our previous sibling is not a file row (like lines of a code block),
+                // don't traverse up any further and prevent selecting the previous file.
                 const siblingNode = node.child(index - 1);
-                if (!siblingNode.type.groups.includes("fileRowLike")) continue;
+                if (!siblingNode.type.groups.includes("fileRowLike")) return false;
 
                 $previousFile = state.doc.resolve(state.selection.$from.before(depth + 1) - 2);
                 break;

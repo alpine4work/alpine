@@ -3889,6 +3889,38 @@ test("pressing backspace within code block indentation", async () => {
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test")))');
 });
 
+test("pressing backspace at start of second line in code block after file row does not select file", async () => {
+    const fileId = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [schema.node("file", {fileId})]),
+                schema.node("codeBlock", {}, [
+                    schema.node("codeBlockLine", {}, [schema.text("first line")]),
+                    schema.node("codeBlockLine", {}, [schema.text("second line")]),
+                ]),
+            ])}
+        />,
+    );
+
+    // Position cursor at the beginning of the second line in the code block
+    // The document structure: fileRow (pos 1), codeBlock start, first codeBlockLine start,
+    // "first line" (10 chars), first codeBlockLine end, second codeBlockLine start
+    // So the beginning of second line should be at position:
+    // 1 (fileRow) + 1 (codeBlock) + 1 (first codeBlockLine) + 10 (text) + 1 (end first) + 1 (start second) = 15
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(15))));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    // Default browser backspace isn't implemented so this won't delete a character
+    // in tests but will in the browser. We're testing backspace doesn't select the file above it.
+    // (see the backspace + fileRowLike handling in the plugin)
+    // The exact behavior will depend on the browser's default backspace handling
+    // but the key thing is that the file should not be selected
+    expect(getSelection().type).not.toEqual("node");
+});
+
 test("pressing command-left within code block goes to start of line excluding indentation", async () => {
     render(<TestContentEditor />);
 
