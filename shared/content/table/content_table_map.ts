@@ -327,13 +327,18 @@ function computeMap(table: Node): ContentTableMap {
     let totalColumnWidth = 0;
     for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
 
+    let tableWidth = table.attrs.tableWidth ?? 1;
+
+    // If the table width is within one thousandth of 1 then set the table width to 1.
+    if (tableWidth < 1.001) tableWidth = 1;
+
     const tableMap = new ContentTableMap(
         table,
         width,
         height,
         map,
         problems,
-        Math.max(1, table.attrs.tableWidth ?? 1),
+        tableWidth,
         columnWidths,
         totalColumnWidth,
     );

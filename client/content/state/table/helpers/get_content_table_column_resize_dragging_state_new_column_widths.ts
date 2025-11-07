@@ -169,11 +169,17 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const expectedNewTotalColumnWidthPx =
             oldTotalColumnWidthPx - (oldColumnWidthPx - newColumnWidthPx);
 
-        const newTotalColumnWidthPx = clamp(
-            minTotalColumnWidthPx,
-            expectedNewTotalColumnWidthPx,
-            maxTotalColumnWidthPx,
-        );
+        let newTotalColumnWidthPx = expectedNewTotalColumnWidthPx;
+
+        // If we're within 1px of the min column width then set ourselves to the min
+        // column width.
+        if (newTotalColumnWidthPx - 1 < minTotalColumnWidthPx)
+            newTotalColumnWidthPx = minTotalColumnWidthPx;
+
+        // If we're within 1px of the max column width then set ourselves to the max
+        // column width.
+        if (newTotalColumnWidthPx + 1 > maxTotalColumnWidthPx)
+            newTotalColumnWidthPx = maxTotalColumnWidthPx;
 
         // If the new column width violates total column width min/max bounds then we
         // need to adjust the new column width back down to what'll work with our total
@@ -220,10 +226,11 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
         newColumnWidths[columnIndex] = newColumnWidth;
 
-        const newTableWidth = Math.max(
-            1,
-            oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
-        );
+        let newTableWidth = oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx);
+
+        // If the new table width is within one thousandth of 1 then set the new
+        // width to 1.
+        if (newTableWidth < 1.001) newTableWidth = 1;
 
         let newTotalColumnWidth = 0;
         for (const newColumnWidth of newColumnWidths) newTotalColumnWidth += newColumnWidth!;
@@ -305,11 +312,17 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const expectedNewTotalColumnWidthPx =
             oldTotalColumnWidthPx + (newColumnWidthPx - oldColumnWidthPx);
 
-        const newTotalColumnWidthPx = clamp(
-            minTotalColumnWidthPx,
-            expectedNewTotalColumnWidthPx,
-            maxTotalColumnWidthPx,
-        );
+        let newTotalColumnWidthPx = expectedNewTotalColumnWidthPx;
+
+        // If we're within 1px of the min column width then set ourselves to the min
+        // column width.
+        if (newTotalColumnWidthPx - 1 < minTotalColumnWidthPx)
+            newTotalColumnWidthPx = minTotalColumnWidthPx;
+
+        // If we're within 1px of the max column width then set ourselves to the max
+        // column width.
+        if (newTotalColumnWidthPx + 1 > maxTotalColumnWidthPx)
+            newTotalColumnWidthPx = maxTotalColumnWidthPx;
 
         // If the new column width violates total column width min/max bounds then we
         // need to adjust the new column width back down to what'll work with our total
@@ -357,10 +370,11 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         newColumnWidths[column1Index] = newColumnWidth;
 
         // Update table width
-        const newTableWidth = Math.max(
-            1,
-            oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
-        );
+        let newTableWidth = oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx);
+
+        // If the new table width is within one thousandth of 1 then set the new
+        // width to 1.
+        if (newTableWidth < 1.001) newTableWidth = 1;
 
         let oldTotalColumnWidthPxBeforeColumn = 0;
         for (let i = 0; i < column1Index; i++)

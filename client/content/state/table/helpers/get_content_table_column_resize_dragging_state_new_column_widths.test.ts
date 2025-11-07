@@ -924,3 +924,33 @@ test("maintains minimum table width of 1", () => {
         scrollLeftPx: 0,
     });
 });
+
+test("resize is within 1px of the minimum table width", () => {
+    expect(
+        getContentTableColumnResizeDraggingStateNewColumnWidths(1139, {
+            startX: 1142,
+            blockWidthPx: 675,
+            tableWrapperWidthPx: 1435,
+            oldScrollLeftPx: 0,
+            isSnapping: true,
+            state: {
+                columnIndex: 3,
+                oldTableMap: {
+                    tableWidth: 1,
+                    columnWidths: [
+                        0.9993800324959757, 0.9993800324959757, 0.9993800324959757,
+                        0.9934665411794316,
+                    ],
+                    totalColumnWidth: 3.991606638667359,
+                },
+            },
+        }),
+    ).toEqual({
+        tableWidth: 1,
+        columnWidths: [
+            0.9993800324959757, 0.9993800324959757, 0.9993800324959757, 0.9934665411794316,
+        ],
+        totalColumnWidth: 3.991606638667359,
+        scrollLeftPx: 0,
+    });
+});

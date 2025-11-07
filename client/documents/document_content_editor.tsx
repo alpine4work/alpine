@@ -26,11 +26,16 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
-import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
+import {
+    ContentBlockWidthContextProvider,
+    useContentBlockWidth,
+} from "~/client/content/content_block_width.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {createContentCommentThreadMetaKey} from "~/client/content/state/content_editor_state.js";
+import {getOptimisticContentEditorTableLayoutStore} from "~/client/content/state/table/content_editor_table_plugin.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -118,6 +123,7 @@ import {
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
@@ -127,6 +133,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -155,6 +162,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {assertId} from "~/shared/id/id.js";
@@ -164,6 +172,8 @@ import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -250,6 +260,7 @@ export function DocumentContentEditor({
     onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
+    const context = useAppContext();
     const reporter = useReporter();
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice, isNativeMobile} = useClientInfo();
@@ -267,7 +278,7 @@ export function DocumentContentEditor({
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
     const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
-    const context = useAppContext();
+    const blockWidth = useContentBlockWidth();
 
     const {
         spaceId,
@@ -1108,7 +1119,7 @@ export function DocumentContentEditor({
                 readonly commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
             }
         >
-    >(() => new Map());
+    >(emptyMap);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // Our editor won't be able to determine positions of comment marks until after
@@ -1126,26 +1137,47 @@ export function DocumentContentEditor({
         // We still collect decorations on mobile even though we don't render them
         // because we need them for the next/previous buttons on an opened comment
         // thread.
-        const {decorationByMarkTop} = collectDecorationByMarkTop(
-            {
-                editorContainerElement,
-                editorContainerRect: editorContainerElement.getBoundingClientRect(),
-                editor,
-                seenCommentThreadIds: new Set(),
-                decorationByMarkTop: new Map(),
-            },
-            content.doc,
+        const store = computeStore(get =>
+            collectDecorationByMarkTop(
+                {
+                    get,
+                    spacingScale,
+                    blockWidth,
+                    editorContainerElement,
+                    editorContainerRect: editorContainerElement.getBoundingClientRect(),
+                    editor,
+                    seenCommentThreadIds: new Set(),
+                    decorationByMarkTop: new Map(),
+                    tableCacheByPos: new Map(),
+                },
+                content.doc,
+            ),
         );
 
-        setDecorationByMarkTop(previousDecorationByMarkTop => {
-            // Often the document will change but our decorations will not change. Do not
-            // re-render the component if our decorations did not change.
-            if (isDeepEqual(previousDecorationByMarkTop, decorationByMarkTop))
-                return previousDecorationByMarkTop;
+        const update = () => {
+            const {decorationByMarkTop} = store.getSnapshot();
 
-            return decorationByMarkTop;
-        });
-    }, [editorContainerRef, content.doc, editorRef, isInitialAppRender, editorContainerWidth]);
+            setDecorationByMarkTop(previousDecorationByMarkTop => {
+                // Often the document will change but our decorations will not change. Do not
+                // re-render the component if our decorations did not change.
+                if (isDeepEqual(previousDecorationByMarkTop, decorationByMarkTop))
+                    return previousDecorationByMarkTop;
+
+                return decorationByMarkTop;
+            });
+        };
+
+        update();
+        return store.subscribe(update);
+    }, [
+        editorContainerRef,
+        content.doc,
+        editorRef,
+        isInitialAppRender,
+        editorContainerWidth,
+        spacingScale,
+        blockWidth,
+    ]);
 
     const {totalDecoratedCommentThreads, decorations} = useMemo(() => {
         let totalDecoratedCommentThreads = 0;
@@ -2234,6 +2266,9 @@ export function DocumentContentEditor({
 }
 
 const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
+    get: <Value>(store: Store<Value>) => Value;
+    spacingScale: SpacingScale;
+    blockWidth: number;
     editorContainerElement: HTMLElement;
     editorContainerRect: DOMRect;
     editor: ContentEditorRef<DocumentContentWithReferences>;
@@ -2242,6 +2277,7 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         number,
         {markHeight: number; commentThreadIds: Set<DocumentCommentThreadId>}
     >;
+    tableCacheByPos: Map<number, {totalColumnWidthPx: number}>;
 }>(node => {
     const commentThreadIds = filterMapArray(node.marks, mark => {
         if (mark.type.name !== "comment") return;
@@ -2251,6 +2287,63 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     if (commentThreadIds.length === 0) return null;
 
     return (state, doc, offset) => {
+        const $offset = doc.resolve(offset);
+
+        for (let depth = $offset.depth; depth >= 1; depth--) {
+            const node = $offset.node(depth);
+
+            // If this comment is within a table then only render the comment decoration if
+            // the table isn't larger than the block width. If the table is larger than the
+            // block width we hide the decoration since it would otherwise render on top of
+            // the table's content!
+            //
+            // We need to make sure we're also listening to the table's optimistic layout
+            // used while resizing the table. Which is why we have to find the
+            // `HTMLTableElement` associated with the table our comment is in.
+            if (node.type.name === "table") {
+                const tablePos = $offset.start(depth);
+
+                // If there are many comments in the same table, only compute the table's total
+                // column width once.
+                const {totalColumnWidthPx} = getOrSetDefaultMapValue(
+                    state.tableCacheByPos,
+                    tablePos,
+                    () => {
+                        let tableElement: globalThis.Node | null = state.editor.nodeDom(tablePos);
+                        while (tableElement && tableElement.nodeName != "TABLE")
+                            tableElement = tableElement.parentNode;
+
+                        const optimisticTableLayout = tableElement
+                            ? state.get(
+                                  getOptimisticContentEditorTableLayoutStore(
+                                      tableElement as HTMLTableElement,
+                                  ),
+                              )
+                            : null;
+
+                        const columnWidthPxs = resolveContentTableColumnWidthPx(
+                            state.spacingScale,
+                            state.blockWidth,
+                            optimisticTableLayout ?? ContentTableMap.get(node),
+                        );
+
+                        let totalColumnWidthPx = 0;
+                        for (const columnWidthPx of columnWidthPxs)
+                            totalColumnWidthPx += columnWidthPx;
+
+                        return {totalColumnWidthPx};
+                    },
+                );
+
+                // If the table's total column width exceeds the block width (by more than 1px
+                // to account for subpixel rounding issues) then don't render this comment
+                // decoration.
+                if (totalColumnWidthPx > state.blockWidth + 1) {
+                    return state;
+                }
+            }
+        }
+
         let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
         // If this is a non-text node like `file` then get the DOM element for the node

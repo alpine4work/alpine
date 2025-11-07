@@ -30,7 +30,7 @@
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {dispatchContentEditorFileRowTableParentUpdatedEvent} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
-import {subscribeToOptimisticContentEditableTableLayoutEvent} from "~/client/content/state/table/content_editor_table_plugin.js";
+import {getOptimisticContentEditorTableLayoutStore} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {
     isInContentTable,
     selectedContentTableRect,
@@ -117,51 +117,61 @@ export function createContentEditorTableNodeView({
         const unsubscribeFromPlatformChange = subscribeToPlatformChange(updateTableLayout);
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateTableLayout);
 
-        const unsubscribeFromOptimisticLayout =
-            subscribeToOptimisticContentEditableTableLayoutEvent(tableElement, layout => {
-                optimisticTableLayout = layout;
+        const optimisticLayoutStore = getOptimisticContentEditorTableLayoutStore(tableElement);
 
-                updateTableLayout();
+        const unsubscribeFromOptimisticLayout = optimisticLayoutStore.subscribe(() => {
+            const layout = optimisticLayoutStore.getSnapshot();
+            if (layout === null) return;
 
-                // While resizing we may need to make sure scroll is locked to the left/right
-                // side. For example when dragging to grow the rightmost edge.
-                if (layout.scrollLeftPx !== undefined) {
-                    const tableWrapper2Element = tableWrapper3Element.parentElement!;
-                    tableWrapper2Element.scrollLeft = layout.scrollLeftPx;
-                }
+            optimisticTableLayout = layout;
 
-                // It's safe to `querySelectorAll()` here since ProseMirror should have
-                // rendered all children to the DOM by this point.
-                if (fileRowLikeElementsCache === null || fileRowLikeElementsCache.node !== node) {
-                    fileRowLikeElementsCache = {
-                        node,
-                        elements: Array.from(
-                            // Find all elements with the provided class names and exclude elements that
-                            // are children of a file node. File entities may recursively render content
-                            // (e.g. document file entities). The content within file entities is inert
-                            // so shouldn't get any interactive behaviors.
-                            tableBodyElement.querySelectorAll(
-                                `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
-                            ),
+            updateTableLayout();
+
+            // While resizing we may need to make sure scroll is locked to the left/right
+            // side. For example when dragging to grow the rightmost edge.
+            if (layout.scrollLeftPx !== undefined) {
+                const tableWrapper2Element = tableWrapper3Element.parentElement!;
+                tableWrapper2Element.scrollLeft = layout.scrollLeftPx;
+            }
+
+            // It's safe to `querySelectorAll()` here since ProseMirror should have
+            // rendered all children to the DOM by this point.
+            if (fileRowLikeElementsCache === null || fileRowLikeElementsCache.node !== node) {
+                fileRowLikeElementsCache = {
+                    node,
+                    elements: Array.from(
+                        // Find all elements with the provided class names and exclude elements that
+                        // are children of a file node. File entities may recursively render content
+                        // (e.g. document file entities). The content within file entities is inert
+                        // so shouldn't get any interactive behaviors.
+                        tableBodyElement.querySelectorAll(
+                            `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
                         ),
-                    };
-                }
+                    ),
+                };
+            }
 
-                // NOTE(calebmer, 2025-04-03): Admittedly, the way we handle updating file
-                // layouts when the optimistic table layout changes is messy. Inside the table
-                // node view we have our `optimisticTableLayout` state. Then we dispatch events
-                // to all children `fileRow`s with the expectation that they'll update their
-                // own internal `optimisticTableLayout` states. Then the `fileRow` should
-                // dispatch an event to its `file` child which has its own internal
-                // `optimisticTableLayout` state. Ideally, there'd be some way for `fileRow`
-                // and `file` to reach into `table`'s internal node view state.
-                for (const fileRowLikeElement of fileRowLikeElementsCache.elements) {
-                    dispatchContentEditorFileRowTableParentUpdatedEvent(
-                        fileRowLikeElement,
-                        optimisticTableLayout,
-                    );
-                }
-            });
+            // NOTE(calebmer, 2025-04-03): Admittedly, the way we handle updating file
+            // layouts when the optimistic table layout changes is messy. Inside the table
+            // node view we have our `optimisticTableLayout` state. Then we dispatch events
+            // to all children `fileRow`s with the expectation that they'll update their
+            // own internal `optimisticTableLayout` states. Then the `fileRow` should
+            // dispatch an event to its `file` child which has its own internal
+            // `optimisticTableLayout` state. Ideally, there'd be some way for `fileRow`
+            // and `file` to reach into `table`'s internal node view state.
+            //
+            // NOTE(calebmer, 2025-11-07): Now that we've converted optimistic layout to a
+            // `Store` there's an opportunity to clean up this code. Instead of waiting for
+            // updates to be "pushed" we can subscribe to the `optimisticTableLayout` store
+            // in the `fileRowTable` node view and `file` node view. Not doing this
+            // refactor for now. Future opportunity.
+            for (const fileRowLikeElement of fileRowLikeElementsCache.elements) {
+                dispatchContentEditorFileRowTableParentUpdatedEvent(
+                    fileRowLikeElement,
+                    optimisticTableLayout,
+                );
+            }
+        });
 
         return {
             dom: tableWrapperElement,

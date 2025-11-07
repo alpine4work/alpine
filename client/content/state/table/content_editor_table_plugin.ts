@@ -41,6 +41,7 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
+import {flushSync} from "react-dom";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {contentTableCellAround} from "~/client/content/state/table/content_table_client_util.js";
 import {
@@ -54,7 +55,6 @@ import {fixContentTables} from "~/client/content/state/table/content_table_fix_t
 import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
 import {ContentEditorTableLayout} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {forceUpdateAllChildOverlayPositions} from "~/client/design/overlay_helpers.js";
-import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
@@ -86,23 +86,44 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
     "contentEditorTable",
 );
 
-const optimisticContentEditorTableLayoutEventEmitter = new ElementEventEmitter<
-    ContentEditorTableLayout & {scrollLeftPx?: number}
->("optimistictablelayout");
+const optimisticContentEditorTableLayoutStoreByElement = new DefaultWeakMap(
+    (tableElement: HTMLTableElement) => {
+        assert(tableElement.parentElement?.classList.contains(tableWrapper3ClassName));
+        return new ValueStore<(ContentEditorTableLayout & {scrollLeftPx?: number}) | null>(null);
+    },
+);
 
 /**
- * Subscribe to optimistic table layouts for the provided `<table>` element.
+ * Get a store representing the table's optimistic layout. We update the
+ * optimistic layout while dragging to resize and save the update when the
+ * drag ends.
  */
-export function subscribeToOptimisticContentEditableTableLayoutEvent(
-    element: HTMLTableElement,
-    listener: (layout: ContentEditorTableLayout & {scrollLeftPx?: number}) => void,
-): () => void {
-    return optimisticContentEditorTableLayoutEventEmitter.subscribe(element, listener);
+export function getOptimisticContentEditorTableLayoutStore(
+    tableElement: HTMLTableElement,
+): Store<(ContentEditorTableLayout & {scrollLeftPx?: number}) | null> {
+    assert(tableElement.parentElement?.classList.contains(tableWrapper3ClassName));
+    return optimisticContentEditorTableLayoutStoreByElement.getOrSetDefault(tableElement);
+}
+
+function areContentEditorTableLayoutsEqual(
+    layout1: ContentEditorTableLayout & {scrollLeftPx?: number},
+    layout2: ContentEditorTableLayout & {scrollLeftPx?: number},
+): boolean {
+    return (
+        layout1.tableWidth === layout2.tableWidth &&
+        layout1.totalColumnWidth === layout2.totalColumnWidth &&
+        layout1.scrollLeftPx === layout2.scrollLeftPx &&
+        layout1.columnWidths.length === layout2.columnWidths.length &&
+        layout1.columnWidths.every((width, index) => width === layout2.columnWidths[index])
+    );
 }
 
 /**
@@ -1305,6 +1326,7 @@ function handleColumnResizeHandleMouseDown(
     view: EditorView & {getBlockWidth?: () => number; getAccessLevel?: () => AccessLevel},
     event: MouseEvent,
 ): boolean {
+    let tableElement: HTMLTableElement;
     {
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         assert(
@@ -1316,8 +1338,9 @@ function handleColumnResizeHandleMouseDown(
             pluginState.hovering.cellPos,
         );
 
-        const tableElement = draggingState.getTableElement(view);
-        if (!tableElement) return false;
+        const nullableTableElement = draggingState.getTableElement(view);
+        if (!nullableTableElement) return false;
+        tableElement = nullableTableElement;
 
         const tableWrapper2Element = tableElement.parentElement!.parentElement!;
         const tableWrapperElement = tableWrapper2Element.parentElement!;
@@ -1341,6 +1364,36 @@ function handleColumnResizeHandleMouseDown(
 
     let lastClientX = event.clientX;
 
+    const optimisticTableLayoutStore =
+        optimisticContentEditorTableLayoutStoreByElement.getOrSetDefault(tableElement);
+
+    // Make sure there's not another resize in progress.
+    assert(optimisticTableLayoutStore.getSnapshot() === null);
+
+    function setOptimisticTableLayout(
+        newTableLayout: (ContentEditorTableLayout & {scrollLeftPx?: number}) | null,
+    ) {
+        // Flush synchronously so if any React code is listening, we perform any
+        // re-renders at the same time as we update table node views.
+        flushSync(() => {
+            optimisticTableLayoutStore.set(oldTableLayout => {
+                if (newTableLayout === null) return null;
+
+                // Optimization: If we're snapping, a lot of the time the table layout won't
+                // change! So reuse the old object (which won't call listeners) if the layout
+                // didn't change.
+                if (
+                    oldTableLayout !== null &&
+                    areContentEditorTableLayoutsEqual(oldTableLayout, newTableLayout)
+                ) {
+                    return oldTableLayout;
+                }
+
+                return newTableLayout;
+            });
+        });
+    }
+
     // Updates the column width as the mouse is moved while dragging
     function move(event: MouseEvent): void {
         lastClientX = event.clientX;
@@ -1356,12 +1409,6 @@ function handleColumnResizeHandleMouseDown(
             return;
         }
 
-        const tableElement = pluginState.hovering.dragging.state.getTableElement(view);
-        if (!tableElement) {
-            finish();
-            return;
-        }
-
         // Cancel drag if view-only user.
         if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
             finish();
@@ -1373,7 +1420,7 @@ function handleColumnResizeHandleMouseDown(
             pluginState.hovering.dragging,
         );
 
-        optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
+        setOptimisticTableLayout(newTableLayout);
 
         // If you're dragging the edge of a table to make the table larger while you
         // also have a selected file inside the table then we need to make sure the
@@ -1423,6 +1470,9 @@ function handleColumnResizeHandleMouseDown(
 
             view.dispatch(transaction);
         });
+
+        // Clear the optimistic table layout so we're ready for the next resize.
+        setOptimisticTableLayout(null);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -1438,18 +1488,12 @@ function handleColumnResizeHandleMouseDown(
                 return;
             }
 
-            const tableElement = pluginState.hovering.dragging.state.getTableElement(view);
-            if (!tableElement) {
-                finish();
-                return;
-            }
-
             const newTableLayout = getContentTableColumnResizeDraggingStateNewColumnWidths(
                 lastClientX,
                 pluginState.hovering.dragging,
             );
 
-            optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
+            setOptimisticTableLayout(newTableLayout);
 
             // If you're dragging the edge of a table to make the table larger while you
             // also have a selected file inside the table then we need to make sure the
@@ -1477,18 +1521,12 @@ function handleColumnResizeHandleMouseDown(
                 return;
             }
 
-            const tableElement = pluginState.hovering.dragging.state.getTableElement(view);
-            if (!tableElement) {
-                finish();
-                return;
-            }
-
             const newTableLayout = getContentTableColumnResizeDraggingStateNewColumnWidths(
                 lastClientX,
                 pluginState.hovering.dragging,
             );
 
-            optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
+            setOptimisticTableLayout(newTableLayout);
 
             // If you're dragging the edge of a table to make the table larger while you
             // also have a selected file inside the table then we need to make sure the
