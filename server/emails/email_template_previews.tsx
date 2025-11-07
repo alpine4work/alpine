@@ -86,6 +86,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {
@@ -115,6 +116,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {
@@ -178,6 +180,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "1234" as AvatarId,
                                     content: sampleAccountAvatarTeemoBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {
@@ -196,6 +199,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {
@@ -224,7 +228,12 @@ const emailTemplatePreviews: {
                                 version: 1,
                                 nameVersion: 1,
                                 reactionCharacter: null,
-                                avatar: null,
+                                avatar: {
+                                    avatarId: "101112" as AvatarId,
+                                    content: sampleAccountAvatarTeemoBytes,
+                                    url: "https://www.placecats.com/millie/256/256",
+                                    version: 1,
+                                },
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
@@ -249,6 +258,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {
@@ -279,6 +289,7 @@ const emailTemplatePreviews: {
                                 avatar: {
                                     avatarId: "5678" as AvatarId,
                                     content: sampleAccountAvatarGuinnessBytes,
+                                    url: null,
                                     version: 1,
                                 },
                                 space: {

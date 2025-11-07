@@ -1,7 +1,6 @@
 import {Img, Text} from "@react-email/components";
 import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
 import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
-import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
     Spacing,
@@ -10,8 +9,9 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountModelData} from "~/shared/spaces/account_model.js";
+import {AccountModelDataWithSignedAvatarUrl} from "~/shared/spaces/account_model.js";
 import {
     AccountAvatarDesign,
     AccountDefaultAvatarDesign,
@@ -23,9 +23,12 @@ export function EmailAccountAvatar({
     accountData,
     size = "8",
 }: {
-    accountData: AccountModelData;
+    accountData: AccountModelDataWithSignedAvatarUrl;
     size?: Spacing;
 }) {
+    // NOTE: This considers an avatar an image only if it has base64 content, even though we will
+    // preferentially use the URL property in email if it is present. If an avatar only has a URL,
+    // but no content, we will use the default avatar design.
     const avatarDesign = getAccountAvatarDesign(accountData);
     const avatarSize = spacing[size];
 
@@ -54,7 +57,7 @@ function EmailAccountAvatarInner({
 }: {
     avatarDesign: AccountAvatarDesign;
     size: Spacing;
-    accountData: AccountModelData;
+    accountData: AccountModelDataWithSignedAvatarUrl;
 }) {
     const height = convertRemLengthToPx(spacing[size], "large");
     const width = convertRemLengthToPx(spacing[size], "large");
@@ -88,7 +91,7 @@ function EmailAccountAvatarInner({
                             <EmailAccountAvatarWithImage
                                 height={height}
                                 width={width}
-                                avatar={accountData.avatar}
+                                accountData={accountData}
                             />
                         </div>
                     )}
@@ -114,13 +117,20 @@ function EmailAccountAvatarInner({
 function EmailAccountAvatarWithImage({
     width,
     height,
-    avatar,
+    accountData,
 }: {
     width: number;
     height: number;
-    avatar: AvatarModel;
+    accountData: AccountModelDataWithSignedAvatarUrl;
 }) {
-    const imageUrl = `data:${avatarContentType};base64,${encodeBase64(avatar.content!)}`;
+    assert(
+        accountData.avatar?.url || accountData.avatar?.content,
+        "Account must have an avatar URL or content to render an image avatar",
+    );
+
+    const imageUrl = accountData.avatar.url
+        ? accountData.avatar.url
+        : `data:${avatarContentType};base64,${encodeBase64(accountData.avatar.content!)}`;
 
     return (
         <div

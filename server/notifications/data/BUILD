@@ -49,6 +49,7 @@ ts_project(
         "//shared/messaging",
         "//shared/notifications",
         "//shared/schema",
+        "//shared/spaces",
         "//shared/tasks",
     ],
 )

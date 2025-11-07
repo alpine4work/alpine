@@ -1,8 +1,13 @@
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {
+    AvatarEntityPath,
+    AvatarVariant,
+    printAvatarEntityPathIntoCloudflareR2Key,
+} from "~/shared/avatar/avatar_entity_path.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AvatarId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Manages the URLs we need to load file content from Cloudflare R2.
@@ -32,6 +37,18 @@ export abstract class FilesContextModuleBase
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL>;
+
+    public abstract dangerouslySignAvatarUrlWithoutAuthorization({
+        avatarId,
+        avatarEntityPath,
+        variant,
+        expirationMinutes,
+    }: {
+        avatarId: AvatarId;
+        avatarEntityPath: AvatarEntityPath;
+        variant: AvatarVariant;
+        expirationMinutes?: number;
+    }): Promise<URL>;
 
     public abstract fork(): FilesContextModuleBase;
 }
@@ -106,6 +123,33 @@ export class FilesContextModule extends FilesContextModuleBase {
         );
     }
 
+    public async dangerouslySignAvatarUrlWithoutAuthorization({
+        avatarId,
+        avatarEntityPath,
+        variant,
+        expirationMinutes,
+    }: {
+        avatarId: AvatarId;
+        avatarEntityPath: AvatarEntityPath;
+        variant: AvatarVariant;
+        expirationMinutes?: number;
+    }): Promise<URL> {
+        const keyPath = printAvatarEntityPathIntoCloudflareR2Key(
+            avatarEntityPath,
+            avatarId,
+            variant,
+        );
+        return this._tokenAgent.privateSide.dangerouslySignUrl(
+            // TODO(rmtobin, 2025-10-28, #files-edge-service): Sign for both services for backwards
+            // compatibility. Switch to just ResourceService when EdgeService stops serving files.
+            ["ResourceService", "EdgeService"],
+            new URL(`${this._resourceServiceUrl}/avatars/${keyPath}`),
+
+            // We allow long expiration times for avatars so they can be displayed in emails for an extended period of time.
+            {expirationMinutes},
+        );
+    }
+
     public fork() {
         return new FilesContextModule({
             tokenAgent: this._tokenAgent,
@@ -127,7 +171,26 @@ export class TestFilesContextModule extends FilesContextModuleBase {
         spaceId: SpaceId,
         fileId: FileId,
     ): Promise<URL> {
-        return new URL(`https://test.cyberworlds.dev/files/${spaceId}/${fileId}`);
+        return new URL(`https://resources.test.cyberworlds.dev/files/${spaceId}/${fileId}`);
+    }
+
+    public async dangerouslySignAvatarUrlWithoutAuthorization({
+        avatarId,
+        avatarEntityPath,
+        variant,
+    }: {
+        avatarId: AvatarId;
+        avatarEntityPath: AvatarEntityPath;
+        variant: AvatarVariant;
+        expirationMinutes?: number;
+    }): Promise<URL> {
+        const keyPath = printAvatarEntityPathIntoCloudflareR2Key(
+            avatarEntityPath,
+            avatarId,
+            variant,
+        );
+
+        return new URL(`https://resources.test.cyberworlds.dev/avatars/${keyPath}`);
     }
 
     public fork() {

@@ -6,13 +6,18 @@ import {
     getAccountWithoutAvatar,
 } from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {AvatarVariant} from "~/shared/avatar/avatar_entity_path.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {getEncodedInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    AccountModel,
+    AccountModelData,
+    AccountModelDataWithSignedAvatarUrl,
+} from "~/shared/spaces/account_model.js";
 
 const digestEntryDisplayLimit = 8;
 
@@ -42,49 +47,60 @@ export async function getNotificationDigestContent(
         }),
     ]);
 
-    const parsedEntries = entries.items.slice(0, digestEntryDisplayLimit).map(entry => {
-        const entryDisplay = getInboxEntryDisplayContent({
-            entry: entry.model,
-            locale: defaultLocale,
-            currentAccount,
-        });
-        const selectedSearchParam = getEncodedInboxEntryPath(entry.model, "wide");
+    const parsedEntries = await runAllPromises(
+        entries.items.slice(0, digestEntryDisplayLimit).map(async entry => {
+            const entryDisplay = getInboxEntryDisplayContent({
+                entry: entry.model,
+                locale: defaultLocale,
+                currentAccount,
+            });
+            const selectedSearchParam = getEncodedInboxEntryPath(entry.model, "wide");
 
-        const summary = entryDisplay.summary.map(item => {
-            if (typeof item === "string") {
-                return item;
-            } else {
-                assert(
-                    item instanceof AccountModel,
-                    "Received non-account item in InboxEntryDisplayContentSummary",
-                );
-                return {
-                    type: "Account",
-                    name: getAccountShortNameWithoutFullNameTooltip(item.initialData),
-                } as const;
-            }
-        });
+            const summary = entryDisplay.summary.map(item => {
+                if (typeof item === "string") {
+                    return item;
+                } else {
+                    assert(
+                        item instanceof AccountModel,
+                        "Received non-account item in InboxEntryDisplayContentSummary",
+                    );
+                    return {
+                        type: "Account",
+                        name: getAccountShortNameWithoutFullNameTooltip(item.initialData),
+                    } as const;
+                }
+            });
 
-        const showLatestMessage =
-            entryDisplay.latestMessage && entryDisplay.latestMessage.contentTextSnippet.length > 0;
-        return {
-            url: new URL(
-                `/s/${entry.model.spaceId}/inbox?selected=${selectedSearchParam}`,
-                context.constants.edgeServiceUrl,
-            ),
-            summary,
-            preview: showLatestMessage
-                ? `${getAccountShortNameWithoutFullNameTooltip(
-                      entryDisplay.latestMessage.author.initialData,
-                  )}: ${entryDisplay.latestMessage.contentTextSnippet}`
-                : null,
-            brandIconType: entryDisplay.brandIconType,
-            time: entryDisplay.time,
-            loudNotificationCount: entry.model.loudNotificationCount,
-            firstAccount: entryDisplay.firstAccount.initialData,
-            secondAccount: entryDisplay.secondAccount?.initialData,
-        };
-    });
+            const showLatestMessage =
+                entryDisplay.latestMessage &&
+                entryDisplay.latestMessage.contentTextSnippet.length > 0;
+            return {
+                url: new URL(
+                    `/s/${entry.model.spaceId}/inbox?selected=${selectedSearchParam}`,
+                    context.constants.edgeServiceUrl,
+                ),
+                summary,
+                preview: showLatestMessage
+                    ? `${getAccountShortNameWithoutFullNameTooltip(
+                          entryDisplay.latestMessage.author.initialData,
+                      )}: ${entryDisplay.latestMessage.contentTextSnippet}`
+                    : null,
+                brandIconType: entryDisplay.brandIconType,
+                time: entryDisplay.time,
+                loudNotificationCount: entry.model.loudNotificationCount,
+                firstAccount: await getAccountDataWithSignedAvatarUrl(
+                    context,
+                    entryDisplay.firstAccount.initialData,
+                ),
+                secondAccount: entryDisplay.secondAccount?.initialData
+                    ? await getAccountDataWithSignedAvatarUrl(
+                          context,
+                          entryDisplay.secondAccount.initialData,
+                      )
+                    : undefined,
+            };
+        }),
+    );
 
     const remainingEntryCount = Math.max(entries.items.length - digestEntryDisplayLimit, 0);
     const digestContent = {
@@ -94,4 +110,31 @@ export async function getNotificationDigestContent(
     };
 
     return digestContent;
+}
+
+async function getAccountDataWithSignedAvatarUrl(
+    context: ServerActionContext,
+    accountData: AccountModelData,
+    variant: AvatarVariant = "small",
+): Promise<AccountModelDataWithSignedAvatarUrl> {
+    if (!accountData.avatar?.avatarId) {
+        return {
+            ...accountData,
+            avatar: null,
+        };
+    }
+    const signedAvatarUrl = await context.files.dangerouslySignAvatarUrlWithoutAuthorization({
+        avatarId: accountData.avatar.avatarId,
+        avatarEntityPath: `account/${accountData.id}`,
+        variant,
+        // Avatars are viewable for 30 days
+        expirationMinutes: 60 * 24 * 30,
+    });
+    return {
+        ...accountData,
+        avatar: {
+            ...accountData.avatar,
+            url: signedAvatarUrl.toString(),
+        },
+    };
 }

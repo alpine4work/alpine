@@ -49,3 +49,5 @@ export type AvatarTheme = SchemaType<typeof AvatarThemeSchema>;
 export function isAvatarTheme(value: string): value is AvatarTheme {
     return avatarThemes.includes(value as AvatarTheme);
 }
+
+export type AvatarModelWithSignedUrl = AvatarModel & {url: string | null};

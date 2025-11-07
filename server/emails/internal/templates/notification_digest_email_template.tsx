@@ -21,24 +21,11 @@ import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {
+    DigestEntry,
+    DigestNotificationContent,
+} from "~/shared/notifications/digest_notification_content.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
-
-export type DigestNotificationContent = {
-    inboxUrl: URL;
-    digestEntries: Array<DigestEntry>;
-    remainingEntryCount: number;
-};
-
-export type DigestEntry = {
-    url: URL;
-    summary: Array<string | {type: "Account"; name: string}>;
-    preview: string | null;
-    brandIconType: string;
-    time: Date;
-    loudNotificationCount: number;
-    firstAccount: AccountModelData;
-    secondAccount?: AccountModelData;
-};
 
 export function NotificationDigestEmailTemplate({
     baseUrl,

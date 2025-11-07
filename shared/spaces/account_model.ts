@@ -3,7 +3,9 @@ import {
     AccountModelWithoutSpaceData,
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
+import {AvatarModelWithSignedUrl} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
@@ -25,6 +27,10 @@ export type AccountModelDataWithRemovedState = AccountModelDataState<"Removed">;
 export type AccountModelDataWithActiveState = AccountModelDataState<"Active">;
 export type AccountModelDataWithInvitePendingState = AccountModelDataState<"InvitePending">;
 export type AccountModelDataWithoutAvatar = Omit<AccountModelData, "avatar">;
+export type AccountModelDataWithSignedAvatarUrl = Replace<
+    AccountModelData,
+    {avatar: AvatarModelWithSignedUrl | null}
+>;
 
 export const AccountModelDataSpaceStateSchema = Schema.union(SpaceAccountStateSchemas);
 

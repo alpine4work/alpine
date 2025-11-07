@@ -13,5 +13,6 @@ ts_project(
         "//shared/id",
         "//shared/messaging",
         "//shared/schema",
+        "//shared/spaces",
     ],
 )

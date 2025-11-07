@@ -24,10 +24,13 @@ ts_project(
         "//server/helpers",
         "//server/helpers/node",
         "//server/jobs/core",
+        "//shared/accounts",
+        "//shared/avatar",
         "//shared/context",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
+        "//shared/notifications",
         "//shared/spaces",
     ],
 )
