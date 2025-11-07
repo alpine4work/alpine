@@ -696,7 +696,14 @@ globalStyle(codeBlockWrapper2ClassName, {
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
-    overflowY: "hidden",
+    // NOTE(calebmer, 2025-11-06): `overflowY: "hidden"` makes more sense than
+    // `auto` here but unfortunately in iOS Safari it causes vertical scrolls that
+    // start with a tap on this element to not work.
+    //
+    // Since we don't set any height constraints on this element there's never a
+    // vertical scrollbar within the element. So this fixes iOS Safari without
+    // negatively impacting the experience on other browsers.
+    overflowY: "auto",
     overscrollBehaviorX: "contain",
     counterReset: "code-block-line-number",
     borderRadius: borderRadius["1.5"],
@@ -2470,7 +2477,14 @@ globalStyle(tableWrapper2ClassName, {
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
-    overflowY: "hidden",
+    // NOTE(calebmer, 2025-11-06): `overflowY: "hidden"` makes more sense than
+    // `auto` here but unfortunately in iOS Safari it causes vertical scrolls that
+    // start with a tap on this element to not work.
+    //
+    // Since we don't set any height constraints on this element there's never a
+    // vertical scrollbar within the element. So this fixes iOS Safari without
+    // negatively impacting the experience on other browsers.
+    overflowY: "auto",
     overscrollBehaviorX: "contain",
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
     marginTop: `-${tableWrapper2MarginTop}`,
