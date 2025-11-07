@@ -88,6 +88,7 @@ import {
     TaskAuthorizationStateRegister,
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
+    taskAuthorizedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdateModel, mergeTaskTitleUpdates} from "~/shared/tasks/title/task_title.js";
@@ -1064,7 +1065,7 @@ export class TaskClientStoreInternal {
                         actions: null,
                         optimisticState: null,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Authorized",
+                            taskAuthorizedState,
                             authorizationStateVersion,
                         ),
                     });
@@ -1131,7 +1132,7 @@ export class TaskClientStoreInternal {
                         actions: null,
                         optimisticState: newOptimisticState,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Authorized",
+                            taskAuthorizedState,
                             authorizationStateVersion,
                         ),
                     });
@@ -1139,7 +1140,7 @@ export class TaskClientStoreInternal {
                 }
 
                 const newAuthorizationState = oldTaskEntry.authorizationState.apply({
-                    value: "Authorized",
+                    value: taskAuthorizedState,
                     version: authorizationStateVersion,
                 });
 
@@ -1184,7 +1185,7 @@ export class TaskClientStoreInternal {
                         actions: [],
                         optimisticState: null,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Unauthorized",
+                            {type: "Unauthorized", errorCode: backfillTask.errorCode},
                             authorizationStateVersion,
                         ),
                     });
@@ -1196,7 +1197,7 @@ export class TaskClientStoreInternal {
                     newTaskEntryById.set(backfillTask.taskId, {
                         ...oldTaskEntry,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Unauthorized",
+                            {type: "Unauthorized", errorCode: backfillTask.errorCode},
                             authorizationStateVersion,
                         ),
                     });
@@ -1204,7 +1205,7 @@ export class TaskClientStoreInternal {
                 }
 
                 const newAuthorizationState = oldTaskEntry.authorizationState.apply({
-                    value: "Unauthorized",
+                    value: {type: "Unauthorized", errorCode: backfillTask.errorCode},
                     version: authorizationStateVersion,
                 });
 
@@ -1245,7 +1246,7 @@ export class TaskClientStoreInternal {
                         actions: null,
                         optimisticState: null,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Authorized",
+                            taskAuthorizedState,
                             authorizationStateVersion,
                         ),
                     });
@@ -1317,7 +1318,7 @@ export class TaskClientStoreInternal {
                         actions: null,
                         optimisticState: newOptimisticState,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Authorized",
+                            taskAuthorizedState,
                             authorizationStateVersion,
                         ),
                     });
@@ -1325,7 +1326,7 @@ export class TaskClientStoreInternal {
                 }
 
                 const newAuthorizationState = oldCollectionEntry.authorizationState.apply({
-                    value: "Authorized",
+                    value: taskAuthorizedState,
                     version: authorizationStateVersion,
                 });
 
@@ -1365,7 +1366,7 @@ export class TaskClientStoreInternal {
                         actions: [],
                         optimisticState: null,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Unauthorized",
+                            {type: "Unauthorized", errorCode: backfillCollection.errorCode},
                             authorizationStateVersion,
                         ),
                     });
@@ -1377,7 +1378,7 @@ export class TaskClientStoreInternal {
                     newCollectionEntryById.set(backfillCollection.collectionId, {
                         ...oldCollectionEntry,
                         authorizationState: new TaskAuthorizationStateRegister(
-                            "Unauthorized",
+                            {type: "Unauthorized", errorCode: backfillCollection.errorCode},
                             authorizationStateVersion,
                         ),
                     });
@@ -1385,7 +1386,7 @@ export class TaskClientStoreInternal {
                 }
 
                 const newAuthorizationState = oldCollectionEntry.authorizationState.apply({
-                    value: "Unauthorized",
+                    value: {type: "Unauthorized", errorCode: backfillCollection.errorCode},
                     version: authorizationStateVersion,
                 });
 
@@ -1448,7 +1449,7 @@ export class TaskClientStoreInternal {
                                 // authorized. In practice when a task is created we'll get a backfill for the
                                 // task instead of the create action.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     event.defaultAuthorizationStateVersion,
                                 ),
                             });
@@ -1521,7 +1522,7 @@ export class TaskClientStoreInternal {
                                 authorizationState:
                                     oldTaskEntry.authorizationState ??
                                     new TaskAuthorizationStateRegister(
-                                        "Authorized",
+                                        taskAuthorizedState,
                                         event.defaultAuthorizationStateVersion,
                                     ),
                             });
@@ -1591,7 +1592,7 @@ export class TaskClientStoreInternal {
                                 // authorized. In practice when a collection is created we'll get a backfill
                                 // for the collection instead of the create action.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     event.defaultAuthorizationStateVersion,
                                 ),
                             });
@@ -1648,7 +1649,7 @@ export class TaskClientStoreInternal {
                                 authorizationState:
                                     oldCollectionEntry.authorizationState ??
                                     new TaskAuthorizationStateRegister(
-                                        "Authorized",
+                                        taskAuthorizedState,
                                         event.defaultAuthorizationStateVersion,
                                     ),
                             });
@@ -2737,7 +2738,7 @@ export class TaskClientStoreInternal {
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
@@ -2814,7 +2815,7 @@ export class TaskClientStoreInternal {
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
@@ -2894,7 +2895,7 @@ export class TaskClientStoreInternal {
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
@@ -2965,7 +2966,7 @@ export class TaskClientStoreInternal {
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
                                 authorizationState: new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
@@ -3657,7 +3658,7 @@ export class TaskClientStoreInternal {
                             authorizationState:
                                 oldTaskEntry.authorizationState ??
                                 new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),
@@ -3880,7 +3881,7 @@ export class TaskClientStoreInternal {
                             authorizationState:
                                 oldCollectionEntry.authorizationState ??
                                 new TaskAuthorizationStateRegister(
-                                    "Authorized",
+                                    taskAuthorizedState,
                                     // Any authorization state change from the server should override us.
                                     zeroHybridLogicalTime,
                                 ),

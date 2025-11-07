@@ -609,23 +609,28 @@ export async function processIndexSearchEntityJob(
         // - Use `jobStartTime` since that more accurately represents when the update
         //   happened rather than the current time (since the job may have been
         //   delayed)
-        const newLastUpdatedTime = new Date(
-            Math.max(
-                ...[
-                    entity.createdTime.getTime(),
-                    ...(oldDocForKeywordIndex
-                        ? [oldDocForKeywordIndex.lastUpdatedTime.getTime()]
-                        : []),
-                    // We don't update `lastUpdatedTime` to the latest time if there are no updated
-                    // traits. Which happens when creating entities, re-indexing an entity after a
-                    // dependency changed, and indexes triggered by a migration.
-                    //
-                    // If `updatedTraits` is `None` that means the underlying entity didn't
-                    // actually update and we're indexing for some other reason.
-                    ...(job.update.updatedTraits.type !== "None" ? [jobStartTime.getTime()] : []),
-                ],
-            ),
-        );
+        const newLastUpdatedTimeCandidates: Array<number> = [];
+
+        if (entity.createdTime) newLastUpdatedTimeCandidates.push(entity.createdTime.getTime());
+
+        if (oldDocForKeywordIndex)
+            newLastUpdatedTimeCandidates.push(oldDocForKeywordIndex.lastUpdatedTime.getTime());
+
+        // We don't update `lastUpdatedTime` to the latest time if there are no updated
+        // traits. Which happens when creating entities, re-indexing an entity after a
+        // dependency changed, and indexes triggered by a migration.
+        //
+        // If `updatedTraits` is `None` that means the underlying entity didn't
+        // actually update and we're indexing for some other reason.
+        if (
+            job.update.updatedTraits.type !== "None" ||
+            // If there are no other candidate times, use `jobStartTime` as a fallback.
+            newLastUpdatedTimeCandidates.length === 0
+        ) {
+            newLastUpdatedTimeCandidates.push(jobStartTime.getTime());
+        }
+
+        const newLastUpdatedTime = new Date(Math.max(...newLastUpdatedTimeCandidates));
 
         const majorContributorIds = new Set<AccountId>();
         const anyContributorIds = new Set<AccountId>();

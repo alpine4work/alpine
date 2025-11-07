@@ -12,7 +12,10 @@ import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
-import {TaskAuthorizationStateRegister} from "~/shared/tasks/task_realtime_protocol.js";
+import {
+    TaskAuthorizationStateRegister,
+    taskAuthorizedState,
+} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
  * Get the collection result objects for all the `collectionIds` in our filter
@@ -92,7 +95,7 @@ export function createTaskQueryCollectionsFilterCollectionResultStore({
                                   actions: null,
                                   optimisticState: null,
                                   authorizationState: new TaskAuthorizationStateRegister(
-                                      "Authorized",
+                                      taskAuthorizedState,
                                       // Any authorization state change from the server should override us.
                                       zeroHybridLogicalTime,
                                   ),

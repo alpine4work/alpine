@@ -10,6 +10,7 @@ import {
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {
     HybridLogicalClock,
@@ -33,6 +34,7 @@ import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {taskAuthorizedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 // We disable the `commitTaskActionTransaction()` mutex in this file so commits
 // can be sent and responses received out-of-order. These tests were written
@@ -382,7 +384,7 @@ test("backfills an authorized task", () => {
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -419,14 +421,14 @@ test("backfills authorized tasks", () => {
         task: task1,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(getTaskEntryIfExists(store, task2.id)).toEqual({
         task: task2,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual(null);
@@ -449,28 +451,28 @@ test("backfills authorized tasks", () => {
         task: task1,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(getTaskEntryIfExists(store, task2.id)).toEqual({
         task: task2,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual({
         task: task3,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(getTaskEntryIfExists(store, task4.id)).toEqual({
         task: task4,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -510,7 +512,7 @@ test("backfill merges with existing authorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -527,7 +529,7 @@ test("backfill merges with existing authorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -567,7 +569,7 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -575,7 +577,9 @@ test("backfill merges with existing unauthorized task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [account1],
     });
@@ -584,7 +588,9 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -601,7 +607,7 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -645,7 +651,7 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -653,7 +659,9 @@ test("backfill merges behind existing unauthorized task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: time3,
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [account1],
     });
@@ -662,7 +670,9 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -679,7 +689,9 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 });
 
@@ -713,7 +725,9 @@ test("backfill adds task behind existing unauthorized task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [account1],
     });
@@ -722,7 +736,9 @@ test("backfill adds task behind existing unauthorized task", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -739,7 +755,9 @@ test("backfill adds task behind existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 });
 
@@ -778,7 +796,7 @@ test("action is applied to authorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -795,7 +813,7 @@ test("action is applied to authorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -830,7 +848,7 @@ test("action is applied to unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -838,7 +856,9 @@ test("action is applied to unauthorized task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [],
     });
@@ -847,7 +867,9 @@ test("action is applied to unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -866,7 +888,9 @@ test("action is applied to unauthorized task", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 });
 
@@ -920,7 +944,7 @@ test("actions can be applied out of order", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -946,7 +970,9 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [],
     });
@@ -955,7 +981,9 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -972,7 +1000,9 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -991,7 +1021,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1026,7 +1056,7 @@ test("if nothing changes in the task entry after action it’s left as same refe
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -1047,7 +1077,7 @@ test("if nothing changes in the task entry after action it’s left as same refe
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -1098,7 +1128,7 @@ test("if nothing changes in the task entry after backfill it’s left as same re
         task: task1a,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -1119,7 +1149,7 @@ test("if nothing changes in the task entry after backfill it’s left as same re
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -1176,7 +1206,9 @@ test("action can be applied then task can be marked unauthorized", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [],
     });
@@ -1185,7 +1217,9 @@ test("action can be applied then task can be marked unauthorized", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 });
 
@@ -1215,7 +1249,9 @@ test("redundant unauthorized action doesn’t change task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [],
     });
@@ -1224,7 +1260,9 @@ test("redundant unauthorized action doesn’t change task", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -1243,7 +1281,9 @@ test("redundant unauthorized action doesn’t change task", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Unauthorized"}),
+        authorizationState: expect.objectContaining({
+            value: expect.objectContaining({type: "Unauthorized"}),
+        }),
     });
 
     store.applyUpdateEvent({
@@ -1251,7 +1291,9 @@ test("redundant unauthorized action doesn’t change task", () => {
         originClientId: null,
         defaultAuthorizationStateVersion: time1,
         actions: [],
-        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillTasks: [
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1a.id},
+        ],
         backfillCollections: [],
         referencedAccounts: [],
     });
@@ -1293,7 +1335,7 @@ test("create action will create a task", () => {
         }),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1358,7 +1400,7 @@ test("can receive create action out of order", () => {
         }).applyAction(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1406,7 +1448,7 @@ test("can receive create action with another action within a transaction", () =>
         }).applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1454,7 +1496,7 @@ test("can receive create action out of order within a transaction", () => {
         }).applyAction(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1479,7 +1521,7 @@ test("applies commit action calls optimistically", async () => {
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     const action = {
@@ -1507,7 +1549,7 @@ test("applies commit action calls optimistically", async () => {
             },
             actions: [{isOptimistic: true, action}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveLastRpcExecution(commitTaskActionTransaction, {
@@ -1519,7 +1561,7 @@ test("applies commit action calls optimistically", async () => {
         task: task.applyAction(action, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -1559,7 +1601,7 @@ test("can create tasks optimistically", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1578,7 +1620,7 @@ test("can create tasks optimistically", async () => {
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1630,7 +1672,7 @@ test("can create then update tasks optimistically", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1658,7 +1700,7 @@ test("can create then update tasks optimistically", async () => {
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1687,7 +1729,7 @@ test("can create then update tasks optimistically", async () => {
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1706,7 +1748,7 @@ test("can create then update tasks optimistically", async () => {
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1758,7 +1800,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1786,7 +1828,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1811,7 +1853,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1830,7 +1872,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1911,7 +1953,7 @@ test("can create then update tasks optimistically after an action from the serve
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1941,7 +1983,7 @@ test("can create then update tasks optimistically after an action from the serve
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1972,7 +2014,7 @@ test("can create then update tasks optimistically after an action from the serve
             actions: [{isOptimistic: true, action: action3}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -1993,7 +2035,7 @@ test("can create then update tasks optimistically after an action from the serve
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2066,7 +2108,7 @@ test("can create then update tasks optimistically our of order", async () => {
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2091,7 +2133,7 @@ test("can create then update tasks optimistically our of order", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2110,7 +2152,7 @@ test("can create then update tasks optimistically our of order", async () => {
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2214,7 +2256,7 @@ test("can create then update tasks optimistically out of order after an action f
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2241,7 +2283,7 @@ test("can create then update tasks optimistically out of order after an action f
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2262,7 +2304,7 @@ test("can create then update tasks optimistically out of order after an action f
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2371,7 +2413,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2401,7 +2443,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2428,7 +2470,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2449,7 +2491,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2501,7 +2543,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2529,7 +2571,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2558,7 +2600,7 @@ test("resolving task optimistic update after garbage collection is ok", async ()
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -2620,7 +2662,7 @@ test("regular task actions are added to optimistic state", async () => {
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -2638,7 +2680,7 @@ test("regular task actions are added to optimistic state", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -2666,7 +2708,7 @@ test("regular task actions are added to optimistic state", async () => {
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -2680,7 +2722,7 @@ test("regular task actions are added to optimistic state", async () => {
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -2735,7 +2777,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -2753,7 +2795,7 @@ test("regular task actions are added to optimistic state with multiple actions",
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -2781,7 +2823,7 @@ test("regular task actions are added to optimistic state with multiple actions",
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -2806,7 +2848,7 @@ test("regular task actions are added to optimistic state with multiple actions",
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -2829,7 +2871,7 @@ test("regular task actions are added to optimistic state with multiple actions",
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -2844,7 +2886,7 @@ test("regular task actions are added to optimistic state with multiple actions",
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -2899,7 +2941,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -2917,7 +2959,7 @@ test("regular task actions are added to optimistic state with multiple actions t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -2945,7 +2987,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -2970,7 +3012,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -2994,7 +3036,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -3009,7 +3051,7 @@ test("regular task actions are added to optimistic state with multiple actions t
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -3426,7 +3468,7 @@ test("regular actions are added to optimistic state when task is created optimis
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3450,7 +3492,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3482,7 +3524,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3508,7 +3550,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3525,7 +3567,7 @@ test("regular actions are added to optimistic state when task is created optimis
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3599,7 +3641,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3623,7 +3665,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3655,7 +3697,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3684,7 +3726,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3712,7 +3754,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3738,7 +3780,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             actions: [{isOptimistic: true, action: action4}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3756,7 +3798,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3830,7 +3872,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3854,7 +3896,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3886,7 +3928,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3915,7 +3957,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3943,7 +3985,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3970,7 +4012,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -3988,7 +4030,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4240,7 +4282,7 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveLastRpcExecution(commitTaskActionTransaction, {
@@ -4254,7 +4296,7 @@ test("backfilling a task when none exists and there are optimistic actions works
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -4299,7 +4341,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -4317,7 +4359,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -4342,7 +4384,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveLastRpcExecution(commitTaskActionTransaction, {
@@ -4356,7 +4398,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -4445,7 +4487,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4471,7 +4513,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4504,7 +4546,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -4528,7 +4570,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -4543,7 +4585,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             .applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -4568,7 +4610,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     const action = {
@@ -4596,7 +4638,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -4605,7 +4647,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -4648,7 +4690,7 @@ test("can create tasks optimistically (rejected)", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4660,7 +4702,7 @@ test("can create tasks optimistically (rejected)", async () => {
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4715,7 +4757,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4743,7 +4785,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4761,7 +4803,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4773,7 +4815,7 @@ test("can create then update tasks optimistically (rejected)", async () => {
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4828,7 +4870,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4856,7 +4898,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4878,7 +4920,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4890,7 +4932,7 @@ test("can create then update tasks optimistically and resolve commits out of ord
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4974,7 +5016,7 @@ test("can create then update tasks optimistically after an action from the serve
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5004,7 +5046,7 @@ test("can create then update tasks optimistically after an action from the serve
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5022,7 +5064,7 @@ test("can create then update tasks optimistically after an action from the serve
             actions: [{isOptimistic: true, action: action3}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5034,7 +5076,7 @@ test("can create then update tasks optimistically after an action from the serve
         actions: [action1],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5110,7 +5152,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5132,7 +5174,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5144,7 +5186,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5251,7 +5293,7 @@ test("can create then update tasks optimistically out of order after an action f
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5273,7 +5315,7 @@ test("can create then update tasks optimistically out of order after an action f
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5285,7 +5327,7 @@ test("can create then update tasks optimistically out of order after an action f
         actions: [action1],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5397,7 +5439,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5422,7 +5464,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5444,7 +5486,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5456,7 +5498,7 @@ test("can create then update tasks optimistically out of order with more non-cre
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5511,7 +5553,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5539,7 +5581,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5568,7 +5610,7 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -5630,7 +5672,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -5648,7 +5690,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -5676,7 +5718,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -5685,7 +5727,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -5743,7 +5785,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -5761,7 +5803,7 @@ test("regular task actions are added to optimistic state with multiple actions (
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -5789,7 +5831,7 @@ test("regular task actions are added to optimistic state with multiple actions (
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -5814,7 +5856,7 @@ test("regular task actions are added to optimistic state with multiple actions (
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -5831,7 +5873,7 @@ test("regular task actions are added to optimistic state with multiple actions (
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -5840,7 +5882,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -5898,7 +5940,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -5916,7 +5958,7 @@ test("regular task actions are added to optimistic state with multiple actions t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -5944,7 +5986,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -5969,7 +6011,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -5989,7 +6031,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -5998,7 +6040,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -6412,7 +6454,7 @@ test("regular actions are added to optimistic state when task is created optimis
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6436,7 +6478,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6468,7 +6510,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6489,7 +6531,7 @@ test("regular actions are added to optimistic state when task is created optimis
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6501,7 +6543,7 @@ test("regular actions are added to optimistic state when task is created optimis
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6578,7 +6620,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6602,7 +6644,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6634,7 +6676,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6663,7 +6705,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6685,7 +6727,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6703,7 +6745,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             actions: [{isOptimistic: true, action: action4}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6715,7 +6757,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6792,7 +6834,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6816,7 +6858,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6848,7 +6890,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6877,7 +6919,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6899,7 +6941,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6920,7 +6962,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -6932,7 +6974,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -7181,7 +7223,7 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -7190,7 +7232,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -7238,7 +7280,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -7256,7 +7298,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -7281,7 +7323,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -7290,7 +7332,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -7382,7 +7424,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -7408,7 +7450,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -7441,7 +7483,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -7461,7 +7503,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -7472,7 +7514,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -7562,7 +7604,7 @@ test("create task applied after optimistic updates", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -7586,7 +7628,7 @@ test("create task applied after optimistic updates", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -7606,7 +7648,7 @@ test("create task applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -7620,7 +7662,7 @@ test("create task applied after optimistic updates", async () => {
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -7707,7 +7749,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -7731,7 +7773,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -7754,7 +7796,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -7768,7 +7810,7 @@ test("create task applied after optimistic updates that are resolved out of orde
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -7855,7 +7897,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -7879,7 +7921,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -7894,7 +7936,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -7903,7 +7945,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         task: task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -7993,7 +8035,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -8017,7 +8059,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -8035,7 +8077,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -8044,7 +8086,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         task: task,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -8102,7 +8144,7 @@ test("can create then update collections optimistically", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8130,7 +8172,7 @@ test("can create then update collections optimistically", async () => {
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8159,7 +8201,7 @@ test("can create then update collections optimistically", async () => {
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8178,7 +8220,7 @@ test("can create then update collections optimistically", async () => {
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8235,7 +8277,7 @@ test("can create then update collections optimistically and resolve commits out 
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8263,7 +8305,7 @@ test("can create then update collections optimistically and resolve commits out 
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8288,7 +8330,7 @@ test("can create then update collections optimistically and resolve commits out 
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8307,7 +8349,7 @@ test("can create then update collections optimistically and resolve commits out 
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8393,7 +8435,7 @@ test("can create then update collections optimistically after an action from the
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8423,7 +8465,7 @@ test("can create then update collections optimistically after an action from the
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8454,7 +8496,7 @@ test("can create then update collections optimistically after an action from the
             actions: [{isOptimistic: true, action: action3}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8475,7 +8517,7 @@ test("can create then update collections optimistically after an action from the
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8553,7 +8595,7 @@ test("can create then update collections optimistically our of order", async () 
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8578,7 +8620,7 @@ test("can create then update collections optimistically our of order", async () 
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8597,7 +8639,7 @@ test("can create then update collections optimistically our of order", async () 
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8706,7 +8748,7 @@ test("can create then update collections optimistically out of order after an ac
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8733,7 +8775,7 @@ test("can create then update collections optimistically out of order after an ac
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8754,7 +8796,7 @@ test("can create then update collections optimistically out of order after an ac
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8868,7 +8910,7 @@ test("can create then update collections optimistically out of order with more n
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8898,7 +8940,7 @@ test("can create then update collections optimistically out of order with more n
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8925,7 +8967,7 @@ test("can create then update collections optimistically out of order with more n
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -8946,7 +8988,7 @@ test("can create then update collections optimistically out of order with more n
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9003,7 +9045,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9031,7 +9073,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9060,7 +9102,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9122,7 +9164,7 @@ test("regular collection actions are added to optimistic state", async () => {
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -9140,7 +9182,7 @@ test("regular collection actions are added to optimistic state", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -9166,7 +9208,7 @@ test("regular collection actions are added to optimistic state", async () => {
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -9178,7 +9220,7 @@ test("regular collection actions are added to optimistic state", async () => {
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -9233,7 +9275,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -9251,7 +9293,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -9277,7 +9319,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -9299,7 +9341,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -9317,7 +9359,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -9329,7 +9371,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -9384,7 +9426,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -9402,7 +9444,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -9428,7 +9470,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -9450,7 +9492,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -9471,7 +9513,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -9483,7 +9525,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -9905,7 +9947,7 @@ test("regular actions are added to optimistic state when collection is created o
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9929,7 +9971,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9959,7 +10001,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9983,7 +10025,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -9998,7 +10040,7 @@ test("regular actions are added to optimistic state when collection is created o
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10077,7 +10119,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10101,7 +10143,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10131,7 +10173,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10157,7 +10199,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10182,7 +10224,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10203,7 +10245,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             actions: [{isOptimistic: true, action: action4}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10218,7 +10260,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10297,7 +10339,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10321,7 +10363,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10351,7 +10393,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10377,7 +10419,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10402,7 +10444,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10426,7 +10468,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10441,7 +10483,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         actions: null,
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10691,7 +10733,7 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveLastRpcExecution(commitTaskActionTransaction, {
@@ -10703,7 +10745,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -10748,7 +10790,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -10766,7 +10808,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -10789,7 +10831,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveLastRpcExecution(commitTaskActionTransaction, {
@@ -10801,7 +10843,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -10895,7 +10937,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10919,7 +10961,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -10947,7 +10989,7 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -10968,7 +11010,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -10980,7 +11022,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -11005,7 +11047,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     const action = {
@@ -11033,7 +11075,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
             },
             actions: [{isOptimistic: true, action}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -11042,7 +11084,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -11090,7 +11132,7 @@ test("can create collections optimistically (rejected)", async () => {
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11102,7 +11144,7 @@ test("can create collections optimistically (rejected)", async () => {
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11162,7 +11204,7 @@ test("can create then update collections optimistically (rejected)", async () =>
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11190,7 +11232,7 @@ test("can create then update collections optimistically (rejected)", async () =>
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11208,7 +11250,7 @@ test("can create then update collections optimistically (rejected)", async () =>
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11220,7 +11262,7 @@ test("can create then update collections optimistically (rejected)", async () =>
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11280,7 +11322,7 @@ test("can create then update collections optimistically and resolve commits out 
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11308,7 +11350,7 @@ test("can create then update collections optimistically and resolve commits out 
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11330,7 +11372,7 @@ test("can create then update collections optimistically and resolve commits out 
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11342,7 +11384,7 @@ test("can create then update collections optimistically and resolve commits out 
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11431,7 +11473,7 @@ test("can create then update collections optimistically after an action from the
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11461,7 +11503,7 @@ test("can create then update collections optimistically after an action from the
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11479,7 +11521,7 @@ test("can create then update collections optimistically after an action from the
             actions: [{isOptimistic: true, action: action3}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11491,7 +11533,7 @@ test("can create then update collections optimistically after an action from the
         actions: [action1],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11572,7 +11614,7 @@ test("can create then update collections optimistically our of order (rejected)"
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11594,7 +11636,7 @@ test("can create then update collections optimistically our of order (rejected)"
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11606,7 +11648,7 @@ test("can create then update collections optimistically our of order (rejected)"
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11718,7 +11760,7 @@ test("can create then update collections optimistically out of order after an ac
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11740,7 +11782,7 @@ test("can create then update collections optimistically out of order after an ac
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11752,7 +11794,7 @@ test("can create then update collections optimistically out of order after an ac
         actions: [action1],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11869,7 +11911,7 @@ test("can create then update collections optimistically out of order with more n
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11894,7 +11936,7 @@ test("can create then update collections optimistically out of order with more n
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11916,7 +11958,7 @@ test("can create then update collections optimistically out of order with more n
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11928,7 +11970,7 @@ test("can create then update collections optimistically out of order with more n
         actions: [],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -11988,7 +12030,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12016,7 +12058,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12045,7 +12087,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             actions: [{isOptimistic: true, action: action2}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12107,7 +12149,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -12125,7 +12167,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -12151,7 +12193,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -12160,7 +12202,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -12218,7 +12260,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -12236,7 +12278,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -12262,7 +12304,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -12284,7 +12326,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -12299,7 +12341,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -12308,7 +12350,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -12366,7 +12408,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -12384,7 +12426,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -12410,7 +12452,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action4], {
@@ -12432,7 +12474,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -12450,7 +12492,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -12459,7 +12501,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -12878,7 +12920,7 @@ test("regular actions are added to optimistic state when collection is created o
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12902,7 +12944,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12932,7 +12974,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12953,7 +12995,7 @@ test("regular actions are added to optimistic state when collection is created o
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -12965,7 +13007,7 @@ test("regular actions are added to optimistic state when collection is created o
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13047,7 +13089,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13071,7 +13113,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13101,7 +13143,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13127,7 +13169,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13149,7 +13191,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13167,7 +13209,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             actions: [{isOptimistic: true, action: action4}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13179,7 +13221,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13261,7 +13303,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13285,7 +13327,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13315,7 +13357,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13341,7 +13383,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13363,7 +13405,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13384,7 +13426,7 @@ test("regular actions are added to optimistic state with multiple actions that a
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13396,7 +13438,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         actions: [action3],
         optimisticState: null,
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13643,7 +13685,7 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -13652,7 +13694,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -13700,7 +13742,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action2], {
@@ -13718,7 +13760,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.applyUpdateEvent({
@@ -13741,7 +13783,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectLastRpcExecution(commitTaskActionTransaction);
@@ -13750,7 +13792,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(1);
@@ -13847,7 +13889,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13871,7 +13913,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -13899,7 +13941,7 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -13914,7 +13956,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -13923,7 +13965,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: collection.applyAction(action4).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -14018,7 +14060,7 @@ test("create collection applied after optimistic updates", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -14040,7 +14082,7 @@ test("create collection applied after optimistic updates", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -14058,7 +14100,7 @@ test("create collection applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -14070,7 +14112,7 @@ test("create collection applied after optimistic updates", async () => {
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -14162,7 +14204,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -14184,7 +14226,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 1, {
@@ -14205,7 +14247,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await resolveRpcExecution(commitTaskActionTransaction, 0, {
@@ -14217,7 +14259,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 });
 
@@ -14309,7 +14351,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -14331,7 +14373,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -14346,7 +14388,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -14355,7 +14397,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         collection: collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);
@@ -14450,7 +14492,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     store.commitTaskActionTransaction(context, [action3], {
@@ -14472,7 +14514,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: true, action: action3},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 1);
@@ -14490,7 +14532,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     await rejectRpcExecution(commitTaskActionTransaction, 0);
@@ -14499,7 +14541,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collection: collection,
         actions: null,
         optimisticState: null,
-        authorizationState: expect.objectContaining({value: "Authorized"}),
+        authorizationState: expect.objectContaining({value: taskAuthorizedState}),
     });
 
     expect(errors.length).toEqual(2);

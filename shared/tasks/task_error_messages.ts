@@ -24,6 +24,16 @@ export const taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Recor
     Manage: errorDisplayMessage`You aren’t allowed to share this task. Ask someone who can share the task to give you share access.`,
 };
 
+// TODO(calebmer): Someday we should have a "trash" feature and this error
+// message should link the user to the trash and let them possible restore this
+// entity from the trash.
+export const taskDeletedErrorDisplayMessage = errorDisplayMessage`Task was deleted.`;
+
+// TODO(calebmer): Someday we should have a "trash" feature and this error
+// message should link the user to the trash and let them possible restore this
+// entity from the trash.
+export const taskCollectionDeletedErrorDisplayMessage = errorDisplayMessage`Task collection was deleted.`;
+
 export function createTaskCollectionNotFoundError(collectionId: TaskCollectionId) {
     return new NotFoundError("Task collection not found", {
         aggregateDedupeKey: collectionId,

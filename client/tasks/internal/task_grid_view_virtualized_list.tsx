@@ -17,6 +17,7 @@ import {
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -55,11 +56,11 @@ import {
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {withApplyTaskGridViewUndoStackEntry} from "~/client/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
+import {showTaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
 import {
     taskDateInputCalendarDesktopHeight,
     taskDateInputCalendarMobileHeight,
 } from "~/client/tasks/internal/task_date_input_calendar.js";
-import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewHasDndContext} from "~/client/tasks/internal/task_grid_view_has_dnd_context.js";
 import {TaskGridViewMobileKeyboardToolbarContainer} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
@@ -946,6 +947,7 @@ export function useTaskGridViewVirtualizedListBase({
     const spacingScale = useSpacingScale();
     const context = useAppContext();
     const {timeZone} = useClientInfo();
+    const reporter = useReporter();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -1254,29 +1256,6 @@ export function useTaskGridViewVirtualizedListBase({
             return true;
         });
     };
-
-    /* ========================================================================== *\
-     *                         Delete Confirmation State                          *
-    \* ========================================================================== */
-
-    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
-        undoManager: TaskClientStoreUndoManager;
-        taskId: TaskId;
-        onAfterDelete?: () => void;
-    } | null>(null);
-
-    const onTaskDeleteConfirmationModalDialogClosedCallbacksRef = useRef<Array<() => void>>([]);
-
-    useEffect(() => {
-        if (!taskDeleteConfirmationState) {
-            const callbacks = onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current;
-            onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current = [];
-
-            for (const callback of callbacks) {
-                callback();
-            }
-        }
-    }, [taskDeleteConfirmationState]);
 
     /* ========================================================================== *\
      *                            Arrow Key Navigation                            *
@@ -2200,6 +2179,23 @@ export function useTaskGridViewVirtualizedListBase({
                 });
             }
         },
+
+        showTaskDeleteConfirmationModalDialog: ({
+            undoManager,
+            taskId,
+            onAfterDelete,
+            onAfterClose,
+        }) => {
+            showTaskDeleteConfirmationModalDialog({
+                context,
+                reporter,
+                store,
+                undoManager,
+                taskId,
+                onAfterDelete,
+                onAfterClose,
+            });
+        },
     });
 
     /* ========================================================================== *\
@@ -2706,10 +2702,6 @@ export function useTaskGridViewVirtualizedListBase({
                                 getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                                 duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                                 toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                                }
                                 // If there are no task rows, the padding just makes our ghost row placeholder
                                 // look misaligned. So remove it.
                                 withoutPaddingLeft={
@@ -2809,10 +2801,6 @@ export function useTaskGridViewVirtualizedListBase({
                         getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                         toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
                         duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
-                        setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                        }
                         withPaddingBottom={itemIndex === itemCount - 1}
                         hasNextGridView={hasNextGridView}
                         mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
@@ -2936,15 +2924,6 @@ export function useTaskGridViewVirtualizedListBase({
         scrollbarInsetTopItemIndex: hasColumnHeader ? 0 : undefined,
         modals: (
             <>
-                {taskDeleteConfirmationState && rootQuery && (
-                    <TaskDeleteConfirmationModalDialog
-                        store={store}
-                        undoManager={taskDeleteConfirmationState.undoManager}
-                        taskId={taskDeleteConfirmationState.taskId}
-                        onClose={() => setTaskDeleteConfirmationState(null)}
-                        onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
-                    />
-                )}
                 {!isInitialAppRender && platform === "mobile" && !isInert && (
                     // The mobile keyboard toolbar is only modal-ish? Maybe we should rename
                     // this prop.

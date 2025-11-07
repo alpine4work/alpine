@@ -190,7 +190,9 @@ import {
     createTaskCollectionNotFoundError,
     createTaskCommentNotFoundError,
     createTaskNotFoundError,
+    taskCollectionDeletedErrorDisplayMessage,
     taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+    taskDeletedErrorDisplayMessage,
     taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/tasks/task_error_messages.js";
 import {
@@ -2394,7 +2396,7 @@ class TaskActionTransactionCommitState {
     ) {
         const collectionItem = await this.getCollectionItem(collectionId);
 
-        await authorizeTaskCollectionItemAccessAllowingDeletedTasks(
+        await authorizeTaskCollectionItemAccessAllowingDeletedCollections(
             this._context,
             collectionItem,
             expectedAccessLevel,
@@ -2588,8 +2590,11 @@ async function actuallyCommitTaskActionTransaction(
 
                         await state.authorizeTaskItemAccess(taskItem, "Edit");
 
-                        if (taskItem.deletedTime)
-                            throw new FailedPreconditionError("Task was deleted");
+                        if (taskItem.deletedTime) {
+                            throw new FailedPreconditionError("Task was deleted", {
+                                displayMessage: taskDeletedErrorDisplayMessage,
+                            });
+                        }
 
                         if (taskItem.validLeaseId !== null) {
                             taskItem = {
@@ -3315,8 +3320,11 @@ async function actuallyCommitTaskActionTransaction(
                     default: {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
                         if (!collectionItem) throw createTaskCollectionNotFoundError(collectionId);
-                        if (isTaskCollectionItemDeleted(collectionItem))
-                            throw new FailedPreconditionError("Task collection was deleted");
+                        if (isTaskCollectionItemDeleted(collectionItem)) {
+                            throw new FailedPreconditionError("Task collection was deleted", {
+                                displayMessage: taskCollectionDeletedErrorDisplayMessage,
+                            });
+                        }
 
                         switch (collectionAction.type) {
                             case "Delete": {
@@ -4268,13 +4276,13 @@ async function authorizeTaskCollectionItemAccess(
     );
 }
 
-async function authorizeTaskCollectionItemAccessAllowingDeletedTasks(
+async function authorizeTaskCollectionItemAccessAllowingDeletedCollections(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
 ): Promise<void> {
     unwrapResult(
-        await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
+        await authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
             context,
             collectionItem,
             expectedAccessLevel,
@@ -4288,67 +4296,38 @@ async function authorizeTaskCollectionItemAccessIfPossible(
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
-    const result = await authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
+    if (isTaskCollectionItemDeleted(collectionItem)) {
+        // If the actor couldn't view the collection then use a "permission denied"
+        // error to avoid leaking that the collection was deleted.
+        const result = await authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
+            context,
+            collectionItem,
+            "View",
+            options,
+        );
+        if (!result.ok) return result;
+
+        return {
+            ok: false,
+            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of
+            // this error will render not found errors as "Deleted" and
+            // `ErrorCode.PermissionDenied` as "Private".
+            error: new NotFoundError("Task collection was deleted", {
+                aggregateDedupeKey: collectionItem.collectionId,
+                displayMessage: taskCollectionDeletedErrorDisplayMessage,
+            }),
+        };
+    }
+
+    return authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
         context,
         collectionItem,
         expectedAccessLevel,
         options,
     );
-
-    // If you were authorized to view, edit, whatever, but the collection is
-    // deleted then you don't have edit access anymore but you can still view the
-    // collection.
-    if (result.ok && isTaskCollectionItemDeleted(collectionItem)) {
-        let isMemberOfSpace = false;
-
-        switch (context.actor.type) {
-            case "System": {
-                isMemberOfSpace = true;
-                break;
-            }
-            case "Anonymous": {
-                isMemberOfSpace = false;
-                break;
-            }
-            case "Session":
-            case "ImpersonatedAccount":
-            case "Bot": {
-                isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    collectionItem.spaceId,
-                    context.actor.getPossiblyBotAccountId(),
-                );
-                break;
-            }
-            default:
-                throw exhaustive(context.actor);
-        }
-
-        if (!isMemberOfSpace) {
-            return {
-                ok: false,
-                error: new PermissionDeniedError(
-                    "Only space members may read deleted task collections",
-                    {displayMessage: errorDisplayMessage`Task collection was deleted.`},
-                ),
-            };
-        }
-
-        if (!hasAccessLevel("View", expectedAccessLevel)) {
-            return {
-                ok: false,
-                error: new PermissionDeniedError(
-                    quote`Can only view deleted task collection, access level ${expectedAccessLevel} is not allowed`,
-                    {displayMessage: errorDisplayMessage`Task collection was deleted.`},
-                ),
-            };
-        }
-    }
-
-    return result;
 }
 
-async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossible(
+async function authorizeTaskCollectionItemAccessAllowingDeletedCollectionsIfPossible(
     context: TaskRealtimeActionContext,
     collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: AccessLevel,
@@ -4616,70 +4595,37 @@ async function authorizeTaskItemAccessIfPossible(
     },
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
-    const result = await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
+    if (taskItem.deletedTime) {
+        // If the actor couldn't view the task then use a "permission denied" error to
+        // avoid leaking that the task was deleted.
+        const result = await authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
+            context,
+            taskItem,
+            "View",
+            loaders,
+            options,
+        );
+        if (!result.ok) return result;
+
+        return {
+            ok: false,
+            // NOTE(calebmer): Using `ErrorCode.NotFound` is important here. Consumers of
+            // this error will render not found errors as "Deleted" and
+            // `ErrorCode.PermissionDenied` as "Private".
+            error: new NotFoundError("Task was deleted", {
+                aggregateDedupeKey: taskItem.taskId,
+                displayMessage: taskDeletedErrorDisplayMessage,
+            }),
+        };
+    }
+
+    return authorizeTaskItemAccessAllowingDeletedTasksIfPossible(
         context,
         taskItem,
         expectedAccessLevel,
         loaders,
         options,
     );
-
-    // If you were authorized to view, edit, whatever, but the task is deleted then
-    // you don't have edit access anymore but you can still view the task.
-    if (result.ok && taskItem.deletedTime) {
-        let isMemberOfSpace = false;
-
-        switch (context.actor.type) {
-            case "System": {
-                isMemberOfSpace = true;
-                break;
-            }
-            case "Anonymous": {
-                isMemberOfSpace = false;
-                break;
-            }
-            case "Session":
-            case "ImpersonatedAccount": {
-                isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    taskItem.spaceId,
-                    context.actor.getAccountId(),
-                );
-                break;
-            }
-            case "Bot": {
-                return {
-                    ok: false,
-                    error: new PermissionDeniedError("Bot can’t access deleted tasks", {
-                        displayMessage: errorDisplayMessage`Task was deleted.`,
-                    }),
-                };
-            }
-            default:
-                throw exhaustive(context.actor);
-        }
-
-        if (!isMemberOfSpace) {
-            return {
-                ok: false,
-                error: new PermissionDeniedError("Only space members may read deleted tasks", {
-                    displayMessage: errorDisplayMessage`Task was deleted.`,
-                }),
-            };
-        }
-
-        if (!hasAccessLevel("View", expectedAccessLevel)) {
-            return {
-                ok: false,
-                error: new PermissionDeniedError(
-                    quote`Can only view deleted task, access level ${expectedAccessLevel} is not allowed`,
-                    {displayMessage: errorDisplayMessage`Task was deleted.`},
-                ),
-            };
-        }
-    }
-
-    return result;
 }
 
 async function authorizeTaskItemAccessAllowingDeletedTasksIfPossible(

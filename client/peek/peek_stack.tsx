@@ -1083,6 +1083,9 @@ function PeekStackOverlay({
                     type: spring,
                     stiffness: 350,
                     damping: 35,
+                    // These settings make sure the animation finishes after ~400-420ms
+                    restSpeed: 1000,
+                    restDelta: 1,
                 },
             );
 

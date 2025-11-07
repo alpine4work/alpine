@@ -1,14 +1,12 @@
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
-    Dispatch,
     Key,
     Memo,
     MutableRefObject,
     ReactNode,
     Ref,
     RefObject,
-    SetStateAction,
     forwardRef,
     memo,
     useCallback,
@@ -490,8 +488,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     getAreChildTasksExpandedStore,
     toggleAreChildTasksExpanded,
     duplicateTaskAndAllChildren,
-    setTaskDeleteConfirmationState,
-    onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
     withoutPaddingLeft,
     withPaddingBottom,
     hasNextGridView,
@@ -533,14 +529,6 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         taskId: TaskId,
         {undoManager}: {undoManager: TaskClientStoreUndoManager},
     ) => Promise<{taskId: TaskId}>;
-    setTaskDeleteConfirmationState: Dispatch<
-        SetStateAction<{
-            undoManager: TaskClientStoreUndoManager;
-            taskId: TaskId;
-            onAfterDelete?: (() => void) | undefined;
-        } | null>
-    >;
-    onTaskDeleteConfirmationModalDialogClosedCallbacksRef: MutableRefObject<Array<() => void>>;
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
     hasNextGridView: boolean;
@@ -1128,7 +1116,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         const taskId = getTaskQuerySortCursorTaskId(cursor);
 
-        setTaskDeleteConfirmationState({undoManager, taskId});
+        events.showTaskDeleteConfirmationModalDialog({taskId, undoManager});
     };
 
     const deleteTaskAndAllChildrenAndFocusPreviousRow = () => {
@@ -1202,18 +1190,23 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             focusPreviousRow(itemIndex);
         } else {
-            setTaskDeleteConfirmationState({
+            let hasDeleted = false;
+
+            events.showTaskDeleteConfirmationModalDialog({
                 undoManager,
                 taskId,
                 onAfterDelete: () => {
+                    hasDeleted = true;
+                },
+                // Once React has closed the modal dialog, focus the previous task. Until the
+                // modal dialog is closed, focus is trapped inside it.
+                onAfterClose: () => {
+                    if (!hasDeleted) return;
+
                     const view = viewRef.current;
                     if (!view) return;
 
-                    // Once React has closed the modal dialog, focus the previous task. Until the
-                    // modal dialog is closed, focus is trapped inside it.
-                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef.current.push(() =>
-                        focusPreviousRow(itemIndex),
-                    );
+                    focusPreviousRow(itemIndex);
                 },
             });
         }

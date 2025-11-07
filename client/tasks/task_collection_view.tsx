@@ -14,6 +14,7 @@ import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -82,7 +83,10 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
-import {taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
+import {
+    taskCollectionDeletedErrorDisplayMessage,
+    taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskQueryFilter,
@@ -138,6 +142,7 @@ export function TaskCollectionView({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const {isAppleDevice} = useClientInfo();
+    const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
 
@@ -163,10 +168,20 @@ export function TaskCollectionView({
     );
 
     if (access.level === null) {
-        throw new PermissionDeniedError("Current account lost access to task collection", {
-            displayMessage:
-                taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-        });
+        if (access.type === "Deleted") {
+            throw new PermissionDeniedError(
+                "Current account lost access to task collection (deleted)",
+                {displayMessage: taskCollectionDeletedErrorDisplayMessage},
+            );
+        } else {
+            throw new PermissionDeniedError(
+                "Current account lost access to task collection (policy updated)",
+                {
+                    displayMessage:
+                        taskCollectionPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                },
+            );
+        }
     }
 
     const [{filters, filterReferences}, actuallySetFiltersState] = useState({
@@ -445,21 +460,31 @@ export function TaskCollectionView({
                         {
                             label: "Delete",
                             onPress: () => {
-                                store.commitTaskActionTransaction(
-                                    context,
-                                    [
-                                        {
-                                            type: "UpdateCollection",
-                                            time: store.clock.now(),
-                                            collectionId,
-                                            collectionAction: {type: "Delete"},
-                                        },
-                                    ],
-                                    // Collection changes can't be undone.
-                                    {undoManager: null, affinityManager},
-                                );
+                                reporter.showDialog({
+                                    title: "Delete task collection?",
+                                    description: "The tasks in the collection will not be deleted.",
+                                    primaryButtonLabel: "Delete",
+                                    primaryButtonPressErrorTitle: "Couldn’t delete task collection",
+                                    onPrimaryButtonPress: async () => {
+                                        // Wait until navigation has finished to actually delete the
+                                        // collection.
+                                        await navigate(-1);
 
-                                void navigate(-1);
+                                        store.commitTaskActionTransaction(
+                                            context,
+                                            [
+                                                {
+                                                    type: "UpdateCollection",
+                                                    time: store.clock.now(),
+                                                    collectionId,
+                                                    collectionAction: {type: "Delete"},
+                                                },
+                                            ],
+                                            // Collection changes can't be undone.
+                                            {undoManager: null, affinityManager},
+                                        );
+                                    },
+                                });
                             },
                         },
                     ]);
@@ -482,6 +507,7 @@ export function TaskCollectionView({
         navigate,
         platform,
         redoEvent,
+        reporter,
         routeLayout,
         store,
         undoEvent,

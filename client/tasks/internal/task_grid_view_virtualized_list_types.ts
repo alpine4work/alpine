@@ -92,4 +92,10 @@ export type TaskGridViewVirtualizedListEvents = MemoObject<{
     ) => {
         finally(listener: () => void): void;
     };
+    readonly showTaskDeleteConfirmationModalDialog: (options: {
+        undoManager: TaskClientStoreUndoManager;
+        taskId: TaskId;
+        onAfterDelete?: () => void;
+        onAfterClose?: () => void;
+    }) => void;
 }>;

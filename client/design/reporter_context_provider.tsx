@@ -32,6 +32,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -356,7 +357,6 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
     const reporter: ReporterWithoutContext = useMemo(() => {
         const reporter: ReporterWithoutContext = {
-            // eslint-disable-next-line react-compiler/react-compiler
             cache: new DefaultWeakMap<AppContext, Reporter>(context => {
                 const newReporter = {
                     showDialog: reporter.showDialog.bind(undefined, context),
@@ -421,6 +421,48 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
 
         return reporter;
     }, []);
+
+    const onAfterCloseByModalDialogIdRef = useRef<Map<number, () => void> | null>(null);
+
+    // Call `onAfterClose` callbacks for dialogs that are no longer open.
+    useEffect(() => {
+        if (onAfterCloseByModalDialogIdRef.current) {
+            for (const [id, onAfterClose] of onAfterCloseByModalDialogIdRef.current) {
+                if (id === state.activeDialog?.id) {
+                    continue;
+                }
+                if (state.dialogQueue.some(dialog => dialog.id === id)) {
+                    continue;
+                }
+
+                onAfterCloseByModalDialogIdRef.current.delete(id);
+
+                // If we have a callback for a dialog that isn't the active dialog and isn't in
+                // the queue then finally call `onAfterClose`.
+                try {
+                    onAfterClose();
+                } catch (error) {
+                    scheduleUncaughtError(error);
+                }
+            }
+        }
+
+        if (state.activeDialog && state.activeDialog.props.onAfterClose) {
+            onAfterCloseByModalDialogIdRef.current ??= new Map();
+
+            onAfterCloseByModalDialogIdRef.current.set(
+                state.activeDialog.id,
+                state.activeDialog.props.onAfterClose,
+            );
+        }
+
+        for (const dialog of state.dialogQueue) {
+            if (dialog.props.onAfterClose) {
+                onAfterCloseByModalDialogIdRef.current ??= new Map();
+                onAfterCloseByModalDialogIdRef.current.set(dialog.id, dialog.props.onAfterClose);
+            }
+        }
+    }, [state.activeDialog, state.dialogQueue]);
 
     return (
         <ReporterContext.Provider value={reporter}>

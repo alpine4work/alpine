@@ -149,7 +149,9 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
         createdTime: new OpensearchIndexDateType({
             isFilterable: true,
             isSortable: true,
-        }).store(),
+        })
+            .nullable()
+            .store(),
 
         /**
          * When was the last time this search entity was updated?

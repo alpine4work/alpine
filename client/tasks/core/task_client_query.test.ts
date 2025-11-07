@@ -5,6 +5,7 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {
     HybridLogicalTime,
@@ -40,6 +41,7 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
 import {
     TaskAuthorizationStateRegister,
     TaskRealtimeUpdateEventSchema,
+    taskAuthorizedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
 
 beforeEach(() => {
@@ -321,7 +323,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             actions: [{isOptimistic: true, action: action1}],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -347,7 +349,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             ],
         },
         authorizationState: expect.objectContaining({
-            value: "Authorized",
+            value: taskAuthorizedState,
             version: zeroHybridLogicalTime,
         }),
     });
@@ -4842,7 +4844,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task3},
-            {type: "Unauthorized", taskId: task2.id},
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task2.id},
         ],
         backfillCollections: [],
         referencedAccounts: [],
@@ -4857,7 +4859,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         task: null,
         actions: [],
         authorizationState: new TaskAuthorizationStateRegister(
-            "Unauthorized",
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied},
             authorizationStateVersion1,
         ),
         optimisticState: null,
@@ -4867,7 +4869,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         task: task3,
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(
-            "Authorized",
+            taskAuthorizedState,
             authorizationStateVersion1,
         ),
         optimisticState: null,
@@ -4883,7 +4885,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task2},
-            {type: "Unauthorized", taskId: task1.id},
+            {type: "Unauthorized", errorCode: ErrorCode.PermissionDenied, taskId: task1.id},
         ],
         backfillCollections: [
             {type: "Authorized", collection: collection.applyAction(collectionAction)},
@@ -4900,7 +4902,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         task: task2,
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(
-            "Authorized",
+            taskAuthorizedState,
             authorizationStateVersion2,
         ),
         optimisticState: null,
@@ -4910,7 +4912,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         task: task3,
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(
-            "Authorized",
+            taskAuthorizedState,
             authorizationStateVersion1,
         ),
         optimisticState: null,
@@ -4920,7 +4922,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         collection: collection.applyAction(collectionAction),
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(
-            "Authorized",
+            taskAuthorizedState,
             authorizationStateVersion2,
         ),
         optimisticState: null,
@@ -4930,7 +4932,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         collection: collection.applyAction(collectionAction),
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(
-            "Authorized",
+            taskAuthorizedState,
             authorizationStateVersion2,
         ),
         optimisticState: null,

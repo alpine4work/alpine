@@ -43,7 +43,10 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
-import {taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/tasks/task_error_messages.js";
+import {
+    taskDeletedErrorDisplayMessage,
+    taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
+} from "~/shared/tasks/task_error_messages.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
@@ -119,9 +122,19 @@ export function TaskDetailAndCommentsView({
     );
 
     if (taskAccess.level === null) {
-        throw new PermissionDeniedError("Current account lost access to task", {
-            displayMessage: taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
-        });
+        if (taskAccess.type === "Deleted") {
+            throw new PermissionDeniedError("Current account lost access to task (deleted)", {
+                displayMessage: taskDeletedErrorDisplayMessage,
+            });
+        } else {
+            throw new PermissionDeniedError(
+                "Current account lost access to task (policy updated)",
+                {
+                    displayMessage:
+                        taskPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+                },
+            );
+        }
     }
 
     const hasCommentAccessLevel = useMemo(

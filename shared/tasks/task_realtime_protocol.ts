@@ -1,5 +1,5 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {ErrorCodeSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     BrowserId,
     TaskCollectionId,
@@ -27,9 +27,27 @@ import {
 export type TaskRealtimeEvent = WebSocketProtocolEventType<typeof TaskRealtimeProtocol>;
 
 export type TaskAuthorizationState = SchemaType<typeof TaskAuthorizationStateSchema>;
-const TaskAuthorizationStateSchema = Schema.enum(["Authorized", "Unauthorized"]);
+
+const TaskAuthorizationStateSchema = Schema.union({
+    Authorized: Schema.object({
+        type: Schema.value("Authorized"),
+    }),
+    Unauthorized: Schema.object({
+        type: Schema.value("Unauthorized"),
+        errorCode: ErrorCodeSchema,
+    }),
+});
+
 export type TaskAuthorizationStateRegister = CrdtRegister<TaskAuthorizationState>;
 export const TaskAuthorizationStateRegister = createCrdtRegister(TaskAuthorizationStateSchema);
+
+/**
+ * Authorized `TaskAuthorizationState` object. If you use this instead of
+ * `{type: "Authorized"}` then your code is marginally more performant since
+ * we're not allocating a bunch of tiny objects we have to garbage collect
+ * later.
+ */
+export const taskAuthorizedState: {readonly type: "Authorized"} = {type: "Authorized"};
 
 export type TaskRealtimeUpdateEventBackfillTask = SchemaType<
     typeof TaskRealtimeUpdateEventBackfillTaskSchema
@@ -44,6 +62,7 @@ const TaskRealtimeUpdateEventBackfillTaskSchema = Schema.union({
     Unauthorized: Schema.object({
         type: Schema.value("Unauthorized"),
         taskId: Schema.id<TaskId>(),
+        errorCode: ErrorCodeSchema,
         authorizationStateVersion: HybridLogicalTimeSchema.optional(),
     }),
 });
@@ -61,6 +80,7 @@ const TaskRealtimeUpdateEventBackfillCollectionSchema = Schema.union({
     Unauthorized: Schema.object({
         type: Schema.value("Unauthorized"),
         collectionId: Schema.id<TaskCollectionId>(),
+        errorCode: ErrorCodeSchema,
         authorizationStateVersion: HybridLogicalTimeSchema.optional(),
     }),
 });

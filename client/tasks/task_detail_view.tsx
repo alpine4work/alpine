@@ -26,6 +26,7 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -71,6 +72,7 @@ import {
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {showTaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
 import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
@@ -82,7 +84,6 @@ import {
     TaskCollectionsInputRef,
 } from "~/client/tasks/internal/task_collections_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
-import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {
     TaskDetailNotesField,
     TaskDetailNotesFieldRef,
@@ -115,7 +116,7 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {ConstStore, trueStore} from "~/shared/store/const_store.js";
+import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -184,19 +185,13 @@ export function TaskDetailView({
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone, isAppleDevice} = useClientInfo();
+    const reporter = useReporter();
     const {
         space: {id: spaceId},
         currentAccount,
     } = useSpaceContext();
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
-
-    const showSubtasks = useStore(
-        useMemo(
-            () => taskSubscription?.taskEntryStore.map(({task}) => !task?.isDeleted()) ?? trueStore,
-            [taskSubscription?.taskEntryStore],
-        ),
-    );
 
     const hasEditAccessLevel = useMemo(() => hasAccessLevel(access.level, "Edit"), [access.level]);
 
@@ -632,11 +627,6 @@ export function TaskDetailView({
         },
     });
 
-    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
-        taskId: TaskId;
-        onAfterDelete?: () => void;
-    } | null>(null);
-
     // Checks if a user has confirmed a task can be completed
     const [taskCloseConfirmationState, setTaskCloseConfirmationState] = useState<{
         taskId: TaskId;
@@ -792,12 +782,15 @@ export function TaskDetailView({
                             return;
                         }
 
-                        setTaskDeleteConfirmationState({
+                        showTaskDeleteConfirmationModalDialog({
+                            context,
+                            reporter,
+                            store,
+                            undoManager,
                             taskId,
-                            onAfterDelete: () => {
-                                // If the task is open in a peek this will close the peek.
-                                void navigate(-1);
-                            },
+                            // Close the detail view (if this is in a peek we navigate back) before
+                            // deleting the task so we don't flash the `<TaskDetailView>` deleted state.
+                            onBeforeDelete: () => navigate(-1),
                         });
                     },
                 },
@@ -870,6 +863,7 @@ export function TaskDetailView({
         onShowCommentsChange,
         priorityInputState.isVisible,
         redo,
+        reporter,
         routeLayout,
         showComments,
         spaceId,
@@ -925,7 +919,7 @@ export function TaskDetailView({
                     scrollbarInsetTop={scrollbarInsetTop}
                     stateKey={childrenGridViewStateKey}
                     bufferedItemHeight={childrenGridViewBufferedItemHeight}
-                    itemCount={showSubtasks ? childrenGridViewItemCount + 1 : 1}
+                    itemCount={childrenGridViewItemCount + 1}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () => [
                             // Always render `<TaskDetailViewMain>` regardless of where we've scrolled.
@@ -965,7 +959,6 @@ export function TaskDetailView({
                                             initialFields={initialFields}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
-                                            showSubtasks={showSubtasks}
                                             hasEditAccessLevel={hasEditAccessLevel}
                                             focusChildrenGridViewStart={focusChildrenGridViewStart}
                                             pushUndoStackEntry={pushUndoStackEntry}
@@ -1006,7 +999,6 @@ export function TaskDetailView({
                             initialFields,
                             undoManager,
                             affinityManager,
-                            showSubtasks,
                             hasEditAccessLevel,
                             focusChildrenGridViewStart,
                             pushUndoStackEntry,
@@ -1037,15 +1029,6 @@ export function TaskDetailView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
-            {taskDeleteConfirmationState && (
-                <TaskDeleteConfirmationModalDialog
-                    store={store}
-                    undoManager={undoManager}
-                    taskId={taskDeleteConfirmationState.taskId}
-                    onClose={() => setTaskDeleteConfirmationState(null)}
-                    onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
-                />
-            )}
             {taskCloseConfirmationState && (
                 <TaskCloseConfirmationModalDialog
                     store={store}
@@ -1103,7 +1086,6 @@ function TaskDetailViewMain(
         initialFields,
         undoManager,
         affinityManager,
-        showSubtasks,
         hasEditAccessLevel,
         focusChildrenGridViewStart,
         pushUndoStackEntry,
@@ -1133,7 +1115,6 @@ function TaskDetailViewMain(
         initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
-        showSubtasks: boolean;
         hasEditAccessLevel: boolean;
         focusChildrenGridViewStart: Memo<() => void>;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -1603,51 +1584,34 @@ function TaskDetailViewMain(
                     reconnectNotesClient={reconnectNotesClient}
                     ensureCreateTask={ensureCreateTask}
                 />
-                {showSubtasks ? (
-                    <>
-                        <Spacer space={taskDetailViewSectionGap} />
-                        <Box>
-                            <span
-                                className={sprinkles({
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "3",
-                                    paddingX: screenPaddingX,
-                                    paddingBottom: taskDetailViewSubtasksFieldLabelPaddingBottom,
-                                    color: taskDetailViewFieldLabelColor,
-                                })}
-                                // Affordance for mouse users. Clicking on a label focuses child tasks.
-                                onClick={focusChildrenGridViewStart}
-                            >
-                                <Box fontSize={taskDetailViewFieldLabelFontSize}>Subtasks</Box>
-                                {task && task.getChildTaskCount() > 0 && (
-                                    <Box display="flex" alignItems="center" gap="1">
-                                        <TaskChildTasksProgressWheel
-                                            childTaskCount={task.getChildTaskCount()}
-                                            closedChildTaskCount={task.getClosedChildTaskCount()}
-                                        />
-                                        <Box color="grey-70">
-                                            {task.getClosedChildTaskCount()}/
-                                            {task.getChildTaskCount()}
-                                        </Box>
-                                    </Box>
-                                )}
-                            </span>
-                        </Box>
-                    </>
-                ) : (
-                    <Box
-                        width="full"
-                        height="5"
-                        pointerEvents="none"
-                        style={{
-                            height:
-                                platform === "mobile"
-                                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
-                                    : undefined,
-                        }}
-                    />
-                )}
+                <Spacer space={taskDetailViewSectionGap} />
+                <Box>
+                    <span
+                        className={sprinkles({
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3",
+                            paddingX: screenPaddingX,
+                            paddingBottom: taskDetailViewSubtasksFieldLabelPaddingBottom,
+                            color: taskDetailViewFieldLabelColor,
+                        })}
+                        // Affordance for mouse users. Clicking on a label focuses child tasks.
+                        onClick={focusChildrenGridViewStart}
+                    >
+                        <Box fontSize={taskDetailViewFieldLabelFontSize}>Subtasks</Box>
+                        {task && task.getChildTaskCount() > 0 && (
+                            <Box display="flex" alignItems="center" gap="1">
+                                <TaskChildTasksProgressWheel
+                                    childTaskCount={task.getChildTaskCount()}
+                                    closedChildTaskCount={task.getClosedChildTaskCount()}
+                                />
+                                <Box color="grey-70">
+                                    {task.getClosedChildTaskCount()}/{task.getChildTaskCount()}
+                                </Box>
+                            </Box>
+                        )}
+                    </span>
+                </Box>
             </Box>
         </>
     );

@@ -3,7 +3,10 @@ import {AppContext} from "~/client/context/app_context.js";
 import {ModalDialogProps} from "~/client/design/modal_dialog_props.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 
-export type ReporterModalDialogProps = Omit<ModalDialogProps, "onClose"> & {readonly key?: unknown};
+export type ReporterModalDialogProps = Omit<ModalDialogProps, "onClose"> & {
+    readonly key?: unknown;
+    readonly onAfterClose?: () => void;
+};
 
 /**
  * The reporter abstraction is used for conveniently reporting some message to

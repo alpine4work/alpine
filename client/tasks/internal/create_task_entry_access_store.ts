@@ -8,16 +8,16 @@ import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_s
 import {
     AccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
-    hasAccessLevel,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
 
 export type TaskAccess =
-    | {readonly type: "Deleted"; readonly level: "View" | "Comment"}
+    | {readonly type: "Deleted"; readonly level: null}
     | {readonly type: "PermissionGranted"; readonly level: AccessLevel}
     | {readonly type: "PermissionDenied"; readonly level: null};
 
@@ -76,33 +76,41 @@ export function computeTaskEntryAccess(
     taskEntry: TaskClientStoreTaskEntry,
 ): TaskAccess {
     const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
-        // The task is not loaded. Assume we don't have permission. Principle of
-        // least privilege.
-        if (!taskEntry.task) return {type: "PermissionDenied", level: null};
-
         // If the task is marked as unauthorized, we don't have permission. Even if the
         // task was previously loaded. Our client might not see the action which makes
         // the task unauthorized.
-        if (taskEntry.authorizationState.value !== "Authorized")
+        if (taskEntry.authorizationState?.value.type !== "Authorized") {
+            // We use the `NotFound` error code for deleted tasks.
+            if (taskEntry.authorizationState?.value.errorCode === ErrorCode.NotFound) {
+                return {type: "Deleted", level: null};
+            } else {
+                return {type: "PermissionDenied", level: null};
+            }
+        }
+
+        // The task is not loaded and we don't have an `authorizationState`. Assume we
+        // don't have permission.
+        if (!taskEntry.task) {
             return {type: "PermissionDenied", level: null};
+        }
+
+        // Can't access a deleted task. We reach this case if a task is
+        // deleted in realtime before we've had a chance to re-run authorization. When
+        // authorization re-runs then we'll get an `Unauthorized` `authorizationState`
+        // with `ErrorCode.NotFound` and end up returning above.
+        if (taskEntry.task.isDeleted()) {
+            return {type: "Deleted", level: null};
+        }
 
         if (currentAccountId) {
             // The task creator has edit access level on their own task.
             if (taskEntry.task.getCreator().accountId === currentAccountId) {
-                if (taskEntry.task.isDeleted()) {
-                    return {type: "Deleted", level: "Comment"};
-                } else {
-                    return {type: "PermissionGranted", level: "Edit"};
-                }
+                return {type: "PermissionGranted", level: "Edit"};
             }
 
             // The task assignee has edit access level on their own task.
             if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
-                if (taskEntry.task.isDeleted()) {
-                    return {type: "Deleted", level: "Comment"};
-                } else {
-                    return {type: "PermissionGranted", level: "Edit"};
-                }
+                return {type: "PermissionGranted", level: "Edit"};
             }
         }
 
@@ -144,14 +152,6 @@ export function computeTaskEntryAccess(
             accessLevel = maxAccessLevel(accessLevel, accessLevels[i]!);
         }
 
-        // If the task was deleted, you can still see it but you can't edit it.
-        if (taskEntry.task.isDeleted()) {
-            return {
-                type: "Deleted",
-                level: hasAccessLevel(accessLevel, "Comment") ? "Comment" : "View",
-            };
-        }
-
         return {
             type: "PermissionGranted",
             level: accessLevel,
@@ -182,22 +182,30 @@ function computeTaskCollectionEntryAccess(
     currentAccountId: AccountId | null | undefined,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
-    // The collection is not loaded. Assume we don't have permission. Principle of
-    // least privilege.
+    // If the collection is marked as unauthorized, we don't have permission. Even
+    // if the task was previously loaded. Our client might not see the action which
+    // makes the task unauthorized.
+    if (collectionEntry.authorizationState?.value.type !== "Authorized") {
+        // We use the `NotFound` error code for deleted tasks collections.
+        if (collectionEntry.authorizationState?.value.errorCode === ErrorCode.NotFound) {
+            return {type: "Deleted", level: null};
+        } else {
+            return {type: "PermissionDenied", level: null};
+        }
+    }
+
+    // The collection is not loaded and we don't have an `authorizationState`.
+    // Assume we don't have permission.
     if (!collectionEntry.collection) {
         return {type: "PermissionDenied", level: null};
     }
 
-    // If the collection is marked as unauthorized, we don't have permission. Even
-    // if the task was previously loaded. Our client might not see the action which
-    // makes the task unauthorized.
-    if (collectionEntry.authorizationState.value !== "Authorized") {
-        return {type: "PermissionDenied", level: null};
-    }
-
-    // Deleted collections don't grant access.
+    // Can't access a deleted collection. We reach this case if a collection is
+    // deleted in realtime before we've had a chance to re-run authorization. When
+    // authorization re-runs then we'll get an `Unauthorized` `authorizationState`
+    // with `ErrorCode.NotFound` and end up returning above.
     if (collectionEntry.collection.isDeleted()) {
-        return {type: "Deleted", level: "View"};
+        return {type: "Deleted", level: null};
     }
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();

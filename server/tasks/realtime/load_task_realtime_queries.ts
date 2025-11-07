@@ -23,6 +23,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -116,10 +117,10 @@ export async function loadTaskRealtimeQueries(
     const defaultAuthorizationStateVersion: HybridLogicalTime = [Date.now(), 0];
 
     const backfillAuthorizedTaskSet = new Set<TaskIndexDoc>();
-    const backfillUnauthorizedTaskIds = new Set<TaskId>();
+    const backfillUnauthorizedTaskIds = new Map<TaskId, ErrorCode>();
     const backfillAuthorizedCollectionSet = new Set<TaskCollectionIndexDoc>();
     const backfillAuthorizedCollectionIds = new Set<TaskCollectionId>();
-    const backfillUnauthorizedCollectionIds = new Set<TaskCollectionId>();
+    const backfillUnauthorizedCollectionIds = new Map<TaskCollectionId, ErrorCode>();
 
     const promiseWaiter = new PromiseWaiter();
     const loadTaskPromiseById = new Map<TaskId, Promise<void>>();
@@ -148,7 +149,7 @@ export async function loadTaskRealtimeQueries(
                 );
 
                 if (!result.ok) {
-                    backfillUnauthorizedTaskIds.add(task.id);
+                    backfillUnauthorizedTaskIds.set(task.id, result.error.code);
 
                     // Logically, this should remove a backfilled authorized task. However we don't
                     // have a way to address authorized tasks by `TaskId` during the event building
@@ -176,7 +177,7 @@ export async function loadTaskRealtimeQueries(
                 );
 
                 if (!result.ok) {
-                    backfillUnauthorizedCollectionIds.add(collection.id);
+                    backfillUnauthorizedCollectionIds.set(collection.id, result.error.code);
 
                     // Logically, this should remove a backfilled authorized collection. However we
                     // don't have a way to address authorized collections by `TaskCollectionId`
@@ -390,8 +391,9 @@ export async function loadTaskRealtimeQueries(
     const backfillTasks = Array.from(
         concatIterables<TaskRealtimeUpdateEventBackfillTask>(
             backfillAuthorizedTasks,
-            mapIterable(backfillUnauthorizedTaskIds, taskId => ({
+            mapIterable(backfillUnauthorizedTaskIds, ([taskId, errorCode]) => ({
                 type: "Unauthorized",
+                errorCode,
                 taskId,
             })),
         ),

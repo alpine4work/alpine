@@ -143,6 +143,7 @@ export function renderContentFileEntityPreview(
             getContext().react.reportRenderedError(error);
         }
 
+        // Example: Deleted task collections return `ErrorCode.NotFound`.
         const isNotFoundError: boolean =
             error instanceof ErrorBase &&
             error.code === ErrorCode.NotFound &&

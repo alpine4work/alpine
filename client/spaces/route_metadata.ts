@@ -138,7 +138,7 @@ const metadataByRouteId: Record<
         spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.collections.$collectionId": {
-        errorTitle: "Couldn’t open tasks",
+        errorTitle: "Couldn’t open task collection",
         spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.view": {

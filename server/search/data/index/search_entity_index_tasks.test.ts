@@ -2538,4 +2538,309 @@ describe("getSearchEntity", () => {
         import.meta.jest.runAllTimers();
         await ProcessContextModule.waitForTestTasks();
     });
+
+    test("can get deleted task search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session, {name: "Test Task Collection"});
+        await collection.access.grantDefault(session);
+
+        const task = await TestTask.create(session, {title: "Test Task"});
+        await task.addCollection(session, collection);
+        await task.typeNotes(session, "Lorem ipsum dolor sit amet");
+        await task.delete(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: null,
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                    deletedTime: expect.any(Array),
+                },
+                body: null,
+                embeddingChunks: [],
+                media: null,
+                creatorId: null,
+                contributorIds: new Map(),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get deleted task collection search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session, {name: "Test Task Collection"});
+        await collection.access.grantDefault(session);
+        await collection.updateColor(session, "purple");
+        await collection.delete(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskCollection", collectionId: collection.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set(),
+            entity: {
+                id: `TaskCollection:${collection.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                },
+                createdTime: new Date(collection.createdTime[0]),
+                title: null,
+                titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
+                body: null,
+                embeddingChunks: [],
+                media: null,
+                creatorId: null,
+                contributorIds: new Map(),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get comment on deleted task search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session, {name: "Test Task Collection"});
+        await collection.access.grantDefault(session);
+
+        const task = await TestTask.create(session, {title: "Test Task"});
+        await task.addCollection(session, collection);
+        await task.typeNotes(session, "Lorem ipsum dolor sit amet");
+
+        const comment = await task.createComment(session, "Test Task Comment");
+
+        await task.delete(session);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskComment", taskId: task.id, commentIndex: comment.index},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`Task:${task.id}:Authorization`]),
+            entity: {
+                id: `TaskComment:${task.id}-${comment.index}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: null,
+                },
+                createdTime: null,
+                title: null,
+                titleVersion: null,
+                body: null,
+                embeddingChunks: [],
+                media: null,
+                creatorId: null,
+                contributorIds: new Map(),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get task search entity with a deleted parent", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+        const parentTask = await TestTask.create(session2, {title: "Test Parent Task"});
+        await parentTask.addCollection(session2, collection);
+
+        const task = await TestTask.create(session1, {title: "Test Task"});
+        await task.updateParentTask(session1, parentTask);
+        await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([
+                `TaskCollection:${collection.id}:Authorization`,
+                `Task:${parentTask.id}:Authorization`,
+            ]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: "Test Task",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                body: "Lorem ipsum dolor sit amet",
+                embeddingChunks: expect.any(Array),
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
+                creatorId: session1.account.id,
+                contributorIds: new Map([[session1.account.id, "Major"]]),
+            },
+        });
+
+        await parentTask.delete(session1);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([
+                `TaskCollection:${collection.id}:Authorization`,
+                `Task:${parentTask.id}:Authorization`,
+            ]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set([session1.account.id]),
+                    defaultGrantType: null,
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: "Test Task",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                body: "Lorem ipsum dolor sit amet",
+                embeddingChunks: expect.any(Array),
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
+                creatorId: session1.account.id,
+                contributorIds: new Map([[session1.account.id, "Major"]]),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get task search entity with a deleted collection", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const collection = await TestTaskCollection.create(session2, {access: "Public"});
+
+        const task = await TestTask.create(session1, {title: "Test Task"});
+        await task.addCollection(session1, collection);
+        await task.typeNotes(session1, "Lorem ipsum dolor sit amet");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: "Test Task",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                body: "Lorem ipsum dolor sit amet",
+                embeddingChunks: expect.any(Array),
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
+                creatorId: session1.account.id,
+                contributorIds: new Map([[session1.account.id, "Major"]]),
+            },
+        });
+
+        await collection.delete(session2);
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task.id},
+                {tokenizer, registerAdditionalWrite: noop},
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`TaskCollection:${collection.id}:Authorization`]),
+            entity: {
+                id: `Task:${task.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set([session1.account.id]),
+                    defaultGrantType: null,
+                },
+                createdTime: new Date(task.createdTime[0]),
+                title: "Test Task",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                body: "Lorem ipsum dolor sit amet",
+                embeddingChunks: expect.any(Array),
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
+                creatorId: session1.account.id,
+                contributorIds: new Map([[session1.account.id, "Major"]]),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
 });

@@ -11,6 +11,7 @@ import {
 } from "~/server/tasks/data/task_realtime_context.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -62,6 +63,7 @@ type TaskRealtimeUpdateEventBackfillTask =
     | {
           readonly type: "Unauthorized";
           readonly taskId: TaskId;
+          readonly errorCode: ErrorCode;
           readonly authorizationStateVersion: HybridLogicalTime | undefined;
       };
 
@@ -74,6 +76,7 @@ type TaskRealtimeUpdateEventBackfillCollection =
     | {
           readonly type: "Unauthorized";
           readonly collectionId: TaskCollectionId;
+          readonly errorCode: ErrorCode;
           readonly authorizationStateVersion: HybridLogicalTime | undefined;
           readonly wasPreviouslyAuthorized: boolean;
       };
@@ -238,6 +241,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     public addUnauthorizedTaskBackfill(
         connection: TaskRealtimeUpdateEventConnection,
         taskId: TaskId,
+        errorCode: ErrorCode,
         authorizationStateVersion: HybridLogicalTime,
     ) {
         assert(!this._isFinished);
@@ -247,6 +251,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         event.backfillTasks.push({
             type: "Unauthorized",
             taskId,
+            errorCode,
             authorizationStateVersion:
                 event.defaultAuthorizationStateVersion !== authorizationStateVersion
                     ? authorizationStateVersion
@@ -286,6 +291,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
     public addUnauthorizedCollectionBackfill(
         connection: TaskRealtimeUpdateEventConnection,
         collectionId: TaskCollectionId,
+        errorCode: ErrorCode,
         authorizationStateVersion: HybridLogicalTime,
         wasPreviouslyAuthorized: boolean,
     ) {
@@ -296,6 +302,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         event.backfillCollections.push({
             type: "Unauthorized",
             collectionId,
+            errorCode,
             authorizationStateVersion:
                 event.defaultAuthorizationStateVersion !== authorizationStateVersion
                     ? authorizationStateVersion
@@ -426,6 +433,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
                     return {
                         type: "Unauthorized" as const,
                         collectionId: unpreparedCollection.collectionId,
+                        errorCode: unpreparedCollection.errorCode,
                         authorizationStateVersion: unpreparedCollection.authorizationStateVersion,
                     };
                 }

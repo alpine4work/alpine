@@ -498,7 +498,7 @@ function TaskRowView(
     // expect that it exists on the client and is authorized.
     assert(
         cursor !== null
-            ? task !== null && taskEntry?.authorizationState?.value === "Authorized"
+            ? task !== null && taskEntry?.authorizationState?.value.type === "Authorized"
             : task === null,
     );
 

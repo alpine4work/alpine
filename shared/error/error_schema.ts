@@ -1,6 +1,6 @@
 import {getAggregateErrorPriority} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
-import {ErrorCode, isErrorCode} from "~/shared/error/error_code.js";
+import {ErrorCode, getErrorCodes, isErrorCode} from "~/shared/error/error_code.js";
 import {
     getErrorOriginalTracerSpan,
     setErrorOriginalTracerSpan,
@@ -14,6 +14,8 @@ import {
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+
+export const ErrorCodeSchema = Schema.enum(getErrorCodes());
 
 export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
     Schema.object({
@@ -51,7 +53,7 @@ type ErrorBaseWithCause = {
 const ErrorBaseWithCauseRecursiveSchema = Schema.declare<ErrorBaseWithCause>();
 
 const ErrorBaseWithCauseSchema = Schema.object({
-    code: Schema.integer.optional(),
+    code: ErrorCodeSchema.optional(),
     message: Schema.string,
     displayMessage: ErrorDisplayMessageSchema.optional(),
     aggregateDedupeKey: Schema.string.optional(),

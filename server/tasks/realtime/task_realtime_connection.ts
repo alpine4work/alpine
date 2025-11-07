@@ -43,6 +43,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalClock,
@@ -74,6 +75,7 @@ import {
     TaskRealtimeEvent,
     TaskRealtimeProtocol,
     TaskRealtimeQueryLoadedState,
+    taskAuthorizedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
 
 export const taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint =
@@ -1054,7 +1056,8 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             collection: TaskCollectionIndexDoc;
             authorizationStateVersion: HybridLogicalTime;
             authorizationStatePromise: Promise<
-                {state: "Authorized"} | {state: "Unauthorized"; wasPreviouslyAuthorized: boolean}
+                | {type: "Authorized"}
+                | {type: "Unauthorized"; errorCode: ErrorCode; wasPreviouslyAuthorized: boolean}
             >;
             // We keep track of the previous collection object our subscription saw while
             // testing so we can check if we've missed any updates. We run this validation
@@ -1114,22 +1117,21 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                 // While we know the task is definitely authorized at this point, we may not
                 // know the task's previous authorization state. Only backfill the task if it
                 // was previously unauthorized.
-                const promise = referencedTaskState.authorizationStatePromise.then(
-                    authorizationState => {
+                const promise: Promise<TaskAuthorizationState> =
+                    referencedTaskState.authorizationStatePromise.then(authorizationState => {
                         // If the task continues to be authorized, we don't send the new
                         // `authorizationStateVersion` to the client. This should be fine since future
                         // authorization state versions will be after `authorizationStateVersion`
                         // because our clock was ticked past `authorizationStateVersion`.
-                        if (authorizationState === "Authorized") return authorizationState;
+                        if (authorizationState.type === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedTaskBackfill(
                             this,
                             newTask,
                             authorizationStateVersion,
                         );
-                        return "Authorized";
-                    },
-                );
+                        return taskAuthorizedState;
+                    });
 
                 eventBuilder.waitUntil(context, promise);
 
@@ -1297,14 +1299,14 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         // `authorizationStateVersion` to the client. This should be fine since future
                         // authorization state versions will be after `authorizationStateVersion`
                         // because our clock was ticked past `authorizationStateVersion`.
-                        if (authorizationState.state === "Authorized") return authorizationState;
+                        if (authorizationState.type === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedCollectionBackfill(
                             this,
                             newCollection,
                             authorizationStateVersion,
                         );
-                        return {state: "Authorized" as const};
+                        return {type: "Authorized" as const};
                     },
                 );
 
@@ -1480,40 +1482,41 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         task: newTask,
                         authorizationStateVersion:
                             directlySubscribedTaskState.authorizationStateVersion,
-                        authorizationStatePromise: Promise.resolve("Authorized"),
+                        authorizationStatePromise: Promise.resolve(taskAuthorizedState),
                         previousTaskForTest: null,
                     });
                 } else {
                     const authorizationStateVersion =
                         eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                    const promise = impersonateAccountAsSystemContext(
-                        context,
-                        this.accountId,
-                        accountContext =>
+                    const promise: Promise<TaskAuthorizationState> =
+                        impersonateAccountAsSystemContext(context, this.accountId, accountContext =>
                             authorizeTaskIndexDocAccessIfPossible(accountContext, newTask, "View", {
                                 getTaskIndexDoc: taskId =>
                                     this._server.getTask(context, this.spaceId, taskId),
                                 getCollectionIndexDoc: collectionId =>
                                     this._server.getCollection(context, this.spaceId, collectionId),
                             }),
-                    ).then(result => {
-                        if (!result.ok) {
-                            eventBuilder.addUnauthorizedTaskBackfill(
-                                this,
-                                newTask.id,
-                                authorizationStateVersion,
-                            );
-                        } else {
-                            eventBuilder.addAuthorizedTaskBackfill(
-                                this,
-                                newTask,
-                                authorizationStateVersion,
-                            );
-                        }
+                        ).then(result => {
+                            if (!result.ok) {
+                                eventBuilder.addUnauthorizedTaskBackfill(
+                                    this,
+                                    newTask.id,
+                                    result.error.code,
+                                    authorizationStateVersion,
+                                );
+                            } else {
+                                eventBuilder.addAuthorizedTaskBackfill(
+                                    this,
+                                    newTask,
+                                    authorizationStateVersion,
+                                );
+                            }
 
-                        return result.ok ? "Authorized" : "Unauthorized";
-                    });
+                            return result.ok
+                                ? taskAuthorizedState
+                                : {type: "Unauthorized", errorCode: result.error.code};
+                        });
 
                     eventBuilder.waitUntil(context, promise);
 
@@ -1558,7 +1561,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             eventBuilder.waitUntil(
                 context,
                 referencedTaskState.authorizationStatePromise.then(authorizationState => {
-                    if (authorizationState !== "Authorized") return;
+                    if (authorizationState.type !== "Authorized") return;
                     eventBuilder.addActions(this, actions);
                 }),
             );
@@ -1611,7 +1614,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         collection: newCollection,
                         authorizationStateVersion:
                             directlySubscribedCollectionState.authorizationStateVersion,
-                        authorizationStatePromise: Promise.resolve({state: "Authorized"}),
+                        authorizationStatePromise: Promise.resolve(taskAuthorizedState),
                         previousCollectionForTest: null,
                     });
                 } else {
@@ -1634,6 +1637,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this,
                                 newCollection.id,
+                                result.error.code,
                                 authorizationStateVersion,
                                 wasPreviouslyAuthorized,
                             );
@@ -1646,8 +1650,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         }
 
                         return result.ok
-                            ? {state: "Authorized" as const}
-                            : {state: "Unauthorized" as const, wasPreviouslyAuthorized};
+                            ? {type: "Authorized" as const}
+                            : {
+                                  type: "Unauthorized" as const,
+                                  errorCode: result.error.code,
+                                  wasPreviouslyAuthorized,
+                              };
                     });
 
                     eventBuilder.waitUntil(context, promise);
@@ -1703,7 +1711,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
             eventBuilder.waitUntil(
                 context,
                 referencedCollectionState.authorizationStatePromise.then(authorizationState => {
-                    if (authorizationState.state !== "Authorized") return;
+                    if (authorizationState.type !== "Authorized") return;
                     eventBuilder.addActions(this, actions);
                 }),
             );
@@ -1773,17 +1781,19 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                     // should have already been handled when we added/removed the direct reference.
                     if (this._directlySubscribedTaskStateById.has(task.id)) return;
 
-                    const newAuthorizationStatePromise = impersonateAccountAsSystemContext(
-                        context,
-                        this.accountId,
-                        accountContext =>
+                    const newAuthorizationStatePromise: Promise<TaskAuthorizationState> =
+                        impersonateAccountAsSystemContext(context, this.accountId, accountContext =>
                             authorizeTaskIndexDocAccessIfPossible(accountContext, task, "View", {
                                 getTaskIndexDoc: taskId =>
                                     this._server.getTask(context, this.spaceId, taskId),
                                 getCollectionIndexDoc: collectionId =>
                                     this._server.getCollection(context, this.spaceId, collectionId),
                             }),
-                    ).then(result => (result.ok ? "Authorized" : "Unauthorized"));
+                        ).then(result =>
+                            result.ok
+                                ? taskAuthorizedState
+                                : {type: "Unauthorized", errorCode: result.error.code},
+                        );
 
                     const oldAuthorizationStatePromise = referencedTask.authorizationStatePromise;
 
@@ -1800,11 +1810,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         newAuthorizationStatePromise,
                     ]);
 
-                    if (oldAuthorizationState !== newAuthorizationState) {
-                        if (newAuthorizationState === "Unauthorized") {
+                    if (oldAuthorizationState.type !== newAuthorizationState.type) {
+                        if (newAuthorizationState.type === "Unauthorized") {
                             eventBuilder.addUnauthorizedTaskBackfill(
                                 this,
                                 task.id,
+                                newAuthorizationState.errorCode,
                                 authorizationStateVersion,
                             );
                         } else {
@@ -1834,7 +1845,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                             context,
                                             referencedTaskState.authorizationStatePromise.then(
                                                 authorizationState => {
-                                                    if (authorizationState === "Authorized") {
+                                                    if (authorizationState.type === "Authorized") {
                                                         eventBuilder.addAuthorizedTaskBackfill(
                                                             this,
                                                             referencedTask,
@@ -1844,6 +1855,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                                         eventBuilder.addUnauthorizedTaskBackfill(
                                                             this,
                                                             referencedTask.id,
+                                                            authorizationState.errorCode,
                                                             authorizationStateVersion,
                                                         );
                                                     }
@@ -1869,7 +1881,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                         context,
                                         referencedCollectionState.authorizationStatePromise.then(
                                             authorizationState => {
-                                                if (authorizationState.state === "Authorized") {
+                                                if (authorizationState.type === "Authorized") {
                                                     eventBuilder.addAuthorizedCollectionBackfill(
                                                         this,
                                                         referencedCollection,
@@ -1879,6 +1891,7 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                                                     eventBuilder.addUnauthorizedCollectionBackfill(
                                                         this,
                                                         referencedCollection.id,
+                                                        authorizationState.errorCode,
                                                         authorizationStateVersion,
                                                         authorizationState.wasPreviouslyAuthorized,
                                                     );
@@ -1917,13 +1930,14 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                             ),
                     ).then(async result => {
                         if (result.ok) {
-                            return {state: "Authorized" as const};
+                            return {type: "Authorized" as const};
                         } else {
                             const oldAuthorizationState = await oldAuthorizationStatePromise;
                             return {
-                                state: "Unauthorized" as const,
+                                type: "Unauthorized" as const,
+                                errorCode: result.error.code,
                                 wasPreviouslyAuthorized:
-                                    oldAuthorizationState.state === "Authorized" ||
+                                    oldAuthorizationState.type === "Authorized" ||
                                     oldAuthorizationState.wasPreviouslyAuthorized,
                             };
                         }
@@ -1942,11 +1956,12 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
                         newAuthorizationStatePromise,
                     ]);
 
-                    if (oldAuthorizationState.state !== newAuthorizationState.state) {
-                        if (newAuthorizationState.state === "Unauthorized") {
+                    if (oldAuthorizationState.type !== newAuthorizationState.type) {
+                        if (newAuthorizationState.type === "Unauthorized") {
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this,
                                 collection.id,
+                                newAuthorizationState.errorCode,
                                 authorizationStateVersion,
                                 newAuthorizationState.wasPreviouslyAuthorized,
                             );
@@ -2026,6 +2041,6 @@ export class TaskRealtimeConnection implements TaskRealtimeUpdateEventConnection
         }
 
         const authorizationState = await referencedCollectionState.authorizationStatePromise;
-        return authorizationState.state === "Authorized";
+        return authorizationState.type === "Authorized";
     }
 }

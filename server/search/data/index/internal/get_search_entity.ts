@@ -66,6 +66,8 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -120,7 +122,7 @@ const searchEntityMajorContributorCutOff = 0.2;
 export type SearchEntity = {
     readonly id: SearchDynamicEntityId;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
-    readonly createdTime: Date;
+    readonly createdTime: Date | null;
     readonly title: string | null;
     readonly titleVersion: SearchEntityTitleVersion | null;
     readonly body: string | null;
@@ -149,6 +151,29 @@ export type SearchEntityEmbeddingChunk = {
     readonly preambleEndIndex: number;
     readonly tokenCountWithoutPreamble: number;
     readonly text: string;
+};
+
+/**
+ * The search entity to use for deleted messages. We don't keep anything around
+ * in the search index for deleted messages. Since unlike deleted tasks or
+ * documents you can't mention a message and messages don't show up in our
+ * trash feature.
+ */
+// NOTE(calebmer, 2025-11-06): Eventually we should have a trash feature for
+// recovering deleted tasks, task collections, documents, or anything else the
+// user might delete. Right now my idea for implementing trash is it's based on
+// the OpenSearch index. So we continue to maintain `accessPolicy`s and some
+// other metadata for deleted entities so they can be searched.
+const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
+    accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
+    createdTime: null,
+    title: null,
+    titleVersion: null,
+    body: null,
+    media: null,
+    embeddingChunks: [],
+    creatorId: null,
+    contributorIds: emptyMap,
 };
 
 /**
@@ -551,30 +576,47 @@ class SearchEntityReadState {
         };
     }
 
-    public async getTask(taskId: TaskId): Promise<{
-        task: TaskModel;
-        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
-        referencedCollectionById: ReadonlyMap<
-            TaskCollectionId,
-            TaskCollectionModelForAuthorization
-        >;
-        approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
-        notesContent: {
-            version: number;
-            content: TaskNotesContent;
-            stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
-        };
-    }> {
+    public async getTask(taskId: TaskId): Promise<
+        | {
+              isDeleted: true;
+              task: TaskModel;
+              referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+              referencedCollectionById: ReadonlyMap<
+                  TaskCollectionId,
+                  TaskCollectionModelForAuthorization
+              >;
+          }
+        | {
+              isDeleted: false;
+              task: TaskModel;
+              referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+              referencedCollectionById: ReadonlyMap<
+                  TaskCollectionId,
+                  TaskCollectionModelForAuthorization
+              >;
+              approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
+              notesContent: {
+                  version: number;
+                  content: TaskNotesContent;
+                  stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
+              };
+          }
+    > {
         this._recordDependencyId(`Task:${taskId}`);
 
         const [
             {task, referencedTasks, referencedCollections, approximateActionCountByAccountId},
-            notesContent,
+            notesContentResult,
         ] = await runAllPromises([
             getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
-            getTaskNotesContentWithoutReferences(this._context, taskId, {
-                consistency: "StrongWithinCache",
-            }),
+
+            // We ignore any errors from loading notes if the task was deleted. Since
+            // loading notes runs authorization and should throw a `NotFoundError`.
+            captureResultPromise(
+                getTaskNotesContentWithoutReferences(this._context, taskId, {
+                    consistency: "StrongWithinCache",
+                }),
+            ),
         ]);
 
         const referencedTaskById = new Map<TaskId, TaskModel>(
@@ -592,19 +634,29 @@ class SearchEntityReadState {
             }),
         );
 
+        if (task.isDeleted()) {
+            return {
+                isDeleted: true,
+                task,
+                referencedTaskById,
+                referencedCollectionById,
+            };
+        }
+
         return {
+            isDeleted: false,
             task,
             referencedTaskById,
             referencedCollectionById,
             approximateActionCountByAccountId,
-            notesContent,
+            notesContent: unwrapResult(notesContentResult),
         };
     }
 
     public async getTaskForAuthorization(taskId: TaskId): Promise<{
         task: TaskModelForAuthorization;
-        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
-        referencedCollectionById: ReadonlyMap<
+        getReferencedTaskById: () => ReadonlyMap<TaskId, TaskModelForAuthorization>;
+        getReferencedCollectionById: () => ReadonlyMap<
             TaskCollectionId,
             TaskCollectionModelForAuthorization
         >;
@@ -617,25 +669,31 @@ class SearchEntityReadState {
             taskId,
         );
 
-        const referencedTaskById = new Map<TaskId, TaskModel>(
-            referencedTasks.map(task => {
-                this._recordDependencyId(`Task:${task.id}:Authorization`);
+        const referencedTaskById = new Lazy(() => {
+            return new Map<TaskId, TaskModel>(
+                referencedTasks.map(task => {
+                    this._recordDependencyId(`Task:${task.id}:Authorization`);
 
-                return [task.id, task];
-            }),
-        );
-        const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
-            referencedCollections.map(collection => {
-                this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
+                    return [task.id, task];
+                }),
+            );
+        });
 
-                return [collection.id, collection];
-            }),
-        );
+        const referencedCollectionById = new Lazy(() => {
+            return new Map<TaskCollectionId, TaskCollectionModel>(
+                referencedCollections.map(collection => {
+                    this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
+
+                    return [collection.id, collection];
+                }),
+            );
+        });
 
         return {
             task,
-            referencedTaskById,
-            referencedCollectionById,
+            // Functions so we only record dependencies if we actually need to use them.
+            getReferencedTaskById: () => referencedTaskById.get(),
+            getReferencedCollectionById: () => referencedCollectionById.get(),
         };
     }
 
@@ -1285,38 +1343,31 @@ async function getDocumentCommentSearchEntity(
         documentAccessPolicy,
     } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
 
+    if (commentPayload.type === "Deleted") {
+        return {...searchDeletedMessageEntity, id};
+    }
+
     const accessPolicy = getSearchEntityIndexAccessPolicy(documentAccessPolicy);
 
-    let content: {
-        getFullText: () => string;
-        getEmbeddingChunks: () => Array<{
-            preambleEndIndex: number;
-            tokenCountWithoutPreamble: number;
-            text: string;
-        }>;
-    } | null = null;
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        commentPayload.content,
+        emptySet,
+    );
 
-    if (commentPayload.type === "Content") {
-        const contentReferences = await getSearchContentReferences(
-            state,
-            id,
-            accessPolicy,
-            commentPayload.content,
-            emptySet,
-        );
-
-        content = chunkSearchContent(commentPayload.content, {
-            tokenizer: state.tokenizer,
-            getAccountIfExists: contentReferences.getAccountIfExists,
-            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
-            getChunkPreamble: ({isInitialChunk}) => {
-                return {
-                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a document:`,
-                    lineMarginBottom: 2,
-                };
-            },
-        });
-    }
+    const content = chunkSearchContent(commentPayload.content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({isInitialChunk}) => {
+            return {
+                text: `This is${isInitialChunk ? " a " : " from a "}comment on a document:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
 
     return {
         id,
@@ -1478,38 +1529,31 @@ async function getPostCommentSearchEntity(
         channelAccessPolicy,
     } = await state.getPostCommentPayload(postId, commentIndex);
 
+    if (commentPayload.type === "Deleted") {
+        return {...searchDeletedMessageEntity, id};
+    }
+
     const accessPolicy = getSearchEntityIndexAccessPolicy(channelAccessPolicy);
 
-    let content: {
-        getFullText: () => string;
-        getEmbeddingChunks: () => Array<{
-            preambleEndIndex: number;
-            tokenCountWithoutPreamble: number;
-            text: string;
-        }>;
-    } | null = null;
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        commentPayload.content,
+        emptySet,
+    );
 
-    if (commentPayload.type === "Content") {
-        const contentReferences = await getSearchContentReferences(
-            state,
-            id,
-            accessPolicy,
-            commentPayload.content,
-            emptySet,
-        );
-
-        content = chunkSearchContent(commentPayload.content, {
-            tokenizer: state.tokenizer,
-            getAccountIfExists: contentReferences.getAccountIfExists,
-            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
-            getChunkPreamble: ({isInitialChunk}) => {
-                return {
-                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a post:`,
-                    lineMarginBottom: 2,
-                };
-            },
-        });
-    }
+    const content = chunkSearchContent(commentPayload.content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({isInitialChunk}) => {
+            return {
+                text: `This is${isInitialChunk ? " a " : " from a "}comment on a post:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
 
     return {
         id,
@@ -1642,47 +1686,40 @@ async function getChatMessageSearchEntity(
             state.getChatMessagePayload(chatId, messageIndex),
         ]);
 
+    if (messagePayload.type === "Deleted") {
+        return {...searchDeletedMessageEntity, id};
+    }
+
     const accessPolicy: SearchEntityIndexAccessPolicy = {
         accountGrantAccountIds: new Set(chatAccountIds),
         defaultGrantType: null,
     };
 
-    let content: {
-        getFullText: () => string;
-        getEmbeddingChunks: () => Array<{
-            preambleEndIndex: number;
-            tokenCountWithoutPreamble: number;
-            text: string;
-        }>;
-    } | null = null;
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        messagePayload.content,
+        emptySet,
+    );
 
-    if (messagePayload.type === "Content") {
-        const contentReferences = await getSearchContentReferences(
-            state,
-            id,
-            accessPolicy,
-            messagePayload.content,
-            emptySet,
-        );
-
-        content = chunkSearchContent(messagePayload.content, {
-            tokenizer: state.tokenizer,
-            getAccountIfExists: contentReferences.getAccountIfExists,
-            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
-            getChunkPreamble: ({isInitialChunk}) => {
-                return {
-                    text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
-                        chatAccountIds.length > 1
-                            ? ` between ${
-                                  nameByNumber.get(chatAccountIds.length) ?? chatAccountIds.length
-                              } people`
-                            : ""
-                    }:`,
-                    lineMarginBottom: 2,
-                };
-            },
-        });
-    }
+    const content = chunkSearchContent(messagePayload.content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({isInitialChunk}) => {
+            return {
+                text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
+                    chatAccountIds.length > 1
+                        ? ` between ${
+                              nameByNumber.get(chatAccountIds.length) ?? chatAccountIds.length
+                          } people`
+                        : ""
+                }:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
 
     return {
         id,
@@ -1710,7 +1747,7 @@ function getTaskSearchEntityAccessPolicy({
     expectedAccessLevel: AccessLevel;
 }): SearchEntityIndexAccessPolicy {
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
-    let accountGrantAccountIds = new Set<AccountId>();
+    const accountGrantAccountIds = new Set<AccountId>();
 
     const trackTaskDependencies = (task: TaskModelForAuthorization) => {
         if (hasAccessLevel("Edit", expectedAccessLevel)) {
@@ -1767,7 +1804,7 @@ function getTaskSearchEntityAccessPolicy({
     // matter for the search entity. Lets exclude them to save space in the index.
     if (defaultGrantType !== null) {
         cast<"Space">(defaultGrantType);
-        accountGrantAccountIds = new Set();
+        accountGrantAccountIds.clear();
     }
 
     return {
@@ -1782,13 +1819,9 @@ async function getTaskSearchEntity(
 ): Promise<SearchEntity> {
     const id: SearchEntityId = `Task:${taskId}`;
 
-    const {
-        task,
-        referencedTaskById,
-        referencedCollectionById,
-        approximateActionCountByAccountId: approximateActionCountByAccountIdWithoutNotesStepCount,
-        notesContent,
-    } = await state.getTask(taskId);
+    const taskResult = await state.getTask(taskId);
+
+    const {task, referencedTaskById, referencedCollectionById} = taskResult;
 
     const accessPolicy = getTaskSearchEntityAccessPolicy({
         task,
@@ -1800,7 +1833,7 @@ async function getTaskSearchEntity(
     const {title, titleVersion, media} = getTaskSearchEntityBase(task);
 
     // Index no content for deleted tasks.
-    if (task.isDeleted()) {
+    if (taskResult.isDeleted) {
         return {
             id,
             accessPolicy,
@@ -1808,12 +1841,17 @@ async function getTaskSearchEntity(
             title,
             titleVersion,
             body: null,
-            media,
+            media: null,
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
         };
     }
+
+    const {
+        approximateActionCountByAccountId: approximateActionCountByAccountIdWithoutNotesStepCount,
+        notesContent,
+    } = taskResult;
 
     const truncatedTitle = new Lazy(() =>
         truncateTokens(
@@ -1970,7 +2008,7 @@ async function getTaskCollectionSearchEntity(
             title,
             titleVersion,
             body: null,
-            media,
+            media: null,
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
@@ -1999,51 +2037,51 @@ async function getTaskCommentSearchEntity(
 ): Promise<SearchEntity> {
     const id: SearchEntityId = `TaskComment:${taskId}-${commentIndex}`;
 
-    const [
-        {task, referencedTaskById, referencedCollectionById},
-        {createdTime, authorId, payload: commentPayload},
-    ] = await runAllPromises([
-        state.getTaskForAuthorization(taskId),
-        state.getTaskCommentPayload(taskId, commentIndex),
-    ]);
+    const [{task, getReferencedTaskById, getReferencedCollectionById}, commentResult] =
+        await runAllPromises([
+            state.getTaskForAuthorization(taskId),
+
+            // Will throw a `NotFoundError` if the task was deleted. So ignore the error
+            // here if the task was deleted.
+            captureResultPromise(state.getTaskCommentPayload(taskId, commentIndex)),
+        ]);
+
+    if (task.isDeleted()) {
+        return {...searchDeletedMessageEntity, id};
+    }
+
+    const {createdTime, authorId, payload: commentPayload} = unwrapResult(commentResult);
 
     const accessPolicy = getTaskSearchEntityAccessPolicy({
         task,
-        referencedTaskById,
-        referencedCollectionById,
+        referencedTaskById: getReferencedTaskById(),
+        referencedCollectionById: getReferencedCollectionById(),
         expectedAccessLevel: "Comment",
     });
 
-    let content: {
-        getFullText: () => string;
-        getEmbeddingChunks: () => Array<{
-            preambleEndIndex: number;
-            tokenCountWithoutPreamble: number;
-            text: string;
-        }>;
-    } | null = null;
-
-    if (commentPayload.type === "Content") {
-        const contentReferences = await getSearchContentReferences(
-            state,
-            id,
-            accessPolicy,
-            commentPayload.content,
-            emptySet,
-        );
-
-        content = chunkSearchContent(commentPayload.content, {
-            tokenizer: state.tokenizer,
-            getAccountIfExists: contentReferences.getAccountIfExists,
-            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
-            getChunkPreamble: ({isInitialChunk}) => {
-                return {
-                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a task:`,
-                    lineMarginBottom: 2,
-                };
-            },
-        });
+    if (commentPayload.type === "Deleted") {
+        return {...searchDeletedMessageEntity, id};
     }
+
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        commentPayload.content,
+        emptySet,
+    );
+
+    const content = chunkSearchContent(commentPayload.content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({isInitialChunk}) => {
+            return {
+                text: `This is${isInitialChunk ? " a " : " from a "}comment on a task:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
 
     return {
         id,
