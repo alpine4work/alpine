@@ -11,7 +11,6 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxWithStrongReadConsistency,
@@ -19,7 +18,6 @@ import {
     unsubscribeFromDigestNotificationsEmail,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
 
 const LoaderSchema = Schema.object({
     inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
@@ -31,10 +29,6 @@ export async function loader({context, params}: LoaderArgs) {
     const {inbox} = await getInboxWithStrongReadConsistency(await context.actor.authenticate(), {
         spaceId,
     });
-
-    if (!hasNotificationSettingsFeature(spaceId)) {
-        throw new UnimplementedError("Notification settings is not available");
-    }
 
     return jsonWithSchema(LoaderSchema, {inbox});
 }

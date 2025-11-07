@@ -21,8 +21,6 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
-import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceLayoutSideBar({
@@ -259,30 +257,18 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
     const rootNavigate = useRootNavigate();
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
-    const hasProfileSettings = hasProfileSettingsFeature(space.id);
-    const hasNotificationSettings = hasNotificationSettingsFeature(space.id);
-
     return (
         <MenuButton
             placement="right-end"
             actions={[
-                ...(hasProfileSettings || hasNotificationSettings
-                    ? [
-                          [
-                              {
-                                  icon: <Gear />,
-                                  label: "Settings",
-                                  pressErrorTitle: "Couldn’t open settings",
-                                  onPress: () =>
-                                      rootNavigate(
-                                          hasProfileSettings
-                                              ? `/s/${space.id}/settings/profile`
-                                              : `/s/${space.id}/settings/notifications`,
-                                      ),
-                              },
-                          ],
-                      ]
-                    : []),
+                [
+                    {
+                        icon: <Gear />,
+                        label: "Settings",
+                        pressErrorTitle: "Couldn’t open settings",
+                        onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
+                    },
+                ],
                 [
                     {
                         icon: <SignOut />,

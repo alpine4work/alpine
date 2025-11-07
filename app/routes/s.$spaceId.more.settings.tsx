@@ -8,8 +8,6 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
-import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 
 export function meta() {
     return [{title: `Settings${metaTitlePostfix}`}];
@@ -23,38 +21,6 @@ export default function MobileSpaceSettingsRoute() {
     // this route is accesible in desktop version as well so we give some max width for desktop
     // to make it look good.
     const maxWidth = platform !== "mobile" ? "96" : undefined;
-
-    const profileSettingsNavigation = hasProfileSettingsFeature(space.id) ? (
-        <MobileSettingsRow
-            withBorderTop
-            icon={<User />}
-            label="Profile"
-            pressErrorTitle="Couldn’t open profile settings"
-            onPress={async () => {
-                await rootNavigate(`/s/${space.id}/settings/profile`);
-            }}
-        />
-    ) : null;
-
-    const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
-        <MobileSettingsRow
-            withBorderTop={!hasProfileSettingsFeature(space.id)}
-            icon={<Bell />}
-            label="Notifications"
-            pressErrorTitle="Couldn’t open notification settings"
-            onPress={async () => {
-                await rootNavigate(`/s/${space.id}/settings/notifications`);
-            }}
-        />
-    ) : null;
-
-    const userNavigation =
-        profileSettingsNavigation || notificationSettingsNavigation ? (
-            <>
-                {profileSettingsNavigation}
-                {notificationSettingsNavigation}
-            </>
-        ) : null;
 
     return (
         <SpaceRouteScrollView
@@ -71,14 +37,28 @@ export default function MobileSpaceSettingsRoute() {
                 flexDirection="column"
                 gap="8"
             >
-                {userNavigation ? (
-                    <Box>
-                        <Box paddingX="2.5" paddingY="2.5" fontSize="50" color="grey-50">
-                            My settings
-                        </Box>
-                        {userNavigation}
+                <Box>
+                    <Box paddingX="2.5" paddingY="2.5" fontSize="50" color="grey-50">
+                        My settings
                     </Box>
-                ) : null}
+                    <MobileSettingsRow
+                        withBorderTop
+                        icon={<User />}
+                        label="Profile"
+                        pressErrorTitle="Couldn’t open profile settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/profile`);
+                        }}
+                    />
+                    <MobileSettingsRow
+                        icon={<Bell />}
+                        label="Notifications"
+                        pressErrorTitle="Couldn’t open notification settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/settings/notifications`);
+                        }}
+                    />
+                </Box>
                 <Box>
                     <Box paddingX="2.5" paddingY="2.5" fontSize="50" color="grey-50">
                         Space settings

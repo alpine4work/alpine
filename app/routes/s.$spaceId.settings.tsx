@@ -22,8 +22,6 @@ import {colorSchemeVars} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {hasNotificationSettingsFeature} from "~/shared/spaces/has_notification_settings_feature.js";
-import {hasProfileSettingsFeature} from "~/shared/spaces/has_profile_settings_feature.js";
 
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 
@@ -180,36 +178,6 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
         </Box>
     );
 
-    const profileSettingsNavigation = hasProfileSettingsFeature(space.id) ? (
-        <SettingsNavigationItem
-            icon={<User />}
-            label="Profile"
-            isActive={nextRoute === "profile"}
-            onPressStart={() => {
-                rootNavigate(`/s/${space.id}/settings/profile`);
-            }}
-        />
-    ) : null;
-
-    const notificationSettingsNavigation = hasNotificationSettingsFeature(space.id) ? (
-        <SettingsNavigationItem
-            icon={<Bell />}
-            label="Notifications"
-            isActive={nextRoute === "notifications"}
-            onPressStart={() => {
-                rootNavigate(`/s/${space.id}/settings/notifications`);
-            }}
-        />
-    ) : null;
-
-    const accountNavigation =
-        profileSettingsNavigation || notificationSettingsNavigation ? (
-            <>
-                {profileSettingsNavigation}
-                {notificationSettingsNavigation}
-            </>
-        ) : null;
-
     return (
         <Box
             position="relative"
@@ -268,37 +236,41 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                     <Box pointerEvents="auto" paddingRight="8">
                         <nav aria-label="Settings navigation">
                             <ul style={{listStyle: "none", margin: 0, padding: 0}}>
-                                {accountNavigation && (
-                                    <Box
-                                        height="5"
-                                        marginX="1"
-                                        marginBottom="1"
-                                        borderBottom="grey-5"
-                                        style={{
-                                            marginTop: `calc(-${spacing["5"]} + 1px)`,
-                                        }}
-                                    >
-                                        <Box paddingX="1.5" fontSize="50" color="grey-50">
-                                            My settings
-                                        </Box>
+                                <Box
+                                    height="5"
+                                    marginX="1"
+                                    marginBottom="1"
+                                    borderBottom="grey-5"
+                                    style={{
+                                        marginTop: `calc(-${spacing["5"]} + 1px)`,
+                                    }}
+                                >
+                                    <Box paddingX="1.5" fontSize="50" color="grey-50">
+                                        My settings
                                     </Box>
-                                )}
-                                {accountNavigation}
-                                {accountNavigation && (
-                                    <>
-                                        <Spacer space="8" />
-                                        <Box
-                                            height="5"
-                                            marginX="1"
-                                            marginBottom="1"
-                                            borderBottom="grey-5"
-                                        >
-                                            <Box paddingX="1.5" fontSize="50" color="grey-50">
-                                                Space settings
-                                            </Box>
-                                        </Box>
-                                    </>
-                                )}
+                                </Box>
+                                <SettingsNavigationItem
+                                    icon={<User />}
+                                    label="Profile"
+                                    isActive={nextRoute === "profile"}
+                                    onPressStart={() => {
+                                        rootNavigate(`/s/${space.id}/settings/profile`);
+                                    }}
+                                />
+                                <SettingsNavigationItem
+                                    icon={<Bell />}
+                                    label="Notifications"
+                                    isActive={nextRoute === "notifications"}
+                                    onPressStart={() => {
+                                        rootNavigate(`/s/${space.id}/settings/notifications`);
+                                    }}
+                                />
+                                <Spacer space="8" />
+                                <Box height="5" marginX="1" marginBottom="1" borderBottom="grey-5">
+                                    <Box paddingX="1.5" fontSize="50" color="grey-50">
+                                        Space settings
+                                    </Box>
+                                </Box>
                                 <SettingsNavigationItem
                                     icon={<BuildingsIcon />}
                                     label="General"
