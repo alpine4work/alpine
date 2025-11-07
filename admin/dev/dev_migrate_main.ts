@@ -27,7 +27,9 @@ const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
+const resourceDevPort = parsePort(env.RESOURCES_DEV_PORT);
 const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
+const resourceServiceUrl = `http://localhost:${resourceDevPort}`;
 
 const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
 
@@ -46,6 +48,7 @@ const subprocess = spawn(
         `--fileProcessorLightJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorLightJobQueue`,
         `--fileProcessorHeavyJobQueueUrl=http://localhost:${sqsLocalPort}/local/FileProcessorHeavyJobQueue`,
         `--edgeServiceUrl=${edgeServiceUrl}`,
+        `--resourceServiceUrl=${resourceServiceUrl}`,
         ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
     ],
     {
