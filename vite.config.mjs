@@ -29,7 +29,7 @@ export default defineConfig(({mode}) => {
         // In development, Vite ignores the origin portion of the URL[1] and we override it with an
         // inline config in `app_service_wrapper.ts`.
         // [1]: https://vite.dev/config/shared-options.html#base
-        base: process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "/",
+        base: process.env.NODE_ENV === "production" ? "https://resources.alpine.inc/" : "/",
         // Disable transpiling with `esbuild`. The files Vite serves to the browser are
         // `.js` files that have already been compiled by Bazel and SWC.
         esbuild: false,
