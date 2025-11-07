@@ -5506,7 +5506,7 @@ function transformPastedForContentTable(
 
             default: {
                 // Check if node is allowed in table cell
-                if (isContentTableBlockNode(node)) {
+                if (isContentTableBlockNode(node) || node.type.name === "text") {
                     primaryContent.push(node);
                 } else {
                     remainingContent.push(node);
