@@ -189,6 +189,18 @@ export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResu
 
 export type ApiSearchResultPath = ApiSpecification.components["schemas"]["SearchResultPath"];
 
+export type ApiSearchTaskMessageResult =
+    ApiSpecification.components["schemas"]["SearchTaskMessageResult"];
+
+export type ApiSearchPostMessageResult =
+    ApiSpecification.components["schemas"]["SearchPostMessageResult"];
+
+export type ApiSearchDocumentMessageResult =
+    ApiSpecification.components["schemas"]["SearchDocumentMessageResult"];
+
+export type ApiSearchChatMessageResult =
+    ApiSpecification.components["schemas"]["SearchChatMessageResult"];
+
 export type ApiSearchResultBodyMatch =
     ApiSpecification.components["schemas"]["SearchResultBodyMatch"];
 

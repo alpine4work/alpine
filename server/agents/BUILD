@@ -27,6 +27,7 @@ ts_project(
         "//:node_modules/openai",
         "//:node_modules/openapi-fetch",
         "//:node_modules/openapi-typescript-helpers",
+        "//:node_modules/unicode-default-word-boundary",
         "//:node_modules/yaml",
         "//server/agents/api",
         "//server/api/markdown",

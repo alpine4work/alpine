@@ -324,9 +324,7 @@ The following search results matched the keyword search but did not match any sp
 
    **Test Task Closed** **hello world** test task closed
 
-6. [John: Unknown task comment](/task-comments/john-unknown-task-comment)
-
-   test task message
+6. [John: test task message](/task-comments/john-test-task-message)
 
 7. [Test Collection](/task-collection/test-collection)
 
@@ -675,7 +673,7 @@ The following search results matched the keyword search but did not match any sp
         expect(result).toBe("No results found");
     });
 
-    test("handles DocumentMessage search results with body matches", async () => {
+    test("preserves highlights in links and handles long body matches", async () => {
         const currentDocumentId = generateId<DocumentId>();
         const currentThreadId = generateId<DocumentCommentThreadId>();
         const otherDocumentId = generateId<DocumentId>();
@@ -690,11 +688,73 @@ The following search results matched the keyword search but did not match any sp
                     {text: "Important", isMatch: true},
                     {text: " document comment "},
                     {text: "keyword", isMatch: true},
+                    {text: " with a really long body match that will be displayed"},
+                    {text: " outside of the link itself"},
                 ],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
                 id: otherDocumentId,
                 index: 1,
                 threadId: otherThreadId,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${chatId}/messages/10`,
+                title: null,
+                bodyMatch: [
+                    {text: "This", isMatch: true},
+                    {text: " is a "},
+                    {text: "short", isMatch: true},
+                    {text: " message"},
+                ],
+                author: createApiAccountMock({id: accountId, name: "John Smith"}),
+                id: chatId,
+                index: 10,
+            },
+            {
+                type: "PostMessage",
+                path: `/posts/${postId}/messages/3`,
+                title: null,
+                bodyMatch: [
+                    {text: "Check out this amazing post about "},
+                    {text: "technology", isMatch: true},
+                    {text: " and "},
+                    {text: "innovation", isMatch: true},
+                    {
+                        text: " in the modern world where we discuss many fascinating topics",
+                    },
+                ],
+                author: createApiAccountMock({id: accountId, name: "Alice Johnson"}),
+                id: postId,
+                index: 3,
+            },
+            {
+                type: "TaskMessage",
+                path: `/tasks/${taskId}/messages/7`,
+                title: null,
+                bodyMatch: [
+                    {
+                        text: "We need to update the documentation with all the latest changes and improvements",
+                    },
+                ],
+                author: createApiAccountMock({id: accountId, name: "Bob Wilson"}),
+                id: taskId,
+                index: 7,
+            },
+            {
+                type: "ChatMessage",
+                path: `/chats/${chatId}/messages/15`,
+                title: null,
+                bodyMatch: [
+                    {text: "search", isMatch: true},
+                    {text: " "},
+                    {text: "term", isMatch: true},
+                    {text: " appears at start then more "},
+                    {text: "matches", isMatch: true},
+                    {text: " scattered throughout the entire message body"},
+                ],
+                author: createApiAccountMock({id: accountId, name: "Carol Davis"}),
+                id: chatId,
+                index: 15,
             },
         ];
 
@@ -718,9 +778,15 @@ The following search results matched the keyword search but did not match any sp
 
 The following search results matched the keyword search but did not match any specific filters.
 
-1. [Jane: Unknown document comment](/document-thread/jane-unknown-document-comment)
+1. [Jane: **Important** document comment **keyword** with a really long](/document-thread/jane-important-document-comment-keyword-with-a-rea) body match that will be displayed outside of the link itself
 
-   **Important** document comment **keyword**
+2. [John: **This** is a **short** message](/chat/john-this-is-a-short-message)
+
+3. [Alice: Check out this amazing post about **technology** and **innovation**](/post/alice-check-out-this-amazing-post-about-technology) in the modern world where we discuss many fascinating topics
+
+4. [Bob: We need to update the documentation with all the latest](/task-comments/bob-we-need-to-update-the-documentation-with-all-t) changes and improvements
+
+5. [Carol: **search** **term** appears at start then more **matches** scattered](/chat/carol-search-term-appears-at-start-then-more-match) throughout the entire message body
 `);
     });
 

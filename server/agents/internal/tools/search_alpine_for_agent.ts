@@ -7,6 +7,7 @@ import {
     printEscapedMarkdownLinkLabel,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomPathObject,
@@ -15,17 +16,24 @@ import {
     printApiMessageRoomPath,
 } from "~/shared/api/parse_api_path.js";
 import {
-    ApiAccount,
     ApiMessageRoomPath,
+    ApiSearchChatMessageResult,
+    ApiSearchDocumentMessageResult,
+    ApiSearchPostMessageResult,
     ApiSearchResult,
+    ApiSearchResultBodyMatch,
+    ApiSearchTaskMessageResult,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+type ApiSearchMessageResult =
+    | ApiSearchChatMessageResult
+    | ApiSearchTaskMessageResult
+    | ApiSearchPostMessageResult
+    | ApiSearchDocumentMessageResult;
 
 export async function searchAlpineForAgent(
     tracer: TracerBase,
@@ -142,14 +150,12 @@ async function getOrderedListItemForSearchEntityResult(
     transaction: DurableObjectTransaction,
     result: ApiSearchResult,
 ): Promise<ListItem> {
-    const pathObject = parseApiPath(result.path);
     switch (result.type) {
         case "Account": {
-            assert(pathObject.type === "Account");
             const accountLink = await createAgentLink(transaction, {
                 type: "Account",
                 account: {
-                    id: pathObject.id,
+                    id: result.id,
                     name: result.title,
                 },
             });
@@ -157,11 +163,10 @@ async function getOrderedListItemForSearchEntityResult(
             return createListItemWithSnippet(accountLink, result);
         }
         case "Channel": {
-            assert(pathObject.type === "Channel");
             const channelLink = await createAgentLink(transaction, {
                 type: "Channel",
                 channel: {
-                    id: pathObject.id,
+                    id: result.id,
                     name: result.title,
                 },
             });
@@ -169,11 +174,10 @@ async function getOrderedListItemForSearchEntityResult(
             return createListItemWithSnippet(channelLink, result);
         }
         case "Document": {
-            assert(pathObject.type === "Document");
             const documentLink = await createAgentLink(transaction, {
                 type: "Document",
                 document: {
-                    id: pathObject.id,
+                    id: result.id,
                     title: result.title,
                 },
             });
@@ -181,11 +185,10 @@ async function getOrderedListItemForSearchEntityResult(
             return createListItemWithSnippet(documentLink, result);
         }
         case "Post": {
-            assert(pathObject.type === "Post");
             const postLink = await createAgentLink(transaction, {
                 type: "Post",
                 post: {
-                    id: pathObject.id,
+                    id: result.id,
                     contentPreview: result.title,
                 },
             });
@@ -193,11 +196,10 @@ async function getOrderedListItemForSearchEntityResult(
             return createListItemWithSnippet(postLink, result);
         }
         case "Task": {
-            assert(pathObject.type === "Task");
             const taskLink = await createAgentLink(transaction, {
                 type: "Task",
                 task: {
-                    id: pathObject.id,
+                    id: result.id,
                     title: result.title,
                 },
             });
@@ -205,90 +207,112 @@ async function getOrderedListItemForSearchEntityResult(
             return createListItemWithSnippet(taskLink, result);
         }
         case "TaskCollection": {
-            assert(pathObject.type === "TaskCollection");
             const taskCollectionLink = await createAgentLink(transaction, {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: pathObject.id,
+                    id: result.id,
                     name: result.title,
                 },
             });
 
             return createListItemWithSnippet(taskCollectionLink, result);
         }
-        case "PostMessage": {
-            assert(pathObject.type === "PostComment");
-
-            const postCommentsLink = await createAgentLink(transaction, {
-                type: "PostComment",
-                postId: pathObject.id,
-                commentIndex: pathObject.index,
-                // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
-                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
-                preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
-            });
-
-            return createListItemWithSnippet(postCommentsLink, result);
-        }
         case "Chat": {
-            assert(pathObject.type === "Chat");
             const chatLink = await createAgentLink(transaction, {
                 type: "Chat",
-                chatId: pathObject.id,
+                chatId: result.id,
                 name: result.title,
             });
 
             return createListItemWithSnippet(chatLink, result);
         }
-        case "ChatMessage": {
-            assert(pathObject.type === "ChatMessage");
-
-            const chatMessageLink = await createAgentLink(transaction, {
-                type: "ChatMessage",
-                chatId: pathObject.id,
-                messageIndex: pathObject.index,
-                // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
-                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
-                preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
-            });
-
-            return createListItemWithSnippet(chatMessageLink, result);
-        }
-        case "DocumentMessage": {
-            assert(pathObject.type === "DocumentComment");
-
-            const documentCommentLink = await createAgentLink(transaction, {
-                type: "DocumentComment",
-                documentId: pathObject.id,
-                commentThreadId: pathObject.threadId,
-                commentIndex: pathObject.index,
-                // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
-                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
-                preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
-            });
-
-            return createListItemWithSnippet(documentCommentLink, result);
-        }
+        case "ChatMessage":
+        case "DocumentMessage":
+        case "PostMessage":
         case "TaskMessage": {
-            assert(pathObject.type === "TaskComment");
-
-            const taskCommentLink = await createAgentLink(transaction, {
-                type: "TaskComment",
-                taskId: pathObject.id,
-                commentIndex: pathObject.index,
-                // TODO(ifitzsimmons, #ai): Truncate match content to build `preview`
-                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/7ekqemr523z5tjhskead8hxeqc
-                preview: printMissingSearchEntityTitleForMessage(result.type, result.author),
-            });
-
-            return createListItemWithSnippet(taskCommentLink, result);
+            return createListItemForMessage(transaction, result);
         }
         default:
             throw exhaustive(result);
     }
 }
 
-function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult | null): ListItem {
+async function createListItemForMessage(
+    transaction: DurableObjectTransaction,
+    result: ApiSearchMessageResult,
+): Promise<ListItem> {
+    const {preview, newBodyMatch} = getSearchResultContentSnippetAndReturnBodyMatch(result);
+
+    const plainTextPreview = preview.map(({text}) => text).join("");
+    const link = await createLinkForSearchResultMessage(transaction, result, plainTextPreview);
+
+    const linkToSearchResult: Link = {
+        type: "link",
+        url: printAgentLinkPath(link),
+        // Preserve bold/highlight marks in the link label for the match.
+        children: intoPhrasingContent(preview),
+    };
+    const bodyMatchContent = intoPhrasingContent(newBodyMatch);
+
+    return {
+        type: "listItem",
+        children: [
+            {
+                type: "paragraph",
+                children: [
+                    linkToSearchResult,
+                    ...(bodyMatchContent.length > 0 ? bodyMatchContent : []),
+                ],
+            },
+        ],
+    };
+}
+
+function createLinkForSearchResultMessage(
+    transaction: DurableObjectTransaction,
+    result: ApiSearchMessageResult,
+    plainTextPreview: string,
+): Promise<AgentLink> {
+    switch (result.type) {
+        case "ChatMessage": {
+            return createAgentLink(transaction, {
+                type: "ChatMessage",
+                chatId: result.id,
+                messageIndex: result.index,
+                preview: plainTextPreview,
+            });
+        }
+        case "DocumentMessage": {
+            return createAgentLink(transaction, {
+                type: "DocumentComment",
+                documentId: result.id,
+                commentThreadId: result.threadId,
+                commentIndex: result.index,
+                preview: plainTextPreview,
+            });
+        }
+        case "TaskMessage": {
+            return createAgentLink(transaction, {
+                type: "TaskComment",
+                taskId: result.id,
+                commentIndex: result.index,
+                preview: plainTextPreview,
+            });
+        }
+        case "PostMessage": {
+            return createAgentLink(transaction, {
+                type: "PostComment",
+                postId: result.id,
+                commentIndex: result.index,
+                preview: plainTextPreview,
+            });
+        }
+        default:
+            throw exhaustive(result);
+    }
+}
+
+function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): ListItem {
     const linkToSearchResult: Link = {
         type: "link",
         url: printAgentLinkPath(link),
@@ -300,13 +324,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult | nu
         ],
     };
 
-    const bodyMatchContent: Array<PhrasingContent> = result?.bodyMatch
-        ? result.bodyMatch.map(({text, isMatch}) => {
-              const textContent: PhrasingContent = {type: "text", value: text};
-              if (!isMatch) return textContent;
-              return {type: "strong", children: [textContent]};
-          })
-        : [];
+    const bodyMatchContent: Array<PhrasingContent> = intoPhrasingContent(result.bodyMatch);
 
     const bodyMatchParagraph: Paragraph | null =
         bodyMatchContent.length > 0
@@ -326,24 +344,6 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult | nu
             ...(bodyMatchParagraph ? [bodyMatchParagraph] : []),
         ],
     };
-}
-
-function printMissingSearchEntityTitleForMessage(
-    type: "ChatMessage" | "DocumentMessage" | "PostMessage" | "TaskMessage",
-    author: ApiAccount,
-): string {
-    switch (type) {
-        case "ChatMessage":
-            return `${author.shortName}: ${missingSearchEntityTitle} chat message`;
-        case "DocumentMessage":
-            return `${author.shortName}: ${missingSearchEntityTitle} document comment`;
-        case "PostMessage":
-            return `${author.shortName}: ${missingSearchEntityTitle} post comment`;
-        case "TaskMessage":
-            return `${author.shortName}: ${missingSearchEntityTitle} task comment`;
-        default:
-            throw exhaustive(type);
-    }
 }
 
 // TODO(ifitzsimmons, #ai): Right now, we load all of the messages into the agent conversation.
@@ -367,7 +367,17 @@ function isApiSearchResultInConversationState(
     }
 }
 
-export function intoApiMessageRoomPathFromPathIfPossible(
+function intoPhrasingContent(bodyMatch: ApiSearchResultBodyMatch | null): Array<PhrasingContent> {
+    if (!bodyMatch) return [];
+
+    return bodyMatch.map(({text, isMatch}) => {
+        const textContent: PhrasingContent = {type: "text", value: text};
+        if (!isMatch) return textContent;
+        return {type: "strong", children: [textContent]};
+    });
+}
+
+function intoApiMessageRoomPathFromPathIfPossible(
     apiPath: ApiPathObject,
 ): ApiMessageRoomPathObject | null {
     switch (apiPath.type) {
