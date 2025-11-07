@@ -351,7 +351,8 @@ export async function run({
 
                 if (
                     actorContextModule.serviceName !== "AppService" &&
-                    actorContextModule.serviceName !== "EdgeService"
+                    actorContextModule.serviceName !== "EdgeService" &&
+                    actorContextModule.serviceName !== "ApiService"
                 ) {
                     throw new PermissionDeniedError(
                         "Only `AppService` or `EdgeService` can load queries",

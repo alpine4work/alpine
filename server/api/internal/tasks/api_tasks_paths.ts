@@ -4,6 +4,7 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
 import {
     FileTaskAuthorizer,
     completeTaskCommentStream,
@@ -15,6 +16,7 @@ import {
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -29,6 +31,12 @@ import {
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    TaskQueryCollectionsNormalizedFilter,
+    TaskQueryDisplayStatusNormalizedFilter,
+    assertNonEmptyReadonlyMap,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
@@ -356,6 +364,45 @@ export const apiTasksPaths: Pick<
                         name: collection.getName(),
                     },
                 },
+            };
+        },
+    },
+
+    "/task-collections/{id}/tasks": {
+        get: async (context, {pathParameters, queryParameters}) => {
+            const limit = queryParameters.limit ?? 10;
+            const collectionId = pathParameters.id;
+            const spaceId = context.actor.getSpaceId();
+
+            // NOTE(iftizsimmons, 2025-11-05): We're only showing open tasks by default since that
+            // is the default behavior in the UI.
+            const displayStatusFilter: TaskQueryDisplayStatusNormalizedFilter = {
+                ifOpenInactive: true,
+                ifOpenActive: true,
+                ifClosed: false,
+            };
+            const collectionsFilter: TaskQueryCollectionsNormalizedFilter =
+                assertNonEmptyReadonlyArray([
+                    assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
+                ]);
+
+            const sort: TaskQueryNormalizedSort = {
+                type: "CollectionPosition",
+                collectionId,
+                direction: "Ascending",
+                missing: "Last",
+            };
+
+            const {tasks, nextCursor} = await getApiTasksWithoutContent(context, {
+                collectionId,
+                cursor: queryParameters.cursor ?? null,
+                limit,
+                filters: {displayStatusFilter, collectionsFilter},
+                sorts: [sort],
+            });
+
+            return {
+                content: {spaceId, nextCursor, tasks},
             };
         },
     },

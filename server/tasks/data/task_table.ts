@@ -4372,11 +4372,13 @@ export async function authorizeTaskCollectionAccess(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId}> {
     const collectionItem = await getTaskCollectionItemForAuthorization(
         context,
         collectionId,
         loaders,
+        options,
     );
 
     await authorizeTaskCollectionItemAccess(context, collectionItem, expectedAccessLevel);

@@ -1,3 +1,4 @@
+import {intoApiTaskStatus} from "~/server/api/internal/shared/into_api_task_status.js";
 import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,
@@ -17,7 +18,6 @@ import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
-import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 export function intoApiSearchResult(entity: SearchEntityResultModel): ApiSearchResult | null {
     const result = actuallyIntoApiSearchResult(entity);
@@ -246,19 +246,4 @@ function actuallyIntoApiSearchResult({
 
 function getMissingSearchEntityTitle(entity: {type: SearchDynamicEntityType}): string {
     return `${missingSearchEntityTitle} ${getSearchEntityNoun(entity.type)}`;
-}
-
-function intoApiTaskStatus(
-    taskDisplayStatus: TaskDisplayStatus,
-): {type: "Open"; isActive: boolean} | {type: "Closed"} {
-    switch (taskDisplayStatus) {
-        case "OpenInactive":
-            return {type: "Open", isActive: false};
-        case "OpenActive":
-            return {type: "Open", isActive: true};
-        case "Closed":
-            return {type: "Closed"};
-        default:
-            throw exhaustive(taskDisplayStatus);
-    }
 }

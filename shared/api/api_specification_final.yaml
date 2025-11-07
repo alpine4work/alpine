@@ -720,6 +720,50 @@ paths:
                                         $ref: "#/components/schemas/TaskCollection"
                 default:
                     $ref: "#/components/responses/Error"
+    /task-collections/{id}/tasks:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskCollectionId"
+        get:
+            parameters:
+                - name: limit
+                  in: query
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                      default: 10
+                - name: cursor
+                  in: query
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - spaceId
+                                    - tasks
+                                    - nextCursor
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    nextCursor:
+                                        type:
+                                            - string
+                                            - "null"
+                                    tasks:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/TaskWithoutContent"
+                default:
+                    $ref: "#/components/responses/Error"
 webhooks:
     bot:
         post:
@@ -1945,6 +1989,38 @@ components:
                         - Urgent
                 content:
                     $ref: "#/components/schemas/Content"
+        TaskWithoutContent:
+            type: object
+            required:
+                - id
+                - status
+                - title
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/TaskId"
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+                title:
+                    type: string
+                assignee:
+                    $ref: "#/components/schemas/Account"
+                due:
+                    type: object
+                    required:
+                        - date
+                    additionalProperties: false
+                    properties:
+                        date:
+                            type: string
+                            format: date
+                priority:
+                    type: string
+                    enum:
+                        - Low
+                        - Medium
+                        - High
+                        - Urgent
         TaskPreview:
             type: object
             required:

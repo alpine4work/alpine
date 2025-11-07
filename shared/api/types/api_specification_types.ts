@@ -1077,6 +1077,52 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/task-collections/{id}/tasks": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["TaskCollectionId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: {
+                        readonly limit?: number;
+                        readonly cursor?: string;
+                    };
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["TaskCollectionId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly nextCursor: string | null;
+                                readonly tasks: readonly components["schemas"]["TaskWithoutContent"][];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
     }
     export interface webhooks {
         readonly bot: {
@@ -1669,6 +1715,18 @@ export namespace ApiSpecification {
                 /** @enum {string} */
                 readonly priority?: "Low" | "Medium" | "High" | "Urgent";
                 readonly content: components["schemas"]["Content"];
+            };
+            readonly TaskWithoutContent: {
+                readonly id: components["schemas"]["TaskId"];
+                readonly status: components["schemas"]["TaskStatus"];
+                readonly title: string;
+                readonly assignee?: components["schemas"]["Account"];
+                readonly due?: {
+                    /** Format: date */
+                    readonly date: string;
+                };
+                /** @enum {string} */
+                readonly priority?: "Low" | "Medium" | "High" | "Urgent";
             };
             readonly TaskPreview: {
                 readonly id: components["schemas"]["TaskId"];
