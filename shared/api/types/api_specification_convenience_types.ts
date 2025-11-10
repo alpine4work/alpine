@@ -218,3 +218,5 @@ export type ApiBotWebhookRequestBody =
 export type ApiBotWebhookEvent = ApiBotWebhookRequestBody["event"];
 
 export type ApiTaskWithoutContent = ApiSpecification.components["schemas"]["TaskWithoutContent"];
+
+export type ApiTaskStatus = ApiSpecification.components["schemas"]["TaskStatus"];
