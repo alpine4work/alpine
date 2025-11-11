@@ -1,6 +1,7 @@
 import {parseAbsolute} from "@internationalized/date";
 import {kebabCase} from "change-case";
 import {
+    EmailTemplateProps,
     EmailTemplates,
     RenderedEmail,
     renderReactEmailTemplate,
@@ -22,7 +23,7 @@ const emailPreviewResourceServiceUrl = "http://localhost:3070";
 const emailTemplatePreviews: {
     [K in keyof EmailTemplates]: NonEmptyArray<{
         title: string;
-        props: Parameters<EmailTemplates[K]>[0];
+        props: EmailTemplateProps<K>;
     }>;
 } = {
     SignIn: [
@@ -60,8 +61,6 @@ const emailTemplatePreviews: {
                 locale: defaultLocale,
                 localizedDigestTime: parseAbsolute("2025-08-22T12:00:00Z", defaultTimeZone),
                 spaceName: "Test Space",
-                baseUrl: emailPreviewBaseUrl,
-                resourceServiceUrl: emailPreviewResourceServiceUrl,
                 unsubscribeUrl: new URL(
                     `/s/1234567890/notifications/unsubscribe?accountId=1234567890&emailType=digest`,
                     emailPreviewBaseUrl,
@@ -319,6 +318,7 @@ export const emailTemplatePreviewBySlug = new Map(
                 title: preview.title,
                 render: async (tracer: TracerContextModule): Promise<RenderedEmail> =>
                     renderReactEmailTemplate(tracer, {
+                        resourceServiceUrl: emailPreviewResourceServiceUrl,
                         templateName: name as keyof EmailTemplates,
                         templateProps: preview.props as any,
                     }),

@@ -15,6 +15,8 @@ import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
+const resourceServiceUrl = "https://resources.test.cyberworlds.dev";
+
 describe("getTitleFromHtml", () => {
     test.each([
         {
@@ -378,6 +380,7 @@ describe("renderReactEmailTemplate", () => {
     ])("Test template rendering", ({description, templateName, templateProps}) => {
         test(`${description} renders into expected object structure`, async () => {
             const view = await renderReactEmailTemplate(context.tracer, {
+                resourceServiceUrl,
                 templateName,
                 templateProps,
             });
@@ -391,6 +394,7 @@ describe("renderReactEmailTemplate", () => {
         });
         test(`${description} HTML content is not empty`, async () => {
             const view = await renderReactEmailTemplate(context.tracer, {
+                resourceServiceUrl,
                 templateName,
                 templateProps,
             });
@@ -400,6 +404,7 @@ describe("renderReactEmailTemplate", () => {
 
         test(`${description} Plain text content is not empty`, async () => {
             const view = await renderReactEmailTemplate(context.tracer, {
+                resourceServiceUrl,
                 templateName,
                 templateProps,
             });
@@ -411,6 +416,7 @@ describe("renderReactEmailTemplate", () => {
     test("SignIn throws on missing code prop", async () => {
         await expect(
             renderReactEmailTemplate(context.tracer, {
+                resourceServiceUrl,
                 templateName: "SignIn",
                 templateProps: {} as any,
             }),
@@ -430,6 +436,7 @@ describe("renderReactEmailTemplate", () => {
         } as any;
 
         await renderReactEmailTemplate(mockTracerContextModule, {
+            resourceServiceUrl,
             templateName: "SignIn",
             templateProps: {
                 emailAddress: "test@cyberworlds.dev",

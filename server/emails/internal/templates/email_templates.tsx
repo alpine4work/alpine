@@ -42,6 +42,11 @@ export type RenderedEmail = {
 
 export type EmailTemplates = typeof emailTemplates;
 
+export type EmailTemplateProps<Template extends keyof EmailTemplates> = Omit<
+    Parameters<EmailTemplates[Template]>[0],
+    "resourceServiceUrl"
+>;
+
 export function getTitleFromHtml(html: string): string {
     // Forgive me for I employ the [dark art][1] of HTML parsing with a regex.
     //
@@ -78,9 +83,14 @@ function createEmailTemplate<T>(Component: React.ComponentType<T>, templateName:
 export function renderReactEmailTemplate<Template extends keyof EmailTemplates>(
     tracer: TracerContextModule,
     {
+        resourceServiceUrl,
         templateName,
         templateProps,
-    }: {templateName: Template; templateProps: Parameters<EmailTemplates[Template]>[0]},
+    }: {
+        resourceServiceUrl: string;
+        templateName: Template;
+        templateProps: EmailTemplateProps<Template>;
+    },
 ): Promise<RenderedEmail> {
     return tracer.withSpan("React email render", async () => {
         // TS is already validating templateProps assumes the props from
@@ -88,6 +98,9 @@ export function renderReactEmailTemplate<Template extends keyof EmailTemplates>(
         // is going to be passed in here, TS has a hard time finding which props
         // it expects here. The usage of this function should validate templateProps'
         // just fine.
-        return emailTemplates[templateName](templateProps as any);
+        return emailTemplates[templateName]({
+            ...templateProps,
+            resourceServiceUrl,
+        } as any);
     });
 }

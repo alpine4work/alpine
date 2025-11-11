@@ -14,17 +14,17 @@ import {assert} from "~/shared/helpers/control/assert.js";
 // .match-background and .match-background-border are classes to use for applying cutouts to content that can
 // handle dark mode. Good luck.
 export function BaseEmailTemplate({
+    title,
+    resourceServiceUrl,
     children,
     globalStyles,
-    title,
     preview,
-    baseUrl = "https://alpine.inc",
 }: {
+    title: string;
+    resourceServiceUrl: string;
     children: React.ReactNode;
     globalStyles?: string;
-    title: string;
     preview?: string;
-    baseUrl?: string;
 }) {
     assert(title.length > 0, "Expected title to be non-empty");
     const lightColorsCssClasses = Object.entries(colorsWithShade).map(
@@ -117,7 +117,7 @@ export function BaseEmailTemplate({
                                 border-color: ${colors["grey-90"]} !important;
                             }
                             #logo-wordmark {
-                                background-image: url('${baseUrl}/icons/logo_wordmark_dark.png') !important;
+                                background-image: url('${resourceServiceUrl}/icons/logo_wordmark_dark.png') !important;
                                 background-size: cover;
                                 background-position: center;
                                 background-repeat: no-repeat;
@@ -166,14 +166,14 @@ export function BaseEmailTemplate({
                             style={{
                                 width: `${brandLogoIconWidth}em`,
                                 height: `${brandLogoIconHeight}em`,
-                                backgroundImage: `url(${baseUrl}/icons/logo_wordmark_light.png)`,
+                                backgroundImage: `url(${resourceServiceUrl}/icons/logo_wordmark_light.png)`,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",
                                 backgroundRepeat: "no-repeat",
                             }}
                         >
                             <Img
-                                src={`${baseUrl}/icons/logo_wordmark_light.png`}
+                                src={`${resourceServiceUrl}/icons/logo_wordmark_light.png`}
                                 alt=""
                                 aria-hidden="true"
                                 style={{display: "none"}}

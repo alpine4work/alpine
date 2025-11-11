@@ -1,17 +1,19 @@
 import {Container, Link, Section} from "@react-email/components";
+import {EmailFooter} from "~/server/emails/internal/components/email_footer.js";
 import {EmailText} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
-import {EmailFooter} from "~/server/emails/internal/templates/email_footer.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function SignInEmailTemplate({
+    resourceServiceUrl,
     code,
     emailAddress,
     baseUrl,
     shouldDangerouslyIncludeCodeInSubject = false,
 }: {
+    resourceServiceUrl: string;
     code: string;
     emailAddress: string;
     baseUrl: string;
@@ -41,7 +43,7 @@ export function SignInEmailTemplate({
         : "Your sign in code";
 
     return (
-        <BaseEmailTemplate title={title}>
+        <BaseEmailTemplate title={title} resourceServiceUrl={resourceServiceUrl}>
             <Container>
                 <Section>
                     <EmailText>You requested a sign in code. Your code is:</EmailText>

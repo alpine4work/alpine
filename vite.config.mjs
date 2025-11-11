@@ -28,6 +28,7 @@ export default defineConfig(({mode}) => {
         // Vite will rewrite asset URLs to be prefixed with this value on build.
         // In development, Vite ignores the origin portion of the URL[1] and we override it with an
         // inline config in `app_service_wrapper.ts`.
+        // Must have a trailing slash as Vite will not include a leading slash in the pathname!
         // [1]: https://vite.dev/config/shared-options.html#base
         base: process.env.NODE_ENV === "production" ? "https://resources.alpine.inc/" : "/",
         // Disable transpiling with `esbuild`. The files Vite serves to the browser are
@@ -61,6 +62,7 @@ export default defineConfig(({mode}) => {
             // This is set to an empty string outside of production, mostly for integration tests. In integration tests we serve assets from
             // app service, but we don't know the port ahead of time, so an empty string allows us to fall back to relative urls.
             // We override this for dev in `app_service_wrapper.ts` to the actual service url.
+            // Does not have a trailing slash so it can be concatenated with relative urls!
             __RESOURCE_SERVICE_URL__: JSON.stringify(
                 process.env.NODE_ENV === "production" ? "https://resources.alpine.inc" : "",
             ),

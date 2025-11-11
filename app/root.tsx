@@ -52,7 +52,7 @@ import {useSpacingScaleContextProvider} from "~/client/remix/spacing_scale_conte
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {fontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
+import {getFontsCriticalCss} from "~/client/styles/core/fonts_critical_css.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
@@ -86,7 +86,7 @@ export function links(): Array<LinkDescriptor> {
         // https://web.dev/articles/codelab-preload-web-fonts
         {
             rel: "preload",
-            href: "/fonts/inter.v1.woff2",
+            href: __RESOURCE_SERVICE_URL__ + "/fonts/inter.v1.woff2",
             as: "font",
             type: "font/woff2",
             crossOrigin: "anonymous",
@@ -144,6 +144,8 @@ export async function loader({context}: LoaderArgs) {
 const rootNativeMobileOutletParentRouteIds = ["root"] as const;
 
 function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
+    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
+
     return (
         <head>
             <meta charSet="utf-8" />
@@ -181,7 +183,7 @@ function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
                 content="telephone=no, date=no, email=no, address=no"
             />
             <Meta />
-            <style dangerouslySetInnerHTML={{__html: fontsCriticalCss}} />
+            <style dangerouslySetInnerHTML={{__html: getFontsCriticalCss(resourceServiceUrl)}} />
             <Links />
             <ColorSchemeManager />
             {loaderData?.isIntegrationTest && (

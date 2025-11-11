@@ -2,10 +2,10 @@ import {ZonedDateTime, fromDate, isSameDay, toCalendarDate} from "@international
 import {Column, Container, Hr, Row, Section} from "@react-email/components";
 import React, {Fragment} from "react";
 import {EmailAccountAvatar} from "~/server/emails/internal/components/email_account_avatar.js";
+import {EmailFooter} from "~/server/emails/internal/components/email_footer.js";
 import {EmailLink} from "~/server/emails/internal/components/email_link.js";
 import {EmailText, emailFontStyles} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
-import {EmailFooter} from "~/server/emails/internal/templates/email_footer.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
@@ -28,7 +28,6 @@ import {
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function NotificationDigestEmailTemplate({
-    baseUrl,
     resourceServiceUrl,
     locale,
     localizedDigestTime,
@@ -36,7 +35,6 @@ export function NotificationDigestEmailTemplate({
     unsubscribeUrl,
     digestContent,
 }: {
-    baseUrl: string;
     resourceServiceUrl: string;
     locale: Locale;
     localizedDigestTime: ZonedDateTime;
@@ -113,7 +111,7 @@ export function NotificationDigestEmailTemplate({
 
     return (
         <BaseEmailTemplate
-            baseUrl={baseUrl}
+            resourceServiceUrl={resourceServiceUrl}
             /* eslint-disable string-quotes */
             globalStyles={`
                 @media (prefers-color-scheme: dark) {
@@ -154,9 +152,15 @@ export function NotificationDigestEmailTemplate({
                         >
                             <Column width={92} data-skip-in-text="true">
                                 {entry.secondAccount ? (
-                                    <TwoAccountAvatar entry={entry} baseUrl={baseUrl} />
+                                    <TwoAccountAvatar
+                                        entry={entry}
+                                        resourceServiceUrl={resourceServiceUrl}
+                                    />
                                 ) : (
-                                    <OneAccountAvatar entry={entry} baseUrl={baseUrl} />
+                                    <OneAccountAvatar
+                                        entry={entry}
+                                        resourceServiceUrl={resourceServiceUrl}
+                                    />
                                 )}
                             </Column>
                             <Column>
@@ -387,7 +391,13 @@ function LoudNotificationCount({count}: {count: number}) {
     );
 }
 
-function OneAccountAvatar({entry, baseUrl}: {entry: DigestEntry; baseUrl: string}) {
+function OneAccountAvatar({
+    entry,
+    resourceServiceUrl,
+}: {
+    entry: DigestEntry;
+    resourceServiceUrl: string;
+}) {
     return (
         <Container
             border={0}
@@ -432,7 +442,7 @@ function OneAccountAvatar({entry, baseUrl}: {entry: DigestEntry; baseUrl: string
                             height: "20px",
                         }}
                     >
-                        {getBrandIcon(entry.brandIconType, baseUrl)}
+                        {getBrandIcon(entry.brandIconType, resourceServiceUrl)}
                     </div>
                 </Column>
             </Row>
@@ -440,7 +450,13 @@ function OneAccountAvatar({entry, baseUrl}: {entry: DigestEntry; baseUrl: string
     );
 }
 
-function TwoAccountAvatar({entry, baseUrl}: {entry: DigestEntry; baseUrl: string}) {
+function TwoAccountAvatar({
+    entry,
+    resourceServiceUrl,
+}: {
+    entry: DigestEntry;
+    resourceServiceUrl: string;
+}) {
     return (
         <Container border={0} cellPadding={0} cellSpacing={0} style={{height: "70px"}}>
             <Row>
@@ -476,7 +492,7 @@ function TwoAccountAvatar({entry, baseUrl}: {entry: DigestEntry; baseUrl: string
                                 height: "20px",
                             }}
                         >
-                            {getBrandIcon(entry.brandIconType, baseUrl)}
+                            {getBrandIcon(entry.brandIconType, resourceServiceUrl)}
                         </div>
                     </div>
                 </Column>

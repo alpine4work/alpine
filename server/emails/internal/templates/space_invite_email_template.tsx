@@ -1,22 +1,24 @@
 import {Button, Link, Section} from "@react-email/components";
+import {EmailFooter} from "~/server/emails/internal/components/email_footer.js";
 import {EmailText, emailFontStyles} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
-import {EmailFooter} from "~/server/emails/internal/templates/email_footer.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 
 export function SpaceInviteEmailTemplate({
+    resourceServiceUrl,
     spaceUrl,
     spaceName,
 }: {
+    resourceServiceUrl: string;
     spaceUrl: string;
     spaceName: string;
 }) {
     const title = `Welcome to ${spaceName} on Alpine!`;
 
     return (
-        <BaseEmailTemplate title={title}>
+        <BaseEmailTemplate title={title} resourceServiceUrl={resourceServiceUrl}>
             <EmailText fontStyle="bold">Hi there,</EmailText>{" "}
             <EmailText>
                 You’ve been invited to join{" "}

@@ -103,8 +103,6 @@ export async function sendNotificationDigestForInbox(
                     localizedDigestTime: fromDate(sendTime, timeZone as TimeZone),
                     spaceName,
                     digestContent,
-                    baseUrl: context.constants.edgeServiceUrl,
-                    resourceServiceUrl: context.constants.resourceServiceUrl,
                     unsubscribeUrl,
                 },
             });

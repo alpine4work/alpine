@@ -8,11 +8,13 @@ import {
     getFormattedFromEmailAddress,
 } from "~/server/emails/from_email_address.js";
 import {
+    EmailTemplateProps,
     EmailTemplates,
     RenderedEmail,
     renderReactEmailTemplate,
 } from "~/server/emails/internal/templates/email_templates.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -33,9 +35,14 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  * [1]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
  */
 export abstract class EmailContextModuleBase<
-        Modules extends {tracer: TracerContextModule; jobs: JobsContextModule} = {
+        Modules extends {
             tracer: TracerContextModule;
             jobs: JobsContextModule;
+            constants: ConstantsContextModule;
+        } = {
+            tracer: TracerContextModule;
+            jobs: JobsContextModule;
+            constants: ConstantsContextModule;
         },
     >
     extends ContextModuleBase<Modules>
@@ -57,9 +64,10 @@ export abstract class EmailContextModuleBase<
         fromEmailAddressAlias: FromEmailAddressAlias;
         toEmailAddress: EmailAddress;
         templateName: Template;
-        templateProps: Parameters<EmailTemplates[Template]>[0];
+        templateProps: EmailTemplateProps<Template>;
     }) {
         const renderedEmail = await renderReactEmailTemplate(this._context.tracer, {
+            resourceServiceUrl: this._context.constants.resourceServiceUrl,
             templateName,
             templateProps,
         });
@@ -88,9 +96,10 @@ export abstract class EmailContextModuleBase<
         fromEmailAddressAlias: FromEmailAddressAlias;
         toEmailAddress: EmailAddress;
         templateName: Template;
-        templateProps: Parameters<EmailTemplates[Template]>[0];
+        templateProps: EmailTemplateProps<Template>;
     }) {
         const renderedEmail = await renderReactEmailTemplate(this._context.tracer, {
+            resourceServiceUrl: this._context.constants.resourceServiceUrl,
             templateName,
             templateProps,
         });

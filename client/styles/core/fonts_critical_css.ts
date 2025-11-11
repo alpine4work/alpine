@@ -25,12 +25,12 @@ const fallbackFontSizeAdjust = 1.0764;
  * in development when hot reloading our styles we don't reset our
  * `@font-face`s.
  */
-export const fontsCriticalCss =
+export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     "@font-face { " +
     'font-family: "CyInterWithoutItalic"; ' +
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    "src: url(/fonts/inter.v1.woff2) format('woff2 supports variations'), url(/fonts/inter.v1.woff2) format('woff2-variations'), url(/fonts/inter.v1.woff2) format('woff2'); " +
+    `src: url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2 supports variations'), url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2-variations'), url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2'); ` +
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +
@@ -44,7 +44,7 @@ export const fontsCriticalCss =
     'font-family: "CyInter"; ' +
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    "src: url(/fonts/inter.v1.woff2) format('woff2 supports variations'), url(/fonts/inter.v1.woff2) format('woff2-variations'), url(/fonts/inter.v1.woff2) format('woff2'); " +
+    `src: url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2 supports variations'), url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2-variations'), url(${resourceServiceUrl}/fonts/inter.v1.woff2) format('woff2'); ` +
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +
@@ -58,7 +58,7 @@ export const fontsCriticalCss =
     'font-family: "CyInter"; ' +
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    "src: url(/fonts/inter-italic.v1.woff2) format('woff2 supports variations'), url(/fonts/inter-italic.v1.woff2) format('woff2-variations'), url(/fonts/inter-italic.v1.woff2) format('woff2'); " +
+    `src: url(${resourceServiceUrl}/fonts/inter-italic.v1.woff2) format('woff2 supports variations'), url(${resourceServiceUrl}/fonts/inter-italic.v1.woff2) format('woff2-variations'), url(${resourceServiceUrl}/fonts/inter-italic.v1.woff2) format('woff2'); ` +
     "font-weight: 100 900; " +
     "font-style: italic; " +
     "font-display: swap; " +
@@ -72,7 +72,7 @@ export const fontsCriticalCss =
     'font-family: "CyCommitMono"; ' +
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    "src: url(/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(/fonts/commit-mono.v1.woff2) format('woff2'); " +
+    `src: url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(${resourceServiceUrl}/fonts/commit-mono.v1.woff2) format('woff2'); ` +
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +

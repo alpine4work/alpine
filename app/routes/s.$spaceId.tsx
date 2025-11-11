@@ -159,7 +159,7 @@ export function links(): Array<LinkDescriptor> {
         // https://web.dev/articles/codelab-preload-web-fonts
         {
             rel: "preload",
-            href: "/fonts/commit-mono.v1.woff2",
+            href: __RESOURCE_SERVICE_URL__ + "/fonts/commit-mono.v1.woff2",
             as: "font",
             type: "font/woff2",
             crossOrigin: "anonymous",
