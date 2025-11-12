@@ -118,6 +118,17 @@ export function findElementVerticalNavigationPosition(
                 // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|x
                 // xxxxxxxxxxxxxxxx
                 // ```
+                //
+                // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
+                // own `<canvas>` text editor. Browsers like Chrome have a [`TextAffinity`][1]
+                // property on their internal [selection data structure][2] which controls
+                // whether the selection is at the start of the next line or end of the
+                // previous line. However, this affinity isn't readable in JavaScript and isn't
+                // writable by JavaScript. So we should build our own text editor completely in
+                // JavaScript.
+                //
+                // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/text_affinity.h#L34
+                // [2]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/selection_template.h#L143
                 if (isLastPositionBest) {
                     return secondBestPosition ?? bestPosition;
                 } else {

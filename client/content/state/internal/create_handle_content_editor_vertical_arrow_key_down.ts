@@ -66,6 +66,14 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
     // When navigating into row content (file rows and table rows) we want to match
     // the browser behavior of preserving the x coordinate from wherever arrow
     // navigation began (standard text editor behavior).
+    //
+    // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
+    // own text editor from scratch with `<canvas>`. Browsers like Chrome have a
+    // property [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be
+    // able to share here. But no! It's not exposed to JavaScript. Solution: Build
+    // our text editor fully in JavaScript.
+    //
+    // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
     const geometryTracker = new GeometryTracker();
 
     return (view: EditorView, dir: -1 | 1, event: KeyboardEvent): boolean => {
@@ -224,7 +232,85 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         }
 
         if (closestNextNode === null) {
-            return true;
+            // There's no next node to navigate to. Let's return `true` since no navigation
+            // needs to happen, right? Unfortunately, wrong. Because of an unfixable bug in
+            // `view.endOfTextblock()`.
+            //
+            // Consider the following text where your cursor is at `|`:
+            //
+            // ```
+            // Concept of the number one tingling of the spine made in the interiors
+            // of collapsing stars the sky calls to us dream of the mind's eye as a|
+            // patch of light.
+            // ```
+            //
+            // We'd expect `view.endOfTextblock()` to return false here since the cursor
+            // isn't in the last line of text. When `view.endOfTextblock()` returns false
+            // we `return false` above in this function letting the browser handle
+            // navigations within the text block.
+            //
+            // However, `view.endOfTextblock()` returns true. Because the way
+            // `view.endOfTextblock()` works is it gets the coordinate position of the
+            // selection and checks if that position is at the bottom of the text block's
+            // coordinate position. When you call
+            // `window.getSelection().getRangeAt(0).getClientRects()` for the position
+            // above you get two rects! One at the end of the line and one at the start of
+            // the next line.
+            //
+            // The coordinate position for this selection is ambiguous! When you're editing
+            // and your cursor is near a line break then the cursor can be rendered at
+            // either the end of the previous line or the start of the next line while
+            // representing the same underlying position. This is more obvious when you
+            // consider a string of text without spaces like:
+            //
+            // ```
+            // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxoxxxxxxxxxxxxxxxx
+            // ```
+            //
+            // ...if it line breaks like this:
+            //
+            // ```
+            // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxo
+            // xxxxxxxxxxxxxxxx
+            // ```
+            //
+            // ...then your cursor could be rendered here:
+            //
+            // ```
+            // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxo|
+            // xxxxxxxxxxxxxxxx
+            // ```
+            //
+            // ...or here:
+            //
+            // ```
+            // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxo
+            // |xxxxxxxxxxxxxxxx
+            // ```
+            //
+            // Both represent the same underlying position but look different when rendered
+            // on screen.
+            //
+            // The way this is implemented is browser's have this [`TextAffinity`][1]
+            // property on their [internal selection data structure][2] which determines
+            // where the cursor should be rendered. But this affinity property isn't
+            // readable or writable from JavaScript. I (@calebmer) spent an hour pouring
+            // through the Chromium source code looking for a way to figure out the
+            // selection affinity to no avail.
+            //
+            // So, anyway, we'd like to `return true` here. We'd like to definitively know
+            // "no more navigation can possibly occur from this position" but unfortunately
+            // we don't have that level of control. We must `return false` here to let the
+            // browser perform navigation in the case where our cursor is on the
+            // second-to-last line in an ambiguous position.
+            //
+            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
+            // own text editor from scratch with `<canvas>`. We can control the selection
+            // affinity ourselves.
+            //
+            // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/text_affinity.h#L34
+            // [2]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/selection_template.h#L143
+            return false;
         }
 
         /* ========================================================================== *\
@@ -318,6 +404,14 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             // of collapsing stars the sky calls to us dream of the mind's eye as a
             // patch of light.
             // ```
+            //
+            // NOTE(calebmer, #canvas-text-editor): This is a reason we should build our
+            // own text editor from scratch with `<canvas>`. Browsers like Chrome have a
+            // property [`x_pos_for_vertical_arrow_navigation`][1] that ideally we'd be
+            // able to read/write here. But no! It's not exposed to JavaScript. Solution:
+            // Build our text editor fully in JavaScript.
+            //
+            // [1]: https://github.com/chromium/chromium/blob/d56ca9dbdd83b443cef3e363abbfaf2cbe969e1b/third_party/blink/renderer/core/editing/frame_selection.h#L383
             if (
                 node.inlineContent &&
                 // Don't allow default browser navigation if we're picking between multiple
