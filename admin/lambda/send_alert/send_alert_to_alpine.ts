@@ -462,6 +462,12 @@ export async function sendHoneycombAlertToAlpine(
     // We don't care when they go back to 'normal'.
     const isEvent = data.isEvent?.toLowerCase() === "true" || data.isEvent === "1";
 
+    // When 'event' type alert goes back to 'ok', ignore it. We only care when they trigger.
+    if (status === "ok" && isEvent) {
+        console.debug("Ignoring Honeycomb event alert with status 'ok'");
+        return {ok: true};
+    }
+
     let emoji = "ℹ️";
     if (isEvent) {
         if (data.emoji?.trim().length) {
@@ -494,9 +500,7 @@ export async function sendHoneycombAlertToAlpine(
         });
     }
 
-    // We don't care when events go back to normal, since events just want to
-    // know when something happens. (like user sign ups)
-    if (status === "ok" && !isEvent) {
+    if (status === "ok") {
         elements.push({
             type: "Paragraph",
             elements: [
