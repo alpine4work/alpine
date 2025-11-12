@@ -53,6 +53,62 @@ function createUserElement(
     };
 }
 
+// Create elements for commit message with PR links
+function createCommitMessageElements(
+    commitMessage: string,
+    repositoryFullName: string,
+): Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> {
+    const elements: Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> = [];
+
+    // Regex to match PR references like (#123)
+    const prRegex = /\(#(\d+)\)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = prRegex.exec(commitMessage)) !== null) {
+        // Add text before the PR reference
+        if (match.index > lastIndex) {
+            elements.push({
+                type: "Text",
+                text: commitMessage.substring(lastIndex, match.index),
+            });
+        }
+
+        // Add the PR link
+        const prNumber = match[1];
+        elements.push({
+            type: "Text",
+            text: `(#${prNumber})`,
+            marks: [
+                {
+                    type: "Link",
+                    url: `https://app.graphite.com/github/pr/${repositoryFullName}/${prNumber}`,
+                },
+            ],
+        });
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add any remaining text after the last PR reference
+    if (lastIndex < commitMessage.length) {
+        elements.push({
+            type: "Text",
+            text: commitMessage.substring(lastIndex),
+        });
+    }
+
+    // If no PR references were found, just return the original text
+    if (elements.length === 0) {
+        elements.push({
+            type: "Text",
+            text: commitMessage,
+        });
+    }
+
+    return elements;
+}
+
 function createHeaderElements(
     title: string,
     actions?: Array<{label: string; url: string}>,
@@ -397,37 +453,29 @@ export async function sendHoneycombAlertToAlpine(
     console.debug(JSON.stringify(data, null, 2));
 
     const status = data.alert.status.toLowerCase();
+    const statusEmojiMap = {
+        triggered: "🚨",
+        ok: "✅",
+    };
 
-    const emoji =
-        {
-            triggered: "🚨",
-            ok: "✅",
-        }[status] || "ℹ️";
+    // Event alerts are useful for just knowing when events happen.
+    // We don't care when they go back to 'normal'.
+    const isEvent = data.isEvent?.toLowerCase() === "true" || data.isEvent === "1";
 
-    const elements: Array<ApiContentElement> = createHeaderElements(
-        `${emoji} Alert: ${data.name}`,
-        [
-            {label: "View Trigger", url: data.links.trigger},
-            {label: "View Result", url: data.links.result},
-        ],
-    );
-
-    if (status === "ok") {
-        elements.push({
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Measurement has returned to normal status.",
-                    marks: [
-                        {
-                            type: "Bold",
-                        },
-                    ],
-                },
-            ],
-        });
+    let emoji = "ℹ️";
+    if (isEvent) {
+        if (data.emoji?.trim().length) {
+            emoji = data.emoji.trim();
+        }
+    } else if (status in statusEmojiMap) {
+        emoji = statusEmojiMap[status as keyof typeof statusEmojiMap];
     }
+
+    const header = `${emoji} ${isEvent ? "Event" : "Trigger"}: ${data.name}`;
+    const elements: Array<ApiContentElement> = createHeaderElements(header, [
+        {label: "View Trigger", url: data.links.trigger},
+        {label: "View Result", url: data.links.result},
+    ]);
 
     if (data.description) {
         elements.push({
@@ -446,24 +494,40 @@ export async function sendHoneycombAlertToAlpine(
         });
     }
 
-    elements.push({
-        type: "Paragraph",
-        elements: [
-            {
-                type: "Text",
-                text: "Environment: ",
-            },
-            {
-                type: "Text",
-                text: data.environment,
-                marks: [
-                    {
-                        type: "Code",
-                    },
-                ],
-            },
-        ],
-    });
+    // We don't care when events go back to normal, since events just want to
+    // know when something happens. (like user sign ups)
+    if (status === "ok" && !isEvent) {
+        elements.push({
+            type: "Paragraph",
+            elements: [
+                {
+                    type: "Text",
+                    text: "Measurement has returned to normal status.",
+                    marks: [
+                        {
+                            type: "Bold",
+                        },
+                    ],
+                },
+            ],
+        });
+    }
+
+    if (data.environment !== "production") {
+        elements.push({
+            type: "Paragraph",
+            elements: [
+                {
+                    type: "Text",
+                    text: "Environment: ",
+                },
+                {
+                    type: "Text",
+                    text: data.environment,
+                },
+            ],
+        });
+    }
 
     if (status !== "ok") {
         elements.push({
@@ -476,11 +540,6 @@ export async function sendHoneycombAlertToAlpine(
                 {
                     type: "Text",
                     text: `${data.threshold.op} ${data.threshold.value}`,
-                    marks: [
-                        {
-                            type: "Code",
-                        },
-                    ],
                 },
             ],
         });
@@ -522,7 +581,7 @@ export async function sendGitHubActionsAlertToAlpine(
     }
 
     const elements: Array<ApiContentElement> = [
-        ...createHeaderElements(`🚨 Build Failed: ${data.workflow_run.name}`, [
+        ...createHeaderElements(`🚨 Build failed: ${data.workflow_run.name}`, [
             {label: "View Run", url: data.workflow_run.html_url},
         ]),
         {
@@ -534,7 +593,7 @@ export async function sendGitHubActionsAlertToAlpine(
                 },
                 {
                     type: "Text",
-                    text: data.repository.full_name,
+                    text: data.repository.name,
                     marks: [
                         {
                             type: "Link",
@@ -542,37 +601,9 @@ export async function sendGitHubActionsAlertToAlpine(
                         },
                     ],
                 },
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
                 {
                     type: "Text",
-                    text: "Author: ",
-                },
-                createUserElement(
-                    data.workflow_run.actor.login,
-                    data.workflow_run.actor.html_url,
-                    data.workflow_run.actor.login,
-                ),
-                {
-                    type: "Text",
-                    text: " • Triggered by: ",
-                },
-                createUserElement(
-                    data.workflow_run.triggering_actor.login,
-                    data.workflow_run.triggering_actor.html_url,
-                    data.workflow_run.triggering_actor.login,
-                ),
-            ],
-        },
-        {
-            type: "Paragraph",
-            elements: [
-                {
-                    type: "Text",
-                    text: "Commit: ",
+                    text: " • Commit: ",
                 },
                 {
                     type: "Text",
@@ -594,13 +625,34 @@ export async function sendGitHubActionsAlertToAlpine(
             elements: [
                 {
                     type: "Paragraph",
-                    elements: [
-                        {
-                            type: "Text",
-                            text: data.workflow_run.head_commit.message,
-                        },
-                    ],
+                    elements: createCommitMessageElements(
+                        data.workflow_run.head_commit.message,
+                        data.repository.full_name,
+                    ),
                 },
+            ],
+        },
+        {
+            type: "Paragraph",
+            elements: [
+                {
+                    type: "Text",
+                    text: "Author: ",
+                },
+                createUserElement(
+                    data.workflow_run.head_commit.author.name,
+                    `https://github.com/${data.workflow_run.head_commit.author.name}`,
+                    data.workflow_run.head_commit.author.name,
+                ),
+                {
+                    type: "Text",
+                    text: " • Triggered by: ",
+                },
+                createUserElement(
+                    data.workflow_run.triggering_actor.login,
+                    data.workflow_run.triggering_actor.html_url,
+                    data.workflow_run.triggering_actor.login,
+                ),
             ],
         },
     ];

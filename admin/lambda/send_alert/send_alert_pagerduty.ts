@@ -6,7 +6,8 @@ export type PagerDutyReferenceType =
     | "user_reference"
     | "escalation_policy_reference"
     | "team_reference"
-    | "action_reference";
+    | "action_reference"
+    | "priority_reference";
 
 export type PagerDutyReference<T extends PagerDutyReferenceType = PagerDutyReferenceType> = {
     html_url: string;

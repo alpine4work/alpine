@@ -1,6 +1,8 @@
 export type HoneycombEventPayload = {
     name: string;
     channel: string;
+    isEvent?: string;
+    emoji?: string;
     id: string;
     description: string;
     environment: string;
