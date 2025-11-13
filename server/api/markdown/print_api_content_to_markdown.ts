@@ -23,6 +23,7 @@ import {
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementLinkMark,
     ApiContentInlineElementMark,
+    ApiContentMentionInlineElement,
     ApiContentParagraphBlockElement,
     ApiContentTableBlockElement,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -39,6 +40,10 @@ declare module "mdast" {
         // NOTE(calebmer): We have a patch for `mdast-util-to-markdown` that checks
         // this property and uses it when printing emphasis nodes.
         emphasisMarker?: "*" | "_";
+    }
+
+    export interface LinkData {
+        mentionElement?: ApiContentMentionInlineElement;
     }
 }
 
@@ -981,6 +986,7 @@ function* printApiContentInlineElementToMarkdown(
                     type: "link",
                     url: targetUrl,
                     children: [{type: "text", value: title}],
+                    data: {mentionElement: element},
                 },
             ];
 

@@ -1,6 +1,6 @@
 import {Mark, Node} from "prosemirror-model";
+import {intoApiTaskStatus} from "~/server/api/internal/shared/into_api_task_status.js";
 import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
-import {printApiMentionTargetResponse} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentBlockElementResponse,
     ApiContentInlineElementHighlightMarkColor,
@@ -11,7 +11,7 @@ import {
     ApiContentResponse,
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
-    ApiMentionPath,
+    ApiMentionTargetResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -27,11 +27,12 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 export type ApiContentMarkdownIntoOptions = {
     readonly getAccountMentionTitleIfExists: (
@@ -41,6 +42,9 @@ export type ApiContentMarkdownIntoOptions = {
     readonly getSearchEntityMentionTitleIfExists: (
         entityId: SearchMentionEntityId,
     ) => string | undefined;
+    readonly getSearchTaskEntityDisplayStatusIfExists: (
+        taskId: TaskId,
+    ) => TaskDisplayStatus | undefined;
 };
 
 /**
@@ -438,39 +442,67 @@ function intoApiContentInlineElement(
                             : undefined,
                 };
             } else {
-                let targetPath: ApiMentionPath;
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
 
+                let target: ApiMentionTargetResponse;
+
                 switch (entityIdObject.type) {
-                    case "Document":
-                        targetPath = `/documents/${entityIdObject.documentId}`;
+                    case "Document": {
+                        target = {
+                            path: `/documents/${entityIdObject.documentId}`,
+                            type: "Document",
+                            id: entityIdObject.documentId,
+                        };
                         break;
-                    case "Channel":
-                        targetPath = `/channels/${entityIdObject.channelId}`;
+                    }
+                    case "Channel": {
+                        target = {
+                            path: `/channels/${entityIdObject.channelId}`,
+                            type: "Channel",
+                            id: entityIdObject.channelId,
+                        };
                         break;
-                    case "Task":
-                        targetPath = `/tasks/${entityIdObject.taskId}`;
+                    }
+                    case "Task": {
+                        target = {
+                            path: `/tasks/${entityIdObject.taskId}`,
+                            type: "Task",
+                            id: entityIdObject.taskId,
+                            status: intoApiTaskStatus(
+                                options.getSearchTaskEntityDisplayStatusIfExists(
+                                    entityIdObject.taskId,
+                                    // Default deleted tasks and private tasks to `Closed`.
+                                ) ?? "Closed",
+                            ),
+                        };
                         break;
-                    case "TaskCollection":
-                        targetPath = `/task-collections/${entityIdObject.collectionId}`;
+                    }
+                    case "TaskCollection": {
+                        target = {
+                            path: `/task-collections/${entityIdObject.collectionId}`,
+                            type: "TaskCollection",
+                            id: entityIdObject.collectionId,
+                        };
                         break;
-                    case "Post":
-                        targetPath = `/posts/${entityIdObject.postId}`;
+                    }
+                    case "Post": {
+                        target = {
+                            path: `/posts/${entityIdObject.postId}`,
+                            type: "Post",
+                            id: entityIdObject.postId,
+                        };
                         break;
+                    }
                     default:
                         throw exhaustive(entityIdObject);
                 }
-
-                const target = printApiMentionTargetResponse(targetPath);
 
                 return {
                     type: "Mention",
                     target,
                     title:
                         options.getSearchEntityMentionTitleIfExists(mention.entityId) ??
-                        (target.type === "Account"
-                            ? "Unknown"
-                            : `Unknown ${getApiMentionPathNoun(target.type)}`),
+                        `Unknown ${getApiMentionPathNoun(target.type)}`,
                     marks:
                         node.marks.length > 0
                             ? intoApiContentInlineElementMarks(node.marks)

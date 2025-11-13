@@ -7,12 +7,12 @@ import {
     findAgentLinkForApiPath,
     getAgentLink,
     normalizeMarkdownLinkLabelForPath,
-    printEscapedMarkdownLinkLabel,
     putAgentDocumentPageLink,
     putAgentNextMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {
     printAgentLinkPath,
+    printAgentPlainTextLabel,
     printApiPathForAgentLink,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -395,7 +395,7 @@ describe("findAgentLinkForApiPath", () => {
         const found = await findAgentLinkForApiPath(storage, printApiPathForAgentLink(created));
 
         expect(printAgentLinkPath(found)).toBe("/document/my-document");
-        expect(printEscapedMarkdownLinkLabel(found)).toBe("My Document");
+        expect(printAgentPlainTextLabel(found)).toBe("My Document");
     });
 
     test("finds deduplicated link by target path", async () => {
@@ -484,7 +484,7 @@ describe("createAgentLink", () => {
                 const result = await createAgentLink(storage, link);
 
                 expect(printAgentLinkPath(result)).toBe("/chat/ian-hello-world");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Ian: hello world");
+                expect(printAgentPlainTextLabel(result)).toBe("Ian: hello world");
                 expect(result.type).toBe("ChatMessages");
             });
 
@@ -731,7 +731,7 @@ describe("createAgentLink", () => {
                 const result = await createAgentLink(storage, link);
 
                 expect(printAgentLinkPath(result)).toBe("/document-thread/ian-great-point");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Ian: great point!");
+                expect(printAgentPlainTextLabel(result)).toBe("Ian: great point!");
             });
 
             test("deduplicates comments with same label on same thread", async () => {
@@ -836,7 +836,7 @@ describe("createAgentLink", () => {
                 const result = await createAgentLink(storage, link);
 
                 expect(printAgentLinkPath(result)).toBe("/post/bob-nice-update");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Bob: nice update");
+                expect(printAgentPlainTextLabel(result)).toBe("Bob: nice update");
             });
 
             test("deduplicates post messages with same label", async () => {
@@ -892,7 +892,7 @@ describe("createAgentLink", () => {
                 const result = await createAgentLink(storage, link);
 
                 expect(printAgentLinkPath(result)).toBe("/task-comments/alice-working-on-it");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Alice: working on it");
+                expect(printAgentPlainTextLabel(result)).toBe("Alice: working on it");
             });
 
             test("deduplicates task messages with same label", async () => {
@@ -950,7 +950,7 @@ describe("createAgentLink", () => {
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/account/alice-smith");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Alice Smith");
+                expect(printAgentPlainTextLabel(result)).toBe("Alice Smith");
             });
 
             test("creates channel link", async () => {
@@ -965,7 +965,7 @@ describe("createAgentLink", () => {
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/channel/general");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("General");
+                expect(printAgentPlainTextLabel(result)).toBe("General");
             });
 
             test("creates document link", async () => {
@@ -978,7 +978,7 @@ describe("createAgentLink", () => {
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/document/my-document");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("My Document");
+                expect(printAgentPlainTextLabel(result)).toBe("My Document");
             });
 
             test("creates post link", async () => {
@@ -993,10 +993,10 @@ describe("createAgentLink", () => {
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/post/quarterly-results");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Quarterly Results");
+                expect(printAgentPlainTextLabel(result)).toBe("Quarterly Results");
             });
 
-            test("creates task link", async () => {
+            test("creates inactive task link", async () => {
                 const taskId = generateId<TaskId>();
 
                 const result = await createAgentLink(storage, {
@@ -1004,11 +1004,44 @@ describe("createAgentLink", () => {
                     task: {
                         id: taskId,
                         title: "Fix Bug #123",
+                        status: {type: "Open", isActive: false},
                     },
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/task/fix-bug-123");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Fix Bug #123");
+                expect(printAgentPlainTextLabel(result)).toBe("Fix Bug #123 (Open)");
+            });
+
+            test("creates active task link", async () => {
+                const taskId = generateId<TaskId>();
+
+                const result = await createAgentLink(storage, {
+                    type: "Task",
+                    task: {
+                        id: taskId,
+                        title: "Fix Bug #123",
+                        status: {type: "Open", isActive: true},
+                    },
+                });
+
+                expect(printAgentLinkPath(result)).toBe("/task/fix-bug-123");
+                expect(printAgentPlainTextLabel(result)).toBe("Fix Bug #123 (Open)");
+            });
+
+            test("creates completed task link", async () => {
+                const taskId = generateId<TaskId>();
+
+                const result = await createAgentLink(storage, {
+                    type: "Task",
+                    task: {
+                        id: taskId,
+                        title: "Fix Bug #123",
+                        status: {type: "Closed"},
+                    },
+                });
+
+                expect(printAgentLinkPath(result)).toBe("/task/fix-bug-123");
+                expect(printAgentPlainTextLabel(result)).toBe("Fix Bug #123 (Closed)");
             });
 
             test("creates task collection link", async () => {
@@ -1023,7 +1056,7 @@ describe("createAgentLink", () => {
                 });
 
                 expect(printAgentLinkPath(result)).toBe("/task-collection/product-launch");
-                expect(printEscapedMarkdownLinkLabel(result)).toBe("Product Launch");
+                expect(printAgentPlainTextLabel(result)).toBe("Product Launch");
             });
         });
 

@@ -1050,7 +1050,7 @@ components:
                 - $ref: "#/components/schemas/TaskPath"
                 - $ref: "#/components/schemas/TaskMessagePath"
                 - $ref: "#/components/schemas/TaskCollectionPath"
-        AccountTarget_Response:
+        AccountMentionTarget_Response:
             type: object
             required:
                 - type
@@ -1064,7 +1064,7 @@ components:
                     const: Account
                 id:
                     $ref: "#/components/schemas/AccountId"
-        AccountTarget:
+        AccountMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1084,7 +1084,7 @@ components:
                           const: Account
                       id:
                           $ref: "#/components/schemas/AccountId"
-        ChannelTarget_Response:
+        ChannelMentionTarget_Response:
             type: object
             required:
                 - type
@@ -1098,7 +1098,7 @@ components:
                     const: Channel
                 id:
                     $ref: "#/components/schemas/ChannelId"
-        ChannelTarget:
+        ChannelMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1118,7 +1118,7 @@ components:
                           const: Channel
                       id:
                           $ref: "#/components/schemas/ChannelId"
-        DocumentTarget_Response:
+        DocumentMentionTarget_Response:
             type: object
             required:
                 - type
@@ -1132,7 +1132,7 @@ components:
                     const: Document
                 id:
                     $ref: "#/components/schemas/DocumentId"
-        DocumentTarget:
+        DocumentMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1152,7 +1152,7 @@ components:
                           const: Document
                       id:
                           $ref: "#/components/schemas/DocumentId"
-        PostTarget_Response:
+        PostMentionTarget_Response:
             type: object
             required:
                 - type
@@ -1166,7 +1166,7 @@ components:
                     const: Post
                 id:
                     $ref: "#/components/schemas/PostId"
-        PostTarget:
+        PostMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1186,12 +1186,13 @@ components:
                           const: Post
                       id:
                           $ref: "#/components/schemas/PostId"
-        TaskTarget_Response:
+        TaskMentionTarget_Response:
             type: object
             required:
                 - type
                 - path
                 - id
+                - status
             additionalProperties: false
             properties:
                 path:
@@ -1200,7 +1201,9 @@ components:
                     const: Task
                 id:
                     $ref: "#/components/schemas/TaskId"
-        TaskTarget:
+                status:
+                    $ref: "#/components/schemas/TaskStatus"
+        TaskMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1220,7 +1223,7 @@ components:
                           const: Task
                       id:
                           $ref: "#/components/schemas/TaskId"
-        TaskCollectionTarget_Response:
+        TaskCollectionMentionTarget_Response:
             type: object
             required:
                 - type
@@ -1234,7 +1237,7 @@ components:
                     const: TaskCollection
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
-        TaskCollectionTarget:
+        TaskCollectionMentionTarget:
             oneOf:
                 - type: object
                   required:
@@ -1256,29 +1259,29 @@ components:
                           $ref: "#/components/schemas/TaskCollectionId"
         MentionTarget:
             oneOf:
-                - $ref: "#/components/schemas/AccountTarget"
-                - $ref: "#/components/schemas/ChannelTarget"
-                - $ref: "#/components/schemas/DocumentTarget"
-                - $ref: "#/components/schemas/PostTarget"
-                - $ref: "#/components/schemas/TaskTarget"
-                - $ref: "#/components/schemas/TaskCollectionTarget"
+                - $ref: "#/components/schemas/AccountMentionTarget"
+                - $ref: "#/components/schemas/ChannelMentionTarget"
+                - $ref: "#/components/schemas/DocumentMentionTarget"
+                - $ref: "#/components/schemas/PostMentionTarget"
+                - $ref: "#/components/schemas/TaskMentionTarget"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget"
         MentionTarget_Response:
             oneOf:
-                - $ref: "#/components/schemas/AccountTarget_Response"
-                - $ref: "#/components/schemas/ChannelTarget_Response"
-                - $ref: "#/components/schemas/DocumentTarget_Response"
-                - $ref: "#/components/schemas/PostTarget_Response"
-                - $ref: "#/components/schemas/TaskTarget_Response"
-                - $ref: "#/components/schemas/TaskCollectionTarget_Response"
+                - $ref: "#/components/schemas/AccountMentionTarget_Response"
+                - $ref: "#/components/schemas/ChannelMentionTarget_Response"
+                - $ref: "#/components/schemas/DocumentMentionTarget_Response"
+                - $ref: "#/components/schemas/PostMentionTarget_Response"
+                - $ref: "#/components/schemas/TaskMentionTarget_Response"
+                - $ref: "#/components/schemas/TaskCollectionMentionTarget_Response"
             discriminator:
                 propertyName: type
                 mapping:
-                    Account: "#/components/schemas/AccountTarget_Response"
-                    Channel: "#/components/schemas/ChannelTarget_Response"
-                    Document: "#/components/schemas/DocumentTarget_Response"
-                    Post: "#/components/schemas/PostTarget_Response"
-                    Task: "#/components/schemas/TaskTarget_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionTarget_Response"
+                    Account: "#/components/schemas/AccountMentionTarget_Response"
+                    Channel: "#/components/schemas/ChannelMentionTarget_Response"
+                    Document: "#/components/schemas/DocumentMentionTarget_Response"
+                    Post: "#/components/schemas/PostMentionTarget_Response"
+                    Task: "#/components/schemas/TaskMentionTarget_Response"
+                    TaskCollection: "#/components/schemas/TaskCollectionMentionTarget_Response"
         Content:
             type: object
             additionalProperties: false

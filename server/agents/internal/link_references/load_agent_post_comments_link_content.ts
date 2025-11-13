@@ -5,12 +5,14 @@ import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/ag
 import {
     createAgentLink,
     findAgentLinkForApiPathIfExists,
-    printEscapedMarkdownLinkLabel,
     putAgentNextMessagesPageLink,
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {parseMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_messages_list_content_to_markdown_root.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
@@ -326,7 +328,7 @@ async function getPreambleForPostComments(
         {
             type: "link",
             url: printAgentLinkPath(postLink),
-            children: [{type: "text", value: printEscapedMarkdownLinkLabel(postLink)}],
+            children: [{type: "text", value: printAgentPlainTextLabel(postLink)}],
         },
     ];
 }

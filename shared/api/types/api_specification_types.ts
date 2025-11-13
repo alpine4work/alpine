@@ -1229,7 +1229,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskPath"]
                 | components["schemas"]["TaskMessagePath"]
                 | components["schemas"]["TaskCollectionPath"];
-            readonly AccountTarget_Response: {
+            readonly AccountMentionTarget_Response: {
                 readonly path: components["schemas"]["AccountPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1238,7 +1238,7 @@ export namespace ApiSpecification {
                 readonly type: "Account";
                 readonly id: components["schemas"]["AccountId"];
             };
-            readonly AccountTarget:
+            readonly AccountMentionTarget:
                 | {
                       readonly path: components["schemas"]["AccountPath"];
                   }
@@ -1249,7 +1249,7 @@ export namespace ApiSpecification {
                   } & {
                       readonly [key: string]: "path";
                   });
-            readonly ChannelTarget_Response: {
+            readonly ChannelMentionTarget_Response: {
                 readonly path: components["schemas"]["ChannelPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1258,7 +1258,7 @@ export namespace ApiSpecification {
                 readonly type: "Channel";
                 readonly id: components["schemas"]["ChannelId"];
             };
-            readonly ChannelTarget:
+            readonly ChannelMentionTarget:
                 | {
                       readonly path: components["schemas"]["ChannelPath"];
                   }
@@ -1269,7 +1269,7 @@ export namespace ApiSpecification {
                   } & {
                       readonly [key: string]: "path";
                   });
-            readonly DocumentTarget_Response: {
+            readonly DocumentMentionTarget_Response: {
                 readonly path: components["schemas"]["DocumentPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1278,7 +1278,7 @@ export namespace ApiSpecification {
                 readonly type: "Document";
                 readonly id: components["schemas"]["DocumentId"];
             };
-            readonly DocumentTarget:
+            readonly DocumentMentionTarget:
                 | {
                       readonly path: components["schemas"]["DocumentPath"];
                   }
@@ -1289,7 +1289,7 @@ export namespace ApiSpecification {
                   } & {
                       readonly [key: string]: "path";
                   });
-            readonly PostTarget_Response: {
+            readonly PostMentionTarget_Response: {
                 readonly path: components["schemas"]["PostPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1298,7 +1298,7 @@ export namespace ApiSpecification {
                 readonly type: "Post";
                 readonly id: components["schemas"]["PostId"];
             };
-            readonly PostTarget:
+            readonly PostMentionTarget:
                 | {
                       readonly path: components["schemas"]["PostPath"];
                   }
@@ -1309,7 +1309,7 @@ export namespace ApiSpecification {
                   } & {
                       readonly [key: string]: "path";
                   });
-            readonly TaskTarget_Response: {
+            readonly TaskMentionTarget_Response: {
                 readonly path: components["schemas"]["TaskPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1317,8 +1317,9 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Task";
                 readonly id: components["schemas"]["TaskId"];
+                readonly status: components["schemas"]["TaskStatus"];
             };
-            readonly TaskTarget:
+            readonly TaskMentionTarget:
                 | {
                       readonly path: components["schemas"]["TaskPath"];
                   }
@@ -1329,7 +1330,7 @@ export namespace ApiSpecification {
                   } & {
                       readonly [key: string]: "path";
                   });
-            readonly TaskCollectionTarget_Response: {
+            readonly TaskCollectionMentionTarget_Response: {
                 readonly path: components["schemas"]["TaskCollectionPath"];
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1338,7 +1339,7 @@ export namespace ApiSpecification {
                 readonly type: "TaskCollection";
                 readonly id: components["schemas"]["TaskCollectionId"];
             };
-            readonly TaskCollectionTarget:
+            readonly TaskCollectionMentionTarget:
                 | {
                       readonly path: components["schemas"]["TaskCollectionPath"];
                   }
@@ -1350,19 +1351,19 @@ export namespace ApiSpecification {
                       readonly [key: string]: "path";
                   });
             readonly MentionTarget:
-                | components["schemas"]["AccountTarget"]
-                | components["schemas"]["ChannelTarget"]
-                | components["schemas"]["DocumentTarget"]
-                | components["schemas"]["PostTarget"]
-                | components["schemas"]["TaskTarget"]
-                | components["schemas"]["TaskCollectionTarget"];
+                | components["schemas"]["AccountMentionTarget"]
+                | components["schemas"]["ChannelMentionTarget"]
+                | components["schemas"]["DocumentMentionTarget"]
+                | components["schemas"]["PostMentionTarget"]
+                | components["schemas"]["TaskMentionTarget"]
+                | components["schemas"]["TaskCollectionMentionTarget"];
             readonly MentionTarget_Response:
-                | components["schemas"]["AccountTarget_Response"]
-                | components["schemas"]["ChannelTarget_Response"]
-                | components["schemas"]["DocumentTarget_Response"]
-                | components["schemas"]["PostTarget_Response"]
-                | components["schemas"]["TaskTarget_Response"]
-                | components["schemas"]["TaskCollectionTarget_Response"];
+                | components["schemas"]["AccountMentionTarget_Response"]
+                | components["schemas"]["ChannelMentionTarget_Response"]
+                | components["schemas"]["DocumentMentionTarget_Response"]
+                | components["schemas"]["PostMentionTarget_Response"]
+                | components["schemas"]["TaskMentionTarget_Response"]
+                | components["schemas"]["TaskCollectionMentionTarget_Response"];
             readonly Content: {
                 readonly elements: readonly components["schemas"]["ContentBlockElement"][];
             };

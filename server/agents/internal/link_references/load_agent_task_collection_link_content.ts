@@ -1,12 +1,12 @@
 import {List, ListItem, Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentTaskCollectionLink} from "~/server/agents/internal/link_references/agent_link.js";
-import {
-    createAgentLink,
-    printEscapedMarkdownLinkLabel,
-} from "~/server/agents/internal/link_references/agent_link_collection.js";
+import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {parseAgentContentToMarkdownRoot} from "~/server/agents/internal/link_references/parge_agent_content_to_markdown_root.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {
     ApiAccount,
     ApiTaskStatus,
@@ -81,9 +81,7 @@ export async function loadAgentTaskCollectionLinkContent({
                         {
                             type: "link",
                             url: printAgentLinkPath(taskLink),
-                            children: [
-                                {type: "text", value: printEscapedMarkdownLinkLabel(taskLink)},
-                            ],
+                            children: [{type: "text", value: printAgentPlainTextLabel(taskLink)}],
                         },
                     ],
                 },
@@ -174,7 +172,7 @@ async function intoAssigneeListItem(
                         children: [
                             {
                                 type: "text",
-                                value: printEscapedMarkdownLinkLabel(assigneeLink),
+                                value: printAgentPlainTextLabel(assigneeLink),
                             },
                         ],
                     },

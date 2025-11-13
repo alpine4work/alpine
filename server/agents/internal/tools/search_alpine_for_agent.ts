@@ -2,11 +2,11 @@ import {Link, ListItem, Paragraph, PhrasingContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentSearchAlpineResultLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
+import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {
-    createAgentLink,
-    printEscapedMarkdownLinkLabel,
-} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getSearchResultContentSnippetAndReturnBodyMatch} from "~/server/agents/internal/tools/get_search_result_content_snippet_and_return_body_match.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
@@ -201,6 +201,7 @@ async function getOrderedListItemForSearchEntityResult(
                 task: {
                     id: result.id,
                     title: result.title,
+                    status: result.status,
                 },
             });
 
@@ -316,12 +317,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
     const linkToSearchResult: Link = {
         type: "link",
         url: printAgentLinkPath(link),
-        children: [
-            {
-                type: "text",
-                value: printEscapedMarkdownLinkLabel(link),
-            },
-        ],
+        children: [{type: "text", value: printAgentPlainTextLabel(link)}],
     };
 
     const bodyMatchContent: Array<PhrasingContent> = intoPhrasingContent(result.bodyMatch);

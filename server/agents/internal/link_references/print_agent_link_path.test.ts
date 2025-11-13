@@ -64,6 +64,7 @@ describe("printAgentLinkPath", () => {
                 type: "Task",
                 taskId,
                 title: "Fix Bug #123",
+                status: {type: "Open", isActive: false},
             };
             expect(printAgentLinkPath(link)).toBe("/task/fix-bug-123");
         });
@@ -495,6 +496,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 type: "Task",
                 taskId,
                 title: "Fix Bug",
+                status: {type: "Open", isActive: false},
             };
             expect(printApiPathForAgentLink(link)).toBe(`/tasks/${taskId}`);
         });
@@ -668,13 +670,34 @@ describe("printAgentPlainTextLabel", () => {
             expect(printAgentPlainTextLabel(link)).toBe("My Document");
         });
 
-        test("returns task title", () => {
+        test("returns task title and open status", () => {
             const link: AgentLink = {
                 type: "Task",
                 taskId,
                 title: "Fix Bug #123",
+                status: {type: "Open", isActive: false},
             };
-            expect(printAgentPlainTextLabel(link)).toBe("Fix Bug #123");
+            expect(printAgentPlainTextLabel(link)).toBe("Fix Bug #123 (Open)");
+        });
+
+        test("returns task title and active status", () => {
+            const link: AgentLink = {
+                type: "Task",
+                taskId,
+                title: "Fix Bug #123",
+                status: {type: "Open", isActive: true},
+            };
+            expect(printAgentPlainTextLabel(link)).toBe("Fix Bug #123 (Open)");
+        });
+
+        test("returns task title and closed status", () => {
+            const link: AgentLink = {
+                type: "Task",
+                taskId,
+                title: "Fix Bug #123",
+                status: {type: "Closed"},
+            };
+            expect(printAgentPlainTextLabel(link)).toBe("Fix Bug #123 (Closed)");
         });
 
         test("returns task collection title", () => {

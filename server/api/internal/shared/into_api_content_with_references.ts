@@ -175,6 +175,13 @@ export async function intoApiContentWithReferencesAndReturnReferences(
 
             return entityTitle;
         },
+        getSearchTaskEntityDisplayStatusIfExists: taskId => {
+            const entity = searchEntityById.get(`Task:${taskId}`);
+            if (!entity) return;
+            if (entity.isPrivate) return;
+            if (entity.entity.initialData.media?.type !== "TaskDisplayStatus") return;
+            return entity.entity.initialData.media.displayStatus;
+        },
     });
 
     return {

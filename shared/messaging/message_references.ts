@@ -41,7 +41,7 @@ export function getMessageReferencedIds({
     authorId: AccountId;
     payload: MessagePayload;
     stream: MessageStream | null;
-}) {
+}): MessageReferencedIds {
     switch (payload.type) {
         case "Deleted": {
             assert(stream === null);

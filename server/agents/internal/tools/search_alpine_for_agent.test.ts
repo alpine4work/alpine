@@ -165,11 +165,11 @@ The following search results matched the keyword search but did not match any sp
 
 2. [Test Post](/post/test-post)
 
-3. [Test Task Open active](/task/test-task-open-active)
+3. [Test Task Open active (Open)](/task/test-task-open-active)
 
-4. [Test Task Open inactive](/task/test-task-open-inactive)
+4. [Test Task Open inactive (Open)](/task/test-task-open-inactive)
 
-5. [Test Task Closed](/task/test-task-closed)
+5. [Test Task Closed (Closed)](/task/test-task-closed)
 
 6. [John: Unknown task comment](/task-comments/john-unknown-task-comment)
 
@@ -314,13 +314,13 @@ The following search results matched the keyword search but did not match any sp
 
    **Test Post** not highlighted **hello world** test post
 
-3. [Test Task Open active](/task/test-task-open-active)
+3. [Test Task Open active (Open)](/task/test-task-open-active)
 
    **Test Task Open active** **hello world** test task open active
 
-4. [Test Task Open inactive](/task/test-task-open-inactive)
+4. [Test Task Open inactive (Open)](/task/test-task-open-inactive)
 
-5. [Test Task Closed](/task/test-task-closed)
+5. [Test Task Closed (Closed)](/task/test-task-closed)
 
    **Test Task Closed** **hello world** test task closed
 
@@ -548,9 +548,9 @@ The following search results matched the keyword search but did not match any sp
 
 The following search results matched the keyword search but did not match any specific filters.
 
-1. [Current Task](/task/current-task)
+1. [Current Task (Open)](/task/current-task)
 
-2. [Other Task](/task/other-task)
+2. [Other Task (Open)](/task/other-task)
 
 3. [Jane: Unknown task comment](/task-comments/jane-unknown-task-comment)
 `);
@@ -913,7 +913,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
 
    post content
 
-2. [Non-matching Task](/task/non-matching-task)
+2. [Non-matching Task (Open)](/task/non-matching-task)
 `);
     });
 
@@ -984,7 +984,7 @@ The following search results are all posts created yesterday.
 
 The following search results are \\_not\\_ documents created yesterday or posts created yesterday but Alpine thought might be relevant anyway. Use your best judgement when determining if they're actually useful for responding to the user's request.
 
-1. [Non-matching Task](/task/non-matching-task)
+1. [Non-matching Task (Open)](/task/non-matching-task)
 `);
     });
 });

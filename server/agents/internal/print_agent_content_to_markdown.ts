@@ -1,21 +1,18 @@
 import {Parent} from "mdast";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
+import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {
-    createAgentLink,
-    printEscapedMarkdownLinkLabel,
-} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {printMarkdownPhrasingContentText} from "~/server/api/markdown/agent_message_stream.js";
-import {parseApiMentionPathIfPossible} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {
     printApiContentToMarkdownTree,
     printMarkdownTree,
 } from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {parseApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
-    ApiContent,
-    ApiMentionPath,
+    ApiContentMentionInlineElementResponse,
+    ApiContentResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -28,7 +25,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  */
 export async function printAgentContentToMarkdown(
     storage: DurableObjectStorageInterface,
-    content: ApiContent,
+    content: ApiContentResponse,
     {spaceId}: {spaceId: SpaceId},
 ) {
     const markdownTree = await printAgentContentToMarkdownTree(storage, content, {spaceId});
@@ -42,7 +39,7 @@ export async function printAgentContentToMarkdown(
  */
 export async function printAgentContentToMarkdownTree(
     storage: DurableObjectStorageInterface,
-    content: ApiContent,
+    content: ApiContentResponse,
     {spaceId}: {spaceId: SpaceId},
 ) {
     const promiseWaiter = new PromiseWaiter();
@@ -61,20 +58,10 @@ export async function printAgentContentToMarkdownTree(
             // Convert links into a more token efficient representation. The HTTP URL
             // syntax consumes a lot of tokens and isn't interesting for LLMs.
             if (childNode.type === "link") {
-                // Try parsing URL.
-                let url: URL | undefined;
-                try {
-                    url = new URL(childNode.url);
-                } catch {
-                    // noop
-                }
-
                 // TODO(ifitzsimmons, #ai): As implemented, non-mentionable content (e.g.
                 // a chat message) will be replaced with a missing link. It may make more
                 // sense to create an actual link to the message when possible.
-                const mentionTargetPath = url ? parseApiMentionPathIfPossible(spaceId, url) : null;
-
-                if (mentionTargetPath === null) {
+                if (!childNode.data?.mentionElement) {
                     node.children[index] = {
                         type: "linkReference",
                         referenceType: "full",
@@ -84,22 +71,20 @@ export async function printAgentContentToMarkdownTree(
                     continue;
                 }
 
-                // If this is a mention then remove the URL but keep the link structure (e.g.
-                // `[Dinosaurs aren't Great](documents/dinosaurs-arent-Great)`). We'll give agents a tool to
-                // load links based on the formatted link.
-                const rawOriginalLinkLabel = printMarkdownPhrasingContentText(childNode.children);
+                const {mentionElement} = childNode.data;
 
                 promiseWaiter.waitUntil(async () => {
                     const link = await createAgentLinkForApiMentionPath(
                         storage,
-                        mentionTargetPath,
-                        rawOriginalLinkLabel,
+                        // Since this function only accepts `ApiContentResponse`, we know the mention
+                        // element should also be the response specialization.
+                        mentionElement as ApiContentMentionInlineElementResponse,
                     );
 
                     node.children[index] = {
                         type: "link",
                         url: printAgentLinkPath(link),
-                        children: [{type: "text", value: printEscapedMarkdownLinkLabel(link)}],
+                        children: [{type: "text", value: printAgentPlainTextLabel(link)}],
                     };
                 });
                 continue;
@@ -130,18 +115,15 @@ export async function printAgentContentToMarkdownTree(
 
 function createAgentLinkForApiMentionPath(
     storage: DurableObjectStorageInterface,
-    targetPath: ApiMentionPath,
-    rawOriginalLinkLabel: string,
+    mentionElement: ApiContentMentionInlineElementResponse,
 ): Promise<AgentLink> {
-    const pathObject = parseApiMentionPath(targetPath);
-
-    switch (pathObject.type) {
+    switch (mentionElement.target.type) {
         case "Account": {
             return createAgentLink(storage, {
                 type: "Account",
                 account: {
-                    id: pathObject.id,
-                    name: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
                 },
             });
         }
@@ -149,8 +131,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Channel",
                 channel: {
-                    id: pathObject.id,
-                    name: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
                 },
             });
         }
@@ -158,8 +140,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Document",
                 document: {
-                    id: pathObject.id,
-                    title: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    title: mentionElement.title,
                 },
             });
         }
@@ -167,8 +149,8 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Post",
                 post: {
-                    id: pathObject.id,
-                    contentPreview: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    contentPreview: mentionElement.title,
                 },
             });
         }
@@ -176,8 +158,9 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "Task",
                 task: {
-                    id: pathObject.id,
-                    title: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    title: mentionElement.title,
+                    status: mentionElement.target.status,
                 },
             });
         }
@@ -185,13 +168,13 @@ function createAgentLinkForApiMentionPath(
             return createAgentLink(storage, {
                 type: "TaskCollection",
                 taskCollection: {
-                    id: pathObject.id,
-                    name: rawOriginalLinkLabel,
+                    id: mentionElement.target.id,
+                    name: mentionElement.title,
                 },
             });
         }
         default: {
-            throw exhaustive(pathObject);
+            throw exhaustive(mentionElement.target);
         }
     }
 }

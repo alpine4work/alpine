@@ -178,7 +178,10 @@ export function printAgentPlainTextLabel(link: AgentLink): string {
             return link.label;
         }
         case "Task": {
-            return link.title;
+            // Intentionally not including whether the task is active in this label.
+            // Keeping things simple for the agent. The agent can read the task to see
+            // whether it's active.
+            return `${link.title} ${link.status.type === "Open" ? "(Open)" : "(Closed)"}`;
         }
         case "TaskComments": {
             return link.label;

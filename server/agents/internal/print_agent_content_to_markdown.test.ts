@@ -5,7 +5,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId, PostId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 async function testPrintAgentContentToMarkdown(
-    content: ApiContent,
+    content: ApiContentResponse,
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {
@@ -86,7 +86,11 @@ test("mention preserves structure but changes URL", async () => {
                         {type: "Text", text: "Check out "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "My Document",
                         },
                         {type: "Text", text: " here."},
@@ -230,7 +234,12 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {path: `/tasks/${taskId}`},
+                            target: {
+                                path: `/tasks/${taskId}`,
+                                type: "Task",
+                                id: taskId,
+                                status: {type: "Open", isActive: false},
+                            },
                             title: "Important Task",
                             marks: [{type: "Italic"}],
                         },
@@ -239,7 +248,7 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                 },
             ],
         },
-        `See *[Important Task](/task/important-task)* for details.\n`,
+        `See *[Important Task (Open)](/task/important-task)* for details.\n`,
         new Map([
             [
                 "/task/important-task",
@@ -247,6 +256,7 @@ test("mention with nested formatting preserves formatting but removes URL", asyn
                     type: "Task",
                     taskId,
                     title: "Important Task",
+                    status: {type: "Open", isActive: false},
                 },
             ],
         ]),
@@ -263,7 +273,7 @@ test("mixed mentions and external links", async () => {
                         {type: "Text", text: "Check "},
                         {
                             type: "Mention",
-                            target: {path: `/posts/${postId}`},
+                            target: {path: `/posts/${postId}`, type: "Post", id: postId},
                             title: "This Post",
                         },
                         {type: "Text", text: " and also visit "},
@@ -308,7 +318,12 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                         {type: "Text", text: "See "},
                         {
                             type: "Mention",
-                            target: {path: `/tasks/${taskId}`},
+                            target: {
+                                path: `/tasks/${taskId}`,
+                                type: "Task",
+                                id: taskId,
+                                status: {type: "Open", isActive: false},
+                            },
                             title: "Important Task",
                             marks: [{type: "Link", url: "https://external.com"}],
                         },
@@ -317,7 +332,7 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                 },
             ],
         },
-        `See <a href="missing-link">[Important Task](/task/important-task)</a> for details.\n`,
+        `See <a href="missing-link">[Important Task (Open)](/task/important-task)</a> for details.\n`,
         new Map([
             [
                 "/task/important-task",
@@ -325,6 +340,7 @@ test("mention with link mark becomes HTML anchor tag with replaced href", async 
                     type: "Task",
                     taskId,
                     title: "Important Task",
+                    status: {type: "Open", isActive: false},
                 },
             ],
         ]),
@@ -411,13 +427,21 @@ test("mentions with conflicting link Ids get dedupe numbers but labels are uncha
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "My Document",
                         },
                         {type: "Text", text: " and second: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${otherDocumentId}`},
+                            target: {
+                                path: `/documents/${otherDocumentId}`,
+                                type: "Document",
+                                id: otherDocumentId,
+                            },
                             title: "My Document",
                         },
                         {type: "Text", text: "."},
@@ -460,13 +484,21 @@ test("identical mentions with same label and target path reuse the same referenc
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "My Document",
                         },
                         {type: "Text", text: " and again: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "My Document",
                         },
                         {type: "Text", text: "."},
@@ -501,7 +533,11 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                             {type: "Text", text: "See "},
                             {
                                 type: "Mention",
-                                target: {path: `/documents/${documentId}`},
+                                target: {
+                                    path: `/documents/${documentId}`,
+                                    type: "Document",
+                                    id: documentId,
+                                },
                                 title: "My Document",
                             },
                             {type: "Text", text: "."},
@@ -524,7 +560,11 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
                             {type: "Text", text: "Also see "},
                             {
                                 type: "Mention",
-                                target: {path: `/documents/${otherDocumentId}`},
+                                target: {
+                                    path: `/documents/${otherDocumentId}`,
+                                    type: "Document",
+                                    id: otherDocumentId,
+                                },
                                 title: "My Document",
                             },
                             {type: "Text", text: "."},
@@ -582,31 +622,51 @@ test("mentions with same link Ids increment dedupe numbers up to 5", async () =>
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", second: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${secondDocumentId}`},
+                            target: {
+                                path: `/documents/${secondDocumentId}`,
+                                type: "Document",
+                                id: secondDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", third: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${thirdDocumentId}`},
+                            target: {
+                                path: `/documents/${thirdDocumentId}`,
+                                type: "Document",
+                                id: thirdDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", fourth: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${fourthDocumentId}`},
+                            target: {
+                                path: `/documents/${fourthDocumentId}`,
+                                type: "Document",
+                                id: fourthDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", and fifth: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${fifthDocumentId}`},
+                            target: {
+                                path: `/documents/${fifthDocumentId}`,
+                                type: "Document",
+                                id: fifthDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: "."},
@@ -683,37 +743,58 @@ test("dedupes by entity and label combination", async () => {
                         {type: "Text", text: "First: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${documentId}`},
+                            target: {
+                                path: `/documents/${documentId}`,
+                                type: "Document",
+                                id: documentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", second: "},
                         {
                             type: "Mention",
-                            target: {path: `/tasks/${taskId}`},
+                            target: {
+                                path: `/tasks/${taskId}`,
+                                type: "Task",
+                                id: taskId,
+                                status: {type: "Open", isActive: false},
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", third: "},
                         {
                             type: "Mention",
-                            target: {path: `/posts/${postId}`},
+                            target: {path: `/posts/${postId}`, type: "Post", id: postId},
                             title: "Task",
                         },
                         {type: "Text", text: ", fourth: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${thirdDocumentId}`},
+                            target: {
+                                path: `/documents/${thirdDocumentId}`,
+                                type: "Document",
+                                id: thirdDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", fifth: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${fourthDocumentId}`},
+                            target: {
+                                path: `/documents/${fourthDocumentId}`,
+                                type: "Document",
+                                id: fourthDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: ", and sixth: "},
                         {
                             type: "Mention",
-                            target: {path: `/documents/${fifthDocumentId}`},
+                            target: {
+                                path: `/documents/${fifthDocumentId}`,
+                                type: "Document",
+                                id: fifthDocumentId,
+                            },
                             title: "Task",
                         },
                         {type: "Text", text: "."},
@@ -721,7 +802,7 @@ test("dedupes by entity and label combination", async () => {
                 },
             ],
         },
-        `First: [Task](/document/task), second: [Task](/task/task), third: [Task](/post/task), fourth: [Task](/document/task-2), fifth: [Task](/document/task-3), and sixth: [Task](/document/task-4).\n`,
+        `First: [Task](/document/task), second: [Task (Open)](/task/task), third: [Task](/post/task), fourth: [Task](/document/task-2), fifth: [Task](/document/task-3), and sixth: [Task](/document/task-4).\n`,
         new Map([
             [
                 "/document/task",
@@ -738,6 +819,7 @@ test("dedupes by entity and label combination", async () => {
                     type: "Task",
                     taskId,
                     title: "Task",
+                    status: {type: "Open", isActive: false},
                 },
             ],
             [

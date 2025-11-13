@@ -5,12 +5,14 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_refe
 import {
     createAgentLink,
     findAgentLinkForApiPathIfExists,
-    printEscapedMarkdownLinkLabel,
     putAgentNextMessagesPageLink,
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {parseMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_messages_list_content_to_markdown_root.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
@@ -297,7 +299,7 @@ async function getPreambleForChatMessages(
             const linkElement: Root["children"][number] = {
                 type: "link",
                 url: printAgentLinkPath(accountLink),
-                children: [{type: "text", value: printEscapedMarkdownLinkLabel(accountLink)}],
+                children: [{type: "text", value: printAgentPlainTextLabel(accountLink)}],
             };
 
             // Determine the separator based on position
@@ -356,7 +358,7 @@ async function getPreambleForDocumentComments(
         {
             type: "link",
             url: printAgentLinkPath(documentLink),
-            children: [{type: "text", value: printEscapedMarkdownLinkLabel(documentLink)}],
+            children: [{type: "text", value: printAgentPlainTextLabel(documentLink)}],
         },
     ];
 }
@@ -382,7 +384,7 @@ async function getPreambleForTaskComments(
         {
             type: "link",
             url: printAgentLinkPath(taskLink),
-            children: [{type: "text", value: printEscapedMarkdownLinkLabel(taskLink)}],
+            children: [{type: "text", value: printAgentPlainTextLabel(taskLink)}],
         },
     ];
 }

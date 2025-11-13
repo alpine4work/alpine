@@ -14,11 +14,10 @@ import {
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {
     printAgentLinkPath,
-    printAgentPlainTextLabel,
     printApiPathForAgentLink,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiPath} from "~/shared/api/parse_api_path.js";
+import {ApiTaskStatus} from "~/shared/api/types/api_specification_convenience_types.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -105,6 +104,7 @@ export type CreateAgentLinkOptions =
           task: {
               id: TaskId;
               title: string;
+              status: ApiTaskStatus;
           };
       }
     | {
@@ -201,6 +201,7 @@ export async function createAgentLink(
                 type: "Task",
                 taskId: options.task.id,
                 title: options.task.title,
+                status: options.task.status,
             });
         }
         case "TaskComment": {
@@ -436,30 +437,6 @@ async function actuallyPutAgentLink<Link extends AgentLink>(
     } else {
         return storage.transaction(run);
     }
-}
-
-export function printEscapedMarkdownLinkLabel(link: AgentLink): string {
-    const label = printAgentPlainTextLabel(link);
-    return escapeMarkdownLinkLabel(label);
-}
-
-function escapeMarkdownLinkLabel(contents: string): string {
-    const markdown = printMarkdownTree({
-        type: "root",
-        children: [
-            {
-                type: "linkReference",
-                referenceType: "collapsed",
-                identifier: "",
-                children: [{type: "text", value: contents}],
-            },
-        ],
-    }).trim();
-
-    assert(markdown.startsWith("["));
-    assert(markdown.endsWith("][]"));
-
-    return markdown.slice(1, -3);
 }
 
 /**

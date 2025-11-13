@@ -1,4 +1,5 @@
 import {AgentLocalDocumentKey} from "~/server/agents/internal/link_references/agent_local_document_content_collection.js";
+import {ApiTaskStatus} from "~/shared/api/types/api_specification_convenience_types.js";
 import {
     AccountId,
     ChannelId,
@@ -185,6 +186,7 @@ export type AgentTaskLink = {
 
     // e.g. "Fix Bug #123"
     readonly title: string;
+    readonly status: ApiTaskStatus;
 };
 
 export type AgentTaskCollectionLink = {

@@ -1,4 +1,4 @@
-import {BlockContent, DefinitionContent, Parent, PhrasingContent, Root} from "mdast";
+import {BlockContent, DefinitionContent, Parent, Root} from "mdast";
 import {
     parseApiContentFromMarkdownTree,
     parseMarkdownTree,
@@ -17,7 +17,6 @@ import {
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -340,42 +339,4 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
             yield [content];
         }
     }
-}
-
-export function printMarkdownPhrasingContentText(contents: ReadonlyArray<PhrasingContent>): string {
-    let text = "";
-
-    const print = (contents: ReadonlyArray<PhrasingContent>) => {
-        for (const content of contents) {
-            switch (content.type) {
-                case "text":
-                case "inlineCode":
-                case "inlineMath": {
-                    text += content.value;
-                    break;
-                }
-                case "link":
-                case "delete":
-                case "emphasis":
-                case "linkReference":
-                case "strong": {
-                    print(content.children);
-                    break;
-                }
-                case "break":
-                case "footnoteReference":
-                case "html":
-                case "image":
-                case "imageReference": {
-                    break;
-                }
-                default:
-                    throw exhaustive(content);
-            }
-        }
-    };
-
-    print(contents);
-
-    return text;
 }

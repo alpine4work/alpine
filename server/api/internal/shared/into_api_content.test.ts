@@ -82,6 +82,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
             intoApiContent(node, {
                 getAccountMentionTitleIfExists: () => undefined,
                 getSearchEntityMentionTitleIfExists: () => undefined,
+                getSearchTaskEntityDisplayStatusIfExists: () => undefined,
             }),
         ).toJSON(),
     ).toEqual(normalizeNode(node).toJSON());
@@ -90,6 +91,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponse) {
         intoApiContent(node, {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
+            getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         }),
     ).toEqual(content);
 }
@@ -101,6 +103,7 @@ function testIntoApiContentOnly(node: Node, content: ApiContentResponse) {
         intoApiContent(node, {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
+            getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         }),
     ).toEqual(content);
 }
@@ -1402,7 +1405,12 @@ test("converts task mention into API content", () => {
                 elements: [
                     {
                         type: "Mention",
-                        target: {type: "Task", path: `/tasks/${taskId}`, id: taskId},
+                        target: {
+                            type: "Task",
+                            path: `/tasks/${taskId}`,
+                            id: taskId,
+                            status: {type: "Closed"},
+                        },
                         title: "Unknown task",
                     },
                 ],
@@ -1972,6 +1980,7 @@ test("code mark is not allowed in code blocks", () => {
         intoApiContent(node, {
             getAccountMentionTitleIfExists: () => undefined,
             getSearchEntityMentionTitleIfExists: () => undefined,
+            getSearchTaskEntityDisplayStatusIfExists: () => undefined,
         }),
     ).toThrow("`Code` mark isn’t supported in `Code` block element");
 });
