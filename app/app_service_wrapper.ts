@@ -216,7 +216,7 @@ export async function run({
             cacheDir: joinPath(runfilesPath, "cyberworlds/app/optimize_deps"),
             configFile: joinPath(rootPath, "vite.config.mjs"),
             define: {
-                __RESOURCE_SERVICE_URL__: JSON.stringify("http://localhost:3070"),
+                __RESOURCE_SERVICE_URL__: JSON.stringify(`${options.resourceServiceUrl}`),
             },
             server: {
                 middlewareMode: true,

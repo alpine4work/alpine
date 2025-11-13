@@ -14,5 +14,4 @@ export type ResourceServiceEnv = {
     FILE_PROCESSOR_SERVICE_URL?: string;
     HONEYCOMB_API_KEY?: string;
     CORS_TRUSTED_ORIGINS?: Array<string>;
-    RESOURCE_SERVICE_URL?: string;
 };

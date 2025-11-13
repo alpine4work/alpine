@@ -28,6 +28,7 @@ async function main() {
         values: {
             port: portString,
             appServiceUrl,
+            edgeServiceUrl,
             appServicePublicKey: appServicePublicKeyPath,
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
@@ -46,6 +47,7 @@ async function main() {
     } = parseArgs({
         options: {
             port: {type: "string"},
+            edgeServiceUrl: {type: "string"},
             appServiceUrl: {type: "string"},
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
@@ -70,6 +72,7 @@ async function main() {
 
     if (!portString) throw new Error("Missing `port` arg");
     if (!appServiceUrl) throw new Error("Missing `appServiceUrl` arg");
+    if (!edgeServiceUrl) throw new Error("Missing `edgeServiceUrl` arg");
     if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
     if (!edgeServiceFamilyPublicKeyPath)
         throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
@@ -120,9 +123,10 @@ async function main() {
     );
     const config = toml.parse(configString);
 
-    const corsTrustedOrigins = ["http://localhost:3000"];
-
-    const resourceServiceUrl = `http://localhost:${port}`;
+    // "http://localhost:3000" is included even though it may duplicate the `edgeServiceUrl` in case
+    // the `edgeServiceUrl` is set to a local IP address for access over your local network, but you're
+    // also using localhost on your dev machine, in which case both need to be allowed.
+    const corsTrustedOrigins = [edgeServiceUrl, "http://localhost:3000"];
 
     const miniflare = new Miniflare({
         name: config.name,
@@ -147,7 +151,6 @@ async function main() {
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
             CORS_TRUSTED_ORIGINS: corsTrustedOrigins,
-            RESOURCE_SERVICE_URL: resourceServiceUrl,
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,

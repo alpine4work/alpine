@@ -157,7 +157,7 @@ export async function fetchAvatar(
 
                     cacheSpan.addData({
                         http: {
-                            service: {name: "AvatarService"},
+                            service: {name: "ResourceService"},
                             route: printAvatarEntityObjectIntoTracerRoute(route.avatarEntityPath),
                             url: request.url,
                             method: request.method,

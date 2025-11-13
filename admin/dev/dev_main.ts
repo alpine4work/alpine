@@ -91,12 +91,12 @@ const appDevPrivatePorts = parsePorts(env.APP_DEV_PRIVATE_PORTS);
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
 const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
-const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
+const edgeServiceUrl = `${env.EDGE_DEV_HOST}:${edgeDevPort}`;
 
 const resourcesDevPort = parsePort(env.RESOURCES_DEV_PORT);
 const resourcesDevInspectorPort = parsePort(env.RESOURCES_DEV_INSPECTOR_PORT);
 const resourcesDevPrivatePorts = parsePorts(env.RESOURCES_DEV_PRIVATE_PORTS);
-const resourceServiceUrl = `http://localhost:${resourcesDevPort}`;
+const resourceServiceUrl = `${env.RESOURCES_DEV_HOST}:${resourcesDevPort}`;
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
@@ -408,6 +408,7 @@ function createArtifacts() {
             },
             args: [
                 `--appServiceUrl=http://localhost:${appDevPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
@@ -554,7 +555,7 @@ function createArtifacts() {
                 `--resourceServicePublicKey=${resourceServicePublicKeyPath}`,
                 `--servicePrivateKey=${apiServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--edgeServiceUrl=${edgeServiceUrl}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
