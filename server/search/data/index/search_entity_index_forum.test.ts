@@ -1715,7 +1715,7 @@ test("can generate proper post titles", async () => {
         version: expect.any(Object),
         fields: {
             title: [
-                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown fox […]",
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over […]",
             ],
         },
     });
@@ -1733,7 +1733,7 @@ test("can generate proper post titles", async () => {
         version: expect.any(Object),
         fields: {
             title: [
-                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown FoxJumpsOverTheLa […]",
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over […]",
             ],
         },
     });
@@ -1751,7 +1751,7 @@ test("can generate proper post titles", async () => {
         version: expect.any(Object),
         fields: {
             title: [
-                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog 1",
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over […]",
             ],
         },
     });
@@ -1811,7 +1811,7 @@ test("can generate proper post titles", async () => {
         id: `Post:${post7.id}`,
         routing: space.id,
         version: expect.any(Object),
-        fields: {title: ["in Test Channel: The quick 1. Brown 2"]},
+        fields: {title: ["in Test Channel: The quick 1"]},
     });
 
     expect(
@@ -1827,7 +1827,7 @@ test("can generate proper post titles", async () => {
         version: expect.any(Object),
         fields: {
             title: [
-                "in Test Channel: TheQuickBrownFoxJumpsOverTheLazyDog1TheQuickBrownFoxJumpsOverTheLazyDog2TheQuickBrownFoxJumpsOverTheLazyDog3TheQuickBrownFoxJum […]",
+                "in Test Channel: TheQuickBrownFoxJumpsOverTheLazyDog1TheQuickBrownFoxJumpsOverTheLazyDog2TheQuickBrownFo […]",
             ],
         },
     });
@@ -1844,7 +1844,7 @@ test("can generate proper post titles", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            title: ["in Test Channel: Hello, world! The quick brown fox jumps over the lazy dog 1"],
+            title: ["in Test Channel: Hello, world!"],
         },
     });
 
@@ -1860,7 +1860,7 @@ test("can generate proper post titles", async () => {
         routing: space.id,
         version: expect.any(Object),
         fields: {
-            title: ["in Test Channel: Hello, world! The quick brown fox jumps over the lazy dog 1"],
+            title: ["in Test Channel: Hello, world!"],
         },
     });
 

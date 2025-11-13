@@ -3,7 +3,7 @@ import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max
 
 export const contentMentionTextTruncatedSuffix = " […]";
 
-export const contentMentionTextSoftMaxGraphemeCount = 130;
+export const contentMentionTextSoftMaxGraphemeCount = 90;
 
 // According to Claude, 99% of English words are 14 characters or shorter. So
 // we should safely be able to include an English word before we truncate.

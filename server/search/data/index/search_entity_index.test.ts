@@ -2041,7 +2041,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2180,7 +2180,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2262,7 +2262,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2323,7 +2323,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2386,7 +2386,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2480,7 +2480,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
@@ -2567,7 +2567,7 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: "in Transit Enjoyers: Trains! Trains!",
+                title: "in Transit Enjoyers: Trains!",
                 titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",

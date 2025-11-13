@@ -182,7 +182,7 @@ test("creates title with multiple sentences fitting in soft max", () => {
                 getFileIfExists: () => null,
             },
         ),
-    ).toEqual("in Updates: First sentence. Second sentence");
+    ).toEqual("in Updates: First sentence");
 });
 
 test("creates title with long first sentence", () => {
@@ -203,9 +203,7 @@ test("creates title with long first sentence", () => {
             },
         ),
     ).toEqual(
-        "in Announcements: This is a very long sentence that contains " +
-            "word ".repeat(14) +
-            "[…]",
+        "in Announcements: This is a very long sentence that contains " + "word ".repeat(6) + "[…]",
     );
 });
 
