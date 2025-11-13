@@ -6159,6 +6159,187 @@ exports[`multiple paragraphs inside list items: clipboard text 1`] = `
 …world!"
 `;
 
+exports[`ordered list (explicit start) bold: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <strong>
+          world
+        </strong>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) bold: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) code: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <code>
+          world
+        </code>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) code: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) empty: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p />
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) empty: clipboard text 1`] = `""`;
+
+exports[`ordered list (explicit start) highlight: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <mark
+          data-cy-highlight="green"
+        >
+          world
+        </mark>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) highlight: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) italic: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <em>
+          world
+        </em>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) italic: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) link: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <a
+          href="https://example.com/"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          world
+        </a>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) link: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_listItem content_orderedListItem"
+    data-list-indent="0"
+    data-list-number="0"
+    data-list-start="4"
+    style="--content_listItemIndentation:0"
+  >
+    <p
+      class="content_paragraph"
+    >
+      Hello world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`ordered list (explicit start) plain: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello world!
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) plain: clipboard text 1`] = `"Hello world!"`;
+
+exports[`ordered list (explicit start) strike: clipboard 1`] = `
+<div>
+  <ol>
+    <li
+      value="4"
+    >
+      <p>
+        Hello 
+        <del>
+          world
+        </del>
+        !
+      </p>
+    </li>
+  </ol>
+</div>
+`;
+
+exports[`ordered list (explicit start) strike: clipboard text 1`] = `"Hello world!"`;
+
 exports[`ordered list bold: clipboard 1`] = `
 <div>
   <ol>

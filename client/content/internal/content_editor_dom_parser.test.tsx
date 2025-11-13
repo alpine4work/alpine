@@ -969,12 +969,12 @@ test("pasting list item in list item with different indentation and type (unorde
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "qux"}]}],
             },
         ],
@@ -1149,12 +1149,12 @@ test("pasting multiple list items in list item with different indentation uses t
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
             },
             {
@@ -1436,12 +1436,12 @@ test("pasting multiple list items in list item with different indentation uses t
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "bar"}]}],
             },
             {
                 type: "orderedListItem",
-                attrs: {indent: 1},
+                attrs: {indent: 1, orderStart: null},
                 content: [{type: "paragraph", content: [{type: "text", text: "item 1"}]}],
             },
             {

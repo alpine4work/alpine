@@ -59,20 +59,30 @@ export function createContentEditorOrderedListItemNodeView(node: Node): NodeView
  * return a non-null `number`. If it's not an ordered list item then `number`
  * will be null.
  */
-function parseListItemData(element: HTMLElement): {indent: number; number: number | null} | null {
+function parseListItemData(
+    element: HTMLElement,
+): {indent: number; orderStart: number | null; number: number | null} | null {
     if (element.dataset.listIndent === undefined) return null;
 
     let indent = parseInt(element.dataset.listIndent, 10);
     indent = !isNaN(indent) && Number.isInteger(indent) && indent >= 0 ? indent : 0;
 
-    if (element.dataset.listNumber === undefined) {
-        return {indent, number: null};
+    let orderStart =
+        element.dataset.listStart !== undefined ? parseInt(element.dataset.listStart, 10) : null;
+
+    if (orderStart !== null) {
+        orderStart =
+            !isNaN(orderStart) && Number.isInteger(orderStart) && orderStart >= 1 ? orderStart : 1;
     }
 
-    let number = parseInt(element.dataset.listNumber, 10);
-    number = !isNaN(number) && Number.isInteger(number) && number >= 0 ? number : 0;
+    let number =
+        element.dataset.listNumber !== undefined ? parseInt(element.dataset.listNumber, 10) : null;
 
-    return {indent, number};
+    if (number !== null) {
+        number = !isNaN(number) && Number.isInteger(number) && number >= 0 ? number : 0;
+    }
+
+    return {indent, orderStart, number};
 }
 
 /**
@@ -86,42 +96,50 @@ function setOrderedListItemNumber(element: HTMLElement) {
     const listItemData = parseListItemData(element);
     if (!listItemData) return;
 
-    // Find the previous list item. Skipping over any list items with a nested
-    // indentation.
-    let previousListItem: {
-        element: HTMLElement;
-        data: {indent: number; number: number | null};
-    } | null = {
-        element,
-        data: listItemData,
-    };
-    do {
-        const previousElement: ChildNode | null = previousListItem.element.previousSibling;
-        if (!previousElement || !(previousElement instanceof HTMLElement)) {
-            previousListItem = null;
-            break;
-        }
+    let newListItemNumber: number;
 
-        const previousListItemData = parseListItemData(previousElement);
-        if (!previousListItemData) {
-            previousListItem = null;
-            break;
-        }
-
-        previousListItem = {
-            element: previousElement,
-            data: previousListItemData,
+    if (listItemData.orderStart !== null) {
+        newListItemNumber = listItemData.orderStart;
+    } else {
+        // Find the previous list item. Skipping over any list items with a nested
+        // indentation.
+        let previousListItem: {
+            element: HTMLElement;
+            data: {indent: number; number: number | null};
+        } | null = {
+            element,
+            data: listItemData,
         };
-    } while (previousListItem.data.indent > listItemData.indent);
+        do {
+            const previousElement: ChildNode | null = previousListItem.element.previousSibling;
+            if (!previousElement || !(previousElement instanceof HTMLElement)) {
+                previousListItem = null;
+                break;
+            }
 
-    // If the previous list item is at a lower indentation then this is the start
-    // of our numbering for the indented list.
-    if (previousListItem?.data.indent !== listItemData.indent) {
-        previousListItem = null;
+            const previousListItemData = parseListItemData(previousElement);
+            if (!previousListItemData) {
+                previousListItem = null;
+                break;
+            }
+
+            previousListItem = {
+                element: previousElement,
+                data: previousListItemData,
+            };
+        } while (previousListItem.data.indent > listItemData.indent);
+
+        // If the previous list item is at a lower indentation then this is the start
+        // of our numbering for the indented list.
+        if (previousListItem?.data.indent !== listItemData.indent) {
+            previousListItem = null;
+        }
+
+        newListItemNumber =
+            typeof previousListItem?.data.number === "number"
+                ? previousListItem.data.number + 1
+                : 1;
     }
-
-    const newListItemNumber =
-        typeof previousListItem?.data.number === "number" ? previousListItem.data.number + 1 : 1;
 
     // Our list item already has the right number. We don't need to update.
     if (newListItemNumber === listItemData.number) return;
@@ -149,6 +167,9 @@ function resetSiblingOrderedListItemNumbers(
 
         // Non-list items end the list.
         if (!nextListItemData) break;
+
+        // List items with an explicit `orderStart` start a new sequence.
+        if (nextListItemData.orderStart !== null) break;
 
         // A list item at a lower indentation level ends the child list.
         if (nextListItemData.indent < indent) break;

@@ -387,6 +387,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     schema: ContentSchemaListItemIndentSchema,
                     default: 0,
                 },
+                orderStart: {
+                    schema: Schema.integer.nullable(),
+                    default: null,
+                },
             },
             toDOM: node => {
                 const indent = clampListItemIndentation(node.attrs.indent);
@@ -396,6 +400,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                         class: classNames(listItemClassName, orderedListItemClassName),
                         style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
                         "data-list-indent": indent,
+                        ...(node.attrs.orderStart !== null
+                            ? {"data-list-start": node.attrs.orderStart}
+                            : {}),
                         // Should be overridden by a custom `NodeView`.
                         "data-list-number": 0,
                     },
@@ -693,7 +700,19 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Ta
             }
 
             if (indent < 0) return false;
-            return {indent};
+
+            const attrs: Record<string, unknown> = {indent};
+
+            if (firstListParentTagName === "ol") {
+                const valueString = node.getAttribute("value");
+                if (valueString !== null) {
+                    let value = parseInt(valueString, 10);
+                    value = !isNaN(value) && Number.isInteger(value) && value >= 1 ? value : 1;
+                    attrs.orderStart = value;
+                }
+            }
+
+            return attrs;
         },
     };
 }

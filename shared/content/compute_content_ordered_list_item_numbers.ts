@@ -13,9 +13,20 @@ export function computeContentOrderedListItemNumbers(
     node: Node,
     orderedListItemNumberByNode: Map<Node, number> = new Map(),
 ): Map<Node, number> {
+    actuallyComputeContentOrderedListItemNumbers(orderedListItemNumberByNode, callback =>
+        node.content.forEach(callback),
+    );
+
+    return orderedListItemNumberByNode;
+}
+
+export function actuallyComputeContentOrderedListItemNumbers(
+    orderedListItemNumberByNode: Map<Node, number>,
+    forEachChildNode: (callback: (childNode: Node) => void) => void,
+) {
     let previousListItemNumberByIndent: Array<number> = [];
 
-    node.content.forEach(childNode => {
+    forEachChildNode(childNode => {
         if (!childNode.type.groups.includes("listItem")) {
             previousListItemNumberByIndent = [];
             return;
@@ -44,12 +55,15 @@ export function computeContentOrderedListItemNumbers(
             }
 
             const previousListItemNumber = previousListItemNumberByIndent[indent]!;
-            const listItemNumber = previousListItemNumber + 1;
+
+            const listItemNumber =
+                typeof childNode.attrs.orderStart === "number"
+                    ? childNode.attrs.orderStart
+                    : previousListItemNumber + 1;
+
             previousListItemNumberByIndent[indent] = listItemNumber;
 
             orderedListItemNumberByNode.set(childNode, listItemNumber);
         }
     });
-
-    return orderedListItemNumberByNode;
 }

@@ -56,24 +56,44 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
     rules.push(listItemInputRule(/^\s*[-*]\s$/, schema.nodes.unorderedListItem));
 
     // `1. ` creates an ordered list item
-    rules.push(listItemInputRule(/^\s*1\.\s$/, schema.nodes.orderedListItem));
+    rules.push(
+        listItemInputRule(/^\s*([1-9][0-9]*)\.\s$/, schema.nodes.orderedListItem, match => {
+            const orderStart = parseInt(match[1]!);
+            return {orderStart: orderStart > 1 ? orderStart : null};
+        }),
+    );
 
     // `[] ` or `[ ] ` creates a check list item
     if (schema.nodes.checkListItem) {
         rules.push(listItemInputRule(/^\s*\[\s*\]\s$/, schema.nodes.checkListItem));
     }
 
-    function listItemInputRule(regExp: RegExp, nodeType: NodeType) {
-        return new InputRule(regExp, (state, _match, start, end) => {
+    function listItemInputRule(
+        regExp: RegExp,
+        nodeType: NodeType,
+        getAttrs: (match: RegExpMatchArray) => Record<string, unknown> = () => ({}),
+    ) {
+        return new InputRule(regExp, (state, match, start, end) => {
             // 1. Delete the matched text.
             const transaction = state.tr.delete(start, end);
 
             // 2. Try to find a valid way to wrap the cursor with our list item
-            // node type.
+            //    node type.
             const $start = transaction.doc.resolve(start);
             const range = $start.blockRange();
             if (!range) return null;
-            const wrapping = findWrapping(range, nodeType, {});
+
+            const wrapping = findWrapping(
+                range,
+                nodeType,
+                // We intentionally only use `getAttrs()` here when wrapping. If you're
+                // changing the `listItem` node type then we use default attrs.
+                //
+                // In practice, this means `orderedListItem` sets `orderStart` if you're
+                // creating a new list item but not when converting an existing list item to
+                // an ordered list.
+                getAttrs(match),
+            );
 
             // 3. If there's a valid wrapping then apply it.
             if (wrapping) {
@@ -82,7 +102,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
             }
 
             // 4. If we are already in a list item then we convert the type of the
-            // list item while preserving the indentation level.
+            //    list item while preserving the indentation level.
             const listItemNode = $start.node(-1);
             if (!listItemNode || !listItemNode.type.groups.includes("listItem")) {
                 return null;

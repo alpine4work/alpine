@@ -137,6 +137,13 @@ const blockTestCases: Array<{
             schema.node("orderedListItem", {}, [schema.node("paragraph", {}, content)]),
     },
     {
+        name: "ordered list (explicit start)",
+        build: content =>
+            schema.node("orderedListItem", {orderStart: 4}, [
+                schema.node("paragraph", {}, content),
+            ]),
+    },
+    {
         name: "check list (unchecked)",
         build: content =>
             schema.node("checkListItem", {checked: false}, schema.node("paragraph", {}, content)),

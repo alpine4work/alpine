@@ -1324,6 +1324,16 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                         "type": "Integer"
                                                                                                                     },
                                                                                                                     "optional": true
+                                                                                                                },
+                                                                                                                "orderStart": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Nullable",
+                                                                                                                        "schema": {
+                                                                                                                            "type": "Integer"
+                                                                                                                        },
+                                                                                                                        "referenceId": "b5d28ae2"
+                                                                                                                    },
+                                                                                                                    "optional": true
                                                                                                                 }
                                                                                                             }
                                                                                                         }
@@ -2761,6 +2771,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Integer"
                                                                                                 },
                                                                                                 "optional": true
+                                                                                            },
+                                                                                            "orderStart": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "b5d28ae2"
+                                                                                                },
+                                                                                                "optional": true
                                                                                             }
                                                                                         }
                                                                                     }
@@ -3475,6 +3492,25 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Integer"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "orderStart": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "orderStart"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "b5d28ae2"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -4600,6 +4636,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "indent": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Integer"
+                                                                                                                },
+                                                                                                                "optional": true
+                                                                                                            },
+                                                                                                            "orderStart": {
+                                                                                                                "valueSchema": {
+                                                                                                                    "type": "Reference",
+                                                                                                                    "reuseReferenceId": "b5d28ae2"
                                                                                                                 },
                                                                                                                 "optional": true
                                                                                                             }
@@ -7571,6 +7614,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "indent": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "orderStart": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "b5d28ae2"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -12041,6 +12091,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "indent": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Integer"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "orderStart": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "b5d28ae2"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }

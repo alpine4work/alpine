@@ -1,5 +1,6 @@
 import classNames from "classnames";
 import {MagnifyingGlass} from "phosphor-react";
+import {Node} from "prosemirror-model";
 import {Memo, ReactNode, memo, useEffect, useMemo, useState} from "react";
 import {ContentView} from "~/client/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
@@ -10,11 +11,16 @@ import {
     pulseAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {actuallyComputeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
+import {
+    ContentBlockNodeTypeName,
+    isContentListItemNodeTypeName,
+} from "~/shared/content/content_node_type_name.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {
@@ -78,6 +84,22 @@ export function MessageStreamView({
 
     let posAttributeOffset = 0;
 
+    const orderedListItemNumberByNode = useMemo(() => {
+        const orderedListItemNumberByNode = new Map<Node, number>();
+
+        actuallyComputeContentOrderedListItemNumbers(orderedListItemNumberByNode, callback => {
+            content.doc.forEach(callback);
+
+            for (const part of stream.parts) {
+                if (part.payload.type === "Content") {
+                    part.payload.content.forEach(callback);
+                }
+            }
+        });
+
+        return orderedListItemNumberByNode;
+    }, [content.doc, stream.parts]);
+
     const children: Array<ReactNode> = [];
 
     if (!isContentEmpty) {
@@ -88,6 +110,7 @@ export function MessageStreamView({
                 doc={content.doc}
                 references={content.references}
                 posAttributeOffset={posAttributeOffset}
+                orderedListItemNumberByNode={orderedListItemNumberByNode}
                 withUserSelectNone={withUserSelectNone}
                 getClipboardSerializerPrefix={getClipboardSerializerPrefix}
                 jumpAnimation={jumpAnimation}
@@ -118,8 +141,6 @@ export function MessageStreamView({
                     .name as ContentBlockNodeTypeName;
             }
         } else {
-            // TODO(calebmer, #ai): List items are getting the wrong amount of spacing. We
-            // should have less spacing between each list item.
             previousBlockNodeTypeName =
                 lastRenderedPart.type === "Content"
                     ? (lastRenderedPart.content.lastChild!.type.name as ContentBlockNodeTypeName)
@@ -134,6 +155,7 @@ export function MessageStreamView({
                 payload={part.payload}
                 references={content.references}
                 posAttributeOffset={posAttributeOffset}
+                orderedListItemNumberByNode={orderedListItemNumberByNode}
                 withUserSelectNone={withUserSelectNone}
                 getClipboardSerializerPrefix={
                     isContentEmpty && lastRenderedPart === null
@@ -164,6 +186,7 @@ export function MessageStreamView({
             !new Set(["Content", "ToolCall"]).has(
                 stream.parts[stream.parts.length - 1]!.payload.type,
             ));
+
     return (
         <div
             style={{
@@ -300,6 +323,7 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
     payload,
     references,
     posAttributeOffset,
+    orderedListItemNumberByNode,
     withUserSelectNone,
     getClipboardSerializerPrefix,
     previousBlockNodeTypeName,
@@ -309,6 +333,7 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
     payload: MessageStreamPartPayload;
     references: ContentReferences;
     posAttributeOffset: number;
+    orderedListItemNumberByNode: ReadonlyMap<Node, number>;
     withUserSelectNone: boolean;
     getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
     previousBlockNodeTypeName: ContentBlockNodeTypeName | null;
@@ -328,6 +353,7 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
                     doc={payload.content}
                     references={references}
                     posAttributeOffset={posAttributeOffset}
+                    orderedListItemNumberByNode={orderedListItemNumberByNode}
                     withUserSelectNone={withUserSelectNone}
                     getClipboardSerializerPrefix={getClipboardSerializerPrefix}
                     jumpAnimation={jumpAnimation}
@@ -339,24 +365,33 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
             throw exhaustive(payload);
     }
 
+    const currentBlockNodeTypeName =
+        payload.type === "Content"
+            ? (payload.content.firstChild!.type.name as ContentBlockNodeTypeName)
+            : // HACK: Something with standalone margin.
+              "fileRow";
+
+    let space: Spacing | null = null;
+
+    if (previousBlockNodeTypeName) {
+        if (
+            isContentListItemNodeTypeName(currentBlockNodeTypeName) &&
+            isContentListItemNodeTypeName(previousBlockNodeTypeName)
+        ) {
+            space = contentStyles.paragraphMargin;
+        } else if (
+            hasStandaloneMarginByContentBlockNodeTypeName[currentBlockNodeTypeName] ||
+            hasStandaloneMarginByContentBlockNodeTypeName[previousBlockNodeTypeName]
+        ) {
+            space = contentStyles.standaloneBlockMargin;
+        } else {
+            space = contentStyles.paragraphMargin;
+        }
+    }
+
     return (
         <>
-            {previousBlockNodeTypeName && (
-                <div
-                    style={{
-                        height:
-                            hasStandaloneMarginByContentBlockNodeTypeName[
-                                payload.type === "Content"
-                                    ? payload.content.firstChild!.type.name
-                                    : // HACK: Something with standalone margin.
-                                      "fileRow"
-                            ] ||
-                            hasStandaloneMarginByContentBlockNodeTypeName[previousBlockNodeTypeName]
-                                ? spacing[contentStyles.standaloneBlockMargin]
-                                : spacing[contentStyles.paragraphMargin],
-                    }}
-                />
-            )}
+            {space && <div style={{height: spacing[space]}} />}
             {node}
         </>
     );
@@ -423,6 +458,7 @@ function MessageStreamViewContentPart({
     doc,
     references,
     posAttributeOffset,
+    orderedListItemNumberByNode,
     withUserSelectNone,
     getClipboardSerializerPrefix,
     jumpAnimation: originalJumpAnimation,
@@ -431,6 +467,7 @@ function MessageStreamViewContentPart({
     doc: MessageContent;
     references: ContentReferences;
     posAttributeOffset: number;
+    orderedListItemNumberByNode: ReadonlyMap<Node, number>;
     withUserSelectNone: boolean;
     getClipboardSerializerPrefix: Memo<() => string | null> | undefined;
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
@@ -458,12 +495,36 @@ function MessageStreamViewContentPart({
         return jumpAnimation;
     }, [doc.content.size, originalJumpAnimation, posAttributeOffset]);
 
+    const content = useMemo(() => {
+        let node: Node = doc;
+        const firstNode = node.firstChild;
+
+        if (firstNode?.type.name === "orderedListItem") {
+            const orderStart = assertExists(orderedListItemNumberByNode.get(firstNode));
+
+            node = node.type.create(
+                node.attrs,
+                [
+                    firstNode.type.create(
+                        {...firstNode.attrs, orderStart},
+                        firstNode.content.content,
+                        firstNode.marks,
+                    ),
+                    ...node.content.content.slice(1),
+                ],
+                node.marks,
+            );
+        }
+
+        return {doc: node, references};
+    }, [doc, orderedListItemNumberByNode, references]);
+
     return (
         <ContentView
             className={messagingStyles.withPointerToolbarClassName}
             data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
             data-index={!message.isOptimistic ? message.index : undefined}
-            content={{doc, references}}
+            content={content}
             posAttributeOffset={posAttributeOffset}
             withUserSelectNone={withUserSelectNone}
             getClipboardSerializerPrefix={getClipboardSerializerPrefix}

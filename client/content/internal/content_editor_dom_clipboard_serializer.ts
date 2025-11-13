@@ -530,6 +530,11 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         }
 
         const listItemDom = document.createElement("li");
+
+        if (typeof node.attrs.orderStart === "number") {
+            listItemDom.setAttribute("value", String(node.attrs.orderStart));
+        }
+
         listDom.appendChild(listItemDom);
 
         if (options.prependContentDom) {

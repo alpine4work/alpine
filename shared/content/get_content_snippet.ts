@@ -1,6 +1,7 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {ContentNodeTypeName} from "~/shared/content/content_node_type_name.js";
+import {cutContent} from "~/shared/content/cut_content.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -393,7 +394,7 @@ export function getContentSnippet(
         }
     }
 
-    return resolvedPos.doc.cut(from, to);
+    return cutContent(resolvedPos.doc, from, to);
 }
 
 type IterateChildNodesValue =

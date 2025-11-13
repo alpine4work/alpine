@@ -1,7 +1,9 @@
+import {Node} from "prosemirror-model";
 import {Memo, useMemo, useState} from "react";
 import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {ContentView, ContentViewProps} from "~/client/content/content_view.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {ReactionButton} from "~/client/reactions/reaction_button.js";
 import {ReactionParty} from "~/client/reactions/reaction_party.js";
 import {
@@ -10,6 +12,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {cutContent} from "~/shared/content/cut_content.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -63,6 +66,13 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     onDeleteReaction: (pos: number) => void;
     onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
+    // Shared ordered list item number cache for reaction party parts. Reset the
+    // cache whenever the content changes.
+    const orderedListItemNumberByNode = useStateWithDependenciesWithoutDispatch(
+        () => new Map<Node, number>(),
+        [content.doc],
+    );
+
     const orderedReactionsByPosEntries = useMemo(() => {
         const orderedReactionsByPosEntries: Array<[number, ReactionSet | null]> = Array.from(
             reactionsByPos,
@@ -98,6 +108,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
                     onSetReaction={onSetReaction}
                     onDeleteReaction={onDeleteReaction}
                     onPressSeeReactions={onPressSeeReactions}
+                    orderedListItemNumberByNode={orderedListItemNumberByNode}
                 />
             ))}
         </>
@@ -124,6 +135,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     onSetReaction,
     onDeleteReaction,
     onPressSeeReactions,
+    orderedListItemNumberByNode,
 }: {
     content: Content;
     contentUpdatedTime: Date | null | undefined;
@@ -139,6 +151,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
     onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number) => void;
     onPressSeeReactions: (pos: number) => Promise<void>;
+    orderedListItemNumberByNode: Map<Node, number>;
 }) {
     const {"data-room": dataRoom, "data-index": dataIndex} = props;
 
@@ -181,10 +194,16 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                 {...props}
                 content={useMemo(
                     () => ({
-                        doc: content.doc.cut(previousPos, pos),
+                        doc: cutContent(content.doc, previousPos, pos, orderedListItemNumberByNode),
                         references: content.references,
                     }),
-                    [content.doc, content.references, pos, previousPos],
+                    [
+                        content.doc,
+                        content.references,
+                        orderedListItemNumberByNode,
+                        pos,
+                        previousPos,
+                    ],
                 )}
                 posAttributeOffset={posAttributeOffset}
                 contentUpdatedTime={partIndex === partCount - 1 ? contentUpdatedTime : undefined}

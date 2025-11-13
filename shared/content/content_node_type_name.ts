@@ -131,6 +131,12 @@ export const contentListItemNodeTypeNames = {
     checkListItem: true,
 };
 
+export function isContentListItemNodeTypeName(
+    typeName: string,
+): typeName is ContentListItemNodeTypeName {
+    return hasOwnProperty(contentListItemNodeTypeNames, typeName);
+}
+
 /**
  * Make sure that our type names cover everything in the ProseMirror schema.
  */

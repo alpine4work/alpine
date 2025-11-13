@@ -10,6 +10,7 @@ import {
     emptyContentReferences,
     mergeContentReferences,
 } from "~/shared/content/content_references.js";
+import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -173,7 +174,8 @@ export function getTruncatedPostContentForReplyPreview(
     return getTruncatedMessageContentForReplyPreviewBase(get, {
         content: {
             doc: assertPostContent(
-                post.content.doc.cut(
+                cutContent(
+                    post.content.doc,
                     clamp(0, actualStartPos, post.content.doc.content.size),
                     clamp(0, actualEndPos, post.content.doc.content.size),
                 ),
@@ -370,7 +372,8 @@ function cutMessageContentPayload(
 
     if (stream === null) {
         return assertMessageContent(
-            content.cut(
+            cutContent(
+                content,
                 clamp(0, from ?? 0, content.content.size),
                 clamp(0, to ?? content.content.size, content.content.size),
             ),
@@ -396,7 +399,8 @@ function cutMessageContentPayload(
     const contentWithStream = MessageContentProsemirrorSchema.nodes.doc.create({}, nodes);
 
     return assertMessageContent(
-        contentWithStream.cut(
+        cutContent(
+            contentWithStream,
             clamp(0, from ?? 0, contentWithStream.content.size),
             clamp(0, to ?? contentWithStream.content.size, contentWithStream.content.size),
         ),
