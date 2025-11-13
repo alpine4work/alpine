@@ -1,3 +1,4 @@
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {
     authorizeSpaceAccessIfPossible,
@@ -76,6 +77,7 @@ export async function loadTaskRealtimeQueries(
         queries,
         taskIds,
         collectionIds,
+        consistency,
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
@@ -97,6 +99,7 @@ export async function loadTaskRealtimeQueries(
         }>;
         taskIds: ReadonlyArray<TaskId>;
         collectionIds: ReadonlyArray<TaskCollectionId>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     queries: Array<{
@@ -146,6 +149,7 @@ export async function loadTaskRealtimeQueries(
                         getCollectionIndexDoc: collectionId =>
                             server.getCollection(context, spaceId, collectionId),
                     },
+                    {consistency},
                 );
 
                 if (!result.ok) {
@@ -174,6 +178,7 @@ export async function loadTaskRealtimeQueries(
                     originalContext,
                     collection,
                     "View",
+                    {consistency},
                 );
 
                 if (!result.ok) {
@@ -222,6 +227,7 @@ export async function loadTaskRealtimeQueries(
             spaceId,
             filters,
             sorts,
+            consistency,
         });
 
         const [{loadedState, tasks}, gridViewExpansionState] = await runAllPromises([
@@ -238,6 +244,7 @@ export async function loadTaskRealtimeQueries(
                       browserId: shouldLoadGridViewExpandedChildTasksForBrowserId,
                       filters,
                       sorts,
+                      consistency,
                   })
                 : null,
         ]);
@@ -306,6 +313,7 @@ export async function loadTaskRealtimeQueries(
                                 spaceId,
                                 taskId,
                                 "View",
+                                {consistency},
                             );
 
                             const task = await server.getTask(context, spaceId, taskId);
@@ -333,6 +341,7 @@ export async function loadTaskRealtimeQueries(
                                 spaceId,
                                 collectionId,
                                 "View",
+                                {consistency},
                             );
 
                             const collection = await server.getCollection(
@@ -399,14 +408,15 @@ export async function loadTaskRealtimeQueries(
         ),
     );
 
+    const referenceContext = context.dynamo.unexpectStrongReadConsistency();
     const referencedAccounts = await runAllPromises(
         mapIterable(referencedAccountIds, accountId =>
             prepareContext.isSpaceAccessAuthorized
-                ? getAccount(context, spaceId, accountId)
+                ? getAccount(referenceContext, spaceId, accountId, {consistency})
                 : // Granting link access to a task collection means the user is implicitly
                   // granting access to the names of all referenced accounts.
                   dangerouslyGetAccountStubIfExistsWithoutAuthorization(
-                      context,
+                      referenceContext,
                       spaceId,
                       accountId,
                   ),

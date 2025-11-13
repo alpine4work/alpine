@@ -4443,11 +4443,13 @@ export function authorizeTaskCollectionIndexDocAccessIfPossible(
     context: TaskRealtimeActionContext,
     collectionIndexDoc: TaskCollectionIndexDoc,
     expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     return authorizeTaskCollectionItemAccessIfPossible(
         context,
         convertTaskCollectionIndexDocToItem(collectionIndexDoc),
         expectedAccessLevel,
+        options,
     );
 }
 
@@ -6852,6 +6854,7 @@ export function authorizeTaskIndexDocAccessIfPossible(
         getTaskIndexDoc: (taskId: TaskId) => Promise<TaskIndexDoc>;
         getCollectionIndexDoc: (taskId: TaskCollectionId) => Promise<TaskCollectionIndexDoc>;
     },
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
     return authorizeTaskItemAccessIfPossible(
         context,
@@ -6867,6 +6870,7 @@ export function authorizeTaskIndexDocAccessIfPossible(
                 return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
             },
         },
+        options,
     );
 }
 
@@ -6894,10 +6898,12 @@ export async function authorizeTaskQueryAccess(
         spaceId,
         filters,
         sorts,
+        consistency,
     }: {
         spaceId: SpaceId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        consistency?: DynamoCacheReadConsistency;
     },
     loaders: {
         getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
@@ -6956,7 +6962,13 @@ export async function authorizeTaskQueryAccess(
                             if (term === "IsEmpty") return;
 
                             const {spaceId: collectionSpaceId} =
-                                await authorizeTaskCollectionAccess(context, term, "View", loaders);
+                                await authorizeTaskCollectionAccess(
+                                    context,
+                                    term,
+                                    "View",
+                                    loaders,
+                                    {consistency},
+                                );
 
                             if (spaceId !== collectionSpaceId) {
                                 throw new PermissionDeniedError(
@@ -6989,6 +7001,7 @@ export async function authorizeTaskQueryAccess(
                 filters.parentFilter.parentTaskId,
                 "View",
                 loaders,
+                {consistency},
             );
 
             if (spaceId !== taskSpaceId) {
@@ -7038,6 +7051,7 @@ export async function authorizeTaskQueryAccess(
                                     sort.collectionId,
                                     "View",
                                     loaders,
+                                    {consistency},
                                 );
 
                             if (spaceId !== collectionSpaceId) {
@@ -7545,23 +7559,29 @@ export async function getTaskGridViewExpansionState(
         browserId,
         filters,
         sorts,
+        consistency,
     }: {
         spaceId: SpaceId;
         browserId: BrowserId;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<TaskGridViewExpansionState> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const item = await TaskTable.getItemIfExists(context, {
-        partitionType: "TaskGridViewExpansionState",
-        sortRangeType: "Attributes",
-        spaceId,
-        accountId: context.actor.getAccountId(),
-        browserId,
-        viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
-    });
+    const item = await TaskTable.getItemIfExists(
+        context,
+        {
+            partitionType: "TaskGridViewExpansionState",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            browserId,
+            viewKey: getTaskGridViewExpansionStateKey({filters, sorts}),
+        },
+        {consistency},
+    );
 
     // If the grid view's expansion state hasn't been updated in a while but is
     // still being read then we want to extend its expiration time.

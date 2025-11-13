@@ -181,6 +181,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         const [host, token] = await runAllPromises([
             this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
@@ -199,9 +200,12 @@ export class TaskContextModule extends TaskContextModuleBase {
             ),
         ]);
 
+        const url = new URL(`http://${host}/${spaceId}/loadQueries`);
+        if (consistency !== "Eventual") url.searchParams.set("consistency", consistency);
+
         return fetchWithTracer(
             this._context.tracer.getTracer(),
-            `http://${host}/${spaceId}/loadQueries`,
+            url.toString(),
             {
                 serviceName: "TaskRealtimeService",
                 route: "/:spaceId/loadQueries",

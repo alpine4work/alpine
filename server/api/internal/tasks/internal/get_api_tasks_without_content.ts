@@ -38,24 +38,14 @@ export async function getApiTasksWithoutContent(
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
 ): Promise<{tasks: Array<ApiTaskWithoutContent>; nextCursor: string | null}> {
-    // NOTE(ifitzsimmons, 2025-11-07): We want to return strongly consistent data from
-    // the API so loadQueries should make strongly consistent reads.
-    //
-    // …but in practice expecting strong consistency when going into loadQueries
-    // doesn’t matter since that flag only has an effect for DynamoDB queries for the
-    // current process. We don’t send it across the network boundary
-    //
-    // We `unexpectStrongReadConsistency` here so that our unit tests can pass, but
-    // in production, this doesn't really matter (since, again, we don't send context
-    // across the network boundary).
-    const loadTaskContext = context.dynamo.unexpectStrongReadConsistency();
-    const {queries, updateEvent} = await loadTaskContext.tasks.loadQueries(
+    const {queries, updateEvent} = await context.tasks.loadQueries(
         context.actor.getSpaceId(),
         {
             queries: [{limit, filters, sorts}],
             taskIds: [],
             collectionIds: [collectionId],
         },
+        {consistency: "StrongWithinCache"},
     );
 
     const referencedAccountsById = new Map(

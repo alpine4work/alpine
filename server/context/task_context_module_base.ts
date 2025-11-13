@@ -124,6 +124,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskRealtimeLoadQueriesOutput>;
 
     /**
@@ -248,6 +249,8 @@ export class TestTaskContextModule
         spaceId: SpaceId,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         input: TaskRealtimeLoadQueriesInput,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         throw new UnimplementedError(
             "`TestTaskContextModule.loadQueries()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",

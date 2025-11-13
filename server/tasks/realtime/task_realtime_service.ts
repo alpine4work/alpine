@@ -355,8 +355,23 @@ export async function run({
                     actorContextModule.serviceName !== "ApiService"
                 ) {
                     throw new PermissionDeniedError(
-                        "Only `AppService` or `EdgeService` can load queries",
+                        "Only `AppService`, `EdgeService`, or `ApiService` can load queries",
                     );
+                }
+
+                const consistencySearchParam = url.searchParams.get("consistency");
+
+                let consistency: DynamoCacheReadConsistency = "Eventual";
+
+                if (consistencySearchParam !== null) {
+                    switch (consistencySearchParam) {
+                        case "Strong":
+                        case "StrongWithinCache":
+                            consistency = consistencySearchParam;
+                            break;
+                        default:
+                            throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
                 }
 
                 return baseActionContext.with(
@@ -375,6 +390,7 @@ export async function run({
                                 queries: input.queries,
                                 taskIds: input.taskIds,
                                 collectionIds: input.collectionIds,
+                                consistency,
                             },
                         );
 

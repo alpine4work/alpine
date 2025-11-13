@@ -1,3 +1,4 @@
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
@@ -32,6 +33,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
         limit,
         tasks,
         gridViewExpansionState,
+        consistency,
         loadQuery,
     }: {
         server: TaskRealtimeServer;
@@ -40,6 +42,7 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
         limit: number;
         tasks: ReadonlyArray<TaskIndexDoc>;
         gridViewExpansionState: TaskGridViewExpansionState;
+        consistency?: DynamoCacheReadConsistency;
         loadQuery: (input: {
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -129,11 +132,18 @@ export function getTaskGridViewExpansionStateChildrenQueries<Result>(
                         context,
                         actorAccountId,
                         accountContext =>
-                            authorizeTaskIndexDocAccessIfPossible(accountContext, task, "View", {
-                                getTaskIndexDoc: taskId => server.getTask(context, spaceId, taskId),
-                                getCollectionIndexDoc: collectionId =>
-                                    server.getCollection(context, spaceId, collectionId),
-                            }),
+                            authorizeTaskIndexDocAccessIfPossible(
+                                accountContext,
+                                task,
+                                "View",
+                                {
+                                    getTaskIndexDoc: taskId =>
+                                        server.getTask(context, spaceId, taskId),
+                                    getCollectionIndexDoc: collectionId =>
+                                        server.getCollection(context, spaceId, collectionId),
+                                },
+                                {consistency},
+                            ),
                     );
 
                     // We may have tasks in our expansion state that the user lost access too (e.g.

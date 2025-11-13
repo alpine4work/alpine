@@ -335,6 +335,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
+        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         const {queries, extraQueries, updateEvent} = await loadTaskRealtimeQueries(this._context, {
             server: this._getServer().server,
@@ -343,6 +344,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             queries: input.queries,
             taskIds: input.taskIds,
             collectionIds: input.collectionIds,
+            consistency,
         });
 
         return {ok: true, queries, extraQueries, updateEvent};

@@ -530,10 +530,12 @@ export class TaskRealtimeServer {
             spaceId,
             filters,
             sorts,
+            consistency,
         }: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            consistency?: DynamoCacheReadConsistency;
         },
     ) {
         await authorizeTaskQueryAccess(
@@ -542,6 +544,7 @@ export class TaskRealtimeServer {
                 spaceId,
                 filters,
                 sorts,
+                consistency,
             },
             {
                 getTaskIndexDocIfExists: taskId =>
@@ -564,6 +567,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<void> {
         const {spaceId: actualSpaceId} = await authorizeTaskAccess(
             context,
@@ -575,6 +579,7 @@ export class TaskRealtimeServer {
                 getCollectionIndexDocIfExists: collectionId =>
                     this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
             },
+            options,
         );
 
         if (actualSpaceId !== spaceId) {
@@ -631,6 +636,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<void> {
         const {spaceId: actualSpaceId} = await authorizeTaskCollectionAccess(
             context,
@@ -640,6 +646,7 @@ export class TaskRealtimeServer {
                 getCollectionIndexDocIfExists: collectionId =>
                     this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
             },
+            options,
         );
 
         if (actualSpaceId !== spaceId) {
