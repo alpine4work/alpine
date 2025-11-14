@@ -37,8 +37,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -717,11 +717,7 @@ async function createPostModelFromItem(
             references: contentReferences,
         },
         contentUpdate: item.contentUpdate,
-        commentCount: reduceIterable(
-            item.commentsSummary.commentCountByAuthorId.values(),
-            (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-            0,
-        ),
+        commentCount: sumIterable(item.commentsSummary.commentCountByAuthorId.values()),
         commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
         previewCommentAuthors,
         reactions: item.reactions,

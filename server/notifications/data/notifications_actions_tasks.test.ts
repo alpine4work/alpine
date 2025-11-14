@@ -2,13 +2,17 @@ import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
+import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
+import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {
+    notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
     processNotificationEvent,
 } from "~/server/notifications/data/process/process_notification_event.js";
 import {createNotificationsTestScenario} from "~/server/notifications/data/test_helpers/create_notifications_test_scenario.js";
 import {expectInboxTaskEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_task_entry_model.js";
 import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
+import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -19,13 +23,26 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 
-let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
+type ProcessingType = "Once" | "TwiceSerially" | "ThriceConcurrently";
+
+let processingType: ProcessingType = "Once";
+
+const testSuites: Array<{
+    type: ProcessingType;
+    processingMultiple: number;
+    only?: CommitBlocker;
+}> = [
+    {type: "Once", processingMultiple: 1},
+    {type: "TwiceSerially", processingMultiple: 2},
+    {type: "ThriceConcurrently", processingMultiple: 3},
+];
 
 afterEach(() => {
     processingType = "Once";
@@ -59,15 +76,20 @@ const context = createTestContext({
             // Noop for other jobs...
         }
     },
+    notificationsInjection,
 });
 
 // Exercise idempotency by running the test suite again with jobs
 // processed twice.
-for (const [currentProcessingType, processingMultiple] of [
-    ["Once", 1],
-    ["TwiceSerially", 2],
-    ["ThriceConcurrently", 3],
-] as const) {
+for (const {type: currentProcessingType, processingMultiple} of testSuites) {
+    // If another suite has `only` set then skip this suite so we only run the
+    // suite with `only` set.
+    if (
+        testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
+    ) {
+        continue;
+    }
+
     describe(`processing: ${currentProcessingType}`, () => {
         beforeEach(() => {
             processingType = currentProcessingType;
@@ -1023,6 +1045,375 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: "bar",
                     },
                     otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("setting a reaction on a task comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: "test1",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on a task comment that’s not the latest comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(session1, "test1");
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest task comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            await task.createComment(session1, "test1");
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest task comment, explicitly unarchiving, then setting a reaction on a different task comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(session1, "test1");
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await unarchiveInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {
+                    type: "Task",
+                    taskId: task.id,
+                },
+            });
+
+            await comment1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest task comment, implicitly unarchiving, then setting a reaction on a different task comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(session1, "test1");
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment4 = await task.createComment(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment4,
+                        contentTextSnippet: "test4",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest task comment, implicitly unarchiving, then setting a reaction on the latest task comment archives the task comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            await task.createComment(session1, "test1");
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment4 = await task.createComment(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment4.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment4,
+                        contentTextSnippet: "test4",
+                    },
+                }),
+            ]);
+        });
+
+        test("clears `isStickyMention` when archiving by reacting to a task comment", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+            await task.createComment(session1, "test2");
+            const comment3 = await task.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    loudNotificationCount: 1,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                        isStickyMention: true,
+                    },
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                }),
+            ]);
+        });
+
+        test("process setting task comment reaction before task comment notification event", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const task = await TestTask.create(session2);
+            const collection = await TestTaskCollection.create(session2, {access: "Public"});
+            await task.addCollection(session2, collection);
+
+            const comment1 = await task.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
+                session3.account.id,
+            );
+
+            const pause2Promise =
+                updateInboxEntryAfterExecuteTransactionTestCheckpoint.pauseForTest(
+                    session2.account.id,
+                );
+
+            const comment2 = await task.createComment(session3, "test2");
+
+            const {unpause: unpause1} = await pause1Promise;
+
+            await comment2.setReaction(session2);
+
+            const {unpause: unpause2} = await pause2Promise;
+            unpause2();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                }),
+            ]);
+
+            unpause1();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxTaskEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    task: {task, taskOwner: session2},
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
                 }),
             ]);
         });

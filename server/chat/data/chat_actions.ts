@@ -19,6 +19,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -2177,7 +2178,7 @@ export function deleteChatMessage(
 }
 
 export function setChatMessageReaction(
-    context: ServerAccountActionContext,
+    context: ServerSessionActionContextWithApns,
     {
         chatId,
         messageIndex,
@@ -2193,7 +2194,7 @@ export function setChatMessageReaction(
     },
 ) {
     return context.dynamo.retryTransaction(async context => {
-        const [, messageItem] = await runAllPromises([
+        const [chatItem, messageItem] = await runAllPromises([
             authorizeChatAccessAndReturnItem(context, chatId),
             getChatMessageItemIfExists(context, chatId, messageIndex),
         ]);
@@ -2235,6 +2236,15 @@ export function setChatMessageReaction(
                 expirationTime: addDays(currentTime, messagingEventExpirationDays),
             }),
         ]);
+
+        context.process.waitUntil(
+            context.notificationsInjection.archiveInboxChatEntryAfterSetChatMessageReaction({
+                spaceId: chatItem.spaceId,
+                chatId,
+                messageCount: chatItem.messagesSummary.messageCount,
+                messageIndex,
+            }),
+        );
 
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,

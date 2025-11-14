@@ -39,7 +39,7 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -217,10 +217,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             key: roomKey,
             spaceId: document.spaceId,
             createdTime: commentThreadItem.createdTime,
-            messageCount: reduceIterable(
+            messageCount: sumIterable(
                 commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
             ),
         };
     },

@@ -129,7 +129,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -1742,11 +1742,7 @@ async function createDocumentCommentThreadModelFromItem(
               }
             : null,
         isResolved: item.resolutionState.type === "Resolved",
-        commentCount: reduceIterable(
-            item.commentsSummary.commentCountByAuthorId.values(),
-            (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-            0,
-        ),
+        commentCount: getDocumentCommentCount(item.commentsSummary),
         firstCommentAuthor,
     });
 }
@@ -1768,11 +1764,7 @@ async function createDocumentCommentThreadReferenceFromItem(
     );
 
     return {
-        commentCount: reduceIterable(
-            item.commentsSummary.commentCountByAuthorId.values(),
-            (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-            0,
-        ),
+        commentCount: getDocumentCommentCount(item.commentsSummary),
         commentAuthors,
     };
 }
@@ -5474,11 +5466,7 @@ export function setDocumentCommentReaction(
                     spaceId,
                     documentId,
                     commentThreadId,
-                    commentCount: reduceIterable(
-                        commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                        (a, b) => a + b,
-                        0,
-                    ),
+                    commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
                     commentIndex,
                 },
             ),
@@ -5789,12 +5777,7 @@ function getDocumentCommentCount(
     commentSummary: {readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>} | undefined,
 ) {
     if (!commentSummary) return 0;
-
-    return reduceIterable(
-        commentSummary.commentCountByAuthorId.values(),
-        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-        0,
-    );
+    return sumIterable(commentSummary.commentCountByAuthorId.values());
 }
 
 /**
@@ -6495,11 +6478,7 @@ export async function backfillDocumentComments(
     return {
         commentThread,
         commentCount: Math.max(
-            reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getDocumentCommentCount(commentThreadItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,

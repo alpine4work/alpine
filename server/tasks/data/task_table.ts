@@ -22,6 +22,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -127,7 +128,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -5521,7 +5522,7 @@ export function deleteTaskComment(
 }
 
 export function setTaskCommentReaction(
-    context: ServerAccountActionContext,
+    context: ServerSessionActionContextWithApns,
     {
         taskId,
         commentIndex,
@@ -5537,8 +5538,8 @@ export function setTaskCommentReaction(
     },
 ) {
     return context.dynamo.retryTransaction(async context => {
-        const [, commentItem] = await runAllPromises([
-            authorizeTaskAccess(context, taskId, "Comment"),
+        const [{item: taskItem, commentsSummaryItem}, commentItem] = await runAllPromises([
+            authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
             getTaskCommentItemIfExists(context, taskId, commentIndex),
         ]);
         if (!commentItem) throw new NotFoundError("Task comment not found");
@@ -5578,6 +5579,15 @@ export function setTaskCommentReaction(
                 expirationTime: addDays(currentTime, messagingEventExpirationDays),
             }),
         ]);
+
+        context.process.waitUntil(
+            context.notificationsInjection.archiveInboxTaskEntryAfterSetTaskCommentReaction({
+                spaceId: taskItem.spaceId,
+                taskId,
+                commentCount: getTaskCommentCount(commentsSummaryItem),
+                commentIndex,
+            }),
+        );
 
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,
@@ -6144,12 +6154,7 @@ export function completeTaskCommentStream(
 
 function getTaskCommentCount(commentSummaryItem: TaskCommentsSummaryItem | null | undefined) {
     if (!commentSummaryItem) return 0;
-
-    return reduceIterable(
-        commentSummaryItem.commentCountByAuthorId.values(),
-        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-        0,
-    );
+    return sumIterable(commentSummaryItem.commentCountByAuthorId.values());
 }
 
 export async function getTaskCommentsFromStart(
@@ -6493,7 +6498,8 @@ export async function getTaskNotesContentAndOptionalInitialComments(
             ? {
                   checkpoint,
                   commentCount: Math.max(
-                      getTaskCommentCount(commentsSummaryItem), // Make sure `commentCount` is consistent with `comments` in case of eventual
+                      getTaskCommentCount(commentsSummaryItem),
+                      // Make sure `commentCount` is consistent with `comments` in case of eventual
                       // consistency race conditions.
                       lastCommentIndex + 1,
                   ),
@@ -6543,7 +6549,8 @@ export async function getTaskCommentsFromEnd(
 
     return {
         commentCount: Math.max(
-            getTaskCommentCount(commentsSummaryItem), // Make sure `commentCount` is consistent with `comments` in case of eventual
+            getTaskCommentCount(commentsSummaryItem),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
@@ -6816,11 +6823,7 @@ export async function backfillTaskComments(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getTaskCommentCount(commentsSummaryItem),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,

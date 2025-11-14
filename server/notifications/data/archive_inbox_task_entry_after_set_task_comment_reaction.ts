@@ -3,34 +3,33 @@ import {
     sendPushNotificationToAccountDevices,
     shouldSendPushNotification,
 } from "~/server/notifications/data/internal/send_push_notification_to_account_devices.js";
-import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 
-export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+export async function archiveInboxTaskEntryAfterSetTaskCommentReaction(
     context: ServerSessionActionContextWithApns,
     {
         spaceId,
-        documentId,
-        commentThreadId,
+        taskId,
         commentCount,
         commentIndex,
     }: {
         spaceId: SpaceId;
-        documentId: DocumentId;
-        commentThreadId: DocumentCommentThreadId;
+        taskId: TaskId;
         commentCount: number;
         commentIndex: number;
     },
 ) {
-    const result = await updateInboxDocumentCommentThreadEntry(
+    const result = await updateInboxEntry(
         context,
         context.actor.getAccountId(),
         {
+            partitionType: "Inbox",
+            sortRangeType: "TaskEntry",
             spaceId,
             accountId: context.actor.getAccountId(),
-            documentId,
-            commentThreadId,
+            taskId,
         },
         oldItem => {
             if (!oldItem) return null;
@@ -45,13 +44,12 @@ export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentRe
             return {
                 isArchived: true,
                 loudNotificationCount: 0,
-                firstCommentAuthorId: oldItem.firstCommentAuthorId,
                 latestComment: oldItem.latestComment.isStickyMention
                     ? {...oldItem.latestComment, isStickyMention: false}
                     : oldItem.latestComment,
-                latestArchivingCommentIndex: !oldItem.isArchived
+                latestArchivingCommentIndex: !oldItem?.isArchived
                     ? commentIndex
-                    : oldItem.latestArchivingCommentIndex ?? null,
+                    : oldItem?.latestArchivingCommentIndex ?? null,
                 otherCommentAuthorId: oldItem.otherCommentAuthorId,
             };
         },

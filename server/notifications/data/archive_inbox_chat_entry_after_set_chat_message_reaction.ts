@@ -3,56 +3,55 @@ import {
     sendPushNotificationToAccountDevices,
     shouldSendPushNotification,
 } from "~/server/notifications/data/internal/send_push_notification_to_account_devices.js";
-import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 
-export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+export async function archiveInboxChatEntryAfterSetChatMessageReaction(
     context: ServerSessionActionContextWithApns,
     {
         spaceId,
-        documentId,
-        commentThreadId,
-        commentCount,
-        commentIndex,
+        chatId,
+        messageCount,
+        messageIndex,
     }: {
         spaceId: SpaceId;
-        documentId: DocumentId;
-        commentThreadId: DocumentCommentThreadId;
-        commentCount: number;
-        commentIndex: number;
+        chatId: ChatId;
+        messageCount: number;
+        messageIndex: number;
     },
 ) {
-    const result = await updateInboxDocumentCommentThreadEntry(
+    const result = await updateInboxEntry(
         context,
         context.actor.getAccountId(),
         {
+            partitionType: "Inbox",
+            sortRangeType: "ChatEntry",
             spaceId,
             accountId: context.actor.getAccountId(),
-            documentId,
-            commentThreadId,
+            chatId,
         },
         oldItem => {
             if (!oldItem) return null;
 
-            // Don't archive if a new comment was added after the `commentCount` we had at
-            // reaction time. Since a new comment will unarchive the entry. This fixes
+            // Don't archive if a new message was added after the `messageCount` we had at
+            // reaction time. Since a new message will unarchive the entry. This fixes
             // out-of-order event processing race conditions.
-            const shouldArchive = commentCount >= (oldItem.latestComment?.index ?? -1);
+            const shouldArchive = messageCount >= (oldItem.latestMessage?.index ?? -1);
 
             if (!shouldArchive) return oldItem;
 
             return {
                 isArchived: true,
                 loudNotificationCount: 0,
-                firstCommentAuthorId: oldItem.firstCommentAuthorId,
-                latestComment: oldItem.latestComment.isStickyMention
-                    ? {...oldItem.latestComment, isStickyMention: false}
-                    : oldItem.latestComment,
-                latestArchivingCommentIndex: !oldItem.isArchived
-                    ? commentIndex
-                    : oldItem.latestArchivingCommentIndex ?? null,
-                otherCommentAuthorId: oldItem.otherCommentAuthorId,
+                lastLoudNotificationCountTime: oldItem.lastLoudNotificationCountTime,
+                latestMessage: oldItem.latestMessage.isStickyMention
+                    ? {...oldItem.latestMessage, isStickyMention: false}
+                    : oldItem.latestMessage,
+                latestArchivingMessageIndex: !oldItem?.isArchived
+                    ? messageIndex
+                    : oldItem?.latestArchivingMessageIndex ?? null,
+                otherAccountId: oldItem.otherAccountId,
             };
         },
     );

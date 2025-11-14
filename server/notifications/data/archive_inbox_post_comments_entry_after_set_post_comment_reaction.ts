@@ -32,8 +32,9 @@ export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
         oldItem => {
             if (!oldItem) return null;
 
-            // Archive if we reacted to the last seen comment in the inbox entry or a
-            // later comment. Helps defend against out-of-order event processing.
+            // Don't archive if a new comment was added after the `commentCount` we had at
+            // reaction time. Since a new comment will unarchive the entry. This fixes
+            // out-of-order event processing race conditions.
             const shouldArchive = commentCount >= (oldItem.latestComment?.index ?? -1);
 
             if (!shouldArchive) return oldItem;

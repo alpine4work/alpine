@@ -29,12 +29,15 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 
 const processContext = createTestContext({
     tasksInjection,
+    notificationsInjection: {
+        archiveInboxTaskEntryAfterSetTaskCommentReaction: async () => {},
+    },
 });
 
 testMessagingImplementation<TaskId>(processContext, {
@@ -120,11 +123,7 @@ testMessagingImplementation<TaskId>(processContext, {
             createdTime: new Date(taskItem.createdTime[0]),
             messageCount:
                 taskItemWithCommentAttributes !== null
-                    ? reduceIterable(
-                          taskItemWithCommentAttributes.commentCountByAuthorId.values(),
-                          (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                          0,
-                      )
+                    ? sumIterable(taskItemWithCommentAttributes.commentCountByAuthorId.values())
                     : 0,
         };
     },

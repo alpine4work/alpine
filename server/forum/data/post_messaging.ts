@@ -60,7 +60,7 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -1100,11 +1100,7 @@ export function setPostCommentReaction(
                 {
                     spaceId: postItem.spaceId,
                     postId,
-                    commentCount: reduceIterable(
-                        postItem.commentsSummary.commentCountByAuthorId.values(),
-                        (a, b) => a + b,
-                        0,
-                    ),
+                    commentCount: getPostCommentCount(postItem.commentsSummary),
                     commentIndex,
                 },
             ),
@@ -1282,11 +1278,7 @@ export async function getPostAndInitialComments(
 function getPostCommentCount(commentsSummary: {
     readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
 }) {
-    return reduceIterable(
-        commentsSummary.commentCountByAuthorId.values(),
-        (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-        0,
-    );
+    return sumIterable(commentsSummary.commentCountByAuthorId.values());
 }
 
 /**
@@ -1885,11 +1877,7 @@ export async function backfillPostComments(
 
     return {
         commentCount: Math.max(
-            reduceIterable(
-                postItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
+            getPostCommentCount(postItem.commentsSummary),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
             lastCommentIndex + 1,

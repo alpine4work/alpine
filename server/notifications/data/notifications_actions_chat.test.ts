@@ -10,6 +10,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
+import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
+import {notificationsInjection} from "~/server/notifications/data/notifications_injection.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
 import {
     notificationEventAfterProcessingTestCheckpoint,
@@ -37,6 +39,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     assertMessageContent,
@@ -49,12 +52,28 @@ import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
+type ProcessingType = "Once" | "TwiceSerially" | "ThriceConcurrently";
+
+let processingType: ProcessingType = "Once";
+
+const testSuites: Array<{
+    type: ProcessingType;
+    processingMultiple: number;
+    only?: CommitBlocker;
+}> = [
+    {type: "Once", processingMultiple: 1},
+    {type: "TwiceSerially", processingMultiple: 2},
+    {type: "ThriceConcurrently", processingMultiple: 3},
+];
+
+afterEach(() => {
+    processingType = "Once";
+});
+
 let callBotWebhookJobs: Array<CallBotWebhookJobDescription> = [];
-let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
 
 afterEach(() => {
     callBotWebhookJobs = [];
-    processingType = "Once";
 });
 
 const context = createTestContext({
@@ -87,6 +106,7 @@ const context = createTestContext({
             // Noop for other jobs...
         }
     },
+    notificationsInjection,
     chatInjection,
     searchInjection: {
         getSearchMentionEntityIfPossible: async (context, spaceId, entityId) => {
@@ -121,11 +141,15 @@ const context = createTestContext({
 
 // Exercise idempotency by running the test suite again with jobs
 // processed twice.
-for (const [currentProcessingType, processingMultiple] of [
-    ["Once", 1],
-    ["TwiceSerially", 2],
-    ["ThriceConcurrently", 3],
-] as const) {
+for (const {type: currentProcessingType, processingMultiple} of testSuites) {
+    // If another suite has `only` set then skip this suite so we only run the
+    // suite with `only` set.
+    if (
+        testSuites.some(testSuite => !!testSuite.only && testSuite.type !== currentProcessingType)
+    ) {
+        continue;
+    }
+
     describe(`processing: ${currentProcessingType}`, () => {
         beforeEach(() => {
             processingType = currentProcessingType;
@@ -3316,6 +3340,357 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(new Set(callBotWebhookJobs.map(job => job.eventId))).toEqual(
                 new Set([callBotWebhookJobs[0]!.eventId]),
             );
+        });
+
+        test("setting a reaction on a chat message archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const message1 = await chat.sendMessage(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message1,
+                        contentTextSnippet: "test1",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on a chat message that’s not the latest comment archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const message1 = await chat.sendMessage(session1, "test1");
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest chat message archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            await chat.sendMessage(session1, "test1");
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest chat message, explicitly unarchiving, then setting a reaction on a different chat message archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const message1 = await chat.sendMessage(session1, "test1");
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await unarchiveInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {
+                    type: "Chat",
+                    chatId: chat.id,
+                },
+            });
+
+            await message1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest chat message, implicitly unarchiving, then setting a reaction on a different chat message archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const message1 = await chat.sendMessage(session1, "test1");
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const message4 = await chat.sendMessage(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message1.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message4,
+                        contentTextSnippet: "test4",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest chat message, implicitly unarchiving, then setting a reaction on the latest chat message archives the chat message inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            await chat.sendMessage(session1, "test1");
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const message4 = await chat.sendMessage(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await message4.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message4,
+                        contentTextSnippet: "test4",
+                    },
+                }),
+            ]);
+        });
+
+        test("clears `isStickyMention` when archiving by reacting to a chat message", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const message1 = await chat.sendMessage(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+            await chat.sendMessage(session1, "test2");
+            const message3 = await chat.sendMessage(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChatEntryModel({
+                    loudNotificationCount: 1,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                        isStickyMention: true,
+                    },
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            await message3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                }),
+            ]);
+        });
+
+        test("process setting chat message reaction before chat message notification event", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const chat = await TestChat.get(session1, session2, session3);
+
+            const message1 = await chat.sendMessage(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
+                session3.account.id,
+            );
+
+            const pause2Promise =
+                updateInboxEntryAfterExecuteTransactionTestCheckpoint.pauseForTest(
+                    session2.account.id,
+                );
+
+            const comment2 = await chat.sendMessage(session3, "test2");
+
+            const {unpause: unpause1} = await pause1Promise;
+
+            await comment2.setReaction(session2);
+
+            const {unpause: unpause2} = await pause2Promise;
+            unpause2();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                    otherChatAccount: session3,
+                }),
+            ]);
+
+            unpause1();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChatEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    chat,
+                    latestMessage: {
+                        message: message1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                    otherChatAccount: session3,
+                }),
+            ]);
         });
     });
 }

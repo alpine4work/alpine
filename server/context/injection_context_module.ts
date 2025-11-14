@@ -190,14 +190,37 @@ export type NotificationsInjectionContextModule = InstanceType<
 export const NotificationsInjectionContextModule =
     createInjectionContextModule<NotificationsInjection>({
         notifyInboxOfTimeZoneChange: true,
-        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: true,
         archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction: true,
+        archiveInboxChatEntryAfterSetChatMessageReaction: true,
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: true,
+        archiveInboxTaskEntryAfterSetTaskCommentReaction: true,
     });
 
 export type NotificationsInjection = {
     notifyInboxOfTimeZoneChange(
         context: ServerSessionActionContext,
         timeZone: TimeZone,
+    ): Promise<void>;
+
+    archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+        context: ServerSessionActionContextWithApns,
+        options: {
+            spaceId: SpaceId;
+            documentId: DocumentId;
+            commentThreadId: DocumentCommentThreadId;
+            commentCount: number;
+            commentIndex: number;
+        },
+    ): Promise<void>;
+
+    archiveInboxChatEntryAfterSetChatMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        options: {
+            spaceId: SpaceId;
+            chatId: ChatId;
+            messageCount: number;
+            messageIndex: number;
+        },
     ): Promise<void>;
 
     archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
@@ -210,12 +233,11 @@ export type NotificationsInjection = {
         },
     ): Promise<void>;
 
-    archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+    archiveInboxTaskEntryAfterSetTaskCommentReaction(
         context: ServerSessionActionContextWithApns,
         options: {
             spaceId: SpaceId;
-            documentId: DocumentId;
-            commentThreadId: DocumentCommentThreadId;
+            taskId: TaskId;
             commentCount: number;
             commentIndex: number;
         },

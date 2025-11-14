@@ -52,6 +52,9 @@ import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js"
 
 const context = createTestContext({
     chatInjection,
+    notificationsInjection: {
+        archiveInboxChatEntryAfterSetChatMessageReaction: async () => {},
+    },
 });
 
 const content1 = createSimpleMessageContent("test1");
