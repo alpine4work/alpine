@@ -22,4 +22,8 @@ export type InboxContext = {
         promise: Promise<unknown>,
         room?: InboxContextCreateMessageOptimisticallyRoom,
     ) => void;
+    readonly onSetMessageReactionOptimistically: (
+        promise: Promise<unknown>,
+        roomKey: string,
+    ) => void;
 };

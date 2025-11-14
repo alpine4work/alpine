@@ -282,11 +282,13 @@ export class InboxDocumentCommentThreadEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "DocumentCommentThread",
-            documentId: this.document.isPrivate
-                ? this.document.documentId
-                : this.document.document.id,
+            documentId: this.getDocumentId(),
             commentThreadId: this.commentThreadId,
         };
+    }
+
+    public getDocumentId(): DocumentId {
+        return this.document.isPrivate ? this.document.documentId : this.document.document.id;
     }
 }
 

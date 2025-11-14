@@ -19,6 +19,7 @@ import {getSelectionStartNodeAndEndNode} from "~/client/helpers/get_selection_st
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {shouldMergeMessages} from "~/client/messaging/internal/should_merge_messages.js";
 import {useMessagingViewToolbarReactionState} from "~/client/messaging/internal/use_messaging_view_toolbar_reaction_state.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -95,6 +96,7 @@ export function MessagingViewPointerToolbar<
     const reporter = useReporter();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const isContextMenuOpen = useIsContextMenuOpen();
+    const inboxContext = useInboxContext();
 
     const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -342,6 +344,7 @@ export function MessagingViewPointerToolbar<
                                     reaction,
                                     onSetMessageReaction,
                                     onUpdateMessagesOptimistically,
+                                    inboxContext,
                                 });
 
                                 // Hide the toolbar after setting/deleting a reaction. Since it's hard to

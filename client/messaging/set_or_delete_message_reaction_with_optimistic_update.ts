@@ -1,4 +1,5 @@
 import {Reporter} from "~/client/design/reporter.js";
+import {InboxContext} from "~/client/inbox/inbox_context_types.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -52,6 +53,7 @@ export function setMessageReactionWithOptimisticUpdate<
     reaction,
     onSetMessageReaction,
     onUpdateMessagesOptimistically,
+    inboxContext,
 }: {
     reporter: Reporter;
     currentAccountId: AccountId;
@@ -63,6 +65,7 @@ export function setMessageReactionWithOptimisticUpdate<
     reaction: Reaction | "GenericLike";
     onSetMessageReaction: OnSetMessageReactionFunction<RoomKey>;
     onUpdateMessagesOptimistically: OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>;
+    inboxContext: InboxContext | null;
 }) {
     const promise = onSetMessageReaction(roomKey, {
         messageIndex,
@@ -74,6 +77,12 @@ export function setMessageReactionWithOptimisticUpdate<
     promise.catch(error => {
         reporter.displayError(`Couldn’t add reaction to ${messageNoun}`, error);
     });
+
+    // Adding a reaction archives the inbox entry for the messaging room.
+    // Optimistically archive these entries so we don't need to wait for
+    // realtime. The latency of which may be long since notification events are
+    // processed by a queue.
+    inboxContext?.onSetMessageReactionOptimistically(promise, roomKey);
 
     onUpdateMessagesOptimistically(roomKey, promise, (messages, promiseValue) => {
         // We expect the `MessagingRealtimeConnection` WebSocket to send an event that

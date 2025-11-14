@@ -3,6 +3,7 @@ import {Memo, ReactElement, ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {InboxContext} from "~/client/inbox/inbox_context_types.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -35,6 +36,7 @@ export function MessageViewContextMenuReactionButton<
     onSetMessageReaction,
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
+    inboxContext,
 }: {
     isPressed: boolean;
     renderStructure: ({
@@ -53,6 +55,7 @@ export function MessageViewContextMenuReactionButton<
     onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
+    inboxContext: InboxContext | null;
 }) {
     const reporter = useReporter();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
@@ -95,6 +98,12 @@ export function MessageViewContextMenuReactionButton<
 
                         return promise;
                     },
+                    // IMPORTANT: It's important that `inboxContext` comes from props. This
+                    // component is mounted at the root of our app in `<ContextMenuProvider>` which
+                    // won't have access to the inbox context of the menu which spawned the context
+                    // menu! So we need to get `inboxContext` for the `<MessageView>` and pass it
+                    // into here.
+                    inboxContext,
                 });
             }}
             onDeleteReaction={() => {

@@ -45,6 +45,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/messaging/internal/message_stream_view.js";
@@ -220,6 +221,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
+    const inboxContext = useInboxContext();
 
     const currentAccountId = currentAccount?.id;
 
@@ -572,6 +574,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     onSetMessageReaction={onSetMessageReaction}
                                     onDeleteMessageReaction={onDeleteMessageReaction}
                                     onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
+                                    inboxContext={inboxContext}
                                 />
                             );
                         },
@@ -1080,6 +1083,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             reaction,
                             onSetMessageReaction,
                             onUpdateMessagesOptimistically,
+                            inboxContext,
                         });
                     }}
                     onDeleteReaction={pos => {
@@ -1124,6 +1128,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         messageNoun,
         onSetMessageReaction,
         onUpdateMessagesOptimistically,
+        inboxContext,
         onDeleteMessageReaction,
         navigate,
         space.id,
