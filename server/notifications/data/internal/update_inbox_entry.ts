@@ -39,11 +39,18 @@ import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifica
 
 export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
+export const updateInboxEntryAfterExecuteTransactionTestCheckpoint =
+    new TestCheckpoint<AccountId>();
 
 export type UpdateInboxEntryResult = {
     readonly newInboxEntryItem: InboxEntryItem;
     readonly loudNotificationCountDifference: number;
 };
+
+export type UpdateInboxEntryNewItem<Item extends ItemKey, ItemKey> = DistributiveOmit<
+    Item,
+    DistributiveKeyOf<ItemKey> | "generation" | "enteredTime"
+>;
 
 /**
  * Helper function for updating an inbox entry and the main inbox attributes
@@ -73,18 +80,13 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             updateOtherInboxEntry: <OtherItemKey extends InboxEntryItemKey>(
                 otherItemKey: OtherItemKey,
                 oldOtherItem: (InboxEntryItem & OtherItemKey) | null,
-                newOtherItem: DistributiveOmit<
+                newOtherItem: UpdateInboxEntryNewItem<
                     InboxEntryItem & OtherItemKey,
-                    DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
+                    InboxEntryItemKey
                 >,
             ) => void;
         },
-    ) => MaybePromise<
-        DistributiveOmit<
-            InboxEntryItem & ItemKey,
-            DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
-        >
-    >,
+    ) => MaybePromise<UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey>>,
     {
         clientRequestToken,
         initialInboxItemIfExists,
@@ -248,6 +250,8 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             clientRequestToken,
         });
 
+        await updateInboxEntryAfterExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
+
         if (!newInboxEntryItem) return null;
 
         return {
@@ -274,10 +278,7 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         accountTimeZone: TimeZone | null;
         oldInboxItem: InboxAttributesItem | null;
         oldInboxEntryItem: (InboxEntryItem & ItemKey) | null;
-        newInboxEntryItem: DistributiveOmit<
-            InboxEntryItem & ItemKey,
-            DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
-        >;
+        newInboxEntryItem: UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey>;
     },
 ) {
     assert(

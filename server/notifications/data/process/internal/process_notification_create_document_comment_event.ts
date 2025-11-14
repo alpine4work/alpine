@@ -7,16 +7,12 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {NotificationCreateDocumentCommentEvent} from "~/server/notifications/core/notification_event.js";
 import {
-    InboxDocumentCommentThreadEntryItem,
     InboxDocumentCommentThreadEntryItemKey,
-    InboxDocumentNewCommentThreadsEntryItemKey,
     InboxTable,
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
-import {
-    InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey,
-    NotificationsTable,
-} from "~/server/notifications/data/internal/notifications_table.js";
+import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
@@ -168,217 +164,119 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
             );
         }
 
-        // Update function for just a single `DocumentCommentThreadEntry`.
-        const update = async (
-            oldItem: InboxDocumentCommentThreadEntryItem | null,
-        ): Promise<
-            Omit<
-                InboxDocumentCommentThreadEntryItem,
-                keyof InboxDocumentCommentThreadEntryItemKey | "generation" | "enteredTime"
-            >
-        > => {
-            // When the user comments on a document comment thread we archive the
-            // corresponding inbox entry. Or if the entry is already archived, we keep it
-            // archived. By sending a comment the user implicitly marks their entry as done.
-            //
-            // If the events were received out-of-order we keep the last archive state
-            // of the entry.
-            const isArchived =
-                !oldItem?.latestComment ||
-                (event.commentIndex > oldItem.latestComment.index &&
-                    (oldItem.latestArchivingCommentIndex === null ||
-                        event.commentIndex > oldItem.latestArchivingCommentIndex))
-                    ? accountId === event.authorId
-                    : oldItem.isArchived;
-
-            let isMention;
-            let loudNotificationCount;
-            if (isArchived) {
-                isMention = false;
-                loudNotificationCount = 0;
-            } else {
-                isMention = event.mentionedAccountIds.has(accountId);
-
-                // We increment the loud notification count only if someone is explicitly
-                // trying to get your attention by mentioning your account. Otherwise, we
-                // expect users will respond to new post comments in their own time.
-                const shouldIncrementLoudNotificationCount = isMention;
-
-                loudNotificationCount =
-                    (oldItem?.loudNotificationCount ?? 0) +
-                    (shouldIncrementLoudNotificationCount ? 1 : 0);
-            }
-
-            let latestComment: {
-                index: number;
-                authorId: AccountId;
-                createdTime: Date;
-                isStickyMention: boolean;
-            };
-            let otherCommentAuthorId: AccountId | null;
-
-            if (
-                oldItem?.latestComment &&
-                // Our events may arrive out-of-order. If we have an earlier message index then
-                // what's in the entry's latest message then don't bother updating the latest
-                // message.
-                (oldItem.latestComment.index >= event.commentIndex ||
-                    // Or if the latest comment was a mention then we'll leave that in place even
-                    // if there are further comments added.
-                    (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
-                    // Or if the message from our event is from the same account as the inbox
-                    // owner's then don't update the latest message. Leave the last message from an
-                    // account other than our inbox's account in the entry.
-                    accountId === event.authorId)
-            ) {
-                latestComment = oldItem.latestComment;
-                otherCommentAuthorId = oldItem.otherCommentAuthorId;
-            } else {
-                latestComment = {
-                    index: event.commentIndex,
-                    authorId: event.authorId,
-                    createdTime: event.createdTime,
-                    isStickyMention: isMention,
-                };
-
-                if (!oldItem) {
-                    otherCommentAuthorId = null;
-                } else {
-                    // If the `latestComment`'s author changed then move the old `latestComment`
-                    // author into `otherCommentAuthorId`. But not if the old `latestComment`
-                    // had our inbox's account as the author.
-                    otherCommentAuthorId =
-                        oldItem.latestComment &&
-                        oldItem.latestComment.authorId !== latestComment.authorId &&
-                        oldItem.latestComment.authorId !== accountId
-                            ? oldItem.latestComment.authorId
-                            : oldItem.otherCommentAuthorId;
-                }
-            }
-
-            const firstCommentAuthorId =
-                oldItem?.firstCommentAuthorId ??
-                (isFirstComment
-                    ? event.authorId
-                    : await getDocumentCommentAuthorId(context, {
-                          documentId: event.documentId,
-                          commentThreadId: event.commentThreadId,
-                          commentIndex: 0,
-                      }));
-
-            return {
-                isArchived,
-                loudNotificationCount,
-                firstCommentAuthorId,
-                latestComment:
-                    isArchived && latestComment.isStickyMention
-                        ? {...latestComment, isStickyMention: false}
-                        : latestComment,
-                latestArchivingCommentIndex:
-                    isArchived && !oldItem?.isArchived
-                        ? event.commentIndex
-                        : oldItem?.latestArchivingCommentIndex ?? null,
-                otherCommentAuthorId,
-            };
-        };
-
-        return updateInboxEntry(
+        return updateInboxDocumentCommentThreadEntry(
             context,
             event.authorId,
             {
-                partitionType: "Inbox",
-                sortRangeType: "DocumentCommentThreadEntry",
                 spaceId: event.spaceId,
                 accountId,
                 documentId: event.documentId,
                 commentThreadId: event.commentThreadId,
             },
-            async (oldItem, {addAdditionalTransactionEntry, updateOtherInboxEntry}) => {
-                // If we're updating an existing `DocumentCommentThreadEntry` then don't bother
-                // updating `DocumentNewCommentThreadsEntry`.
-                if (oldItem) return update(oldItem);
+            async oldItem => {
+                // When the user comments on a document comment thread we archive the
+                // corresponding inbox entry. Or if the entry is already archived, we keep it
+                // archived. By sending a comment the user implicitly marks their entry as done.
+                //
+                // If the events were received out-of-order we keep the last archive state
+                // of the entry.
+                const isArchived =
+                    !oldItem?.latestComment ||
+                    (event.commentIndex > oldItem.latestComment.index &&
+                        (oldItem.latestArchivingCommentIndex === null ||
+                            event.commentIndex > oldItem.latestArchivingCommentIndex))
+                        ? accountId === event.authorId
+                        : oldItem.isArchived;
 
-                // If we're creating this `DocumentCommentThreadEntry` then at the same time if
-                // the comment thread is present in `DocumentNewCommentThreadsEntry` then we
-                // want to archive it in the `DocumentNewCommentThreadsEntry`. So the user
-                // refers to `DocumentCommentThreadEntry` from now on for this comment thread.
+                let isMention;
+                let loudNotificationCount;
+                if (isArchived) {
+                    isMention = false;
+                    loudNotificationCount = 0;
+                } else {
+                    isMention = event.mentionedAccountIds.has(accountId);
 
-                const commentThreadInNewCommentThreadsItemKey: InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey =
-                    {
-                        partitionType: "Inbox",
-                        sortRangeType: "DocumentCommentThreadInNewCommentThreadsEntry",
-                        spaceId: event.spaceId,
-                        accountId,
-                        documentId: event.documentId,
-                        commentThreadId: event.commentThreadId,
+                    // We increment the loud notification count only if someone is explicitly
+                    // trying to get your attention by mentioning your account. Otherwise, we
+                    // expect users will respond to new post comments in their own time.
+                    const shouldIncrementLoudNotificationCount = isMention;
+
+                    loudNotificationCount =
+                        (oldItem?.loudNotificationCount ?? 0) +
+                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                }
+
+                let latestComment: {
+                    index: number;
+                    authorId: AccountId;
+                    createdTime: Date;
+                    isStickyMention: boolean;
+                };
+                let otherCommentAuthorId: AccountId | null;
+
+                if (
+                    oldItem?.latestComment &&
+                    // Our events may arrive out-of-order. If we have an earlier message index then
+                    // what's in the entry's latest message then don't bother updating the latest
+                    // message.
+                    (oldItem.latestComment.index >= event.commentIndex ||
+                        // Or if the latest comment was a mention then we'll leave that in place even
+                        // if there are further comments added.
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        // Or if the message from our event is from the same account as the inbox
+                        // owner's then don't update the latest message. Leave the last message from an
+                        // account other than our inbox's account in the entry.
+                        accountId === event.authorId)
+                ) {
+                    latestComment = oldItem.latestComment;
+                    otherCommentAuthorId = oldItem.otherCommentAuthorId;
+                } else {
+                    latestComment = {
+                        index: event.commentIndex,
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        isStickyMention: isMention,
                     };
 
-                const commentThreadInNewCommentThreadsItem =
-                    await NotificationsTable.getItemIfExists(
-                        context,
-                        commentThreadInNewCommentThreadsItemKey,
-                    );
-
-                // The post isn't present in any `DocumentNewCommentThreadsEntry`.
-                if (!commentThreadInNewCommentThreadsItem) {
-                    // Make sure there's no `DocumentNewCommentThreadsEntry` when we commit this
-                    // transaction. Otherwise we need to retry.
-                    addAdditionalTransactionEntry(
-                        NotificationsTable.transactionDoesNotExistConditionCheck(
-                            commentThreadInNewCommentThreadsItemKey,
-                            {isConditionCheckErrorRetriable: true},
-                        ),
-                    );
-
-                    return update(oldItem);
+                    if (!oldItem) {
+                        otherCommentAuthorId = null;
+                    } else {
+                        // If the `latestComment`'s author changed then move the old `latestComment`
+                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
+                        // had our inbox's account as the author.
+                        otherCommentAuthorId =
+                            oldItem.latestComment &&
+                            oldItem.latestComment.authorId !== latestComment.authorId &&
+                            oldItem.latestComment.authorId !== accountId
+                                ? oldItem.latestComment.authorId
+                                : oldItem.otherCommentAuthorId;
+                    }
                 }
 
-                const newCommentThreadsItemKey: InboxDocumentNewCommentThreadsEntryItemKey = {
-                    partitionType: "Inbox",
-                    sortRangeType: "DocumentNewCommentThreadsEntry",
-                    spaceId: event.spaceId,
-                    accountId,
-                    documentId: event.documentId,
-                    bucketGeneration: commentThreadInNewCommentThreadsItem.bucketGeneration,
+                const firstCommentAuthorId =
+                    oldItem?.firstCommentAuthorId ??
+                    (isFirstComment
+                        ? event.authorId
+                        : await getDocumentCommentAuthorId(context, {
+                              documentId: event.documentId,
+                              commentThreadId: event.commentThreadId,
+                              commentIndex: 0,
+                          }));
+
+                return {
+                    isArchived,
+                    loudNotificationCount,
+                    firstCommentAuthorId,
+                    latestComment:
+                        isArchived && latestComment.isStickyMention
+                            ? {...latestComment, isStickyMention: false}
+                            : latestComment,
+                    latestArchivingCommentIndex:
+                        isArchived && !oldItem?.isArchived
+                            ? event.commentIndex
+                            : oldItem?.latestArchivingCommentIndex ?? null,
+                    otherCommentAuthorId,
                 };
-
-                // If we have a `DocumentCommentThreadInNewCommentThreadsEntry` item then
-                // there's definitely a corresponding `DocumentNewCommentThreadsEntry` item.
-                // First try loading the item with eventual consistency (cheap) and if that
-                // doesn't work try strong consistency.
-                const newCommentThreadsItem =
-                    await InboxTable.getItemWithEventualThenStrongConsistency(
-                        context,
-                        newCommentThreadsItemKey,
-                    );
-
-                if (!newCommentThreadsItem.archivedCommentThreadIds.has(event.commentThreadId)) {
-                    const archivedCommentThreadIds = new Set([
-                        ...newCommentThreadsItem.archivedCommentThreadIds,
-                        event.commentThreadId,
-                    ]);
-
-                    // Archive the `DocumentNewCommentThreadsEntry` if all posts within the
-                    // `DocumentNewCommentThreadsEntry` have been archived.
-                    const isArchived =
-                        archivedCommentThreadIds.size ===
-                        newCommentThreadsItem.commentThreadIds.size;
-
-                    updateOtherInboxEntry(newCommentThreadsItemKey, newCommentThreadsItem, {
-                        isArchived,
-                        loudNotificationCount: !isArchived
-                            ? newCommentThreadsItem.loudNotificationCount
-                            : 0,
-                        commentThreadIds: newCommentThreadsItem.commentThreadIds,
-                        archivedCommentThreadIds,
-                        commentThreadAuthorIds: newCommentThreadsItem.commentThreadAuthorIds,
-                        firstCommentThread: newCommentThreadsItem.firstCommentThread,
-                        latestCommentThreadCreatedTime:
-                            newCommentThreadsItem.latestCommentThreadCreatedTime,
-                    });
-                }
-
-                return update(oldItem);
             },
             {clientRequestToken},
         );
