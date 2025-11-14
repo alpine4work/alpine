@@ -4,7 +4,7 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
-type CommentQueryItem = {
+export type CommentQueryItem = {
     readonly sortRangeType: "Comments";
     readonly commentIndex: number;
     readonly createdTime: Date;
@@ -14,14 +14,14 @@ type CommentQueryItem = {
     readonly updateLockVersion?: number;
 };
 
-type CommentQueryStreamItem = {
+export type CommentQueryStreamItem = {
     readonly sortRangeType: "Comments#Stream";
     readonly commentIndex: number;
     readonly partCount: number;
     readonly completedTime: Date | null;
 };
 
-type CommentQueryStreamPartItem = {
+export type CommentQueryStreamPartItem = {
     readonly sortRangeType: "Comments#StreamPart";
     readonly commentIndex: number;
     readonly partIndex: number;
@@ -39,7 +39,6 @@ type CommentQueryStreamPartItem = {
  * instead of "comment" where appropriate.
  */
 export async function* processCommentsQuery(
-    direction: "Ascending" | "Descending",
     iterable: AsyncIterable<CommentQueryItem | CommentQueryStreamItem | CommentQueryStreamPartItem>,
 ): AsyncIterableIterator<MessageItem> {
     let currentItem: CommentQueryItem | null = null;
@@ -78,12 +77,6 @@ export async function* processCommentsQuery(
                     createdTime: partItem.createdTime,
                 })) ?? [];
 
-            // Since we queried in descending order, we need to reverse the parts to put
-            // them in the right order.
-            if (direction === "Descending") {
-                parts.reverse();
-            }
-
             if (parts.length !== currentStreamItem.partCount) {
                 throw new DataLossError("Stream part item count mismatch");
             }
@@ -114,17 +107,10 @@ export async function* processCommentsQuery(
     for await (const item of iterable) {
         switch (item.sortRangeType) {
             case "Comments": {
-                if (direction === "Descending") {
-                    currentItem = item;
+                const comment = yieldCurrentItem();
+                if (comment !== null) yield comment;
 
-                    const comment = yieldCurrentItem();
-                    if (comment !== null) yield comment;
-                } else {
-                    const comment = yieldCurrentItem();
-                    if (comment !== null) yield comment;
-
-                    currentItem = item;
-                }
+                currentItem = item;
                 break;
             }
             case "Comments#Stream": {

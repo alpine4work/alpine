@@ -68,7 +68,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                             ...oldItem,
                             loudNotificationCount:
                                 oldItem.loudNotificationCount + (!oldItem.isArchived ? 1 : 0),
-                            postContentSnippetIfMentioned: event.contentSnippet,
+                            isForPostContentMention: true,
                         };
                     }
 
@@ -76,7 +76,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                         isArchived: false,
                         loudNotificationCount: 1,
                         postCreatedTime: event.createdTime,
-                        postContentSnippetIfMentioned: event.contentSnippet,
+                        isForPostContentMention: true,
                         latestComment: null,
                         latestArchivingCommentIndex: null,
                         otherCommentAuthorId: null,

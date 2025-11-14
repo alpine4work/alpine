@@ -9,6 +9,7 @@ import {
     ServerActionContext,
     ServerBotActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {
     DynamoCacheReadConsistency,
     DynamoReadConsistency,
@@ -29,12 +30,12 @@ import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contr
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
-import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
+import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -174,25 +175,21 @@ export async function createPostComment(
                     }
                     case "MessagesRange": {
                         const commentItems = await arrayFromAsyncIterable(
-                            processCommentsQuery(
-                                "Ascending",
-                                ForumTable.query(context, {
-                                    limit: "All",
-                                    partitionKey: {
-                                        partitionType: "Post",
-                                        postId,
-                                    },
-                                    startSortKey: {
-                                        sortRangeType: "Comments",
-                                        commentIndex: parent.startIndex,
-                                    },
-                                    endSortKey: {
-                                        sortRangeType: "Comments#StreamPart",
-                                        commentIndex: parent.endIndex,
-                                        partIndex: Number.MAX_SAFE_INTEGER,
-                                    },
-                                }),
-                            ),
+                            runCommentsQuery(context, {
+                                cache: PostCommentItemContextCache,
+                                cacheKeyPrefix: postId,
+                                consistency,
+                                startIndex: parent.startIndex,
+                                endIndex: parent.endIndex,
+                                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                    ForumTable.query(context, {
+                                        consistency,
+                                        limit,
+                                        partitionKey: {partitionType: "Post", postId},
+                                        startSortKey,
+                                        endSortKey,
+                                    }),
+                            }),
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
@@ -702,6 +699,15 @@ export function completePostCommentStream(
     });
 }
 
+const PostCommentItemContextCache = new DynamoContextCache<
+    `${PostId}:${number}`,
+    MessageItem | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
 async function getPostCommentItemIfExists(
     context: ServerActionContext,
     postId: PostId,
@@ -709,26 +715,21 @@ async function getPostCommentItemIfExists(
     {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<MessageItem | null> {
     const items = await arrayFromAsyncIterable(
-        processCommentsQuery(
-            "Ascending",
-            ForumTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Post",
-                    postId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments#StreamPart",
-                    commentIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runCommentsQuery(context, {
+            cache: PostCommentItemContextCache,
+            cacheKeyPrefix: postId,
+            consistency,
+            startIndex: commentIndex,
+            endIndex: commentIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                ForumTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {partitionType: "Post", postId},
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     assert(items.length <= 1);
@@ -1261,25 +1262,21 @@ export async function getPostAndInitialComments(
 }> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
-    const queryIterable = processCommentsQuery(
-        "Ascending",
-        ForumTable.query(context, {
-            limit: "All",
-            partitionKey: {
-                partitionType: "Post",
-                postId,
-            },
-            startSortKey: {
-                sortRangeType: "Comments",
-                commentIndex: 0,
-            },
-            endSortKey: {
-                sortRangeType: "Comments#StreamPart",
-                commentIndex: commentLimit - 1,
-                partIndex: Number.MAX_SAFE_INTEGER,
-            },
-        }),
-    );
+    const queryIterable = runCommentsQuery(context, {
+        cache: PostCommentItemContextCache,
+        cacheKeyPrefix: postId,
+        consistency: undefined,
+        startIndex: 0,
+        endIndex: commentLimit - 1,
+        query: ({consistency, limit, startSortKey, endSortKey}) =>
+            ForumTable.query(context, {
+                consistency,
+                limit,
+                partitionKey: {partitionType: "Post", postId},
+                startSortKey,
+                endSortKey,
+            }),
+    });
 
     const postItem = await getPostItemWithContentForAuthorization(context, postId);
 
@@ -1458,26 +1455,21 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
     );
 
     const commentItems = await arrayFromAsyncIterable(
-        processCommentsQuery(
-            "Ascending",
-            ForumTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Post",
-                    postId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: queryStartCommentIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments#StreamPart",
-                    commentIndex: queryEndCommentIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runCommentsQuery(context, {
+            cache: PostCommentItemContextCache,
+            cacheKeyPrefix: postId,
+            consistency,
+            startIndex: queryStartCommentIndex,
+            endIndex: queryEndCommentIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                ForumTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {partitionType: "Post", postId},
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
@@ -1608,26 +1600,21 @@ export async function getPostCommentPayloadsFromStart(
             return postItem;
         }),
         arrayFromAsyncIterable(
-            processCommentsQuery(
-                "Ascending",
-                ForumTable.query(context, {
-                    limit: "All",
-                    consistency,
-                    partitionKey: {
-                        partitionType: "Post",
-                        postId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Comments",
-                        commentIndex: queryStartCommentIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Comments#StreamPart",
-                        commentIndex: queryEndCommentIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runCommentsQuery(context, {
+                cache: PostCommentItemContextCache,
+                cacheKeyPrefix: postId,
+                consistency,
+                startIndex: queryStartCommentIndex,
+                endIndex: queryEndCommentIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    ForumTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {partitionType: "Post", postId},
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
 
@@ -1758,35 +1745,28 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? processCommentsQuery(
-                  "Descending",
-                  ForumTable.query(context, {
-                      limit: "All",
-                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                      // at the end instead of start.
-                      descending: true,
-                      partitionKey: {
-                          partitionType: "Post",
-                          postId,
-                      },
-                      startSortKey: {
-                          sortRangeType: "Comments",
-                          commentIndex: queryStartCommentIndex,
-                      },
-                      endSortKey: {
-                          sortRangeType: "Comments#StreamPart",
-                          commentIndex: queryEndCommentIndex,
-                          partIndex: Number.MAX_SAFE_INTEGER,
-                      },
-                  }),
-              )
+            ? runCommentsQuery(context, {
+                  cache: PostCommentItemContextCache,
+                  cacheKeyPrefix: postId,
+                  consistency: undefined,
+                  startIndex: queryStartCommentIndex,
+                  endIndex: queryEndCommentIndex,
+                  query: ({consistency, limit, startSortKey, endSortKey}) =>
+                      ForumTable.query(context, {
+                          consistency,
+                          limit,
+                          partitionKey: {partitionType: "Post", postId},
+                          startSortKey,
+                          endSortKey,
+                      }),
+              })
             : (async function* () {})(),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const endCommentIndex = commentItems[0]!.index;
-    const startCommentIndex = commentItems[commentItems.length - 1]!.index;
+    const startCommentIndex = commentItems[0]!.index;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.index;
 
     const {spaceId} = await postItemPromise;
 
@@ -1842,9 +1822,6 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
         otherReferencedCommentPromiseByIndex = new Map();
         await runAllPromises(promises);
     }
-
-    // We queried in descending order so put comments back in the right order.
-    comments.reverse();
 
     return {
         comments,
@@ -1919,32 +1896,23 @@ export async function getPostCommentPayloadsFromEnd(
             return postItem;
         }),
         arrayFromAsyncIterable(
-            processCommentsQuery(
-                "Descending",
-                ForumTable.query(context, {
-                    limit: "All",
-                    descending: true,
-                    consistency,
-                    partitionKey: {
-                        partitionType: "Post",
-                        postId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Comments",
-                        commentIndex: queryStartCommentIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Comments#StreamPart",
-                        commentIndex: queryEndCommentIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runCommentsQuery(context, {
+                cache: PostCommentItemContextCache,
+                cacheKeyPrefix: postId,
+                consistency,
+                startIndex: queryStartCommentIndex,
+                endIndex: queryEndCommentIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    ForumTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {partitionType: "Post", postId},
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
-
-    // We queried in descending order so put comments back in the right order.
-    comments.reverse();
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 

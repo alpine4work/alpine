@@ -1,11 +1,18 @@
-import {authorizeChatAccessForAccount} from "~/server/chat/data/chat_actions.js";
+import {Node} from "prosemirror-model";
+import {
+    authorizeChatAccessForAccount,
+    getChatMessagePayload,
+} from "~/server/chat/data/chat_actions.js";
 import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
+import {
+    getDocumentCommentPayload,
+    getDocumentPreviewIfPossible,
+} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
     DynamoGeneralRealtimeTableItemKeyType,
@@ -15,18 +22,27 @@ import {
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {dangerouslyGetPostAuthorWithoutAuthorization} from "~/server/forum/data/dangerously_get_post_author_without_authorization.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
-import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {getPostAuthorAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_author_and_channel_preview.js";
+import {getPostContentWithCustomReferencesAndChannelPreviewIfPossible} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
+import {getPostCommentPayload} from "~/server/forum/data/post_messaging.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {
+    getNotificationMessageContentSnippet,
+    getNotificationPostContentSnippet,
+} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
 import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
-import {getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
+import {getTaskCommentPayload, getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -47,8 +63,17 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
+import {
+    MessageContent,
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayloadClericalSchema,
+    MessagePayload,
+    MessageStream,
+} from "~/shared/messaging/message_schema.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -382,7 +407,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean.default(false),
                             clerical: MessageContentPayloadClericalSchema.optional(),
                         }),
@@ -429,14 +453,23 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             .default(new Date("2023-05-08T17:34:17.801Z")),
 
                         /**
-                         * If the user was mentioned in the post's content this will be set. If this is
-                         * set then we override the notification text to say something along the lines
-                         * of "You were mentioned in a post".
+                         * Is this inbox entry for a mention in a post's content? If you're mentioned
+                         * in a post's content we create a `PostCommentsEntry` that continues to be
+                         * updated as people add comments to the post.
                          *
-                         * We unset this if a new comment revives this entry from the archive. The
-                         * entry will now be focused on new comments instead of the mention.
+                         * Will be true when this entry is initially created. Will be set to false once
+                         * the user archives the post by responding with a comment. After that point
+                         * this inbox entry will be about new comments.
                          */
-                        postContentSnippetIfMentioned: PostContentSchema.nullable().default(null),
+                        isForPostContentMention: Schema.boolean.default(
+                            // NOTE(calebmer, 2025-11-02): We used to inline post content in this inbox
+                            // entry when an account was mentioned (in the property
+                            // `postContentSnippetIfMentioned`). However, if the post content was updated
+                            // we didn't update the inbox entry. We're switching to loading post content
+                            // on read so we can always show the latest post content. So migrate from the
+                            // old format by checking for a `postContentSnippetIfMentioned` property.
+                            item => item.postContentSnippetIfMentioned !== null,
+                        ),
 
                         /**
                          * The last comment on the post. Will be used to render a preview of the post
@@ -445,12 +478,15 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * `isStickyMention` means the message contains a mention and we want to keep
                          * it as the `latestMessage` until there's either a new mention or this inbox
                          * entry is archived.
+                         *
+                         * Should only be null when `isForPostContentMention` is true. In which case
+                         * this entry reads something like "Alice mentioned you in their post..."
+                         * instead of "Alice commented on your post..."
                          */
                         latestComment: Schema.object({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean.default(false),
                         }).nullable(),
 
@@ -557,7 +593,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             postId: Schema.id<PostId>().nullable().default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: PostContentSchema,
                         }),
                     })
                         .validation("All `archivedPostIds` must be present in `postIds`", item =>
@@ -607,7 +642,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean.default(false),
                         }),
 
@@ -709,7 +743,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 .default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: MessageContentSchema,
                         }).originalPropertyKey("firstComment"),
 
                         /**
@@ -764,7 +797,6 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             index: Schema.integer,
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
-                            contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean,
                         }),
 
@@ -808,14 +840,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             ChatEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
-                        const [author, references, {chatAccountCount}, otherChatAccount] =
+                        const [author, {chatAccountCount}, otherChatAccount, contentTextSnippet] =
                             await runAllPromises([
                                 getAccount(context, item.spaceId, item.latestMessage.authorId),
-                                getMessageContentReferencesForNode(
-                                    context,
-                                    item.spaceId,
-                                    item.latestMessage.contentSnippet,
-                                ),
                                 authorizeChatAccessForAccount(
                                     context,
                                     item.chatId,
@@ -824,6 +851,17 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 item.otherAccountId
                                     ? getAccount(context, item.spaceId, item.otherAccountId)
                                     : null,
+                                getChatMessagePayload(context, {
+                                    chatId: item.chatId,
+                                    messageIndex: item.latestMessage.index,
+                                }).then(message =>
+                                    printNotificationMessageContentSnippet(
+                                        context,
+                                        item.spaceId,
+                                        message,
+                                        "message",
+                                    ),
+                                ),
                             ]);
 
                         return new InboxChatEntryModel({
@@ -836,10 +874,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             latestMessage: {
                                 author,
                                 createdTime: item.latestMessage.createdTime,
-                                contentTextSnippet: printContentSingleLineTextSnippetForServer({
-                                    doc: item.latestMessage.contentSnippet,
-                                    references,
-                                }),
+                                contentTextSnippet,
                                 isStickyMention: item.latestMessage.isStickyMention,
                                 clerical: item.latestMessage.clerical,
                             },
@@ -852,46 +887,77 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
                         const [
-                            {hasPostAccess, channel, postAuthor},
-                            latestComment,
+                            {hasPostAccess, channel, postAuthor, postContentTextSnippetIfMentioned},
                             otherCommentAuthor,
-                            postContentSnippetIfMentioned,
+                            latestComment,
                         ] = await runAllPromises([
-                            getPostAuthorAndChannelPreviewIfPossible(context, item.postId).then(
-                                async postResult => {
-                                    // We expect the post referenced by our `PostCommentsEntry` to exist.
-                                    assert(postResult);
+                            (!item.isForPostContentMention
+                                ? getPostAuthorAndChannelPreviewIfPossible(context, item.postId)
+                                : getPostContentWithCustomReferencesAndChannelPreviewIfPossible(
+                                      context,
+                                      item.postId,
+                                      async (context, spaceId, post) => {
+                                          const [author, contentTextSnippet] = await runAllPromises(
+                                              [
+                                                  getAccount(context, spaceId, post.authorId),
+                                                  printNotificationPostContentSnippet(
+                                                      context,
+                                                      spaceId,
+                                                      item.postId,
+                                                      post.content,
+                                                  ),
+                                              ],
+                                          );
 
-                                    if (postResult.ok) {
-                                        return {
-                                            hasPostAccess: true,
-                                            channel: {
-                                                isPrivate: false as const,
-                                                channel: postResult.value.channel,
-                                            },
-                                            postAuthor: postResult.value.author,
-                                        };
-                                    } else {
-                                        return {
-                                            hasPostAccess: false,
-                                            channel: {isPrivate: true as const},
-                                            // If an account has `PostCommentsEntry` in their inbox then that means at one
-                                            // point in time they had access to the post and were subscribed to the post.
-                                            // And at one point in time they knew who the post author was. Given the post
-                                            // author never changes we're ok showing the actor the post author again even
-                                            // though they've lost access to the post.
-                                            //
-                                            // That way the inbox entry retains some structure even after the account has
-                                            // lost access to the channel a post was in.
-                                            postAuthor:
-                                                await dangerouslyGetPostAuthorWithoutAuthorization(
-                                                    context,
-                                                    item.postId,
-                                                ),
-                                        };
-                                    }
-                                },
-                            ),
+                                          return {author, contentTextSnippet};
+                                      },
+                                  )
+                            ).then(async postResult => {
+                                // The post should exist if we have an inbox entry for it.
+                                assert(postResult);
+
+                                if (postResult.ok) {
+                                    return {
+                                        hasPostAccess: true,
+                                        channel: {
+                                            isPrivate: false as const,
+                                            channel: postResult.value.channel,
+                                        },
+                                        postAuthor:
+                                            "content" in postResult.value
+                                                ? postResult.value.content.author
+                                                : postResult.value.author,
+                                        postContentTextSnippetIfMentioned:
+                                            "content" in postResult.value
+                                                ? postResult.value.content.contentTextSnippet
+                                                : null,
+                                    };
+                                } else {
+                                    return {
+                                        hasPostAccess: false,
+                                        channel: {isPrivate: true as const},
+                                        // If an account has `PostCommentsEntry` in their inbox then that means at one
+                                        // point in time they had access to the post and were subscribed to the post.
+                                        // And at one point in time they knew who the post author was. Given the post
+                                        // author never changes we're ok showing the actor the post author again even
+                                        // though they've lost access to the post.
+                                        //
+                                        // That way the inbox entry retains some structure even after the account has
+                                        // lost access to the channel a post was in.
+                                        postAuthor:
+                                            await dangerouslyGetPostAuthorWithoutAuthorization(
+                                                context,
+                                                item.postId,
+                                            ),
+                                        postContentTextSnippetIfMentioned: null,
+                                    };
+                                }
+                            }),
+
+                            item.otherCommentAuthorId
+                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                : null,
+
                             item.latestComment
                                 ? runAllObjectPromises({
                                       comment: item.latestComment,
@@ -900,27 +966,20 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                           item.spaceId,
                                           item.latestComment.authorId,
                                       ),
-                                      references: getMessageContentReferencesForNode(
-                                          context,
-                                          item.spaceId,
-                                          item.latestComment.contentSnippet,
-                                      ),
-                                  })
-                                : null,
-                            item.otherCommentAuthorId
-                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                                : null,
-                            item.postContentSnippetIfMentioned
-                                ? runAllObjectPromises({
-                                      doc: item.postContentSnippetIfMentioned,
-                                      references: getContentReferencesForNode(
-                                          context,
-                                          item.spaceId,
-                                          FilePostAuthorizer.bind({
-                                              type: "Post",
+                                      // Don't throw if actor lost access to document (which we check earlier with
+                                      // `getPostAuthorAndChannelPreviewIfPossible()`).
+                                      contentTextSnippetResult: captureResultPromise(
+                                          getPostCommentPayload(context, {
                                               postId: item.postId,
-                                          }),
-                                          item.postContentSnippetIfMentioned,
+                                              commentIndex: item.latestComment.index,
+                                          }).then(message =>
+                                              printNotificationMessageContentSnippet(
+                                                  context,
+                                                  item.spaceId,
+                                                  message,
+                                                  "comment",
+                                              ),
+                                          ),
                                       ),
                                   })
                                 : null,
@@ -941,10 +1000,8 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 // it's not necessarily a permissions violation to show it again but a user
                                 // removing another user's access from a channel would probably expect the
                                 // content to be hidden.
-                                hasPostAccess && postContentSnippetIfMentioned
-                                    ? printContentSingleLineTextSnippetForServer(
-                                          postContentSnippetIfMentioned,
-                                      )
+                                hasPostAccess && postContentTextSnippetIfMentioned !== null
+                                    ? postContentTextSnippetIfMentioned
                                     : null,
                             latestComment: latestComment
                                 ? {
@@ -960,10 +1017,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                             // We continue returning the author, created time, and whether the last comment
                                             // was a mention because the user has already theoretically seen these things
                                             // (via push notification) and otherwise the notification loses all structure.
-                                            printContentSingleLineTextSnippetForServer({
-                                                doc: latestComment.comment.contentSnippet,
-                                                references: latestComment.references,
-                                            })
+                                            unwrapResult(latestComment.contentTextSnippetResult)
                                           : "",
                                       isStickyMention: latestComment.comment.isStickyMention,
                                   }
@@ -976,50 +1030,50 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             ChannelPostsEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
+                        // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
+                        // this date. So if we have a channel posts entry where `postId` is null then
+                        // use the first post in `item.postIds` and hope it's right. Getting this wrong
+                        // shouldn't matter since posts created before this date also won't have
+                        // attached files since files weren't implemented yet.
+                        const latestPostId =
+                            item.latestPost.postId ?? assertExists(iterableFirst(item.postIds));
+
                         const otherPostAuthorId = iterableFind(
                             item.postAuthorIds,
                             accountId => accountId !== item.latestPost.authorId,
                         );
 
-                        const [
-                            channelResult,
-                            latestPostAuthor,
-                            latestPostContentSnippetReferences,
-                            otherPostAuthor,
-                        ] = await runAllPromises([
-                            getChannelPreviewIfPossible(context, item.channelId),
-                            getAccount(context, item.spaceId, item.latestPost.authorId),
-                            getContentReferencesForNode(
-                                context,
-                                item.spaceId,
-                                FilePostAuthorizer.bind({
-                                    type: "Post",
-                                    // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
-                                    // this date. So if we have a channel posts entry where `postId` is null then
-                                    // use the first post in `item.postIds` and hope it's right. Getting this wrong
-                                    // shouldn't matter since posts created before this date also won't have
-                                    // attached files since files weren't implemented yet.
-                                    postId:
-                                        item.latestPost.postId ??
-                                        assertExists(iterableFirst(item.postIds)),
-                                }),
-                                item.latestPost.contentSnippet,
-                            ),
-                            otherPostAuthorId
-                                ? getAccount(context, item.spaceId, otherPostAuthorId)
-                                : null,
-                        ]);
-
-                        // Channel must exist if we have a `ChannelPostsEntry` in our inbox.
-                        assert(channelResult);
+                        const [latestPostAuthor, otherPostAuthor, postResult] =
+                            await runAllPromises([
+                                getAccount(context, item.spaceId, item.latestPost.authorId),
+                                otherPostAuthorId
+                                    ? getAccount(context, item.spaceId, otherPostAuthorId)
+                                    : null,
+                                getPostContentWithCustomReferencesAndChannelPreviewIfPossible(
+                                    context,
+                                    latestPostId,
+                                    async (context, spaceId, post) => {
+                                        const [author, contentTextSnippet] = await runAllPromises([
+                                            getAccount(context, spaceId, post.authorId),
+                                            printNotificationPostContentSnippet(
+                                                context,
+                                                spaceId,
+                                                latestPostId,
+                                                post.content,
+                                            ),
+                                        ]);
+                                        return {author, contentTextSnippet};
+                                    },
+                                ),
+                            ]);
 
                         return new InboxChannelPostsEntryModel({
                             spaceId: item.spaceId,
                             accountId: item.accountId,
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
-                            channel: channelResult.value
-                                ? {isPrivate: false, channel: channelResult.value}
+                            channel: postResult.value
+                                ? {isPrivate: false, channel: postResult.value.channel}
                                 : {isPrivate: true, channelId: item.channelId},
                             bucketGeneration: item.bucketGeneration,
                             postAuthorCount: item.postAuthorIds.size,
@@ -1032,12 +1086,8 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             latestPost: {
                                 author: latestPostAuthor,
                                 createdTime: item.latestPost.createdTime,
-                                contentTextSnippet: channelResult.ok
-                                    ? printContentSingleLineTextSnippetForServer({
-                                          doc: item.latestPost.contentSnippet,
-                                          references: latestPostContentSnippetReferences,
-                                      })
-                                    : "",
+                                contentTextSnippet:
+                                    postResult.value?.content.contentTextSnippet ?? "",
                             },
                             otherPostAuthor,
                         });
@@ -1051,20 +1101,32 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             documentResult,
                             firstCommentAuthor,
                             latestCommentAuthor,
-                            latestCommentContentSnippetReferences,
                             otherCommentAuthor,
+                            contentTextSnippetResult,
                         ] = await runAllPromises([
                             getDocumentPreviewIfPossible(context, item.documentId),
                             getAccount(context, item.spaceId, item.firstCommentAuthorId),
                             getAccount(context, item.spaceId, item.latestComment.authorId),
-                            getMessageContentReferencesForNode(
-                                context,
-                                item.spaceId,
-                                item.latestComment.contentSnippet,
-                            ),
                             item.otherCommentAuthorId
                                 ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
                                 : null,
+
+                            // Don't throw if actor lost access to document (which we check earlier with
+                            // `getDocumentPreviewIfPossible()`).
+                            captureResultPromise(
+                                getDocumentCommentPayload(context, {
+                                    documentId: item.documentId,
+                                    commentThreadId: item.commentThreadId,
+                                    commentIndex: item.latestComment.index,
+                                }).then(message =>
+                                    printNotificationMessageContentSnippet(
+                                        context,
+                                        item.spaceId,
+                                        message,
+                                        "comment",
+                                    ),
+                                ),
+                            ),
                         ]);
 
                         // The document referenced by our inbox entry must exist. Even after deleting
@@ -1094,10 +1156,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       // We continue returning the author, created time, and whether the last comment
                                       // was a mention because the user has already theoretically seen these things
                                       // (via push notification) and otherwise the notification loses all structure.
-                                      printContentSingleLineTextSnippetForServer({
-                                          doc: item.latestComment.contentSnippet,
-                                          references: latestCommentContentSnippetReferences,
-                                      })
+                                      unwrapResult(contentTextSnippetResult)
                                     : "",
                                 isStickyMention: item.latestComment.isStickyMention,
                             },
@@ -1117,18 +1176,32 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         const [
                             documentResult,
                             firstCommentThreadAuthor,
-                            firstCommentThreadContentSnippetReferences,
                             otherCommentThreadAuthor,
+                            contentTextSnippetResult,
                         ] = await runAllPromises([
                             getDocumentPreviewIfPossible(context, item.documentId),
                             getAccount(context, item.spaceId, item.firstCommentThread.authorId),
-                            getMessageContentReferencesForNode(
-                                context,
-                                item.spaceId,
-                                item.firstCommentThread.contentSnippet,
-                            ),
                             otherCommentThreadAuthorId
                                 ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
+                                : null,
+
+                            // Don't throw if actor lost access to document (which we check earlier with
+                            // `getDocumentPreviewIfPossible()`).
+                            item.firstCommentThread.commentThreadId
+                                ? captureResultPromise(
+                                      getDocumentCommentPayload(context, {
+                                          documentId: item.documentId,
+                                          commentThreadId: item.firstCommentThread.commentThreadId,
+                                          commentIndex: 0,
+                                      }).then(message =>
+                                          printNotificationMessageContentSnippet(
+                                              context,
+                                              item.spaceId,
+                                              message,
+                                              "comment",
+                                          ),
+                                      ),
+                                  )
                                 : null,
                         ]);
 
@@ -1158,21 +1231,19 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             firstCommentThread: {
                                 author: firstCommentThreadAuthor,
                                 createdTime: item.firstCommentThread.createdTime,
-                                contentTextSnippet: documentResult.ok
-                                    ? // If the actor lost access to the document then don't show them the latest
-                                      // comment snippet. They may have already seen this content in a push
-                                      // notification so it's not necessarily a permissions violation to show it
-                                      // again but a user removing another user's access from a document would
-                                      // probably expect the content to be hidden.
-                                      //
-                                      // We continue returning the author, created time, and whether the last comment
-                                      // was a mention because the user has already theoretically seen these things
-                                      // (via push notification) and otherwise the notification loses all structure.
-                                      printContentSingleLineTextSnippetForServer({
-                                          doc: item.firstCommentThread.contentSnippet,
-                                          references: firstCommentThreadContentSnippetReferences,
-                                      })
-                                    : "",
+                                contentTextSnippet:
+                                    documentResult.ok && contentTextSnippetResult
+                                        ? // If the actor lost access to the document then don't show them the latest
+                                          // comment snippet. They may have already seen this content in a push
+                                          // notification so it's not necessarily a permissions violation to show it
+                                          // again but a user removing another user's access from a document would
+                                          // probably expect the content to be hidden.
+                                          //
+                                          // We continue returning the author, created time, and whether the last comment
+                                          // was a mention because the user has already theoretically seen these things
+                                          // (via push notification) and otherwise the notification loses all structure.
+                                          unwrapResult(contentTextSnippetResult)
+                                        : "",
                             },
                             otherCommentThreadAuthor,
                         });
@@ -1185,26 +1256,34 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             TaskEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
-                        const [taskOwnerResult, latestComment, otherCommentAuthor] =
-                            await runAllPromises([
-                                getTaskOwnerIfPossible(context, item.taskId),
-                                runAllObjectPromises({
-                                    comment: item.latestComment,
-                                    author: getAccount(
+                        const [
+                            taskOwnerResult,
+                            latestCommentAuthor,
+                            otherCommentAuthor,
+                            contentTextSnippetResult,
+                        ] = await runAllPromises([
+                            getTaskOwnerIfPossible(context, item.taskId),
+                            getAccount(context, item.spaceId, item.latestComment.authorId),
+                            item.otherCommentAuthorId
+                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                : null,
+
+                            // Don't throw if actor lost access to document (which we check earlier with
+                            // `getTaskOwnerIfPossible()`).
+                            captureResultPromise(
+                                getTaskCommentPayload(context, {
+                                    taskId: item.taskId,
+                                    commentIndex: item.latestComment.index,
+                                }).then(message =>
+                                    printNotificationMessageContentSnippet(
                                         context,
                                         item.spaceId,
-                                        item.latestComment.authorId,
+                                        message,
+                                        "comment",
                                     ),
-                                    references: getMessageContentReferencesForNode(
-                                        context,
-                                        item.spaceId,
-                                        item.latestComment.contentSnippet,
-                                    ),
-                                }),
-                                item.otherCommentAuthorId
-                                    ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                                    : null,
-                            ]);
+                                ),
+                            ),
+                        ]);
 
                         return new InboxTaskEntryModel({
                             spaceId: item.spaceId,
@@ -1219,8 +1298,8 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
                             latestComment: {
-                                author: latestComment.author,
-                                createdTime: latestComment.comment.createdTime,
+                                author: latestCommentAuthor,
+                                createdTime: item.latestComment.createdTime,
                                 contentTextSnippet: taskOwnerResult.ok
                                     ? // If the actor lost access to the task then don't show them the latest
                                       // comment snippet. They may have already seen this content in a push
@@ -1231,12 +1310,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       // We continue returning the author, created time, and whether the last comment
                                       // was a mention because the user has already theoretically seen these things
                                       // (via push notification) and otherwise the notification loses all structure.
-                                      printContentSingleLineTextSnippetForServer({
-                                          doc: latestComment.comment.contentSnippet,
-                                          references: latestComment.references,
-                                      })
+                                      unwrapResult(contentTextSnippetResult)
                                     : "",
-                                isStickyMention: latestComment.comment.isStickyMention,
+                                isStickyMention: item.latestComment.isStickyMention,
                             },
                             otherCommentAuthor,
                         });
@@ -1429,4 +1505,84 @@ function protectInboxEntryModelBuilder<Value>(
         default:
             throw exhaustive(context.actor);
     }
+}
+
+function getNotificationMessageContentSnippetFromMessage(
+    messageNoun: string,
+    message: {
+        payload: MessagePayload;
+        stream: MessageStream | null;
+    },
+): MessageContent {
+    switch (message.payload.type) {
+        case "Deleted": {
+            return createSimpleMessageContent(`Deleted ${messageNoun}`);
+        }
+        case "Content": {
+            const content: Array<Node> = [];
+
+            if (!isContentEmpty(message.payload.content)) {
+                for (const node of message.payload.content.content.content) {
+                    content.push(node);
+                }
+            }
+
+            if (message.stream) {
+                for (const part of message.stream.parts) {
+                    if (part.payload.type !== "Content") continue;
+
+                    for (const node of part.payload.content.content.content) {
+                        content.push(node);
+                    }
+                }
+            }
+
+            return getNotificationMessageContentSnippet(
+                assertMessageContent(
+                    assertExists(
+                        MessageContentProsemirrorSchema.nodes.doc.createAndFill({}, content),
+                    ),
+                ),
+            );
+        }
+        default:
+            throw exhaustive(message.payload);
+    }
+}
+
+async function printNotificationMessageContentSnippet(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    message: MessageItem,
+    messageNoun: string,
+) {
+    const doc = getNotificationMessageContentSnippetFromMessage(messageNoun, message);
+
+    const references = await getMessageContentReferencesForNode(context, spaceId, doc);
+
+    return printContentSingleLineTextSnippetForServer({
+        doc,
+        references,
+    });
+}
+
+async function printNotificationPostContentSnippet(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    postId: PostId,
+    content: PostContent,
+) {
+    const doc = getNotificationPostContentSnippet(content);
+
+    const references = await getContentReferencesForNode(
+        context,
+        spaceId,
+        FilePostAuthorizer.bind({type: "Post", postId: postId}),
+        doc,
+    );
+
+    return printContentSingleLineTextSnippetForServer({
+        doc,
+        references,
+    });
 }

@@ -14,7 +14,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export const processNotificationCreateTaskCommentEvent = createNotificationEventProcessor<
     NotificationCreateTaskCommentEvent,
@@ -85,7 +84,6 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
                     index: number;
                     authorId: AccountId;
                     createdTime: Date;
-                    contentSnippet: MessageContent;
                     isStickyMention: boolean;
                 };
                 let otherCommentAuthorId: AccountId | null;
@@ -111,7 +109,6 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
                         index: event.commentIndex,
                         authorId: event.authorId,
                         createdTime: event.createdTime,
-                        contentSnippet: event.contentSnippet,
                         isStickyMention: isMention,
                     };
 

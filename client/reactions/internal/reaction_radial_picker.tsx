@@ -110,6 +110,18 @@ function ReactionRadialPicker(
         [currentAccount.id, currentAccountData.reactionCharacter],
     );
 
+    const missingCurrentAccountReaction: Reaction | null = useMemo(
+        () =>
+            currentAccountReaction &&
+            currentAccountReaction !== "GenericLike" &&
+            reactionRadialPickerIconEmotions.every(
+                emotion => !areReactionsEqual(currentAccountReaction, {character, emotion}),
+            )
+                ? currentAccountReaction
+                : null,
+        [character, currentAccountReaction],
+    );
+
     const circleContainerRef = useRef<HTMLDivElement>(null);
     const circleRef = useRef<HTMLDivElement>(null);
     const circleContentsRef = useRef<HTMLDivElement>(null);
@@ -274,7 +286,10 @@ function ReactionRadialPicker(
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                const reaction: Reaction = {character, emotion};
+                const reaction: Reaction =
+                    missingCurrentAccountReaction && emotionIndex === 0
+                        ? missingCurrentAccountReaction
+                        : {character, emotion};
 
                 if (areReactionsEqual(reaction, currentAccountReaction)) {
                     onDeleteReaction();
@@ -289,6 +304,7 @@ function ReactionRadialPicker(
         character,
         currentAccountReaction,
         isMouseDownFromOverlayOpen,
+        missingCurrentAccountReaction,
         onCloseWithAnimation,
         onDeleteReaction,
         onOpenMegaPicker,
@@ -369,7 +385,10 @@ function ReactionRadialPicker(
                                     activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
                                 const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
 
-                                const reaction: Reaction = {character, emotion};
+                                const reaction: Reaction =
+                                    missingCurrentAccountReaction && emotionIndex === 0
+                                        ? missingCurrentAccountReaction
+                                        : {character, emotion};
 
                                 if (areReactionsEqual(reaction, currentAccountReaction)) {
                                     onDeleteReaction();
@@ -508,7 +527,11 @@ function ReactionRadialPicker(
                             // 4. This code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
                             const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
-                            const reaction = {character, emotion};
+
+                            const reaction =
+                                missingCurrentAccountReaction && emotionIndex === 0
+                                    ? missingCurrentAccountReaction
+                                    : {character, emotion};
 
                             const extraSelectionHighlightSize = "1.5";
 

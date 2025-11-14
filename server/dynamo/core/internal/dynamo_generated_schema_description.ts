@@ -8669,13 +8669,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                     },
                                                     "optional": false
                                                 },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "05d7837f"
-                                                    },
-                                                    "optional": false
-                                                },
                                                 "isStickyMention": {
                                                     "valueSchema": {
                                                         "type": "Boolean"
@@ -8762,13 +8755,9 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
-                                    "postContentSnippetIfMentioned": {
+                                    "isForPostContentMention": {
                                         "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Reference",
-                                                "reuseReferenceId": "19daf1e8"
-                                            }
+                                            "type": "Boolean"
                                         },
                                         "optional": true
                                     },
@@ -8793,13 +8782,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "createdTime": {
                                                         "valueSchema": {
                                                             "type": "Date"
-                                                        },
-                                                        "optional": false
-                                                    },
-                                                    "contentSnippet": {
-                                                        "valueSchema": {
-                                                            "type": "Reference",
-                                                            "reuseReferenceId": "05d7837f"
                                                         },
                                                         "optional": false
                                                     },
@@ -8931,13 +8913,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "type": "Date"
                                                     },
                                                     "optional": false
-                                                },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "19daf1e8"
-                                                    },
-                                                    "optional": false
                                                 }
                                             }
                                         },
@@ -9016,13 +8991,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "createdTime": {
                                                     "valueSchema": {
                                                         "type": "Date"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "05d7837f"
                                                     },
                                                     "optional": false
                                                 },
@@ -9153,13 +9121,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "type": "Date"
                                                     },
                                                     "optional": false
-                                                },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "05d7837f"
-                                                    },
-                                                    "optional": false
                                                 }
                                             }
                                         },
@@ -9235,13 +9196,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "createdTime": {
                                                     "valueSchema": {
                                                         "type": "Date"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "05d7837f"
                                                     },
                                                     "optional": false
                                                 },

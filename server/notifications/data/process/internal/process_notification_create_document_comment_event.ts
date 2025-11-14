@@ -28,7 +28,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 
 export const processNotificationCreateDocumentCommentEvent = createNotificationEventProcessor<
@@ -214,7 +213,6 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                 index: number;
                 authorId: AccountId;
                 createdTime: Date;
-                contentSnippet: MessageContent;
                 isStickyMention: boolean;
             };
             let otherCommentAuthorId: AccountId | null;
@@ -240,7 +238,6 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     index: event.commentIndex,
                     authorId: event.authorId,
                     createdTime: event.createdTime,
-                    contentSnippet: event.contentSnippet,
                     isStickyMention: isMention,
                 };
 

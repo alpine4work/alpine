@@ -36,14 +36,12 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
-import {
-    MessageItem,
-    processMessagesQuery,
-} from "~/server/messaging/helpers/process_messages_query.js";
+import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
+import {runMessagesQuery} from "~/server/messaging/helpers/run_messages_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -756,25 +754,21 @@ function sendChatMessageForAccount(
                     }
                     case "MessagesRange": {
                         const messageItems = await arrayFromAsyncIterable(
-                            processMessagesQuery(
-                                "Ascending",
-                                ChatTable.query(context, {
-                                    limit: "All",
-                                    partitionKey: {
-                                        partitionType: "Chat",
-                                        chatId,
-                                    },
-                                    startSortKey: {
-                                        sortRangeType: "Messages",
-                                        messageIndex: parent.startIndex,
-                                    },
-                                    endSortKey: {
-                                        sortRangeType: "Messages#StreamPart",
-                                        messageIndex: parent.endIndex,
-                                        partIndex: Number.MAX_SAFE_INTEGER,
-                                    },
-                                }),
-                            ),
+                            runMessagesQuery(context, {
+                                cache: ChatMessageItemContextCache,
+                                cacheKeyPrefix: chatId,
+                                consistency,
+                                startIndex: parent.startIndex,
+                                endIndex: parent.endIndex,
+                                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                    ChatTable.query(context, {
+                                        consistency,
+                                        limit,
+                                        partitionKey: {partitionType: "Chat", chatId},
+                                        startSortKey,
+                                        endSortKey,
+                                    }),
+                            }),
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, messageItems);
@@ -1885,6 +1879,15 @@ export async function getChatAccountIdsForBotScope(
     return chatItem.accountItems.map(({accountId}) => accountId);
 }
 
+const ChatMessageItemContextCache = new DynamoContextCache<
+    `${ChatId}:${number}`,
+    MessageItem | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
 async function getChatMessageItemIfExists(
     context: ServerActionContext,
     chatId: ChatId,
@@ -1892,26 +1895,21 @@ async function getChatMessageItemIfExists(
     {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<MessageItem | null> {
     const items = await arrayFromAsyncIterable(
-        processMessagesQuery(
-            "Ascending",
-            ChatTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages#StreamPart",
-                    messageIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runMessagesQuery(context, {
+            cache: ChatMessageItemContextCache,
+            cacheKeyPrefix: chatId,
+            consistency,
+            startIndex: messageIndex,
+            endIndex: messageIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                ChatTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {partitionType: "Chat", chatId},
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     assert(items.length <= 1);
@@ -2482,26 +2480,21 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
     );
 
     const messageItems = await arrayFromAsyncIterable(
-        processMessagesQuery(
-            "Ascending",
-            ChatTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Messages",
-                    messageIndex: queryStartMessageIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Messages#StreamPart",
-                    messageIndex: queryEndMessageIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runMessagesQuery(context, {
+            cache: ChatMessageItemContextCache,
+            cacheKeyPrefix: chatId,
+            consistency,
+            startIndex: queryStartMessageIndex,
+            endIndex: queryEndMessageIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                ChatTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {partitionType: "Chat", chatId},
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
@@ -2612,26 +2605,21 @@ export async function getChatMessagePayloadsFromStart(
     const [chatItem, messageItems] = await runAllPromises([
         authorizeChatAccessAndReturnItem(context, chatId, {consistency}),
         arrayFromAsyncIterable(
-            processMessagesQuery(
-                "Ascending",
-                ChatTable.query(context, {
-                    limit: "All",
-                    consistency,
-                    partitionKey: {
-                        partitionType: "Chat",
-                        chatId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Messages",
-                        messageIndex: queryStartMessageIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Messages#StreamPart",
-                        messageIndex: queryEndMessageIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runMessagesQuery(context, {
+                cache: ChatMessageItemContextCache,
+                cacheKeyPrefix: chatId,
+                consistency,
+                startIndex: queryStartMessageIndex,
+                endIndex: queryEndMessageIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    ChatTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {partitionType: "Chat", chatId},
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
 
@@ -2735,35 +2723,28 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
 
     const messageItems = await arrayFromAsyncIterable(
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
-            ? processMessagesQuery(
-                  "Descending",
-                  ChatTable.query(context, {
-                      limit: "All",
-                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                      // at the end instead of start.
-                      descending: true,
-                      partitionKey: {
-                          partitionType: "Chat",
-                          chatId,
-                      },
-                      startSortKey: {
-                          sortRangeType: "Messages",
-                          messageIndex: queryStartMessageIndex,
-                      },
-                      endSortKey: {
-                          sortRangeType: "Messages#StreamPart",
-                          messageIndex: queryEndMessageIndex,
-                          partIndex: Number.MAX_SAFE_INTEGER,
-                      },
-                  }),
-              )
+            ? runMessagesQuery(context, {
+                  cache: ChatMessageItemContextCache,
+                  cacheKeyPrefix: chatId,
+                  consistency: undefined,
+                  startIndex: queryStartMessageIndex,
+                  endIndex: queryEndMessageIndex,
+                  query: ({consistency, limit, startSortKey, endSortKey}) =>
+                      ChatTable.query(context, {
+                          consistency,
+                          limit,
+                          partitionKey: {partitionType: "Chat", chatId},
+                          startSortKey,
+                          endSortKey,
+                      }),
+              })
             : (async function* () {})(),
     );
 
     if (messageItems.length === 0) return {messages: [], otherReferencedMessages: []};
 
-    const endMessageIndex = messageItems[0]!.index;
-    const startMessageIndex = messageItems[messageItems.length - 1]!.index;
+    const startMessageIndex = messageItems[0]!.index;
+    const endMessageIndex = messageItems[messageItems.length - 1]!.index;
 
     const {spaceId} = await chatItemPromise;
 
@@ -2820,9 +2801,6 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
         await runAllPromises(promises);
     }
 
-    // We queried in descending order so put comments back in the right order.
-    messages.reverse();
-
     return {
         messages,
         otherReferencedMessages: otherReferencedMessages.sort(
@@ -2874,34 +2852,23 @@ export async function getChatMessagePayloadsFromEnd(
     const [chatItem, messageItems] = await runAllPromises([
         chatItemPromise,
         arrayFromAsyncIterable(
-            processMessagesQuery(
-                "Descending",
-                ChatTable.query(context, {
-                    limit: "All",
-                    // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                    // at the end instead of start.
-                    descending: true,
-                    consistency,
-                    partitionKey: {
-                        partitionType: "Chat",
-                        chatId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Messages",
-                        messageIndex: queryStartMessageIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Messages#StreamPart",
-                        messageIndex: queryEndMessageIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runMessagesQuery(context, {
+                cache: ChatMessageItemContextCache,
+                cacheKeyPrefix: chatId,
+                consistency,
+                startIndex: queryStartMessageIndex,
+                endIndex: queryEndMessageIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    ChatTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {partitionType: "Chat", chatId},
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
-
-    // Reverse the order of messages since we queried them in descending order.
-    messageItems.reverse();
 
     const lastMessageIndex =
         messageItems.length > 0 ? messageItems[messageItems.length - 1]!.index : -1;

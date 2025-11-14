@@ -16,7 +16,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadClerical} from "~/shared/messaging/message_schema.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 
@@ -129,7 +128,6 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     index: number;
                     authorId: AccountId;
                     createdTime: Date;
-                    contentSnippet: MessageContent;
                     isStickyMention: boolean;
                     clerical?: MessageContentPayloadClerical;
                 };
@@ -156,7 +154,6 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                         index: event.messageIndex,
                         authorId: event.authorId,
                         createdTime: event.createdTime,
-                        contentSnippet: event.contentSnippet,
                         isStickyMention: isMention,
                         clerical: event.clerical,
                     };

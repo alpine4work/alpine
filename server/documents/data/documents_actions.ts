@@ -47,12 +47,12 @@ import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
-import {processCommentsQuery} from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     messagingEventExpirationDays,
     runBackfillMessageUpdates,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
+import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {
@@ -4471,26 +4471,25 @@ export async function createDocumentComment(
                     }
                     case "MessagesRange": {
                         const commentItems = await arrayFromAsyncIterable(
-                            processCommentsQuery(
-                                "Ascending",
-                                DocumentsTable.query(context, {
-                                    limit: "All",
-                                    partitionKey: {
-                                        partitionType: "DocumentCommentThread",
-                                        documentId,
-                                        commentThreadId,
-                                    },
-                                    startSortKey: {
-                                        sortRangeType: "Comments",
-                                        commentIndex: parent.startIndex,
-                                    },
-                                    endSortKey: {
-                                        sortRangeType: "Comments#StreamPart",
-                                        commentIndex: parent.endIndex,
-                                        partIndex: Number.MAX_SAFE_INTEGER,
-                                    },
-                                }),
-                            ),
+                            runCommentsQuery(context, {
+                                cache: DocumentCommentItemContextCache,
+                                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                                consistency,
+                                startIndex: parent.startIndex,
+                                endIndex: parent.endIndex,
+                                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                                    DocumentsTable.query(context, {
+                                        consistency,
+                                        limit,
+                                        partitionKey: {
+                                            partitionType: "DocumentCommentThread",
+                                            documentId,
+                                            commentThreadId,
+                                        },
+                                        startSortKey,
+                                        endSortKey,
+                                    }),
+                            }),
                         );
 
                         validateMessageContentPayloadMessagesRangeParent(parent, commentItems);
@@ -5061,6 +5060,15 @@ export async function getDocumentCommentAuthorId(
     return commentItem.authorId;
 }
 
+const DocumentCommentItemContextCache = new DynamoContextCache<
+    `${DocumentId}-${DocumentCommentThreadId}:${number}`,
+    MessageItem | null
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
+});
+
 async function getDocumentCommentItemIfExistsWithoutAuthorization(
     context: ServerActionContext,
     documentId: DocumentId,
@@ -5069,27 +5077,25 @@ async function getDocumentCommentItemIfExistsWithoutAuthorization(
     {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<MessageItem | null> {
     const items = await arrayFromAsyncIterable(
-        processCommentsQuery(
-            "Ascending",
-            DocumentsTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "DocumentCommentThread",
-                    documentId,
-                    commentThreadId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments#StreamPart",
-                    commentIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runCommentsQuery(context, {
+            cache: DocumentCommentItemContextCache,
+            cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+            consistency,
+            startIndex: commentIndex,
+            endIndex: commentIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                DocumentsTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {
+                        partitionType: "DocumentCommentThread",
+                        documentId,
+                        commentThreadId,
+                    },
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     assert(items.length <= 1);
@@ -5863,27 +5869,25 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     );
 
     const commentItems = await arrayFromAsyncIterable(
-        processCommentsQuery(
-            "Ascending",
-            DocumentsTable.query(context, {
-                limit: "All",
-                consistency,
-                partitionKey: {
-                    partitionType: "DocumentCommentThread",
-                    documentId,
-                    commentThreadId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: queryStartCommentIndex,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments#StreamPart",
-                    commentIndex: queryEndCommentIndex,
-                    partIndex: Number.MAX_SAFE_INTEGER,
-                },
-            }),
-        ),
+        runCommentsQuery(context, {
+            cache: DocumentCommentItemContextCache,
+            cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+            consistency,
+            startIndex: queryStartCommentIndex,
+            endIndex: queryEndCommentIndex,
+            query: ({consistency, limit, startSortKey, endSortKey}) =>
+                DocumentsTable.query(context, {
+                    consistency,
+                    limit,
+                    partitionKey: {
+                        partitionType: "DocumentCommentThread",
+                        documentId,
+                        commentThreadId,
+                    },
+                    startSortKey,
+                    endSortKey,
+                }),
+        }),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
@@ -6016,27 +6020,25 @@ export async function getDocumentCommentPayloadsFromStart(
             consistency,
         }),
         arrayFromAsyncIterable(
-            processCommentsQuery(
-                "Ascending",
-                DocumentsTable.query(context, {
-                    limit: "All",
-                    consistency,
-                    partitionKey: {
-                        partitionType: "DocumentCommentThread",
-                        documentId,
-                        commentThreadId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Comments",
-                        commentIndex: queryStartCommentIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Comments#StreamPart",
-                        commentIndex: queryEndCommentIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runCommentsQuery(context, {
+                cache: DocumentCommentItemContextCache,
+                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                consistency,
+                startIndex: queryStartCommentIndex,
+                endIndex: queryEndCommentIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    DocumentsTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {
+                            partitionType: "DocumentCommentThread",
+                            documentId,
+                            commentThreadId,
+                        },
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
 
@@ -6159,36 +6161,32 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-            ? processCommentsQuery(
-                  "Descending",
-                  DocumentsTable.query(context, {
-                      limit: "All",
-                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                      // at the end instead of start.
-                      descending: true,
-                      partitionKey: {
-                          partitionType: "DocumentCommentThread",
-                          documentId,
-                          commentThreadId,
-                      },
-                      startSortKey: {
-                          sortRangeType: "Comments",
-                          commentIndex: queryStartCommentIndex,
-                      },
-                      endSortKey: {
-                          sortRangeType: "Comments#StreamPart",
-                          commentIndex: queryEndCommentIndex,
-                          partIndex: Number.MAX_SAFE_INTEGER,
-                      },
-                  }),
-              )
+            ? runCommentsQuery(context, {
+                  cache: DocumentCommentItemContextCache,
+                  cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                  consistency: undefined,
+                  startIndex: queryStartCommentIndex,
+                  endIndex: queryEndCommentIndex,
+                  query: ({consistency, limit, startSortKey, endSortKey}) =>
+                      DocumentsTable.query(context, {
+                          consistency,
+                          limit,
+                          partitionKey: {
+                              partitionType: "DocumentCommentThread",
+                              documentId,
+                              commentThreadId,
+                          },
+                          startSortKey,
+                          endSortKey,
+                      }),
+              })
             : (async function* () {})(),
     );
 
     if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-    const endCommentIndex = commentItems[0]!.index;
-    const startCommentIndex = commentItems[commentItems.length - 1]!.index;
+    const startCommentIndex = commentItems[0]!.index;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.index;
 
     const {spaceId} = await authorizationPromise;
 
@@ -6262,9 +6260,6 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
         await runAllPromises(promises);
     }
 
-    // We queried in descending order so put comments back in the right order.
-    comments.reverse();
-
     return {
         comments,
         otherReferencedComments: otherReferencedComments.sort(
@@ -6322,36 +6317,30 @@ export async function getDocumentCommentPayloadsFromEnd(
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
         commentThreadItemPromise,
         arrayFromAsyncIterable(
-            processCommentsQuery(
-                "Descending",
-                DocumentsTable.query(context, {
-                    limit: "All",
-                    descending: true,
-                    consistency,
-                    partitionKey: {
-                        partitionType: "DocumentCommentThread",
-                        documentId,
-                        commentThreadId,
-                    },
-                    startSortKey: {
-                        sortRangeType: "Comments",
-                        commentIndex: queryStartCommentIndex,
-                    },
-                    endSortKey: {
-                        sortRangeType: "Comments#StreamPart",
-                        commentIndex: queryEndCommentIndex,
-                        partIndex: Number.MAX_SAFE_INTEGER,
-                    },
-                }),
-            ),
+            runCommentsQuery(context, {
+                cache: DocumentCommentItemContextCache,
+                cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                consistency,
+                startIndex: queryStartCommentIndex,
+                endIndex: queryEndCommentIndex,
+                query: ({consistency, limit, startSortKey, endSortKey}) =>
+                    DocumentsTable.query(context, {
+                        consistency,
+                        limit,
+                        partitionKey: {
+                            partitionType: "DocumentCommentThread",
+                            documentId,
+                            commentThreadId,
+                        },
+                        startSortKey,
+                        endSortKey,
+                    }),
+            }),
         ),
     ]);
 
     if (!commentThreadItem)
         throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
-
-    // We queried in descending order so put comments back in the right order.
-    comments.reverse();
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 

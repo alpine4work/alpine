@@ -7,7 +7,7 @@ import {
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
 
-type MessageQueryItem = {
+export type MessageQueryItem = {
     readonly sortRangeType: "Messages";
     readonly messageIndex: number;
     readonly createdTime: Date;
@@ -17,14 +17,14 @@ type MessageQueryItem = {
     readonly updateLockVersion?: number;
 };
 
-type MessageQueryStreamItem = {
+export type MessageQueryStreamItem = {
     readonly sortRangeType: "Messages#Stream";
     readonly messageIndex: number;
     readonly partCount: number;
     readonly completedTime: Date | null;
 };
 
-type MessageQueryStreamPartItem = {
+export type MessageQueryStreamPartItem = {
     readonly sortRangeType: "Messages#StreamPart";
     readonly messageIndex: number;
     readonly partIndex: number;
@@ -52,7 +52,6 @@ export type MessageItem = {
  * instead of "message" where appropriate.
  */
 export async function* processMessagesQuery(
-    direction: "Ascending" | "Descending",
     iterable: AsyncIterable<MessageQueryItem | MessageQueryStreamItem | MessageQueryStreamPartItem>,
 ): AsyncIterableIterator<MessageItem> {
     let currentItem: MessageQueryItem | null = null;
@@ -91,12 +90,6 @@ export async function* processMessagesQuery(
                     createdTime: partItem.createdTime,
                 })) ?? [];
 
-            // Since we queried in descending order, we need to reverse the parts to put
-            // them in the right order.
-            if (direction === "Descending") {
-                parts.reverse();
-            }
-
             if (parts.length !== currentStreamItem.partCount) {
                 throw new DataLossError("Stream part item count mismatch");
             }
@@ -127,17 +120,10 @@ export async function* processMessagesQuery(
     for await (const item of iterable) {
         switch (item.sortRangeType) {
             case "Messages": {
-                if (direction === "Descending") {
-                    currentItem = item;
+                const message = yieldCurrentItem();
+                if (message !== null) yield message;
 
-                    const message = yieldCurrentItem();
-                    if (message !== null) yield message;
-                } else {
-                    const message = yieldCurrentItem();
-                    if (message !== null) yield message;
-
-                    currentItem = item;
-                }
+                currentItem = item;
                 break;
             }
             case "Messages#Stream": {

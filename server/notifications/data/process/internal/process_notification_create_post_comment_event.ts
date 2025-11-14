@@ -20,7 +20,6 @@ import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export const processNotificationCreatePostCommentEvent = createNotificationEventProcessor<
     NotificationCreatePostCommentEvent,
@@ -91,7 +90,6 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                 index: number;
                 authorId: AccountId;
                 createdTime: Date;
-                contentSnippet: MessageContent;
                 isStickyMention: boolean;
             };
             let otherCommentAuthorId: AccountId | null;
@@ -117,7 +115,6 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                     index: event.commentIndex,
                     authorId: event.authorId,
                     createdTime: event.createdTime,
-                    contentSnippet: event.contentSnippet,
                     isStickyMention: isMention,
                 };
 
@@ -138,16 +135,16 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
 
             // If the new comment moves our entry out of the archive, unset the post
             // comment snippet.
-            const postContentSnippetIfMentioned =
+            const isForPostContentMention =
                 oldItem?.isArchived && !isArchived
-                    ? null
-                    : oldItem?.postContentSnippetIfMentioned ?? null;
+                    ? false
+                    : oldItem?.isForPostContentMention ?? false;
 
             return {
                 isArchived,
                 loudNotificationCount,
                 postCreatedTime,
-                postContentSnippetIfMentioned,
+                isForPostContentMention,
                 latestComment:
                     isArchived && latestComment.isStickyMention
                         ? {...latestComment, isStickyMention: false}
