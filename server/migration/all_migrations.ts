@@ -12,6 +12,7 @@ import {
     runIndexPostAndChannelSearchEntitiesMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
+import {runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries} from "~/server/notifications/data/run_update_all_inbox_channel_posts_and_document_new_comment_threads_entries.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {runFavoriteTaskPersonalSearchEntityMigration} from "~/server/search/data/table/search_entity_actions.js";
 import {
@@ -49,4 +50,6 @@ export const allMigrations: {
     IndexEveryTaskActionStep1Of2: runIndexEveryTaskActionStep1Of2,
     IndexEveryTaskActionStep2Of2: runIndexEveryTaskActionStep2Of2,
     BackfillAccountEmailCreationTime: runBackfillAccountEmailCreationTimeMigration,
+    UpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries:
+        runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,
 };

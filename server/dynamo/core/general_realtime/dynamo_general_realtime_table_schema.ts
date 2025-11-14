@@ -1051,6 +1051,34 @@ export class DynamoGeneralRealtimeTableSchema<
             >
         >;
     }> {
+        const action = await this._directlyUpdateItem(context, newItem);
+
+        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
+
+        return {getEvent: action.getEvent};
+    }
+
+    /**
+     * Same as `directlyUpdateItem()` but we don't send a realtime event to
+     * clients. Only use this if your update has no visible impact on the item! So
+     * clients won't care if the event is missed. Useful for database migrations.
+     */
+    public async dangerouslyDirectlyUpdateItemWithoutEvent<Item extends Types["Item"]>(
+        context: DynamoContext,
+        newItem: DynamoItem<Item>,
+    ): Promise<void> {
+        await this._directlyUpdateItem(context, newItem);
+    }
+
+    private async _directlyUpdateItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        newItem: Item,
+    ): Promise<
+        DynamoGeneralRealtimePutItemAction<
+            Item & Types["ItemKey"],
+            ModelMap[Item["partitionType"]][Item["sortRangeType"]]
+        >
+    > {
         assert(
             newItem.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 newItem.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
@@ -1124,9 +1152,7 @@ export class DynamoGeneralRealtimeTableSchema<
             ]);
         }
 
-        context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
-
-        return {getEvent: action.getEvent};
+        return action;
     }
 
     /**
@@ -2605,8 +2631,8 @@ export class DynamoGeneralRealtimeTableSchema<
             totalSegmentCount?: number;
             filter?: Types["ItemType"] | Array<Types["ItemType"]>;
         } = {},
-    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"]>> {
-        for await (const item of this._table.expensiveScan(context, options)) {
+    ): AsyncIterableIterator<DynamoItem<MergeObjectIntersection<Types["Item"]>>> {
+        for await (const item of this._table._expensiveScanWithOldItems(context, options)) {
             if (item.partitionType === dynamoGeneralRealtimePrivateRealtimePartitionName) continue;
             if (item.partitionType === dynamoGeneralRealtimePrivateGraveyardPartitionName) continue;
             yield item;

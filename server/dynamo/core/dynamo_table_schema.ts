@@ -1138,13 +1138,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Also returns the `Schema` object for attributes of the key's sort range.
      */
-    private _deserializeItemKey(
+    private _deserializeItemKeyInto(
         partitionKey: string,
         sortKey: string,
-    ): {
-        key: Types["ItemKey"];
-        attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
-    } {
+        key: any,
+    ): DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"] {
         const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
         const sortKeyEntries = sortKey.split(dynamoKeySeparator);
 
@@ -1165,7 +1163,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         assert(sortKeyEntries[0] === sortRangeDescription.orderKey, "Invalid sort key");
 
-        const key: any = {partitionType};
+        key.partitionType = partitionType;
 
         let partitionKeyEntryIndex = 1;
 
@@ -1194,10 +1192,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         if (sortKeyEntryIndex === sortKeyEntries.length) {
-            return {
-                key,
-                attributesSchema: sortRangeConfig.attributes,
-            };
+            return sortRangeConfig.attributes;
         } else {
             const childSortRangeType = sortKeyEntries[sortKeyEntryIndex + 1];
             assert(childSortRangeType, "Invalid sort key");
@@ -1228,10 +1223,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             assert(sortKeyEntryIndex === sortKeyEntries.length, "Invalid sort key");
 
-            return {
-                key,
-                attributesSchema: childSortRangeConfig.attributes,
-            };
+            return childSortRangeConfig.attributes;
         }
     }
 
@@ -3647,12 +3639,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeItemKey(
+            const item: any = {};
+
+            const attributesSchema = this._deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
+                item,
             );
 
-            const item: any = key;
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
@@ -3787,15 +3781,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeItemKey(
-                serializedItem.partitionKey,
-                serializedItem.sortKey,
-            );
-
             // @ts-expect-error: `DynamoItem` has a private constructor but it's intended
             // to be used here.
             const item: any = new DynamoItem();
-            Object.assign(item, key);
+
+            const attributesSchema = this._deserializeItemKeyInto(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+                item,
+            );
+
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
@@ -3911,12 +3906,139 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             assert(typeof serializedItem.partitionKey === "string");
             assert(typeof serializedItem.sortKey === "string");
 
-            const {key, attributesSchema} = this._deserializeItemKey(
+            const item: any = {};
+
+            const attributesSchema = this._deserializeItemKeyInto(
                 serializedItem.partitionKey,
                 serializedItem.sortKey,
+                item,
             );
 
-            const item: any = key;
+            try {
+                attributesSchema.deserializeInto(serializedItem, item);
+            } catch (error) {
+                // Reclassify deserialization errors from data stored in the database as data
+                // loss errors. It means we have corrupt data stored in the database!
+                if (error instanceof SchemaDeserializationError) {
+                    throw new DataLossError(error.message, {cause: error});
+                }
+                throw error;
+            }
+
+            yield item;
+        }
+    }
+
+    /**
+     * Same as `expensiveScan()` except we return a `DynamoItem` object. Currently
+     * this is only used by `DynamoGeneralRealtimeTableSchema`. In the future,
+     * however, we may use `DynamoItem` for all `expensiveScan()` calls from
+     * `DynamoTableSchema` too! Since it's core feature (keeping track of
+     * `oldItem`) is useful for `directlyUpdateItem()` calls which need the old
+     * item's `updateLockVersion`.
+     */
+    public async *_expensiveScanWithOldItems(
+        context: DynamoContext,
+        {
+            limit,
+            consistency = "Eventual",
+            segmentIndex,
+            totalSegmentCount,
+            filter,
+        }: {
+            limit?: number;
+            consistency?: DynamoReadConsistency;
+            segmentIndex?: number;
+            totalSegmentCount?: number;
+            filter?: Types["ItemType"] | Array<Types["ItemType"]>;
+        } = {},
+    ): AsyncIterableIterator<DynamoItem<MergeObjectIntersection<Types["Item"]>>> {
+        const client = await this._getClient(context, false);
+
+        const filterCompilationContext = DynamoConditionExpressionCompilationContext.new();
+        let filterExpressionString: string | undefined;
+
+        if (filter) {
+            const filters = Array.isArray(filter) ? filter : [filter];
+
+            const filterExpressionStrings = filters.map(filter => {
+                assert(
+                    this._initializationState.isInitialized,
+                    "Schema has not finished initializing",
+                );
+
+                const partitionDescription =
+                    this._initializationState.description.partitionByType[filter.partitionType];
+                assert(partitionDescription, "Invalid partition");
+
+                // NOTE(calebmer): There's no reason we couldn't support a child sort range
+                // here. We just haven't needed it yet. To support we'd need to use the
+                // `contains(sortKey, childSortRangeType)` DynamoDB filter expression with the
+                // child sort range and we'd probably also need to double check the filter when
+                // iterating over items since `contains(sortKey, childSortRangeType)` might
+                // catch the sort range type in a string key attribute.
+                if (filter.sortRangeType.includes("#")) {
+                    throw new UnimplementedError(
+                        "Child sort range support isn’t implemented for filters in `expensiveScan()`",
+                    );
+                }
+
+                const sortRangeDescription =
+                    partitionDescription.sortRangeByType[filter.sortRangeType];
+                assert(sortRangeDescription, "Invalid sort range");
+
+                const hasSortKeyAttributes =
+                    Object.keys(sortRangeDescription.sortKeyAttributeByKey).length > 0;
+
+                const partitionTypeString = filterCompilationContext.addVariable(
+                    `${filter.partitionType}${dynamoKeySeparator}`,
+                );
+                const sortRangeTypeString = filterCompilationContext.addVariable(
+                    hasSortKeyAttributes
+                        ? `${sortRangeDescription.orderKey}${dynamoKeySeparator}${filter.sortRangeType}${dynamoKeySeparator}`
+                        : `${sortRangeDescription.orderKey}${dynamoKeySeparator}${filter.sortRangeType}`,
+                );
+
+                return `begins_with(partitionKey, ${partitionTypeString}) and ${
+                    hasSortKeyAttributes
+                        ? `begins_with(sortKey, ${sortRangeTypeString})`
+                        : `sortKey = ${sortRangeTypeString}`
+                }`;
+            });
+
+            filterExpressionString =
+                filterExpressionStrings.length !== 1
+                    ? filterExpressionStrings
+                          .map(filterExpressionString => `(${filterExpressionString})`)
+                          .join(" or ")
+                    : filterExpressionStrings[0]!;
+        }
+
+        const iterator = client.expensiveScan(context.tracer.getTracer(), {
+            tableName: this._name,
+            consistency,
+            limit,
+            segment: segmentIndex,
+            totalSegments: totalSegmentCount,
+            filterExpression: filterExpressionString,
+            expressionAttributeValues: new Map(filterCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(filterCompilationContext.iterateAttributeNames()),
+        });
+
+        for await (const serializedItem of iterator) {
+            assert(typeof serializedItem.partitionKey === "string");
+            assert(typeof serializedItem.sortKey === "string");
+
+            // @ts-expect-error: `DynamoItem` has a private constructor but it's intended
+            // to be used here.
+            const item: any = new DynamoItem();
+
+            const attributesSchema = this._deserializeItemKeyInto(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+                item,
+            );
+
             try {
                 attributesSchema.deserializeInto(serializedItem, item);
             } catch (error) {
@@ -4144,18 +4266,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     assert(typeof indexPartitionKey === "string");
                     assert(typeof indexSortKey === "string");
 
-                    const item: any = {
-                        ...schema._deserializeItemKey(
-                            serializedItem.partitionKey,
-                            serializedItem.sortKey,
-                        ).key,
-                        ...schema._deserializeIndexKey(
-                            indexConfig,
-                            indexDescription,
-                            indexPartitionKey,
-                            indexSortKey,
-                        ),
-                    };
+                    const item: any = {};
+
+                    schema._deserializeItemKeyInto(
+                        serializedItem.partitionKey,
+                        serializedItem.sortKey,
+                        item,
+                    );
+
+                    schema._deserializeIndexKeyInto(
+                        indexConfig,
+                        indexDescription,
+                        indexPartitionKey,
+                        indexSortKey,
+                        item,
+                    );
 
                     yield item;
                 }
@@ -4340,12 +4465,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     assert(typeof indexPartitionKey === "string");
                     assert(typeof indexSortKey === "string");
 
-                    const {key, attributesSchema} = schema._deserializeItemKey(
+                    const item: any = {};
+
+                    const attributesSchema = schema._deserializeItemKeyInto(
                         serializedItem.partitionKey,
                         serializedItem.sortKey,
+                        item,
                     );
 
-                    const item: any = key;
                     try {
                         attributesSchema.deserializeInto(serializedItem, item);
                     } catch (error) {
@@ -4357,14 +4484,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         throw error;
                     }
 
-                    Object.assign(
+                    schema._deserializeIndexKeyInto(
+                        indexConfig,
+                        indexDescription,
+                        indexPartitionKey,
+                        indexSortKey,
                         item,
-                        schema._deserializeIndexKey(
-                            indexConfig,
-                            indexDescription,
-                            indexPartitionKey,
-                            indexSortKey,
-                        ),
                     );
 
                     yield item;
@@ -4727,14 +4852,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return sortKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _deserializeIndexKey(
+    private _deserializeIndexKeyInto(
         indexConfig: DynamoTableSchemaIndexConfig,
         indexDescription: DynamoTableSchemaTypes.Index.Description,
         partitionKey: string,
         sortKey: string,
+        key: any,
     ) {
-        const key: any = {};
-
         // The main `partitionKey` should be deserialized by the caller to this function.
         if (indexDescription.partitionKeyBehavior.type !== "Reused") {
             const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
