@@ -87,13 +87,26 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
 
         // Jump to the start/end of content with cmd-up/down.
         if (getClientInfo().isAppleDevice ? event.metaKey : event.ctrlKey) {
-            view.dispatch(
-                view.state.tr
-                    .setSelection(
-                        dir < 0 ? Selection.atStart(state.doc) : Selection.atEnd(state.doc),
-                    )
-                    .scrollIntoView(),
-            );
+            let newSelection: Selection;
+
+            if (dir < 0) {
+                if (!event.shiftKey) {
+                    newSelection = Selection.atStart(state.doc);
+                } else {
+                    newSelection = TextSelection.between($head, state.doc.resolve(0));
+                }
+            } else {
+                if (!event.shiftKey) {
+                    newSelection = Selection.atEnd(state.doc);
+                } else {
+                    newSelection = TextSelection.between(
+                        $head,
+                        state.doc.resolve(state.doc.content.size),
+                    );
+                }
+            }
+
+            view.dispatch(view.state.tr.setSelection(newSelection).scrollIntoView());
             return true;
         }
 
