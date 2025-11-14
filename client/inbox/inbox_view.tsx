@@ -199,8 +199,8 @@ export function InboxView({
     );
 
     const navigation = useMemo(
-        (): InboxContextNavigation => ({nextEntry, previousEntry, selectEntry}),
-        [nextEntry, previousEntry, selectEntry],
+        (): InboxContextNavigation => ({filter, nextEntry, previousEntry, selectEntry}),
+        [filter, nextEntry, previousEntry, selectEntry],
     );
 
     return (

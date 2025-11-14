@@ -403,7 +403,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     // Optimistically archive these entries so we don't need to wait for
                     // realtime. The latency of which may be long since notification events are
                     // processed by a queue.
-                    inboxPeekContext?.onCreateMessageOptimistically(promise);
+                    inboxPeekContext?.onCreateMessageOptimistically(promise, fileAttachmentTarget);
 
                     await promise;
 
@@ -513,6 +513,10 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 isBottomBar={!isNotBottomBar}
                 data-testid={dataTestId}
                 withMobileMaxHeight={withMobileMaxHeight}
+                // Hide the top border if there are no messages. (For example, when we're
+                // replying to a post.) Then the message input top border conflicts with the
+                // `<PostContentView>` bottom border.
+                withoutParentBorderTop={messages.getMessageCountIncludingOptimisticMessages() === 0}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
                     onFocus?.();

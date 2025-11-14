@@ -13,6 +13,7 @@ export function useInboxBannerOutletContainer<Children extends ReactNode>(
         initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
         maxWidth: Spacing | "full";
         sidebarRightWidth?: Spacing;
+        withoutArchiveButton?: boolean;
     },
     children: Children,
 ): ReactElement | Children {

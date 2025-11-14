@@ -1216,16 +1216,33 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
     }
 
     /**
-     * Delete an item in the query if the item exists and is at the specified
-     * version.
+     * Delete an item in the query if the item exists.
      *
-     * If the item updates on the server to a new version it will appear back in
-     * the query. This function is designed to be used as an optimistic delete
-     * update. We expect the next update from the server to also delete the item.
+     * If the item updates on the server to a new version any optimistic updates
+     * will be completely overwritten. So the next update from the server should
+     * also reflect the optimistic update we've made here.
      */
-    public optimisticallyDeleteItemByKeyIfExistsAtVersion(
+    public optimisticallyDeleteItemByKeyIfExists(
         key: DynamoItemKey,
-        version: number,
+    ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
+        return this.optimisticallyUpdateItemByKeyIfExists(key, () => null);
+    }
+
+    /**
+     * Update an item in the query if the item exists.
+     *
+     * If `update` returns `null` then the item is deleted from the query. (Same
+     * behavior as `optimisticallyDeleteItemByKeyIfExists()`.)
+     *
+     * If the item updates on the server to a new version any optimistic updates
+     * will be completely overwritten. So the next update from the server should
+     * also reflect the optimistic update we've made here.
+     */
+    public optimisticallyUpdateItemByKeyIfExists(
+        key: DynamoItemKey,
+        update: (
+            item: DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null},
+        ) => (DynamoGeneralRealtimeItem<Model> & {readonly extra: Extra | null}) | null,
     ): DynamoGeneralRealtimeIndexQuery<Model, Extra> {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility) return this;
@@ -1237,26 +1254,33 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
             const iterator = itemByCursor.find(itemVisibility.cursor);
             assert(iterator.node);
 
-            // If the item is at a future version, don't do anything.
-            if (iterator.node.value.version > version) {
-                return this;
-            }
+            const newItem = update(iterator.node.value);
 
-            itemVisibilityByKey = itemVisibilityByKey.set(key, {
-                isVisible: false,
-                version: version + 1,
-            });
-            itemByCursor = iterator.remove();
-        } else {
-            // If the item is at a future version, don't do anything.
-            if (itemVisibility.version > version) {
-                return this;
+            if (newItem === null) {
+                itemVisibilityByKey = itemVisibilityByKey.set(key, {
+                    isVisible: false,
+                    version: iterator.node.value.version + 1,
+                });
+                itemByCursor = iterator.remove();
             }
+            // Optimization: Only call `iterator.update()` if the item was actually
+            // updated.
+            else if (newItem !== iterator.node.value) {
+                // `update()` shouldn't change the item version. We'll do that here.
+                assert(newItem.version === iterator.node.value.version);
 
-            itemVisibilityByKey = itemVisibilityByKey.set(key, {
-                isVisible: false,
-                version: version + 1,
-            });
+                itemByCursor = iterator.update({
+                    ...newItem,
+                    version: iterator.node.value.version + 1,
+                });
+            }
+        }
+
+        if (
+            itemVisibilityByKey === this._itemVisibilityByKey &&
+            itemByCursor === this._itemByCursor
+        ) {
+            return this;
         }
 
         return new DynamoGeneralRealtimeIndexQuery({

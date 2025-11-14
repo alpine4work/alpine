@@ -12,6 +12,11 @@ import {
     reduceStateWithOptimisticUpdates,
     useStateWithOptimisticUpdatesMonitor,
 } from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+import {
+    subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
+    subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
+} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
@@ -29,7 +34,8 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {InboxChannelPostsEntryModel, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
     getInboxEntries,
@@ -119,7 +125,8 @@ export function useInboxState(props: {
         },
         dispatch,
     ] = useReducer(reduceInboxState, props, getInitialInboxState);
-    const query = queryState.value;
+
+    const {value: query, valueWithoutOptimisticUpdates: queryWithoutOptimisticUpdates} = queryState;
 
     useStateWithOptimisticUpdatesMonitor(
         queryState,
@@ -135,35 +142,113 @@ export function useInboxState(props: {
         });
     }
 
+    const waitForQueryWithoutOptimisticUpdates = useWaitForState(queryWithoutOptimisticUpdates);
+
+    const updateQueryOptimistically = useCallback(
+        (
+            event: {promise: Promise<unknown>; withAnimation: boolean},
+            update: (
+                query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+        ) => {
+            dispatch({
+                type: "OptimisticUpdate",
+                withAnimation: event.withAnimation,
+                promise: event.promise.then(() =>
+                    // Wait to resolve our optimistic update until we receive a realtime event that
+                    // turns our optimistic update into a noop.
+                    //
+                    // That's because we don't trust that by the time `promise` resolves we've seen
+                    // the realtime event from our WebSocket. `promise` may be from an RPC call
+                    // which kicks off a background `NotificationEvent` job that eventually sends
+                    // the realtime event we're looking for. We don't want to resolve our optimistic
+                    // update until that background job finishes and we've seen the realtime event.
+                    // Otherwise unrelated realtime events may overwrite our optimistic update
+                    // causing the UI to glitch for the user.
+                    waitForQueryWithoutOptimisticUpdates(query => update(query) === query),
+                ),
+                update,
+            });
+        },
+        [waitForQueryWithoutOptimisticUpdates],
+    );
+
     useEffect(() => {
         if (filter === "New") {
             return subscribeToArchiveInboxEntryOptimistically(event => {
-                dispatch({
-                    type: "OptimisticUpdate",
-                    promise: event.promise,
-                    withAnimation: event.withAnimation,
-                    update: query =>
-                        query.optimisticallyDeleteItemByKeyIfExistsAtVersion(
-                            event.entry.key,
-                            event.entry.version,
-                        ),
-                });
+                updateQueryOptimistically(event, query =>
+                    query.optimisticallyDeleteItemByKeyIfExists(event.entry.key),
+                );
             });
         } else {
             return subscribeToUnarchiveInboxEntryOptimistically(event => {
-                dispatch({
-                    type: "OptimisticUpdate",
-                    promise: event.promise,
-                    withAnimation: event.withAnimation,
-                    update: query =>
-                        query.optimisticallyDeleteItemByKeyIfExistsAtVersion(
-                            event.entry.key,
-                            event.entry.version,
-                        ),
-                });
+                updateQueryOptimistically(event, query =>
+                    query.optimisticallyDeleteItemByKeyIfExists(event.entry.key),
+                );
             });
         }
-    }, [filter, space.id]);
+    }, [filter, space.id, updateQueryOptimistically]);
+
+    useEffect(() => {
+        // We won't see archive post events if we're looking at archived inbox entries
+        // because in an archived channel posts entry all posts are already archived.
+        if (filter === "Archive") return;
+
+        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
+            updateQueryOptimistically(event, query =>
+                query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
+                    if (!(item.model instanceof InboxChannelPostsEntryModel)) return item;
+
+                    const post = item.model.posts.get(event.postId);
+                    if (!post) return item;
+                    if (post.isArchived) return item;
+
+                    const newPosts = new Map(item.model.posts);
+                    newPosts.set(event.postId, {isArchived: true});
+
+                    // If every post is now archived, the entire entry is archived! So delete the
+                    // entry from our query.
+                    if (iterableEvery(newPosts.values(), post => post.isArchived)) return null;
+
+                    return {
+                        ...item,
+                        model: item.model.clone({posts: newPosts}),
+                    };
+                }),
+            );
+        });
+    }, [filter, space.id, updateQueryOptimistically]);
+
+    useEffect(() => {
+        return subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(event => {
+            updateQueryOptimistically(event, query =>
+                query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
+                    if (!(item.model instanceof InboxChannelPostsEntryModel)) return item;
+
+                    const post = item.model.posts.get(event.postId);
+                    if (!post) return item;
+                    if (!post.isArchived) return item;
+
+                    const newPosts = new Map(item.model.posts);
+                    newPosts.set(event.postId, {isArchived: false});
+
+                    // If we're looking at archived inbox entries and a single post is now
+                    // unarchived then delete this entry from our query.
+                    if (
+                        filter === "Archive" &&
+                        !iterableEvery(newPosts.values(), post => post.isArchived)
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        ...item,
+                        model: item.model.clone({posts: newPosts}),
+                    };
+                }),
+            );
+        });
+    }, [filter, space.id, updateQueryOptimistically]);
 
     useDynamoGeneralRealtimeIndexQueryBase(
         {

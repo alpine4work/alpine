@@ -11,9 +11,14 @@ import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_gener
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
 import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
+import {
+    subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
+    subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
+} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
@@ -30,9 +35,9 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxChannelPostsEntryModel, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
@@ -42,6 +47,7 @@ export function InboxBannerOutletContainer({
     navigation,
     maxWidth,
     sidebarRightWidth,
+    withoutArchiveButton,
     children,
 }: {
     initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
@@ -49,6 +55,7 @@ export function InboxBannerOutletContainer({
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
     sidebarRightWidth?: Spacing;
+    withoutArchiveButton?: boolean;
     children?: ReactNode;
 }) {
     const context = useAppContext();
@@ -68,8 +75,12 @@ export function InboxBannerOutletContainer({
 
     const entryKey = useMemo(() => initialEntry.model.getKey(), [initialEntry.model]);
 
-    const [entryFromState, updateEntry, updateEntryOptimistically] =
-        useStateWithOptimisticUpdates(initialEntry);
+    const [
+        entryFromState,
+        updateEntry,
+        actuallyUpdateEntryOptimistically,
+        entryWithoutOptimisticUpdates,
+    ] = useStateWithOptimisticUpdates(initialEntry);
 
     let entry = entryFromState;
 
@@ -81,9 +92,40 @@ export function InboxBannerOutletContainer({
         updateEntry(() => initialEntry);
     }
 
+    const waitForEntryWithoutOptimisticUpdates = useWaitForState(entryWithoutOptimisticUpdates);
+
+    const updateEntryOptimistically = useCallback(
+        (
+            promise: Promise<unknown>,
+            update: (
+                entry: DynamoGeneralRealtimeItem<InboxEntryModel>,
+            ) => DynamoGeneralRealtimeItem<InboxEntryModel>,
+        ) => {
+            actuallyUpdateEntryOptimistically(
+                promise.then(() =>
+                    // Wait to resolve our optimistic update until we receive a realtime event that
+                    // turns our optimistic update into a noop.
+                    //
+                    // That's because we don't trust that by the time `promise` resolves we've seen
+                    // the realtime event from our WebSocket. `promise` may be from an RPC call
+                    // which kicks off a background `NotificationEvent` job that eventually sends
+                    // the realtime event we're looking for. We don't want to resolve our optimistic
+                    // update until that background job finishes and we've seen the realtime event.
+                    // Otherwise unrelated realtime events may overwrite our optimistic update
+                    // causing the UI to glitch for the user.
+                    waitForEntryWithoutOptimisticUpdates(entry => update(entry) === entry),
+                ),
+                update,
+            );
+        },
+        [actuallyUpdateEntryOptimistically, waitForEntryWithoutOptimisticUpdates],
+    );
+
     const isInboxEntryTask = entry.model.type === "Task";
 
     useEffect(() => {
+        if (withoutRealtime) return;
+
         return subscribeToArchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
                 if (entry.key !== event.entry.key) return entry;
@@ -92,13 +134,16 @@ export function InboxBannerOutletContainer({
 
                 return {
                     ...entry,
+                    version: entry.version + 1,
                     model: entry.model.clone({isArchived: true}),
                 };
             });
         });
-    }, [updateEntryOptimistically]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
 
     useEffect(() => {
+        if (withoutRealtime) return;
+
         return subscribeToUnarchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
                 if (entry.key !== event.entry.key) return entry;
@@ -107,11 +152,68 @@ export function InboxBannerOutletContainer({
 
                 return {
                     ...entry,
+                    version: entry.version + 1,
                     model: entry.model.clone({isArchived: false}),
                 };
             });
         });
-    }, [updateEntryOptimistically]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+
+    useEffect(() => {
+        if (withoutRealtime) return;
+
+        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
+            updateEntryOptimistically(event.promise, entry => {
+                if (entry.key !== event.entry.key) return entry;
+                if (entry.version > event.entry.version) return entry;
+                if (!(entry.model instanceof InboxChannelPostsEntryModel)) return entry;
+
+                const post = entry.model.posts.get(event.postId);
+                if (!post) return entry;
+                if (post.isArchived) return entry;
+
+                const newPosts = new Map(entry.model.posts);
+                newPosts.set(event.postId, {isArchived: true});
+
+                return {
+                    ...entry,
+                    version: entry.version + 1,
+                    model: entry.model.clone({
+                        isArchived: iterableEvery(newPosts.values(), post => post.isArchived),
+                        posts: newPosts,
+                    }),
+                };
+            });
+        });
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+
+    useEffect(() => {
+        if (withoutRealtime) return;
+
+        return subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(event => {
+            updateEntryOptimistically(event.promise, entry => {
+                if (entry.key !== event.entry.key) return entry;
+                if (entry.version > event.entry.version) return entry;
+                if (!(entry.model instanceof InboxChannelPostsEntryModel)) return entry;
+
+                const post = entry.model.posts.get(event.postId);
+                if (!post) return entry;
+                if (!post.isArchived) return entry;
+
+                const newPosts = new Map(entry.model.posts);
+                newPosts.set(event.postId, {isArchived: false});
+
+                return {
+                    ...entry,
+                    version: entry.version + 1,
+                    model: entry.model.clone({
+                        isArchived: iterableEvery(newPosts.values(), post => post.isArchived),
+                        posts: newPosts,
+                    }),
+                };
+            });
+        });
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
 
     useDynamoGeneralRealtimeItemBase(
         {item: entry, onUpdateItem: updateEntry},
@@ -167,7 +269,26 @@ export function InboxBannerOutletContainer({
                     if (!entry.model.isArchived) {
                         // Programmatically click the button to correctly handle loading and
                         // error states.
-                        assertExists(doneButtonRef.current).press();
+                        if (doneButtonRef.current) {
+                            doneButtonRef.current.press();
+                        }
+                        // If `doneButtonRef` isn't rendered then call `archiveInboxEntry()` directly.
+                        else {
+                            archiveInboxEntry({
+                                entry,
+                                withAnimation: true,
+                            });
+
+                            if (navigation) {
+                                if (navigation.nextEntry) {
+                                    void navigation.selectEntry(navigation.nextEntry);
+                                } else if (navigation.previousEntry) {
+                                    void navigation.selectEntry(navigation.previousEntry);
+                                } else {
+                                    void navigation.selectEntry(null);
+                                }
+                            }
+                        }
                     } else if (navigation) {
                         // If the entry is already archived then move to the next entry.
                         if (navigation.nextEntry) {
@@ -307,62 +428,68 @@ export function InboxBannerOutletContainer({
                                     >
                                         <CaretDown />
                                     </IconButton>
-                                    <Spacer space="2.5" />
+                                    {!withoutArchiveButton && <Spacer space="2.5" />}
                                 </>
                             )}
-                            <Button
-                                ref={doneButtonRef}
-                                variant={entry.model.isArchived ? "neutral-disabled" : "neutral"}
-                                height="6"
-                                paddingX="2"
-                                icon={<Check />}
-                                keyboardShortcutHint={
-                                    !entry.model.isArchived
-                                        ? isAppleDevice
-                                            ? "⌘+D"
-                                            : "Ctrl+D"
-                                        : undefined
-                                }
-                                pressErrorTitle="Can’t mark as done"
-                                onPress={async () => {
-                                    if (!entry.model.isArchived) {
-                                        archiveInboxEntry({
-                                            entry,
-                                            withAnimation: true,
-                                        });
+                            {!withoutArchiveButton && (
+                                <Button
+                                    ref={doneButtonRef}
+                                    variant={
+                                        entry.model.isArchived ? "neutral-disabled" : "neutral"
+                                    }
+                                    height="6"
+                                    paddingX="2"
+                                    icon={<Check />}
+                                    keyboardShortcutHint={
+                                        !entry.model.isArchived
+                                            ? isAppleDevice
+                                                ? "⌘+D"
+                                                : "Ctrl+D"
+                                            : undefined
+                                    }
+                                    pressErrorTitle="Can’t mark as done"
+                                    onPress={async () => {
+                                        if (!entry.model.isArchived) {
+                                            archiveInboxEntry({
+                                                entry,
+                                                withAnimation: true,
+                                            });
 
-                                        if (!navigation && routeLayout === "narrow") {
-                                            // Navigate back, if this is in a peek we'll close the peek. If this is on
-                                            // mobile we'll go back to inbox.
-                                            //
-                                            // If this is a wide layout (desktop) then that's because the user expanded
-                                            // the notification. Don't navigate if the user took an intentional action to
-                                            // expand the peek.
-                                            await navigate(-1);
+                                            if (!navigation && routeLayout === "narrow") {
+                                                // Navigate back, if this is in a peek we'll close the peek. If this is on
+                                                // mobile we'll go back to inbox.
+                                                //
+                                                // If this is a wide layout (desktop) then that's because the user expanded
+                                                // the notification. Don't navigate if the user took an intentional action to
+                                                // expand the peek.
+                                                await navigate(-1);
+                                            }
                                         }
-                                    }
-                                    // This button works as a toggle button. If you click it when the notification
-                                    // has already been archived then we'll unarchive.
-                                    else {
-                                        unarchiveInboxEntry({
-                                            entry,
-                                            withAnimation: true,
-                                        });
-                                    }
+                                        // This button works as a toggle button. If you click it when the notification
+                                        // has already been archived then we'll unarchive.
+                                        else {
+                                            unarchiveInboxEntry({
+                                                entry,
+                                                withAnimation: true,
+                                            });
+                                        }
 
-                                    if (navigation) {
-                                        if (navigation.nextEntry) {
-                                            await navigation.selectEntry(navigation.nextEntry);
-                                        } else if (navigation.previousEntry) {
-                                            await navigation.selectEntry(navigation.previousEntry);
-                                        } else {
-                                            await navigation.selectEntry(null);
+                                        if (navigation) {
+                                            if (navigation.nextEntry) {
+                                                await navigation.selectEntry(navigation.nextEntry);
+                                            } else if (navigation.previousEntry) {
+                                                await navigation.selectEntry(
+                                                    navigation.previousEntry,
+                                                );
+                                            } else {
+                                                await navigation.selectEntry(null);
+                                            }
                                         }
-                                    }
-                                }}
-                            >
-                                Done
-                            </Button>
+                                    }}
+                                >
+                                    Done
+                                </Button>
+                            )}
                         </Box>
                         {sidebarRightWidth && routeLayout !== "narrow" ? (
                             <Box height="full" flexShrink="0" width={sidebarRightWidth}></Box>

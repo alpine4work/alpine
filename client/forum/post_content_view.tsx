@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {ChatCircle, ChatCircleDots, DotsThree} from "phosphor-react";
+import {ChatCircle, ChatCircleDots, Check, DotsThree} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -86,6 +86,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, FileId, PostId} from "~/shared/id/types/id_types.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -119,6 +120,9 @@ export function PostContentView({
     isShowingAllContent,
     onIsShowingAllContentChange,
     onOptimisticPostRealtimeEventTransaction,
+    isPostArchived,
+    onArchivePost,
+    onUnarchivePost,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
@@ -139,6 +143,9 @@ export function PostContentView({
         postId: PostId,
         update: (post: PostModel) => PostModel,
     ) => void;
+    isPostArchived?: Memo<(postId: PostId) => boolean>;
+    onArchivePost?: Memo<(postId: PostId) => MaybePromise<void>>;
+    onUnarchivePost?: Memo<(postId: PostId) => MaybePromise<void>>;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -378,7 +385,13 @@ export function PostContentView({
                             stopNavigateToChannelPropagation={isPostView}
                         />
                     </Box>
-                    <Box position="absolute" top={screenPaddingX} right={screenPaddingX}>
+                    <Box
+                        display="flex"
+                        position="absolute"
+                        top={screenPaddingX}
+                        right={screenPaddingX}
+                        gap="2"
+                    >
                         <MenuButton
                             placement="bottom-end"
                             actions={getPostMoreActions({
@@ -403,6 +416,24 @@ export function PostContentView({
                                 <DotsThree />
                             </IconButton>
                         </MenuButton>
+                        {isPostArchived && (
+                            <Button
+                                variant={isPostArchived(post.id) ? "neutral-disabled" : "neutral"}
+                                height="6"
+                                paddingX="2"
+                                icon={<Check />}
+                                pressErrorTitle="Can’t mark as done"
+                                onPress={async () => {
+                                    if (isPostArchived(post.id)) {
+                                        await onUnarchivePost?.(post.id);
+                                    } else {
+                                        await onArchivePost?.(post.id);
+                                    }
+                                }}
+                            >
+                                Done
+                            </Button>
+                        )}
                     </Box>
                 </>
             )}

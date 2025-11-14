@@ -122,6 +122,7 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
@@ -189,6 +190,9 @@ function PostListView(
         withSafeAreaInsetTop = false,
         initialScrollForFirstPost,
         initialParentByPostId = emptyMap,
+        isPostArchived,
+        onArchivePost,
+        onUnarchivePost,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -351,6 +355,24 @@ function PostListView(
          * Initial message input parent for some post in the list.
          */
         initialParentByPostId?: ReadonlyMap<PostId, MessageContentPayloadParent>;
+
+        /**
+         * Is this post archived?
+         *
+         * We should the inbox archival button if this property is provided (even if
+         * it's an empty set).
+         */
+        isPostArchived?: Memo<(postId: PostId) => boolean>;
+
+        /**
+         * Archive an individual post.
+         */
+        onArchivePost?: Memo<(postId: PostId) => MaybePromise<void>>;
+
+        /**
+         * Unarchive an individual post.
+         */
+        onUnarchivePost?: Memo<(postId: PostId) => MaybePromise<void>>;
     },
     ref: Ref<PostListViewRef>,
 ) {
@@ -1215,8 +1237,8 @@ function PostListView(
                                         minWidth: 0,
                                     }}
                                 >
-                                    {hasHeader &&
-                                        index === 1 &&
+                                    {((withSafeAreaInsetTop && index === 0) ||
+                                        (hasHeader && index === 1)) &&
                                         // This is the first post in a `<PostListView>` with a `header` so we
                                         // need to draw a border between the first `<PostListView>` and the
                                         // `header`.
@@ -1308,6 +1330,9 @@ function PostListView(
                                         onOptimisticPostRealtimeEventTransaction={
                                             onOptimisticPostRealtimeEventTransaction
                                         }
+                                        isPostArchived={isPostArchived}
+                                        onArchivePost={onArchivePost}
+                                        onUnarchivePost={onUnarchivePost}
                                     />
                                 </div>
                                 {asideSpacer}
@@ -1829,6 +1854,9 @@ function PostListView(
             idBase,
             isShowingAllContentByPostId,
             onOptimisticPostRealtimeEventTransaction,
+            isPostArchived,
+            onArchivePost,
+            onUnarchivePost,
             onTogglePostComments,
             loadInitialPostComments,
             messageEditing,
@@ -2012,9 +2040,13 @@ function PostListView(
                             left: "0",
                             right: "0",
                             zIndex: "10",
-                            height: "safe-area-inset-top",
                             backgroundColor: "grey-0",
                         })}
+                        style={{
+                            // Subtract 1px from `safe-area-inset-top` to account for the thick (2px) top
+                            // border on posts.
+                            height: `calc(var(--safe-area-inset-top, 0px) - 1px)`,
+                        }}
                     />
                 )}
                 <ContentBlockWidthContextProvider width={contentBlockAvailableWidth}>

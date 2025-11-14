@@ -79,6 +79,28 @@ export const unarchiveInboxEntry = defineRpc({
     output: {},
 });
 
+export const archiveInboxChannelPostsEntryPost = defineRpc({
+    name: "archiveInboxChannelPostsEntryPost",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        channelId: Schema.id<ChannelId>(),
+        bucketGeneration: Schema.integer,
+        postId: Schema.id<PostId>(),
+    },
+    output: {},
+});
+
+export const unarchiveInboxChannelPostsEntryPost = defineRpc({
+    name: "unarchiveInboxChannelPostsEntryPost",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        channelId: Schema.id<ChannelId>(),
+        bucketGeneration: Schema.integer,
+        postId: Schema.id<PostId>(),
+    },
+    output: {},
+});
+
 export const observeInbox = defineRpc({
     name: "observeInbox",
     input: {

@@ -46,6 +46,7 @@ export function useStateWithOptimisticUpdates<Value>(
             update: (value: Value, promiseValue: PromiseValue | undefined) => Value,
         ) => void
     >,
+    valueWithoutOptimisticUpdates: Value,
 ] {
     const [state, dispatch] = useReducer<
         (
@@ -65,6 +66,7 @@ export function useStateWithOptimisticUpdates<Value>(
                 dispatch({type: "OptimisticUpdate", promise, update: update as any}),
             [],
         ),
+        state.valueWithoutOptimisticUpdates,
     ];
 }
 

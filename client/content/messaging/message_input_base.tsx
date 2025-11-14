@@ -193,6 +193,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     onHideTypingIndicator?: () => void;
     "data-testid"?: string;
     withMobileMaxHeight?: boolean;
+    withoutParentBorderTop?: boolean;
     onFocus?: (event: FocusEvent) => void;
     onFocusCapture?: (event: FocusEvent) => void;
     onBlur?: (event: FocusEvent) => void;
@@ -269,6 +270,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onHideTypingIndicator,
         "data-testid": dataTestId,
         withMobileMaxHeight,
+        withoutParentBorderTop,
         onFocus,
         onFocusCapture,
         onBlur,
@@ -802,7 +804,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 >
                     .
                 </Box>
-                {(isEditingMessage || parent) && (
+                {(isEditingMessage || parent) && !withoutParentBorderTop && (
                     <Box
                         pointerEvents="none"
                         position="absolute"

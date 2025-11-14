@@ -5,7 +5,14 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
+import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
+import {
+    useArchiveInboxChannelPostsEntryPost,
+    useUnarchiveInboxChannelPostsEntryPost,
+} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
@@ -24,7 +31,10 @@ import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    DynamoGeneralRealtimeItem,
+    createDynamoGeneralRealtimeItemSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
@@ -33,9 +43,13 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
-import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxChannelPostsEntryModel,
+    InboxEntryModelSchema,
+} from "~/shared/notifications/inbox_model.js";
 import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -157,6 +171,9 @@ export default function ChannelPostsRouteWrapper() {
     // channel.
     useSearchAffinityViewEntityInteraction(`Channel:${channel.model.id}`);
 
+    const inboxContext = useInboxContext();
+
+    let withoutArchiveButton = false;
     let node: ReactElement;
 
     if (postsResult.posts.length === 1 && !postsResult.hasMorePosts) {
@@ -179,22 +196,34 @@ export default function ChannelPostsRouteWrapper() {
             />
         );
     } else {
-        node = <ChannelPostsRoute />;
+        withoutArchiveButton = true;
+        node = (
+            <ChannelPostsRoute
+                // `useInboxBannerOutletContainer()` changes the inbox context so capture the
+                // `navigation` object from our parent component and use that.
+                parentNavigation={inboxContext?.navigation ?? null}
+            />
+        );
     }
 
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
             maxWidth: contentStyles.contentMaxWidth,
+            withoutArchiveButton,
         },
         node,
     );
 }
 
-function ChannelPostsRoute() {
+function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNavigation | null}) {
     const context = useAppContext();
     const platform = usePlatform();
     const {space} = useSpaceContext();
+
+    const inboxContext = assertExists(useInboxContext());
+    const inboxEntry = inboxContext.entry?.model;
+    assert(inboxEntry instanceof InboxChannelPostsEntryModel);
 
     const {
         channel: initialChannel,
@@ -251,6 +280,53 @@ function ChannelPostsRoute() {
         isDisabled: platform !== "mobile",
         title: printPrettySmallNumberSummary(totalPostCount, "new post"),
         withoutDisappearingTitle: true,
+    });
+
+    const archiveInboxChannelPostsEntryPost = useArchiveInboxChannelPostsEntryPost();
+    const unarchiveInboxChannelPostsEntryPost = useUnarchiveInboxChannelPostsEntryPost();
+
+    const {handleArchivePost, handleUnarchivePost} = useEvents({
+        handleArchivePost: async (postId: PostId) => {
+            archiveInboxChannelPostsEntryPost({
+                entry: inboxContext.entry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>,
+                withAnimation: true,
+                postId,
+            });
+
+            // If we're viewing new entries and by archiving this `postId` we've archived
+            // all posts in the entry then navigate to the next entry.
+            if (
+                parentNavigation?.filter === "New" &&
+                iterableEvery(inboxEntry.posts, post => post[0] === postId || post[1].isArchived)
+            ) {
+                if (parentNavigation.nextEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
+                } else if (parentNavigation.previousEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
+                } else {
+                    await parentNavigation.selectEntry(null);
+                }
+            }
+        },
+        handleUnarchivePost: async (postId: PostId) => {
+            unarchiveInboxChannelPostsEntryPost({
+                entry: inboxContext.entry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>,
+                withAnimation: true,
+                postId,
+            });
+
+            // If we're viewing archived entries then when we unarchive any post move to
+            // the next entry.
+            if (parentNavigation?.filter === "Archive") {
+                if (parentNavigation.nextEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
+                } else if (parentNavigation.previousEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
+                } else {
+                    await parentNavigation.selectEntry(null);
+                }
+            }
+        },
     });
 
     return (
@@ -333,6 +409,12 @@ function ChannelPostsRoute() {
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
             withSafeAreaInsetTop={platform !== "mobile"}
+            isPostArchived={useCallback(
+                (postId: PostId) => inboxEntry.posts.get(postId)?.isArchived ?? false,
+                [inboxEntry.posts],
+            )}
+            onArchivePost={handleArchivePost}
+            onUnarchivePost={handleUnarchivePost}
         />
     );
 }

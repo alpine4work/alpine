@@ -233,9 +233,13 @@ export class InboxChannelPostsEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "ChannelPosts",
-            channelId: this.channel.isPrivate ? this.channel.channelId : this.channel.channel.id,
+            channelId: this.getChannelId(),
             bucketGeneration: this.bucketGeneration,
         };
+    }
+
+    public getChannelId(): ChannelId {
+        return this.channel.isPrivate ? this.channel.channelId : this.channel.channel.id;
     }
 }
 
