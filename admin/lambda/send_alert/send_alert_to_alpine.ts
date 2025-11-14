@@ -10,6 +10,7 @@ import {HoneycombEventPayload} from "~/admin/lambda/send_alert/send_alert_honeyc
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/send_alert_pagerduty.js";
 import {
     gitHubUsernameToAlpineId,
+    nameToAlpineId,
     pagerDutyIdToAlpineId,
 } from "~/admin/lambda/send_alert/send_alert_user_mappings.js";
 import {
@@ -29,7 +30,9 @@ function createUserElement(
     id: string,
 ): ApiSpecification.components["schemas"]["ContentInlineElement"] {
     const alpineId =
-        pagerDutyIdToAlpineId[id.toLowerCase()] || gitHubUsernameToAlpineId[id.toLowerCase()];
+        pagerDutyIdToAlpineId[id.toLowerCase()] ||
+        gitHubUsernameToAlpineId[id.toLowerCase()] ||
+        nameToAlpineId[displayName.toLowerCase()];
 
     if (alpineId) {
         const mention: ApiContentMentionInlineElement = {

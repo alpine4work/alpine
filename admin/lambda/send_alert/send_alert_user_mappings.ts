@@ -18,3 +18,10 @@ export const gitHubUsernameToAlpineId: Record<string, AccountId> = {
     calebmer: caleb,
     imjoshin: josh,
 };
+
+export const nameToAlpineId: Record<string, AccountId> = {
+    "ian fitzsimmons": ian,
+    "rachel date": rachel,
+    "caleb meredith": caleb,
+    "josh johnson": josh,
+};
