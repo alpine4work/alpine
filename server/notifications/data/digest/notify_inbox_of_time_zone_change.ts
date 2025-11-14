@@ -22,13 +22,15 @@ export async function notifyInboxOfTimeZoneChange(
 
     await runAllPromises(
         inboxItems.map(async inboxItem => {
-            const newScheduledDigest =
-                await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+            const newScheduledDigest = computeDigestNotificationsNextScheduledDateTimeIfEligible(
+                context,
+                {
                     currentTime,
                     timeZone: newTimeZone,
                     inboxItem,
                     options: {lagTimeInMinutes: 60},
-                });
+                },
+            );
 
             if (newScheduledDigest !== inboxItem.digestNotificationsNextScheduledDateTime) {
                 await InboxTable.updateItem(

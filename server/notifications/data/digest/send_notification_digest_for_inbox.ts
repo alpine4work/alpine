@@ -15,6 +15,7 @@ import {
     authorizeSpaceAccess,
     getLatestEmailAddress,
     getSpace,
+    isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -71,7 +72,8 @@ export async function sendNotificationDigestForInbox(
 
         if (
             (inboxItem.digestNotificationsLastSentTime?.getTime() ?? 0) < sendTime.getTime() &&
-            (await isInboxEligibleForDigestNotification(context, inboxItem)) &&
+            (await isAccountMemberOfSpace(context, inboxItem.spaceId, accountId)) &&
+            isInboxEligibleForDigestNotification(context, inboxItem) &&
             (await isSendTimeEqualToExpectedScheduledDigestTime(context, sendTime, inboxItem))
         ) {
             shouldSend = true;

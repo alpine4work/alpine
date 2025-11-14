@@ -396,7 +396,7 @@ function getInboxChannelPostsEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    summary.push(printPrettySmallNumberSummary(entry.postCount, "new post"));
+    summary.push(printPrettySmallNumberSummary(entry.posts.size, "new post"));
     summary.push(
         ` in ${entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name} by `,
     );

@@ -25,7 +25,6 @@ import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_ac
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
 const sendNotificationDigestMock = import.meta.jest.fn();
@@ -46,148 +45,96 @@ const context = createTestContext({
 // Ideally we'd mock out the `isAccountMemberOfSpace` function to reduce this risk, but Jest's ESM
 // module support doesn't allow partial mocks (and there's a lot of functions in the spaces module).
 describe("isInboxEligibleForDigestNotification", () => {
-    let spaceId: SpaceId;
-    let accountId: AccountId;
-
-    beforeEach(async () => {
-        const space = await TestSpace.create(context);
-        const account = await space.addAccount();
-        spaceId = space.id;
-        accountId = account.id;
-    });
-
     const currentTime = new Date("2024-01-10T00:00:00Z");
     test("should return false when digestNotificationsOptedOutTime is set", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: new Date("2024-01-01T00:00:00Z"),
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(false);
     });
     test("should return false when digestNotificationsSchedule is empty", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: new Set(),
             digestNotificationsLastSentTime: null,
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(false);
     });
     test("should return false when digestNotificationsSchedule is undefined", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: undefined,
             digestNotificationsLastSentTime: null,
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(false);
     });
     test("should return false when digestNotificationsLastSentTime is later than lastEntryUpdatedTime", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: new Date("2024-01-20T00:00:00Z"),
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(false);
     });
 
     test("should return false when lastEntryUpdatedTime null", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: new Date("2024-01-05T00:00:00Z"),
             lastEntryUpdatedTime: null,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(false);
     });
 
     test("should return true when digestNotificationsLastSentTime is null", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: null,
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(true);
     });
     test("should return true when digestNotificationsLastSentTime is earlier than lastEntryUpdatedTime", async () => {
-        const result = await isInboxEligibleForDigestNotification(context.systemAction(spaceId), {
+        const result = isInboxEligibleForDigestNotification(context, {
             entryCount: 1,
             digestNotificationsOptedOutTime: null,
             digestNotificationsSchedule: new Set(["08:00", "17:00"]),
             digestNotificationsLastSentTime: new Date("2024-01-05T00:00:00Z"),
             lastEntryUpdatedTime: currentTime,
-            spaceId,
-            accountId,
         });
 
         expect(result).toBe(true);
     });
     test("should return true when account is a member of the context’s space", async () => {
-        const newSpace = await TestSpace.create(context);
-        const newAccount = await newSpace.addAccount();
-
-        const result = await isInboxEligibleForDigestNotification(
-            context.systemAction(newSpace.id),
-            {
-                entryCount: 1,
-                digestNotificationsOptedOutTime: null,
-                digestNotificationsSchedule: new Set(["08:00", "17:00"]),
-                digestNotificationsLastSentTime: null,
-                lastEntryUpdatedTime: currentTime,
-                spaceId: newSpace.id,
-                accountId: newAccount.id,
-            },
-        );
+        const result = isInboxEligibleForDigestNotification(context, {
+            entryCount: 1,
+            digestNotificationsOptedOutTime: null,
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: null,
+            lastEntryUpdatedTime: currentTime,
+        });
 
         expect(result).toBe(true);
-    });
-    test("should return false when account is not a member of the context’s space", async () => {
-        const newSpace = await TestSpace.create(context);
-        const newAccount = await newSpace.addAccount();
-        await newSpace.removeAccount(newAccount);
-
-        const result = await isInboxEligibleForDigestNotification(
-            context.systemAction(newSpace.id),
-            {
-                entryCount: 1,
-                digestNotificationsOptedOutTime: null,
-                digestNotificationsSchedule: new Set(["08:00", "17:00"]),
-                digestNotificationsLastSentTime: null,
-                lastEntryUpdatedTime: currentTime,
-                spaceId: newSpace.id,
-                accountId: newAccount.id,
-            },
-        );
-
-        expect(result).toBe(false);
     });
 });
 

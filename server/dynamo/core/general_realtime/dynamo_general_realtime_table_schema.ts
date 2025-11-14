@@ -1738,10 +1738,10 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
-     * Checks that an item does not exist as a part of a transaction. If this
-     * condition fails then the entire transaction fails.
+     * Creates a transaction entry that checks whether an item with the provided
+     * key exists.
      */
-    public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
+    public transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
         itemKey: Key,
     ): DynamoTransactionEntry {
         assert(
@@ -1750,7 +1750,24 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        return this._table.transactionDoesNotExistConditionCheck(itemKey);
+        return this._table.transactionExistsConditionCheck(itemKey);
+    }
+
+    /**
+     * Checks that an item does not exist as a part of a transaction. If this
+     * condition fails then the entire transaction fails.
+     */
+    public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
+        itemKey: Key,
+        options?: {isConditionCheckErrorRetriable?: boolean},
+    ): DynamoTransactionEntry {
+        assert(
+            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            "Can’t access private realtime partition",
+        );
+
+        return this._table.transactionDoesNotExistConditionCheck(itemKey, options);
     }
 
     /**
@@ -1912,6 +1929,29 @@ export class DynamoGeneralRealtimeTableSchema<
         );
 
         return this._table.getItem(context, itemKey, options);
+    }
+
+    /**
+     * Tries to get an item first with eventual consistency and if that doesn't
+     * find the item tries again with strong consistency. Use this when:
+     *
+     * 1. You know an item definitely exists; AND
+     * 2. You want to use a cheaper eventual consistency read in most cases; AND
+     * 3. You expect the item may have been recently created so an eventually
+     *    consistent read may be stale and not return an item
+     */
+    public getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        itemKey: Key,
+        options?: {allowsEventualReadConsistency?: boolean},
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
+        assert(
+            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            "Can’t access private realtime partition",
+        );
+
+        return this._table.getItemWithEventualThenStrongConsistency(context, itemKey, options);
     }
 
     /**

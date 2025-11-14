@@ -216,8 +216,8 @@ export class InboxChannelPostsEntryModel
                 }),
             ),
             bucketGeneration: Schema.integer,
-            postCount: Schema.integer.min(1),
             postAuthorCount: Schema.integer.min(1),
+            posts: Schema.map(Schema.id<PostId>(), Schema.object({isArchived: Schema.boolean})),
             latestPost: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,

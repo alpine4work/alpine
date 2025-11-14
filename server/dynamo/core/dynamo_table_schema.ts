@@ -1762,6 +1762,32 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
+     * Tries to get an item first with eventual consistency and if that doesn't
+     * find the item tries again with strong consistency. Use this when:
+     *
+     * 1. You know an item definitely exists; AND
+     * 2. You want to use a cheaper eventual consistency read in most cases; AND
+     * 3. You expect the item may have been recently created so an eventually
+     *    consistent read may be stale and not return an item
+     */
+    public async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        options?: {allowsEventualReadConsistency?: boolean},
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
+        const item = await this.getItemIfExists(context, key, {
+            ...options,
+            consistency: "Eventual",
+        });
+        if (item) return item;
+
+        return this.getItem(context, key, {
+            ...options,
+            consistency: "Strong",
+        });
+    }
+
+    /**
      * Gets a few attributes of a single item by its key from the database. Returns
      * `null` if the item does not exist.
      *
@@ -3062,6 +3088,45 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 isConditionCheckErrorRetriable: true,
             },
         );
+    }
+
+    /**
+     * Creates a transaction entry that checks whether an item with the provided
+     * key exists.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionExistsConditionCheck<Key extends Types["ItemKey"]>(
+        key: Key,
+        {isConditionCheckErrorRetriable = false}: {isConditionCheckErrorRetriable?: boolean} = {},
+    ): DynamoTransactionEntry {
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+
+        const conditionExpression = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+        const {string: conditionExpressionString} = conditionExpression.compile(
+            attributesSchema,
+            conditionCompilationContext,
+        );
+
+        return DynamoClient.transactionConditionCheck({
+            tableName: this._name,
+            key: {partitionKey, sortKey},
+            conditionExpression: conditionExpressionString,
+            expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+            isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
+        });
     }
 
     /**

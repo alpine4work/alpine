@@ -1,8 +1,9 @@
-import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ScheduleDateTime} from "~/server/notifications/core/schedule_date_time.js";
 import {computeDigestNotificationsNextScheduledDateTime} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time.js";
 import {isInboxEligibleForDigestNotification} from "~/server/notifications/data/digest/is_inbox_eligible_for_digest_notification.js";
 import {InboxAttributesItem} from "~/server/notifications/data/internal/inbox_table.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 /**
@@ -12,8 +13,8 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
  * See `computeDigestNotificationsNextScheduledDateTime` for the time computation logic and
  * `isInboxEligibleForDigestNotification` for the eligibility logic.
  */
-export async function computeDigestNotificationsNextScheduledDateTimeIfEligible(
-    context: ServerActionContext,
+export function computeDigestNotificationsNextScheduledDateTimeIfEligible(
+    context: Context<{tracer: TracerContextModule}>,
     {
         currentTime,
         timeZone,
@@ -25,8 +26,8 @@ export async function computeDigestNotificationsNextScheduledDateTimeIfEligible(
         inboxItem: InboxAttributesItem;
         options: {lagTimeInMinutes: number};
     },
-): Promise<ScheduleDateTime | null> {
-    return (await isInboxEligibleForDigestNotification(context, inboxItem))
+): ScheduleDateTime | null {
+    return isInboxEligibleForDigestNotification(context, inboxItem)
         ? computeDigestNotificationsNextScheduledDateTime(
               currentTime,
               timeZone,

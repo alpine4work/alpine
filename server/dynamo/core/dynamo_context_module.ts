@@ -119,6 +119,14 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
+     * Get the DynamoDB client in tests in case you want direct access to DynamoDB.
+     */
+    public getClientForTest(): DynamoClient {
+        assert(import.meta.jest);
+        return this._client;
+    }
+
+    /**
      * Creates a retry loop for expected transaction errors. You can not nest two
      * retry transaction loops.
      *

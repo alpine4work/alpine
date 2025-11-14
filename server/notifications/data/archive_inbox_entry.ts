@@ -130,6 +130,15 @@ async function archiveInboxEntryItemKey(
                 };
             }
 
+            // When archiving a channel posts entry, all `PostId`s in the entry are now
+            // considered archived.
+            if (newInboxEntryItem.sortRangeType === "ChannelPostsEntry") {
+                newInboxEntryItem = {
+                    ...newInboxEntryItem,
+                    archivedPostIds: newInboxEntryItem.postIds,
+                };
+            }
+
             // `Math.max` to protect against in case we under-counted the number of inbox
             // entries at some point.
             const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
@@ -149,7 +158,7 @@ async function archiveInboxEntryItemKey(
             newInboxItem = {
                 ...newInboxItem,
                 digestNotificationsNextScheduledDateTime:
-                    await computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                    computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
                         currentTime,
                         timeZone: accountTimeZone,
                         inboxItem: newInboxItem,

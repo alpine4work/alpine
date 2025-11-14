@@ -12,8 +12,11 @@ import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {backfillInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
-import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
+import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
+// eslint-disable-next-line no-internal-imports
+import {notificationEventBeforeExecuteTransactionTestCheckpoint} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
@@ -45,6 +48,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {encodeElenInteger} from "~/shared/helpers/number/elen_integer.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
     MessageContentProsemirrorSchema,
@@ -142,7 +146,7 @@ test("won’t create two inbox entries if inbox is observed between serial event
         subscribeToChannel(scenario.session3.action(), channel.id),
     ]);
 
-    await channel.createPost(scenario.session1);
+    const post1 = await channel.createPost(scenario.session1);
     await ProcessContextModule.waitForTestTasks();
 
     const pausePromise1 = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
@@ -170,7 +174,7 @@ test("won’t create two inbox entries if inbox is observed between serial event
             session: scenario.session2,
             channel,
             bucketGeneration: 0,
-            postCount: 2,
+            posts: [post1, post2],
             latestPost: {post: post2, contentTextSnippet: expect.any(String)},
         }),
     ]);
@@ -180,7 +184,7 @@ test("won’t create two inbox entries if inbox is observed between serial event
             session: scenario.session3,
             channel,
             bucketGeneration: 0,
-            postCount: 2,
+            posts: [post1, post2],
             latestPost: {post: post2, contentTextSnippet: expect.any(String)},
         }),
     ]);
@@ -262,14 +266,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxChannelPostsEntryModel({
@@ -310,22 +307,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: "comment2",
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session3)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
             const comment3 = await post.createComment(
                 scenario.session1,
@@ -347,12 +331,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     },
                     otherCommentAuthor: scenario.session3,
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -364,12 +342,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -440,14 +412,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
 
@@ -458,14 +423,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(await testGetInboxEntries(scenario.session1)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session2)).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -476,12 +434,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment2,
                         contentTextSnippet: "comment2",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -496,14 +448,7 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(await testGetInboxEntries(scenario.session1)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session2)).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -514,12 +459,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -657,14 +596,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -677,12 +609,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -707,14 +633,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -727,12 +646,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -768,22 +681,9 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session3)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([]);
         });
 
         test("mentioning yourself does not create a loud notification for yourself", async () => {
@@ -840,14 +740,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxChannelPostsEntryModel({
@@ -876,12 +769,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment2,
                         contentTextSnippet: "comment2",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -913,14 +800,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxChannelPostsEntryModel({
@@ -987,12 +867,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.sharedSession,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(
@@ -1025,12 +899,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.sharedSession,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(
@@ -1046,12 +914,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.sharedSession.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.sharedSession,
-                    channel: otherChannel,
-                    bucketGeneration: 0,
-                    latestPost: {post: otherPost, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -1106,12 +968,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             await expect(
@@ -1136,12 +992,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session3,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1198,12 +1048,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: "comment3",
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2)).toEqual([
@@ -1231,12 +1075,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -1303,12 +1141,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: "comment3",
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
@@ -1325,12 +1157,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session1,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -2050,13 +1876,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     },
                     otherCommentAuthor: scenario.session3,
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2073,7 +1892,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [[post1, {isArchived: true}], post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2121,13 +1940,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     },
                     otherCommentAuthor: scenario.session3,
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2135,7 +1947,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [[post1, {isArchived: true}], post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2172,13 +1984,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     },
                     otherCommentAuthor: scenario.session3,
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2186,7 +1991,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [[post1, {isArchived: true}], post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2212,22 +2017,14 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
                 expectInboxChannelPostsEntryModel({
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [[post1, {isArchived: true}], post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2320,13 +2117,6 @@ for (const [currentProcessingType, processingMultiple] of [
                     },
                     otherCommentAuthor: scenario.session3,
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2343,7 +2133,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2386,13 +2176,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2400,7 +2183,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2427,13 +2210,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2450,7 +2226,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2486,13 +2262,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2509,7 +2278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2555,13 +2324,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2578,7 +2340,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2635,13 +2397,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session3)).toEqual([
@@ -2658,7 +2413,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [[post1, {isArchived: true}], post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -4067,13 +3822,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             await archiveInboxEntry(
@@ -4095,13 +3843,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4132,13 +3873,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4192,13 +3926,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             await post2.createComment(scenario.session2, createSimpleMessageContent("test"));
@@ -4216,13 +3943,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4253,13 +3973,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: "comment3",
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 2,
-                    latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4331,16 +4044,18 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
+            ]);
+
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
                 expectInboxChannelPostsEntryModel({
+                    isArchived: true,
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
-
-            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await archiveInboxEntry(
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
@@ -4373,13 +4088,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
@@ -4392,6 +4100,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
+                }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4415,13 +4131,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
@@ -4445,6 +4154,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
                 }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                }),
             ]);
 
             await archiveInboxEntry(
@@ -4455,15 +4172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 },
             );
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -4495,6 +4204,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
+                }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4566,16 +4283,18 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
+            ]);
+
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
                 expectInboxChannelPostsEntryModel({
+                    isArchived: true,
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 3,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
-
-            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await post3.createComment(scenario.session2, createSimpleMessageContent("test"));
 
@@ -4604,13 +4323,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
@@ -4623,6 +4335,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
+                }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4642,13 +4362,6 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                 }),
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
             ]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
@@ -4672,21 +4385,21 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
                 }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
+                }),
             ]);
 
             await post2.createComment(scenario.session2, createSimpleMessageContent("test"));
 
             await ProcessContextModule.waitForTestTasks();
 
-            expect(await testGetInboxEntries(scenario.session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    postCount: 3,
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2)).toEqual([]);
 
             expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
                 expectInboxPostCommentsEntryModel({
@@ -4718,6 +4431,14 @@ for (const [currentProcessingType, processingMultiple] of [
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
+                }),
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: scenario.session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4892,7 +4613,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 subscribeToChannel(scenario.session3.action(), channel.id),
             ]);
 
-            await channel.createPost(
+            const post1 = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
                     schema.node("doc", {}, [
@@ -4966,7 +4687,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -4984,7 +4705,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5396,7 +5117,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5406,7 +5127,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5420,7 +5141,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.sharedSession,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5445,7 +5166,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5455,8 +5176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 3,
-                    postAuthorCount: 2,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: scenario.session1,
                 }),
@@ -5471,8 +5191,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.sharedSession,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 3,
-                    postAuthorCount: 2,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: scenario.session1,
                 }),
@@ -5504,7 +5223,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5520,8 +5239,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 3,
-                    postAuthorCount: 2,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: scenario.session1,
                 }),
@@ -5549,8 +5267,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.sharedSession,
                     channel: channel1,
                     bucketGeneration: 0,
-                    postCount: 3,
-                    postAuthorCount: 2,
+                    posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: scenario.session1,
                 }),
@@ -5635,8 +5352,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
-                    postAuthorCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: session4,
                 }),
@@ -5682,8 +5398,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
-                    postAuthorCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: session4,
                 }),
@@ -5694,8 +5409,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
-                    postAuthorCount: 2,
+                    posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                     otherPostAuthor: session4,
                 }),
@@ -5752,7 +5466,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5797,7 +5511,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5851,7 +5565,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5917,7 +5631,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5939,7 +5653,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -5967,14 +5681,14 @@ for (const [currentProcessingType, processingMultiple] of [
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 2,
-                    postCount: 2,
+                    posts: [post3, post4],
                     latestPost: {post: post4, contentTextSnippet: expect.any(String)},
                 }),
                 expectInboxChannelPostsEntryModel({
                     session: scenario.session2,
                     channel,
                     bucketGeneration: 0,
-                    postCount: 2,
+                    posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -6323,20 +6037,6 @@ for (const [currentProcessingType, processingMultiple] of [
             await post.createComment(session2, "Test comment 1");
 
             await ProcessContextModule.waitForTestTasks();
-
-            expect(await testGetInboxEntries(session2)).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
-
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-                spaceId: space.id,
-                key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
-            });
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
@@ -7312,6 +7012,882 @@ for (const [currentProcessingType, processingMultiple] of [
                     ],
                 ]),
             );
+        });
+
+        test("creating a post also creates a `PostInChannelPostsEntry` item", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            expect(
+                await NotificationsTable.getItem(context, {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostInChannelPostsEntry",
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                }),
+            ).toEqual(
+                expect.objectContaining({
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                }),
+            );
+        });
+
+        test("creating a post also creates a `PostInChannelPostsEntry` item at later inbox generation", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            await observeInbox(session2.action(), {spaceId: space.id});
+            await observeInbox(session2.action(), {spaceId: space.id});
+            await observeInbox(session2.action(), {spaceId: space.id});
+
+            const post = await channel.createPost(session1, "test");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 6,
+                    latestPost: {post, contentTextSnippet: "test"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            expect(
+                await NotificationsTable.getItem(context, {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostInChannelPostsEntry",
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                }),
+            ).toEqual(
+                expect.objectContaining({
+                    channelId: channel.id,
+                    bucketGeneration: 6,
+                }),
+            );
+        });
+
+        test("creating multiple posts in a channel posts entry also creates multiple `PostInChannelPostsEntry` items", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            const post2 = await channel.createPost(session1, "test2");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2],
+                    latestPost: {post: post2, contentTextSnippet: "test2"},
+                }),
+            ]);
+
+            expect(
+                await NotificationsTable.getItem(context, {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostInChannelPostsEntry",
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post1.id,
+                }),
+            ).toEqual(
+                expect.objectContaining({
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                }),
+            );
+
+            expect(
+                await NotificationsTable.getItem(context, {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostInChannelPostsEntry",
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post2.id,
+                }),
+            ).toEqual(
+                expect.objectContaining({
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                }),
+            );
+
+            const post3 = await channel.createPost(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(
+                await NotificationsTable.getItem(context, {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostInChannelPostsEntry",
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post3.id,
+                }),
+            ).toEqual(
+                expect.objectContaining({
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                }),
+            );
+        });
+
+        test("responding to a comment on a post in a channel posts entry archives the channel posts entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.createComment(session2, "test2");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
+        test("responding to every post in a channel posts entry archives the channel posts entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            const post2 = await channel.createPost(session1, "test2");
+            const post3 = await channel.createPost(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post1.createComment(session2, "test4");
+            await post3.createComment(session2, "test5");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [[post1, {isArchived: true}], post2, [post3, {isArchived: true}]],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            await post2.createComment(session2, "test6");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+        });
+
+        test("being mentioned in a post in a channel posts entry archives the channel posts entry", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment = await post.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment,
+                        contentTextSnippet: `Hello ${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
+        test("being mentioned in every post in a channel posts entry archives the channel posts entry", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            const post2 = await channel.createPost(session1, "test2");
+            const post3 = await channel.createPost(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment1 = await post1.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text(" (1)"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment2 = await post3.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text(" (2)"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post3,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment: comment2,
+                        contentTextSnippet: `Hello ${session2.account.initialName} (2)`,
+                        isStickyMention: true,
+                    },
+                }),
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post1,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello ${session2.account.initialName} (1)`,
+                        isStickyMention: true,
+                    },
+                }),
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [[post1, {isArchived: true}], post2, [post3, {isArchived: true}]],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            const comment3 = await post2.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text(" (3)"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post2,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: `Hello ${session2.account.initialName} (3)`,
+                        isStickyMention: true,
+                    },
+                }),
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post3,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment: comment2,
+                        contentTextSnippet: `Hello ${session2.account.initialName} (2)`,
+                        isStickyMention: true,
+                    },
+                }),
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post1,
+                    channel,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello ${session2.account.initialName} (1)`,
+                        isStickyMention: true,
+                    },
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+        });
+
+        test("post comment notification event is processed before create post notification event", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const pauseBeforeCreatePostPromise =
+                notificationEventBeforeProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterFirstCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
+
+            const pauseAfterSecondCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session3.account.id);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await post.createComment(session2, "test2");
+            const secondComment = await post.createComment(session3, "test3");
+
+            const {unpause: unpauseBeforeCreatePost} = await pauseBeforeCreatePostPromise;
+
+            const {unpause: unpauseAfterFirstComment} = await pauseAfterFirstCommentPromise;
+            unpauseAfterFirstComment();
+
+            const {unpause: unpauseAfterSecondComment} = await pauseAfterSecondCommentPromise;
+            unpauseAfterSecondComment();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreatePost();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("post comment notification event is processed before create post notification event when there’s an existing channel posts entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post: post1, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            const pauseBeforeCreatePostPromise =
+                notificationEventBeforeProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterFirstCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
+
+            const pauseAfterSecondCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session3.account.id);
+
+            const post2 = await channel.createPost(session1, "test2");
+
+            await post2.createComment(session2, "test3");
+            const secondComment = await post2.createComment(session3, "test4");
+
+            const {unpause: unpauseBeforeCreatePost} = await pauseBeforeCreatePostPromise;
+
+            const {unpause: unpauseAfterFirstComment} = await pauseAfterFirstCommentPromise;
+            unpauseAfterFirstComment();
+
+            const {unpause: unpauseAfterSecondComment} = await pauseAfterSecondCommentPromise;
+            unpauseAfterSecondComment();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post2,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test4"},
+                }),
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post: post1, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreatePost();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post: post2,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test4"},
+                }),
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, [post2, {isArchived: true}]],
+                    latestPost: {post: post2, contentTextSnippet: "test2"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("post comment notification event processing starts before post event processing is finished", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const pauseBeforeCreatePostPromise =
+                notificationEventBeforeProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterCreatePostPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterCreateFirstCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
+
+            const pauseBeforeCreateSecondCommentPromise =
+                notificationEventBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                    session3.account.id,
+                );
+
+            const post = await channel.createPost(session1, "test1");
+
+            await post.createComment(session2, "test2");
+            const secondComment = await post.createComment(session3, "test3");
+
+            const {unpause: unpauseBeforeCreatePost} = await pauseBeforeCreatePostPromise;
+
+            const {unpause: unpauseAfterCreateFirstComment} =
+                await pauseAfterCreateFirstCommentPromise;
+            unpauseAfterCreateFirstComment();
+
+            const {unpause: unpauseBeforeCreateSecondComment} =
+                await pauseBeforeCreateSecondCommentPromise;
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreatePost();
+
+            const {unpause: unpauseAfterCreatePost} = await pauseAfterCreatePostPromise;
+            unpauseAfterCreatePost();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreateSecondComment();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
+        test("post comment notification event processing starts before post event processing is finished (when there are multiple posts in a channel posts notification)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4, session5] = await space.createSessions(
+                5,
+            );
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const pauseBeforeCreatePostPromise =
+                notificationEventBeforeProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterCreatePostPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session1.account.id);
+
+            const pauseAfterCreateFirstCommentPromise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
+
+            const pauseBeforeCreateSecondCommentPromise =
+                notificationEventBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                    session3.account.id,
+                );
+
+            const pauseAfterCreateOtherPost1Promise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session4.account.id);
+
+            const pauseAfterCreateOtherPost2Promise =
+                notificationEventAfterProcessingTestCheckpoint.pauseForTest(session5.account.id);
+
+            const otherPost1 = await channel.createPost(session4, "test1");
+            const otherPost2 = await channel.createPost(session5, "test2");
+            const post = await channel.createPost(session1, "test3");
+
+            await post.createComment(session2, "test4");
+            const secondComment = await post.createComment(session3, "test5");
+
+            const {unpause: unpauseBeforeCreatePost} = await pauseBeforeCreatePostPromise;
+
+            const {unpause: unpauseAfterCreateFirstComment} =
+                await pauseAfterCreateFirstCommentPromise;
+            unpauseAfterCreateFirstComment();
+
+            const {unpause: unpauseBeforeCreateSecondComment} =
+                await pauseBeforeCreateSecondCommentPromise;
+
+            const {unpause: unpauseAfterCreateOtherPost1} = await pauseAfterCreateOtherPost1Promise;
+            unpauseAfterCreateOtherPost1();
+
+            const {unpause: unpauseAfterCreateOtherPost2} = await pauseAfterCreateOtherPost2Promise;
+            unpauseAfterCreateOtherPost2();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [otherPost1, otherPost2],
+                    latestPost: {post: otherPost2, contentTextSnippet: "test2"},
+                    otherPostAuthor: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreatePost();
+
+            const {unpause: unpauseAfterCreatePost} = await pauseAfterCreatePostPromise;
+            unpauseAfterCreatePost();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [otherPost1, otherPost2, post],
+                    latestPost: {post, contentTextSnippet: "test3"},
+                    otherPostAuthor: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            unpauseBeforeCreateSecondComment();
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {comment: secondComment, contentTextSnippet: "test5"},
+                }),
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [otherPost1, otherPost2, [post, {isArchived: true}]],
+                    latestPost: {post, contentTextSnippet: "test3"},
+                    otherPostAuthor: expect.any(AccountModel),
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("can read old channel posts inbox entry format without `archivedPostIds` property", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post2 = await channel.createPost(session1, "test2");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post3 = await channel.createPost(session1, "test3");
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            const dynamoClient = context.dynamo.getClientForTest();
+
+            const key = {
+                partitionKey: `Inbox#${space.id}#${session2.account.id}`,
+                sortKey: `a3#ChannelPostsEntry#${channel.id}#${encodeElenInteger(0)}`,
+            };
+
+            const item = await dynamoClient.getItemIfExists(context, {
+                tableName: InboxTable.getName(),
+                key,
+                expectsStrongReadConsistency: false,
+                debugItemType: {
+                    tableName: InboxTable.getName(),
+                    partitionType: "Inbox",
+                    sortRangeType: "ChannelPostsEntry",
+                },
+            });
+
+            expect(item).toEqual(
+                expect.objectContaining({
+                    isArchived: true,
+                    postIds: [post3.id, post2.id, post1.id],
+                    archivedPostIds: [post3.id, post2.id, post1.id],
+                }),
+            );
+
+            assert(item);
+
+            // Item format before 2025-10-28 when we added `archivedPostIds`. We expect to
+            // migrate this item such that `archivedPostIds` is added and set to the same
+            // thing as `postIds`.
+            const itemWithoutArchivedPostIds = {
+                partitionKey: key.partitionKey,
+                sortKey: key.sortKey,
+                isArchived: true,
+                loudNotificationCount: 0,
+                generation: 0,
+                enteredTime: item.enteredTime,
+                postIds: item.postIds,
+                postAuthorIds: item.postAuthorIds,
+                latestPost: item.latestPost,
+                updateLockVersion: item.updateLockVersion,
+                index1PartitionKey: item.index1PartitionKey,
+                index1SortKey: item.index1SortKey,
+            };
+
+            expect(itemWithoutArchivedPostIds).not.toHaveProperty("archivedPostIds");
+
+            await dynamoClient.putItem(context, {
+                tableName: InboxTable.getName(),
+                key,
+                item: itemWithoutArchivedPostIds,
+                debugItemType: {
+                    tableName: InboxTable.getName(),
+                    partitionType: "Inbox",
+                    sortRangeType: "ChannelPostsEntry",
+                },
+            });
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post3, post2, post1],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                    otherPostAuthor: null,
+                }),
+            ]);
         });
     });
 }

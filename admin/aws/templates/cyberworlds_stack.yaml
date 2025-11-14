@@ -1643,6 +1643,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/InboxTable/Resource
+    NotificationsTable76DCFC6C:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Notifications
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/NotificationsTable/Resource
     SearchEntitiesTableC54BE0E8:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -2206,6 +2231,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -2290,6 +2318,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2976,6 +3010,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -3060,6 +3097,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3957,6 +4000,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -4041,6 +4087,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -4913,6 +4965,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -4997,6 +5052,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -5588,6 +5649,9 @@ Resources:
                                 - InboxTableE3C19927
                                 - Arn
                           - Fn::GetAtt:
+                                - NotificationsTable76DCFC6C
+                                - Arn
+                          - Fn::GetAtt:
                                 - SearchEntitiesTableC54BE0E8
                                 - Arn
                           - Fn::GetAtt:
@@ -5672,6 +5736,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - InboxTableE3C19927
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - NotificationsTable76DCFC6C
                                         - Arn
                                   - /index/*
                           - Fn::Join:

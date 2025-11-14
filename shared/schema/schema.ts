@@ -506,7 +506,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * When deserializing an object, if we don't see this property then we will use
      * the provided default value.
      */
-    public default(defaultValue: Value) {
+    public default(
+        defaultValue: Value | ((serializedValue: SchemaSerializedObjectValue) => Value),
+    ) {
         return ObjectPropertySchema.wrap(this).default(defaultValue);
     }
 
@@ -1853,9 +1855,13 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }
 
     /** @see Schema.default */
-    public default(defaultValue: Value): ObjectPropertySchema<Value, SchemaValue> {
+    public default(
+        defaultValue: Value | ((serializedValue: SchemaSerializedObjectValue) => Value),
+    ): ObjectPropertySchema<Value, SchemaValue> {
         // Validate that the default value actually matches our schema.
-        this.validateProperty?.(defaultValue);
+        if (typeof defaultValue !== "function") {
+            this.validateProperty?.(defaultValue);
+        }
 
         const deserializeMissingProperty = this._deserializeMissingProperty;
 
@@ -1877,7 +1883,13 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                 deserializeMissingProperty === null
                     ? (object, key, schemaKey) => {
                           if (!hasOwnProperty(object, key) || object[key] === undefined) {
-                              return defaultValue;
+                              if (typeof defaultValue !== "function") {
+                                  return defaultValue;
+                              } else {
+                                  const actualDefaultValue = (defaultValue as any)(object);
+                                  this.validateProperty?.(actualDefaultValue);
+                                  return actualDefaultValue;
+                              }
                           }
 
                           return this.deserializeProperty(object, key, schemaKey);
@@ -1893,7 +1905,13 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
                               if (deserializedValue !== objectSchemaMissingPropertySymbol)
                                   return deserializedValue;
 
-                              return defaultValue;
+                              if (typeof defaultValue !== "function") {
+                                  return defaultValue;
+                              } else {
+                                  const actualDefaultValue = (defaultValue as any)(object);
+                                  this.validateProperty?.(actualDefaultValue);
+                                  return actualDefaultValue;
+                              }
                           }
 
                           return this.deserializeProperty(object, key, schemaKey);

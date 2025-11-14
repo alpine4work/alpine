@@ -4,6 +4,8 @@ import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
+import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
+import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -131,5 +133,13 @@ export class TestChannel {
         options?: TestPostCreateOptions,
     ): Promise<TestPost> {
         return TestPost._create(session, this, contentOrOptions as any, options);
+    }
+
+    public async subscribe(session: TestSpaceSession) {
+        await subscribeToChannel(session.action(), this.id);
+    }
+
+    public async unsubscribe(session: TestSpaceSession) {
+        await unsubscribeFromChannel(session.action(), this.id);
     }
 }

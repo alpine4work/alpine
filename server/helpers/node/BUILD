@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/@smithy/types",
         "//:node_modules/@types/node",
         "//:node_modules/aws4fetch",
+        "//:node_modules/chalk",
         "//shared/error",
         "//shared/helpers",
         "//shared/tracer",

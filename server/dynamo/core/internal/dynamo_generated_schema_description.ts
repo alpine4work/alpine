@@ -8825,6 +8825,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "archivedPostIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "postAuthorIds": {
                                         "valueSchema": {
                                             "type": "Set",
@@ -9382,6 +9391,58 @@ export const dynamoGeneratedSchemaDescription: {
                     }
                 }
             ]
+        },
+        "Notifications": {
+            "name": "Notifications",
+            "partitionByType": {
+                "Inbox": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        },
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "PostInChannelPostsEntry": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "channelId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "bucketGeneration": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                }
+            },
+            "indexes": []
         },
         "SearchEntities": {
             "name": "SearchEntities",

@@ -11,6 +11,7 @@ import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
@@ -67,7 +68,7 @@ async function unarchiveInboxEntryItemKey(
 
         const currentTime = new Date();
 
-        const newInboxEntryItem = {
+        let newInboxEntryItem = {
             ...inboxEntryItem,
             isArchived: false,
             // When unarchiving, move the unarchived entry to the top of the inbox so it's
@@ -76,6 +77,15 @@ async function unarchiveInboxEntryItemKey(
             generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
             enteredTime: currentTime,
         };
+
+        // When unarchiving a channel posts entry, all `PostId`s in the entry are now
+        // considered unarchived.
+        if (newInboxEntryItem.sortRangeType === "ChannelPostsEntry") {
+            newInboxEntryItem = {
+                ...newInboxEntryItem,
+                archivedPostIds: emptySet,
+            };
+        }
 
         const newInboxItem: InboxAttributesItem = {
             ...inboxItem,

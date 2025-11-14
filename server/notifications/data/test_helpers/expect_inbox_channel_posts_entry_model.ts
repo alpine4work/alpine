@@ -3,6 +3,7 @@ import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {InboxChannelPostsEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -12,9 +13,8 @@ export function expectInboxChannelPostsEntryModel({
     bucketGeneration,
     isArchived = false,
     loudNotificationCount = 0,
-    postCount = 1,
-    postAuthorCount = 1,
     latestPost,
+    posts = [[latestPost.post, {isArchived}]],
     otherPostAuthor = null,
 }: {
     session: TestSpaceSession;
@@ -22,14 +22,17 @@ export function expectInboxChannelPostsEntryModel({
     bucketGeneration: number;
     isArchived?: boolean;
     loudNotificationCount?: number;
-    postCount?: number;
-    postAuthorCount?: number;
+    posts?: ReadonlyArray<TestPost | [TestPost, {isArchived: boolean}]>;
     latestPost: {
         post: TestPost;
         contentTextSnippet: string;
     };
     otherPostAuthor?: TestSession | TestAccount | null;
 }) {
+    const actualPosts = posts.map(post =>
+        isReadonlyArray(post) ? post : ([post, {isArchived}] as const),
+    );
+
     return new InboxChannelPostsEntryModel({
         isArchived,
         spaceId: latestPost.post.space.id,
@@ -39,8 +42,8 @@ export function expectInboxChannelPostsEntryModel({
             : {isPrivate: false, channel: expect.objectContaining({id: channel.id})},
         bucketGeneration,
         loudNotificationCount,
-        postCount,
-        postAuthorCount,
+        postAuthorCount: new Set(actualPosts.map(post => post[0].author.id)).size,
+        posts: new Map(actualPosts.map(post => [post[0].id, {isArchived: post[1].isArchived}])),
         latestPost: {
             author: expect.objectContaining({id: latestPost.post.author.id}),
             createdTime: latestPost.post.createdTime,

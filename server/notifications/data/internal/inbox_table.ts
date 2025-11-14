@@ -8,6 +8,8 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
+    DynamoGeneralRealtimeTableItemKeyType,
+    DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
@@ -21,14 +23,18 @@ import {getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {
@@ -57,7 +63,7 @@ import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/no
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
-export type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
+type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
 
 export type InboxAttributesItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & {
@@ -72,6 +78,30 @@ export type InboxEntryItem = MergeObjectIntersection<
 
 export type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
+>;
+
+export type InboxChannelPostsEntryItem = DynamoGeneralRealtimeTableItemType<
+    typeof InboxTable,
+    "Inbox",
+    "ChannelPostsEntry"
+>;
+
+export type InboxChannelPostsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+    typeof InboxTable,
+    "Inbox",
+    "ChannelPostsEntry"
+>;
+
+export type InboxPostCommentsEntryItem = DynamoGeneralRealtimeTableItemType<
+    typeof InboxTable,
+    "Inbox",
+    "PostCommentsEntry"
+>;
+
+export type InboxPostCommentsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+    typeof InboxTable,
+    "Inbox",
+    "PostCommentsEntry"
 >;
 
 /**
@@ -458,8 +488,35 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * We assume that if you take a slice of this list it will be frozen and
                          * receive no updates. All new posts should be added to the beginning of the
                          * list.
+                         *
+                         * This set is append only! Once a post has been added, it will never be
+                         * removed. We only add to this set while the inbox is unobserved. Once the
+                         * inbox has been observed this set is frozen. Various bits of code depend on
+                         * this set being append only.
                          */
                         postIds: Schema.set(Schema.id<PostId>()).minSize(1),
+
+                        /**
+                         * Which `PostId`s have been archived within this inbox entry? Once all
+                         * `PostId`s in `postIds` have been added to this set then `isArchived: true`
+                         * should be automatically set.
+                         */
+                        archivedPostIds: Schema.set(Schema.id<PostId>())
+                            // If the item was archived before then `archivedPostIds` should be the
+                            // same as `postIds`.
+                            .default(item => {
+                                if (!item.isArchived) return emptySet;
+
+                                if (!isReadonlyArray(item.postIds)) return emptySet;
+
+                                return new Set(
+                                    filterMapIterable(item.postIds, postId =>
+                                        typeof postId === "string" && isId<PostId>(postId)
+                                            ? postId
+                                            : undefined,
+                                    ),
+                                );
+                            }),
 
                         /**
                          * The authors of posts in this inbox entry. Will have a size less than or
@@ -478,7 +535,20 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             createdTime: Schema.date,
                             contentSnippet: PostContentSchema,
                         }),
-                    }),
+                    })
+                        .validation("All `archivedPostIds` must be present in `postIds`", item =>
+                            iterableEvery(item.archivedPostIds, postId => item.postIds.has(postId)),
+                        )
+                        .validation(
+                            "If `ChannelPostsEntry` is archived then all `postIds` must be in `archivedPostIds`",
+                            item =>
+                                !item.isArchived || item.postIds.size === item.archivedPostIds.size,
+                        )
+                        .validation(
+                            "If all `postIds` are in `archivedPostIds` then `ChannelPostsEntry` must be archived",
+                            item =>
+                                item.postIds.size !== item.archivedPostIds.size || item.isArchived,
+                        ),
                 },
                 {
                     name: "DocumentCommentThreadEntry",
@@ -881,8 +951,13 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ? {isPrivate: false, channel: channelResult.value}
                                 : {isPrivate: true, channelId: item.channelId},
                             bucketGeneration: item.bucketGeneration,
-                            postCount: item.postIds.size,
                             postAuthorCount: item.postAuthorIds.size,
+                            posts: new Map(
+                                mapIterable(item.postIds, postId => [
+                                    postId,
+                                    {isArchived: item.archivedPostIds.has(postId)},
+                                ]),
+                            ),
                             latestPost: {
                                 author: latestPostAuthor,
                                 createdTime: item.latestPost.createdTime,
