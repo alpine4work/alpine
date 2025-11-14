@@ -1,5 +1,6 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
     DynamoGeneralRealtimeTableSchema,
@@ -79,7 +80,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             ) => void;
             updateOtherInboxEntry: <OtherItemKey extends InboxEntryItemKey>(
                 otherItemKey: OtherItemKey,
-                oldOtherItem: (InboxEntryItem & OtherItemKey) | null,
+                oldOtherItem: DynamoItem<InboxEntryItem & OtherItemKey> | null,
                 newOtherItem: UpdateInboxEntryNewItem<
                     InboxEntryItem & OtherItemKey,
                     InboxEntryItemKey
@@ -92,7 +93,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         initialInboxItemIfExists,
     }: {
         clientRequestToken?: string;
-        initialInboxItemIfExists?: InboxAttributesItem | null;
+        initialInboxItemIfExists?: DynamoItem<InboxAttributesItem> | null;
     } = {},
 ): Promise<UpdateInboxEntryResult | null> {
     await runAllPromises([
@@ -166,11 +167,14 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     // if the item didn't actually update.
                     !(oldOtherItem && isDeepEqual(oldOtherItem, result.newInboxEntryItem))
                 ) {
-                    newInboxItem = {
-                        ...(newInboxItem ??
-                            getInitialInboxItem(itemKey.spaceId, itemKey.accountId)),
-                        lastEntryUpdatedTime: currentTime,
-                    };
+                    if (newInboxItem !== null) {
+                        newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
+                    } else {
+                        newInboxItem = DynamoItem.create({
+                            ...getInitialInboxItem(itemKey.spaceId, itemKey.accountId),
+                            lastEntryUpdatedTime: currentTime,
+                        });
+                    }
 
                     transactionEntries.push(
                         InboxTable.transactionDirectlyUpdateItem(result.newInboxEntryItem),
@@ -179,7 +183,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             },
         });
 
-        let newInboxEntryItem: InboxEntryItem | null = null;
+        let newInboxEntryItem: DynamoItem<InboxEntryItem> | null = null;
         {
             const result = computeUpdateInboxEntry(context, {
                 currentTime,
@@ -207,10 +211,14 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             // if the item didn't actually update.
             !(oldInboxEntryItem && isDeepEqual(oldInboxEntryItem, newInboxEntryItem))
         ) {
-            newInboxItem = {
-                ...(newInboxItem ?? getInitialInboxItem(itemKey.spaceId, itemKey.accountId)),
-                lastEntryUpdatedTime: currentTime,
-            };
+            if (newInboxItem !== null) {
+                newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
+            } else {
+                newInboxItem = DynamoItem.create({
+                    ...getInitialInboxItem(itemKey.spaceId, itemKey.accountId),
+                    lastEntryUpdatedTime: currentTime,
+                });
+            }
 
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem));
         }
@@ -276,14 +284,17 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         actorAccountId: AccountId;
         itemKey: ItemKey;
         accountTimeZone: TimeZone | null;
-        oldInboxItem: InboxAttributesItem | null;
-        oldInboxEntryItem: (InboxEntryItem & ItemKey) | null;
+        oldInboxItem: DynamoItem<InboxAttributesItem> | null;
+        oldInboxEntryItem: DynamoItem<InboxEntryItem & ItemKey> | null;
         newInboxEntryItem: UpdateInboxEntryNewItem<
             InboxEntryItem & ItemKey,
             InboxEntryItemKey
         > | null;
     },
-) {
+): {
+    newInboxItem: DynamoItem<InboxAttributesItem>;
+    newInboxEntryItem: DynamoItem<InboxEntryItem & ItemKey>;
+} | null {
     if (!newInboxEntryItemPartial1) return null;
 
     assert(
@@ -447,8 +458,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
     }
 
     return {
-        newInboxItem,
-        newInboxEntryItem,
+        newInboxItem: DynamoItem.createOrUpdate(oldInboxItem, newInboxItem),
+        newInboxEntryItem: DynamoItem.createOrUpdate(oldInboxEntryItem, newInboxEntryItem),
     };
 }
 

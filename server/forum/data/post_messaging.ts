@@ -12,7 +12,7 @@ import {
 import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoItem, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js";
@@ -288,14 +288,14 @@ export async function createPostComment(
                         channelId: postItem.channelId,
                     },
                     contributorsItem => {
-                        contributorsItem ??= {
+                        contributorsItem ??= DynamoItem.create({
                             partitionType: "Channel",
                             sortRangeType: "Contributors",
                             channelId: postItem.channelId,
                             spaceId: postItem.spaceId,
                             contributionCountByAccountId: new Map(),
                             accountIdsWithGrant: emptyArray,
-                        };
+                        });
 
                         oldContributionCount =
                             contributorsItem.contributionCountByAccountId.get(authorId) ?? 0;
@@ -317,10 +317,9 @@ export async function createPostComment(
 
                         newContributionCountByAccountId.set(authorId, newContributionCount);
 
-                        return {
-                            ...contributorsItem,
+                        return contributorsItem.update({
                             contributionCountByAccountId: newContributionCountByAccountId,
-                        };
+                        });
                     },
                 );
 

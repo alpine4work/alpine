@@ -50,10 +50,7 @@ export async function unsubscribeFromEmailNotificationWithUrl(
                 },
                 item => {
                     if (item.digestNotificationsOptedOutTime !== null) return item;
-                    return {
-                        ...item,
-                        digestNotificationsOptedOutTime: currentTime,
-                    };
+                    return item.update({digestNotificationsOptedOutTime: currentTime});
                 },
                 {initialItem: inboxItem},
             );

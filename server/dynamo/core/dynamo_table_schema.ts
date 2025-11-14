@@ -1738,6 +1738,64 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
+     * Same as `getItemIfExists()` except we return a `DynamoItem` object.
+     * Currently this is only used by `DynamoGeneralRealtimeTableSchema`. In the
+     * future, however, we may use `DynamoItem` for all `getItem()` calls from
+     * `DynamoTableSchema` too! Since it's core feature (keeping track of
+     * `oldItem`) is useful for `directlyUpdateItem()` calls which need the old
+     * item's `updateLockVersion`.
+     */
+    public async _getItemWithOldItemIfExists<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        {
+            consistency = "Eventual",
+            allowsEventualReadConsistency = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
+        } = {},
+    ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>> | null> {
+        const client = await this._getClient(context, false);
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+
+        const serializedItem = await client.getItemIfExists(context, {
+            tableName: this._name,
+            key: {partitionKey, sortKey},
+            // As a convenience, we support `DynamoCacheReadConsistency` even though this
+            // method doesn't consult any cache. `Strong` provides more guarantees than
+            // `StrongWithinCache` so it's safe to use without changing semantics.
+            consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
+            expectsStrongReadConsistency:
+                !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
+        });
+
+        if (!serializedItem) return null;
+
+        // @ts-expect-error: `DynamoItem` has a private constructor but it's intended
+        // to be used here.
+        const item: any = new DynamoItem();
+        Object.assign(item, key);
+        try {
+            attributesSchema.deserializeInto(serializedItem, item);
+        } catch (error) {
+            // Reclassify deserialization errors from data stored in the database as data
+            // loss errors. It means we have corrupt data stored in the database!
+            if (error instanceof SchemaDeserializationError) {
+                throw new DataLossError(error.message, {cause: error});
+            }
+            throw error;
+        }
+
+        return item;
+    }
+
+    /**
      * Gets an item with the provided key and if the item does not exist then we
      * throw an error. Same as `getItem()` but throws an error instead of returning
      * null when an item is missing.
@@ -3611,6 +3669,149 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
+     * Same as `query()` except we return a `DynamoItem` object. Currently this is
+     * only used by `DynamoGeneralRealtimeTableSchema`. In the future, however, we
+     * may use `DynamoItem` for all `query()` calls from `DynamoTableSchema` too!
+     * Since it's core feature (keeping track of `oldItem`) is useful for
+     * `directlyUpdateItem()` calls which need the old item's `updateLockVersion`.
+     */
+    public async *_queryWithOldItems<
+        const PartitionKey extends Types["PartitionKey"],
+        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+    >(
+        context: DynamoContext,
+        {
+            partitionKey,
+            startSortKey,
+            endSortKey,
+            isStartSortKeyExclusive,
+            isEndSortKeyExclusive,
+            afterItemKey,
+            limit,
+            pageLimit,
+            descending,
+            consistency = "Eventual",
+            allowsEventualReadConsistency = false,
+        }: {
+            partitionKey: PartitionKey;
+            startSortKey?: StartSortKey | undefined;
+            endSortKey?: EndSortKey | undefined;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            afterItemKey?: Extract<
+                Types["ItemKey"],
+                PartitionKey & {
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                }
+            >;
+            // Required to specify a limit or the `All` string. So if you intentionally
+            // want everything you have to say so.
+            limit: number | "All";
+            pageLimit?: number;
+            descending?: boolean;
+            consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
+        },
+    ): AsyncIterableIterator<
+        DynamoItem<
+            Extract<
+                Types["Item"],
+                PartitionKey & {
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                }
+            >
+        >
+    > {
+        const client = await this._getClient(context, false);
+
+        const serializedPartitionKey = this._serializePartitionKey(partitionKey);
+        const serializedStartSortKey = startSortKey
+            ? this._serializeSortKey(partitionKey, startSortKey)
+            : undefined;
+        const serializedEndSortKey = endSortKey
+            ? this._serializeSortKey(partitionKey, endSortKey)
+            : undefined;
+
+        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType)!;
+
+        const startSortRangeIndex = startSortKey
+            ? partitionConfig.sortRangeByName.get(startSortKey.sortRangeType)?.index
+            : undefined;
+        const endSortRangeIndex = endSortKey
+            ? partitionConfig.sortRangeByName.get(endSortKey.sortRangeType)?.index
+            : undefined;
+
+        const sortRanges = partitionConfig.sortRanges.slice(
+            startSortRangeIndex,
+            endSortRangeIndex !== undefined ? endSortRangeIndex + 1 : undefined,
+        );
+
+        let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
+        if (afterItemKey) {
+            const {partitionKey, sortKey} = this._serializeItemKey(afterItemKey);
+            lastEvaluatedKey = {partitionKey, sortKey};
+        }
+
+        const iterator = client.query(context.tracer.getTracer(), {
+            tableName: this._name,
+            partitionKey: {
+                name: "partitionKey",
+                value: serializedPartitionKey,
+            },
+            sortKey: {
+                name: "sortKey",
+                startValue: serializedStartSortKey,
+                endValue: serializedEndSortKey,
+                isStartExclusive: isStartSortKeyExclusive,
+                isEndExclusive: isEndSortKeyExclusive,
+            },
+            lastEvaluatedKey,
+            // As a convenience, we support `DynamoCacheReadConsistency` even though this
+            // method doesn't consult any cache. `Strong` provides more guarantees than
+            // `StrongWithinCache` so it's safe to use without changing semantics.
+            consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
+            limit: limit !== "All" ? limit : undefined,
+            pageLimit,
+            descending,
+            expectsStrongReadConsistency:
+                !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
+            debugItemTypes: sortRanges.map(sortRange => ({
+                tableName: this._name,
+                partitionType: partitionKey.partitionType,
+                sortRangeType: sortRange.name,
+            })),
+        });
+
+        for await (const serializedItem of iterator) {
+            assert(typeof serializedItem.partitionKey === "string");
+            assert(typeof serializedItem.sortKey === "string");
+
+            const {key, attributesSchema} = this._deserializeItemKey(
+                serializedItem.partitionKey,
+                serializedItem.sortKey,
+            );
+
+            // @ts-expect-error: `DynamoItem` has a private constructor but it's intended
+            // to be used here.
+            const item: any = new DynamoItem();
+            Object.assign(item, key);
+            try {
+                attributesSchema.deserializeInto(serializedItem, item);
+            } catch (error) {
+                // Reclassify deserialization errors from data stored in the database as data
+                // loss errors. It means we have corrupt data stored in the database!
+                if (error instanceof SchemaDeserializationError) {
+                    throw new DataLossError(error.message, {cause: error});
+                }
+                throw error;
+            }
+
+            yield item;
+        }
+    }
+
+    /**
      * Scans every item in the table. Since tables can get very large this function
      * is expensive! Generally you should avoid it.
      *
@@ -5007,6 +5208,95 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation");
     }
 }
+
+/**
+ * An item returned from DynamoDB that keeps track of the `oldItem` originally
+ * loaded from the database. Useful if you need the `oldItem` to perform some
+ * diffing with the current item.
+ */
+export type DynamoItem<Item extends object> = Item & DynamoItemClass<Item>;
+
+class DynamoItemClass<Item extends object> {
+    /**
+     * The item we originally loaded from the database.
+     */
+    public readonly oldItem: Item | null;
+
+    // Should only be instantiated by the `DynamoTableSchema` class.
+    private constructor(oldItem: Item | null = this as any) {
+        this.oldItem = oldItem;
+    }
+
+    /**
+     * Creates a `DynamoItem` with `oldItem` set to `null`.
+     */
+    public static create<Item extends object>(item: Item) {
+        const actualItem = new DynamoItemClass<Item>(null);
+        Object.assign(actualItem, item);
+        return actualItem as DynamoItem<Item>;
+    }
+
+    /**
+     * Calls `DynamoItem.create()` if `oldItem` is `null` otherwise calls
+     * `DynamoItem.fullUpdate()`.
+     */
+    public static createOrUpdate<Item extends object>(
+        oldItem: DynamoItem<Item> | null,
+        item: Item,
+    ): DynamoItem<Item> {
+        if (oldItem !== null) {
+            return oldItem.fullUpdate(item);
+        } else {
+            return DynamoItem.create(item);
+        }
+    }
+
+    /**
+     * Update the item with some new properties. We copy the existing properties of
+     * the item and then override those properties with any new ones from the
+     * `Partial<Item>`.
+     */
+    public update(item: Partial<Item>): DynamoItem<Item> {
+        const newItem = new DynamoItem(this.oldItem);
+
+        for (const [key, value] of Object.entries(this)) {
+            if (key === "oldItem") continue;
+            (newItem as any)[key] = value;
+        }
+
+        for (const [key, value] of Object.entries(item)) {
+            (newItem as any)[key] = value;
+        }
+
+        return newItem as DynamoItem<Item>;
+    }
+
+    /**
+     * Fully replace all properties in the item.
+     *
+     * Useful if there are some optional properties in the item you need to get rid
+     * of. Though you could also call `update({optionalProperty: undefined})` to
+     * override an optional property with `undefined`.
+     */
+    public fullUpdate(item: Item): DynamoItem<Item> {
+        const newItem = new DynamoItem(this.oldItem);
+
+        for (const [key, value] of Object.entries(item)) {
+            (newItem as any)[key] = value;
+        }
+
+        return newItem as DynamoItem<Item>;
+    }
+}
+
+// Update the name of `DynamoItemClass` at runtime if code isn't minified.
+if (DynamoItemClass.name === "DynamoItemClass") {
+    Object.defineProperty(DynamoItemClass, "name", {writable: false, value: "DynamoItem"});
+}
+
+// We use this `const DynamoItem = DynamoItemClass` syntax so we can override
+// the `DynamoItem` type.
+export const DynamoItem = DynamoItemClass;
 
 let constructedDynamoTableSchemaCount = 0;
 

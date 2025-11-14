@@ -9,6 +9,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {
@@ -288,14 +289,14 @@ function afterCreatePost(
             context,
             {partitionType: "Channel", sortRangeType: "Contributors", channelId},
             contributorsItem => {
-                contributorsItem ??= {
+                contributorsItem ??= DynamoItem.create({
                     partitionType: "Channel",
                     sortRangeType: "Contributors",
                     channelId: postItem.channelId,
                     spaceId: postItem.spaceId,
                     contributionCountByAccountId: new Map(),
                     accountIdsWithGrant: emptyArray,
-                };
+                });
 
                 oldContributionCount =
                     contributorsItem.contributionCountByAccountId.get(
@@ -322,10 +323,9 @@ function afterCreatePost(
                     newContributionCount,
                 );
 
-                return {
-                    ...contributorsItem,
+                return contributorsItem.update({
                     contributionCountByAccountId: newContributionCountByAccountId,
-                };
+                });
             },
         );
 

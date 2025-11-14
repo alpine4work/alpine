@@ -43,10 +43,10 @@ export async function notifyInboxOfTimeZoneChange(
                     },
                     item => {
                         assert(item, "Can’t update time zone for inbox that no longer exists");
-                        return {
-                            ...item,
+
+                        return item.update({
                             digestNotificationsNextScheduledDateTime: newScheduledDigest,
-                        };
+                        });
                     },
                     {initialItem: inboxItem},
                 );

@@ -730,6 +730,12 @@ export type ChannelAttributesItem = DynamoGeneralRealtimeTableItemType<
     "Attributes"
 >;
 
+export type ChannelContributorsItem = DynamoGeneralRealtimeTableItemType<
+    typeof ForumRealtimeTable,
+    "Channel",
+    "Contributors"
+>;
+
 export type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
     typeof ForumRealtimeTable,
     "Post",

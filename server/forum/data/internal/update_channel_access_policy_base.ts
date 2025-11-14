@@ -3,11 +3,13 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {
     ChannelAttributesItem,
+    ChannelContributorsItem,
     ForumRealtimeTable,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
@@ -95,11 +97,13 @@ export async function updateChannelAccessPolicyBase(
                 // client includes the updated contributors model. So we can immediately
                 // re-render the contributors item with the new data.
                 if (isDeepEqual(oldAccountIdsWithGrant, newAccountIdsWithGrant)) {
-                    const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(context, {
-                        ...channelItem,
-                        accessPolicy: newAccessPolicy,
-                        hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
-                    });
+                    const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(
+                        context,
+                        channelItem.update({
+                            accessPolicy: newAccessPolicy,
+                            hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                        }),
+                    );
 
                     return {
                         channelItem,
@@ -110,30 +114,34 @@ export async function updateChannelAccessPolicyBase(
                         ],
                     };
                 } else {
-                    const contributorsItem = (await ForumRealtimeTable.getItemIfExists(context, {
-                        partitionType: "Channel",
-                        sortRangeType: "Contributors",
-                        channelId,
-                    })) ?? {
-                        partitionType: "Channel",
-                        sortRangeType: "Contributors",
-                        channelId,
-                        spaceId: channelItem.spaceId,
-                        contributionCountByAccountId: new Map(),
-                        accountIdsWithGrant: emptyArray,
-                    };
+                    const contributorsItem: DynamoItem<ChannelContributorsItem> =
+                        (await ForumRealtimeTable.getItemIfExists(context, {
+                            partitionType: "Channel",
+                            sortRangeType: "Contributors",
+                            channelId,
+                        })) ??
+                        DynamoItem.create({
+                            partitionType: "Channel",
+                            sortRangeType: "Contributors",
+                            channelId,
+                            spaceId: channelItem.spaceId,
+                            contributionCountByAccountId: new Map(),
+                            accountIdsWithGrant: emptyArray,
+                        });
 
                     const {getEventTransaction} =
                         await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                            ForumRealtimeTable.transactionDirectlyUpdateItem({
-                                ...channelItem,
-                                accessPolicy: newAccessPolicy,
-                                hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
-                            }),
-                            ForumRealtimeTable.transactionDirectlyUpdateItem({
-                                ...contributorsItem,
-                                accountIdsWithGrant: newAccountIdsWithGrant,
-                            }),
+                            ForumRealtimeTable.transactionDirectlyUpdateItem(
+                                channelItem.update({
+                                    accessPolicy: newAccessPolicy,
+                                    hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                                }),
+                            ),
+                            ForumRealtimeTable.transactionDirectlyUpdateItem(
+                                contributorsItem.update({
+                                    accountIdsWithGrant: newAccountIdsWithGrant,
+                                }),
+                            ),
                         ]);
 
                     return {

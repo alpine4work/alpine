@@ -111,11 +111,10 @@ export async function sendNotificationDigestForInbox(
             hasSent = true;
         }
 
-        const newInboxItem = {
-            ...inboxItem,
+        const newInboxItem = inboxItem.update({
             digestNotificationsLastSentTime: sendTime,
             digestNotificationsNextScheduledDateTime: null,
-        };
+        });
 
         await InboxTable.directlyUpdateItem(context, newInboxItem);
     });

@@ -1,6 +1,7 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {InboxAttributesItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -19,7 +20,7 @@ export async function getOurAccountInboxItems(
     context: ServerSessionActionContext,
     spaceIds: ReadonlySet<SpaceId>,
     options: {consistency?: DynamoReadConsistency} = {consistency: "Eventual"},
-): Promise<ReadonlyArray<InboxAttributesItem>> {
+): Promise<ReadonlyArray<DynamoItem<InboxAttributesItem>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
         InboxTable.query(context, {
             partitionKey: {partitionType: "Account", accountId: context.actor.getAccountId()},

@@ -43,10 +43,7 @@ export async function updateChannelName(
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
 
-            return {
-                ...channelItem,
-                name,
-            };
+            return channelItem.update({name});
         },
     );
 

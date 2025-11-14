@@ -9,7 +9,6 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {
     ChannelPostFilesItem,
     ForumRealtimeTable,
-    PostAttributesItem,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_content_file_ids.js";
 import {
@@ -87,8 +86,7 @@ export function updatePostContent(
                 : Date.now(),
         );
 
-        const newPostItem: PostAttributesItem = {
-            ...oldPostItem,
+        const newPostItem = oldPostItem.update({
             content,
             contentUpdate: {
                 time: contentUpdatedTime,
@@ -102,7 +100,7 @@ export function updatePostContent(
                     content,
                 ),
             },
-        };
+        });
 
         const oldFileIds = getPostContentFileIds(oldPostItem.content);
         const newFileIds = getPostContentFileIds(newPostItem.content);
@@ -171,10 +169,9 @@ export function updatePostContent(
                 transactionEntry,
                 newFileIds.size === 0
                     ? ForumRealtimeTable.transactionDeleteItem(channelPostFilesItem)
-                    : ForumRealtimeTable.transactionDirectlyUpdateItem({
-                          ...channelPostFilesItem,
-                          fileIds: newFileIds,
-                      }),
+                    : ForumRealtimeTable.transactionDirectlyUpdateItem(
+                          channelPostFilesItem.update({fileIds: newFileIds}),
+                      ),
             ]);
         }
 

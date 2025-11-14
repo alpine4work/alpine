@@ -46,11 +46,7 @@ export async function updateChannelNameAndDescription(
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
 
-            return {
-                ...channelItem,
-                name,
-                description,
-            };
+            return channelItem.update({name, description});
         },
     );
 

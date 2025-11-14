@@ -7,6 +7,7 @@ import {
     DynamoReadConsistency,
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
+    DynamoItem,
     DynamoTableSchema,
     DynamoTableSchemaIndex,
     DynamoTableSchemaIndexConfigOptions,
@@ -39,7 +40,12 @@ import {
     DynamoItemPartitionKey,
     DynamoItemSortKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {InternalError, InvalidArgumentError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -777,9 +783,11 @@ export class DynamoGeneralRealtimeTableSchema<
     private _createPutItemAction<Item extends Types["Item"]>({
         oldItem,
         newItem,
+        newVersion,
     }: {
         oldItem: Item | null;
         newItem: Item;
+        newVersion: number;
     }): DynamoGeneralRealtimePutItemAction<
         Item & Types["ItemKey"],
         ModelMap[Item["partitionType"]][Item["sortRangeType"]]
@@ -789,14 +797,12 @@ export class DynamoGeneralRealtimeTableSchema<
             this._table.serializeOpaqueItemKeyAndMaybePartitionKeyOrSortKey(newItem);
 
         if (oldItem !== null && oldItem !== newItem) {
-            assert(key === this._table.serializeOpaqueItemKey(oldItem));
-            assert(oldItem.updateLockVersion === newItem.updateLockVersion);
+            assert(key === this._table.serializeOpaqueItemKey(oldItem), "Can’t update item key");
+            assert(
+                oldItem.updateLockVersion === newItem.updateLockVersion,
+                "Can’t update `updateLockVersion`, `DynamoGeneralRealtimeTableSchema` will update `updateLockVersion` for you",
+            );
         }
-
-        const version: number =
-            oldItem !== null
-                ? (oldItem.updateLockVersion ?? 0) + 1
-                : newItem.updateLockVersion ?? 0;
 
         const indexByName = this._indexByNameByItemType.get(itemType);
 
@@ -848,7 +854,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 () =>
                     this._buildModel(context, {
                         ...newItem,
-                        updateLockVersion: version !== 0 ? version : undefined,
+                        updateLockVersion: newVersion !== 0 ? newVersion : undefined,
                     }),
             );
         };
@@ -863,11 +869,11 @@ export class DynamoGeneralRealtimeTableSchema<
             newPartitionKeyByIndexName,
             eventStub: {
                 type: "PutItem",
-                item: {key, version},
+                item: {key, version: newVersion},
             },
             getEvent: async context => ({
                 type: "PutItem",
-                item: {key, version, model: await getModel(context)},
+                item: {key, version: newVersion, model: await getModel(context)},
                 indexes,
             }),
         };
@@ -951,7 +957,22 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({oldItem: null, newItem: item});
+        if (this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            item = {
+                ...item,
+                // Make sure if we call `transactionDirectlyUpdateItem()` we don't need to run
+                // `transactionDoesNotExistConditionCheck()` again. We run
+                // `transactionDoesNotExistConditionCheck()` on
+                // `transactionDirectlyUpdateItem()` when `updateLockVersion` is 0.
+                updateLockVersion: 1,
+            };
+        }
+
+        const action = this._createPutItemAction({
+            oldItem: null,
+            newItem: item,
+            newVersion: item.updateLockVersion ?? 0,
+        });
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             await this._table.createItem(context, item, options);
@@ -1016,8 +1037,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: ServerActionContext,
-        newItem: Item,
-        {oldItem = newItem}: {oldItem?: Item} = {},
+        newItem: DynamoItem<Item>,
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1033,7 +1053,18 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({oldItem, newItem});
+        if (newItem.oldItem === null) {
+            assert(
+                (newItem.updateLockVersion ?? 0) === 0,
+                "Item’s `updateLockVersion` is greater than 0 but `oldItem` is null, did you use `DynamoItem.create()` to create this item instead of `DynamoItem.update()`?",
+            );
+        }
+
+        const action = this._createPutItemAction({
+            oldItem: newItem.oldItem,
+            newItem,
+            newVersion: (newItem.updateLockVersion ?? 0) + 1,
+        });
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1051,7 +1082,15 @@ export class DynamoGeneralRealtimeTableSchema<
                         !hasOwnProperty(actualCondition, attributeName)
                     ) {
                         actualCondition ??= {};
-                        actualCondition[attributeName] = oldItem[attributeName];
+
+                        // This check is so we're correctly handling the case where we're
+                        // creating a new item (i.e. oldItem is null).
+                        if (newItem.oldItem !== null) {
+                            actualCondition[attributeName] = newItem.oldItem[attributeName];
+                        } else {
+                            actualCondition[attributeName] =
+                                DynamoConditionExpression.exists().not();
+                        }
                     }
                 }
             }
@@ -1059,7 +1098,27 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        await this._table.directlyUpdateItem(context, newItem, {condition});
+        if (
+            !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
+            (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
+        ) {
+            await this._table.directlyUpdateItem(context, newItem, {condition});
+        }
+        // If we're creating the item then we need to make sure it doesn't have a
+        // gravestone.
+        else {
+            await DynamoTableSchema.executeTransaction(context, [
+                this._table.transactionDirectlyUpdateItem(newItem, {condition}),
+                this._table.transactionDoesNotExistConditionCheck(
+                    cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
+                        partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                        sortRangeType: "Gravestone",
+                        deletedPartitionKey: action.getPartitionKey(),
+                        deletedSortKey: action.getSortKey(),
+                    }),
+                ),
+            ]);
+        }
 
         context.process.waitUntil(this._broadcastActionTransaction(context, [action]));
 
@@ -1084,9 +1143,9 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         itemKey: ItemKey,
         update: (
-            item: MergeObjectIntersection<Types["Item"] & ItemKey>,
-        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & ItemKey>>,
-        options: {initialItem: Types["Item"] & ItemKey},
+            item: DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>,
+        ) => MaybePromise<DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>>,
+        options: {initialItem: DynamoItem<Types["Item"] & ItemKey>},
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1100,9 +1159,9 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         itemKey: ItemKey,
         update: (
-            item: MergeObjectIntersection<Types["Item"] & ItemKey> | null,
-        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & ItemKey>>,
-        options?: {initialItem?: Types["Item"] & ItemKey},
+            item: DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>> | null,
+        ) => MaybePromise<DynamoItem<MergeObjectIntersection<Types["Item"] & ItemKey>>>,
+        options?: {initialItem?: DynamoItem<Types["Item"] & ItemKey>},
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1118,7 +1177,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // Typed as `never` since a caller should always match one of the overloads,
         // not this base definition.
         update: never,
-        {initialItem}: {initialItem?: Types["Item"] & ItemKey} = {},
+        {initialItem}: {initialItem?: DynamoItem<Types["Item"] & ItemKey>} = {},
     ): Promise<{
         getEvent: (
             context: ServerActionContext,
@@ -1139,7 +1198,7 @@ export class DynamoGeneralRealtimeTableSchema<
                     ? initialItem
                     : await this.getItemIfExists(context, itemKey);
 
-            const newItem: Types["Item"] & ItemKey = await (update as any)(item);
+            const newItem: DynamoItem<Types["Item"] & ItemKey> = await (update as any)(item);
 
             // We don't currently support deleting items from this method. We can easily
             // add this eventually though now that we have the `deleteItem()` method.
@@ -1147,7 +1206,11 @@ export class DynamoGeneralRealtimeTableSchema<
 
             // Update was short-circuited.
             if (item === newItem) {
-                const action = this._createPutItemAction({oldItem: null, newItem: item});
+                const action = this._createPutItemAction({
+                    oldItem: null,
+                    newItem: item,
+                    newVersion: newItem.updateLockVersion ?? 0,
+                });
 
                 return {
                     getEvent: async context => {
@@ -1165,7 +1228,7 @@ export class DynamoGeneralRealtimeTableSchema<
             if (item === null) {
                 return this.createItem(context, newItem, {isConditionCheckErrorRetriable: true});
             } else {
-                return this.directlyUpdateItem(context, newItem, {oldItem: item});
+                return this.directlyUpdateItem(context, newItem);
             }
         });
     }
@@ -1329,7 +1392,11 @@ export class DynamoGeneralRealtimeTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this._createPutItemAction({oldItem: null, newItem: item});
+        const action = this._createPutItemAction({
+            oldItem: null,
+            newItem: item,
+            newVersion: item.updateLockVersion ?? 0,
+        });
 
         await DynamoTableSchema.executeTransaction(context, [
             this._table.transactionDeleteItem(
@@ -1470,7 +1537,22 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({oldItem: null, newItem: item});
+        if (this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
+            item = {
+                ...item,
+                // Make sure if we call `transactionDirectlyUpdateItem()` we don't need to run
+                // `transactionDoesNotExistConditionCheck()` again. We run
+                // `transactionDoesNotExistConditionCheck()` on
+                // `transactionDirectlyUpdateItem()` when `updateLockVersion` is 0.
+                updateLockVersion: 1,
+            };
+        }
+
+        const action = this._createPutItemAction({
+            oldItem: null,
+            newItem: item,
+            newVersion: item.updateLockVersion ?? 0,
+        });
 
         let transactionEntry;
 
@@ -1516,10 +1598,9 @@ export class DynamoGeneralRealtimeTableSchema<
      * with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
-        item: Item,
-        options?: {oldItem?: Item | null},
+        newItem: DynamoItem<Item>,
     ): DynamoGeneralRealtimeTransactionEntry {
-        return this.transactionDirectlyUpdateItemWithEvent(item, options).transactionEntry;
+        return this.transactionDirectlyUpdateItemWithEvent(newItem).transactionEntry;
     }
 
     /**
@@ -1536,8 +1617,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItemWithEvent<Item extends Types["Item"]>(
-        newItem: Item,
-        {oldItem = newItem}: {oldItem?: Item | null} = {},
+        newItem: DynamoItem<Item>,
     ): {
         transactionEntry: DynamoGeneralRealtimeTransactionEntry;
         getEvent: (
@@ -1554,7 +1634,18 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({oldItem, newItem});
+        if (newItem.oldItem === null) {
+            assert(
+                (newItem.updateLockVersion ?? 0) === 0,
+                "Item’s `updateLockVersion` is greater than 0 but `oldItem` is null, did you use `DynamoItem.create()` to create this item instead of `DynamoItem.update()`?",
+            );
+        }
+
+        const action = this._createPutItemAction({
+            oldItem: newItem.oldItem,
+            newItem,
+            newVersion: (newItem.updateLockVersion ?? 0) + 1,
+        });
 
         let condition: DynamoCondition<Item> | undefined;
 
@@ -1574,8 +1665,8 @@ export class DynamoGeneralRealtimeTableSchema<
                         actualCondition ??= {};
                         // This check is so we're correctly handling the case where we're
                         // creating a new item (i.e. oldItem is null).
-                        if (oldItem !== null) {
-                            actualCondition[attributeName] = oldItem[attributeName];
+                        if (newItem.oldItem !== null) {
+                            actualCondition[attributeName] = newItem.oldItem[attributeName];
                         } else {
                             actualCondition[attributeName] =
                                 DynamoConditionExpression.exists().not();
@@ -1587,12 +1678,39 @@ export class DynamoGeneralRealtimeTableSchema<
             condition = actualCondition as any;
         }
 
-        const transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
-            privateSymbol,
-            this._table.transactionDirectlyUpdateItem(newItem, {condition}),
-            this,
-            action,
-        );
+        let transactionEntry;
+
+        if (
+            !this._features?.deleteItem?.[newItem.partitionType]?.[newItem.sortRangeType] ||
+            (typeof newItem.updateLockVersion === "number" && newItem.updateLockVersion !== 0)
+        ) {
+            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+                privateSymbol,
+                this._table.transactionDirectlyUpdateItem(newItem, {condition}),
+                this,
+                action,
+            );
+        }
+        // If we're creating the item then we need to make sure it doesn't have a
+        // gravestone.
+        else {
+            transactionEntry = DynamoGeneralRealtimeTransactionEntry._new(
+                privateSymbol,
+                [
+                    this._table.transactionDirectlyUpdateItem(newItem, {condition}),
+                    this._table.transactionDoesNotExistConditionCheck(
+                        cast<DynamoGeneralRealtimePrivateGraveyardPartitionItemKey>({
+                            partitionType: dynamoGeneralRealtimePrivateGraveyardPartitionName,
+                            sortRangeType: "Gravestone",
+                            deletedPartitionKey: action.getPartitionKey(),
+                            deletedSortKey: action.getSortKey(),
+                        }),
+                    ),
+                ],
+                this,
+                action,
+            );
+        }
 
         return {
             transactionEntry,
@@ -1699,7 +1817,11 @@ export class DynamoGeneralRealtimeTableSchema<
             updateLockVersion: (deletedItem.updateLockVersion ?? 0) + 1,
         };
 
-        const action = this._createPutItemAction({oldItem: null, newItem: item});
+        const action = this._createPutItemAction({
+            oldItem: null,
+            newItem: item,
+            newVersion: item.updateLockVersion ?? 0,
+        });
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
@@ -1793,7 +1915,11 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        const action = this._createPutItemAction({oldItem: null, newItem: item});
+        const action = this._createPutItemAction({
+            oldItem: null,
+            newItem: item,
+            newVersion: item.updateLockVersion ?? 0,
+        });
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
@@ -1894,41 +2020,43 @@ export class DynamoGeneralRealtimeTableSchema<
     /**
      * Get an item from the database and if it doesn't exist then return null.
      */
-    public getItemIfExists<Key extends Types["ItemKey"]>(
+    public async getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {
             consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
-    ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
+    ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>> | null> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             "Can’t access private realtime partition",
         );
 
-        return this._table.getItemIfExists(context, itemKey, options);
+        return this._table._getItemWithOldItemIfExists(context, itemKey, options);
     }
 
     /**
      * Get an item from the database and if it doesn't exist then throw an error.
      */
-    public getItem<Key extends Types["ItemKey"]>(
+    public async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {
             consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
-    ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
-        assert(
-            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
-                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can’t access private realtime partition",
-        );
+    ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>>> {
+        const item = await this.getItemIfExists(context, itemKey, options);
 
-        return this._table.getItem(context, itemKey, options);
+        if (!item) {
+            throw new NotFoundError(
+                `Item not found (partition type: \`${itemKey.partitionType}\`, sort range type: \`${itemKey.sortRangeType}\`)`,
+            );
+        }
+
+        return item;
     }
 
     /**
@@ -1940,18 +2068,27 @@ export class DynamoGeneralRealtimeTableSchema<
      * 3. You expect the item may have been recently created so an eventually
      *    consistent read may be stale and not return an item
      */
-    public getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
+    public async getItemWithEventualThenStrongConsistency<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {allowsEventualReadConsistency?: boolean},
-    ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
+    ): Promise<DynamoItem<MergeObjectIntersection<Types["Item"] & Key>>> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             "Can’t access private realtime partition",
         );
 
-        return this._table.getItemWithEventualThenStrongConsistency(context, itemKey, options);
+        const item = await this.getItemIfExists(context, itemKey, {
+            ...options,
+            consistency: "Eventual",
+        });
+        if (item) return item;
+
+        return this.getItem(context, itemKey, {
+            ...options,
+            consistency: "Strong",
+        });
     }
 
     /**
@@ -2095,11 +2232,13 @@ export class DynamoGeneralRealtimeTableSchema<
             consistency?: DynamoCacheReadConsistency;
         },
     ): AsyncIterableIterator<
-        MergeObjectIntersection<
-            Types["Item"] &
-                PartitionKey & {
-                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
-                }
+        DynamoItem<
+            MergeObjectIntersection<
+                Types["Item"] &
+                    PartitionKey & {
+                        readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                    }
+            >
         >
     > {
         assert(
@@ -2110,7 +2249,7 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can’t access private realtime partition",
         );
 
-        return this._table.query(context, options);
+        return this._table._queryWithOldItems(context, options);
     }
 
     public getRealtimeQueryPartitionKey(partitionKey: Types["PartitionKey"]) {

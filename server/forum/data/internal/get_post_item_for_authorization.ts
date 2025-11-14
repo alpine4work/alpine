@@ -1,6 +1,7 @@
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     ForumRealtimeTable,
     PostAttributesItem,
@@ -97,7 +98,7 @@ export function getPostItemWithContentForAuthorizationIfExists(
     context: ServerMinimalActionContext,
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
-): Promise<PostAttributesItem | null> {
+): Promise<DynamoItem<PostAttributesItem> | null> {
     const itemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
@@ -119,7 +120,7 @@ export async function getPostItemWithContentForAuthorization(
     context: ServerMinimalActionContext,
     postId: PostId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<PostAttributesItem> {
+): Promise<DynamoItem<PostAttributesItem>> {
     const item = await getPostItemWithContentForAuthorizationIfExists(context, postId, options);
     if (!item) throw createPostNotFoundError(postId);
     return item;

@@ -24,10 +24,7 @@ export async function deletePostReaction(context: ServerAccountActionContext, po
 
             newReactions.delete(context.actor.getPossiblyBotAccountId());
 
-            return {
-                ...item,
-                reactions: new ReactionSet(newReactions),
-            };
+            return item.update({reactions: new ReactionSet(newReactions)});
         },
         {initialItem: item},
     );

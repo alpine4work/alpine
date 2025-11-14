@@ -32,10 +32,7 @@ export async function setPostReaction(
 
             newReactions.set(context.actor.getAccountId(), reaction);
 
-            return {
-                ...item,
-                reactions: new ReactionSet(newReactions),
-            };
+            return item.update({reactions: new ReactionSet(newReactions)});
         },
         {initialItem: item},
     );

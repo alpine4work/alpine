@@ -1,4 +1,5 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
@@ -31,12 +32,9 @@ export async function unsubscribeFromDigestNotificationsEmail(
             accountId,
         },
         item => {
-            item ??= getInitialInboxItem(spaceId, accountId);
+            item ??= DynamoItem.create(getInitialInboxItem(spaceId, accountId));
             if (item.digestNotificationsOptedOutTime !== null) return item;
-            return {
-                ...item,
-                digestNotificationsOptedOutTime: currentTime,
-            };
+            return item.update({digestNotificationsOptedOutTime: currentTime});
         },
     );
 }
