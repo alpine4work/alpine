@@ -227,6 +227,10 @@ async function loadContentFileImageViewer({
     image.decoding = "async";
     image.src = src;
 
+    // Needed to get a proper CORS response from the resource service where our
+    // files are hosted.
+    image.crossOrigin = "anonymous";
+
     await runAllPromises([
         isHtmlImageElementLoadedAndDecoded(image),
 

@@ -332,6 +332,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     ).toString(),
                 );
 
+                // Needed to get a proper CORS response from the resource service where our
+                // files are hosted.
+                fileDom.setAttribute("crossorigin", "anonymous");
+
                 const fileAttachmentTarget = this._getFileAttachmentTarget();
                 if (fileAttachmentTarget === "Uploader") {
                     fileDom.setAttribute("data-cy-attached", "uploader");

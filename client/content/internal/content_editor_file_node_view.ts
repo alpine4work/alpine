@@ -334,7 +334,6 @@ export function createContentEditorFileNodeViewConstructor({
                             node,
                             file,
                             attachmentTarget: getAttachmentTarget(),
-                            isInitialAppRender: false,
                             rootNavigate,
                             getReporter,
                             onShiftMouseDown,

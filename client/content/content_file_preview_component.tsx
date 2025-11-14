@@ -136,7 +136,6 @@ export function ContentFilePreview({
                 node,
                 file,
                 attachmentTarget,
-                isInitialAppRender,
                 rootNavigate,
                 getReporter: () => reporter,
                 onOpenViewer,

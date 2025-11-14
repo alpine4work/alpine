@@ -321,7 +321,6 @@ export function MessageViewFiles({
                             node: nodeByFileId.getOrSetDefault(fileData.id),
                             file: fileData,
                             attachmentTarget,
-                            isInitialAppRender,
                             rootNavigate,
                             getReporter: () => reporter,
                         }),

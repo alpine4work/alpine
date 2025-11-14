@@ -21,6 +21,7 @@ import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {overlayFadeOutAnimationDurationMs, sprinkles} from "~/client/styles/styles.js";
@@ -28,6 +29,7 @@ import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
@@ -52,6 +54,7 @@ ContentEditorFileToolbarController.withDisableInitialAnimation = (action: () => 
 export function ContentEditorFileToolbarController({
     state,
     viewRef,
+    isFocused,
     accessLevel,
     floaterState,
     selectedNodeElement,
@@ -61,6 +64,7 @@ export function ContentEditorFileToolbarController({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
+    isFocused: boolean;
     accessLevel: AccessLevel;
     floaterState: ContentEditorFloaterState;
     selectedNodeElement: HTMLElement | null;
@@ -76,7 +80,17 @@ export function ContentEditorFileToolbarController({
         isDisablingInitialAnimation: boolean;
     } | null>(null);
 
+    // Put a small delay on when the file toolbar is visible after the content
+    // editor has been focused in case the content editor is immediately unfocused.
+    // This happens on `pointerdown` for a file. See `handlePointerDown` in
+    // `addContentFilePreviewBehaviorBase`. On `handlePointerDown` the browser by
+    // default focuses the content editable, but we don't want that if the user is
+    // only clicking to expand a file. So we call `blur()` after
+    // `requestAnimationFrame()`.
+    const isFocusedWithDelay = useDelayLoadingIndicator(isFocused, perceivedAsInstantLimitMs);
+
     const isFileToolbarVisible: boolean =
+        isFocusedWithDelay &&
         !!selectedNodeElement &&
         floaterState.type === "PointerToolbar" &&
         state.selection instanceof NodeSelection &&

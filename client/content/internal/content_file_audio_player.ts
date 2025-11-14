@@ -378,12 +378,10 @@ export function addContentFileAudioPlayerBehavior(
     containerElement: Element,
     {
         filePreview,
-        isInitialAppRender,
         getReporter,
         onOpenViewer,
     }: {
         filePreview: FileAudioPreview & {isProcessing: false; ok: true};
-        isInitialAppRender: boolean;
         getReporter: () => Reporter;
         onOpenViewer?: () => void;
     },
@@ -562,7 +560,6 @@ export function addContentFileAudioPlayerBehavior(
                 durationMs: filePreview.duration,
                 containerElement,
                 mediaElement: audioElement,
-                isInitialAppRender,
                 getReporter,
                 onPlay: handlePlay,
                 onSeek: handleSeek,

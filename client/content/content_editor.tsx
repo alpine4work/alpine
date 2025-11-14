@@ -827,7 +827,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
             )}
         >
             <ContentView
-                isEditorInitialAppRender={true}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
@@ -3140,6 +3139,35 @@ function ContentEditor<Content extends ContentWithReferences>(
             return false;
         };
 
+        viewProps.handleDOMEvents = {
+            // If the `<ContentEditor>` is unfocused and the user clicks inside with their
+            // mouse then focus the position they clicked on `mousedown`. ProseMirror will
+            // set the selection on `mouseup` ([part 1][1], [part 2][2]) but we want the
+            // selection to be set on `mousedown` instead as that's what's consistent with
+            // browser behavior.
+            //
+            // [1]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L294
+            // [2]: https://github.com/ProseMirror/prosemirror-view/blob/a72140e2113aebbd4c76d88ab43cbe7dfc838dd7/src/input.ts#L401
+            mousedown: (view, event) => {
+                if (view.hasFocus()) return false;
+
+                const pos = view.posAtCoords({left: event.clientX, top: event.clientY});
+
+                if (pos) {
+                    const $pos = view.state.doc.resolve(pos.pos);
+                    const selection = Selection.near($pos);
+
+                    if (view.state.selection.eq(selection)) return true;
+
+                    view.dispatch(view.state.tr.setSelection(selection).setMeta("pointer", true));
+                }
+
+                view.focus();
+
+                return true;
+            },
+        };
+
         /* ========================================================================== *\
          *                 ProseMirror/React reconciliation (part 1)                  *
         \* ========================================================================== */
@@ -4816,6 +4844,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             <ContentEditorFileToolbarController
                 state={unwrappedState}
                 viewRef={viewRef}
+                isFocused={isFocused}
                 accessLevel={accessLevel}
                 floaterState={floaterState}
                 selectedNodeElement={selectedNodeState?.element ?? null}
@@ -4827,7 +4856,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     setIsMobileCommentInputOpen(true);
                 }}
             />
-            {!fileDropTarget &&
+            {isFocused &&
+                !fileDropTarget &&
                 selectedNodeState &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
                 // comment access and we've selected a file node. Since we still show the
@@ -5023,32 +5053,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }}
                     />
                 ))}
-            {!isFocused &&
-                unwrappedState.selection instanceof NodeSelection &&
-                unwrappedState.selection.node.type.name === "file" && (
-                    // If we have a file `NodeSelection` and the view is unfocused then watch for
-                    // global `keydown` events and apply them to our `EditorView`. We use
-                    // `view.dispatchEvent()` to do this. We've also tried
-                    // `view.someProp("handleKeyDown")` and while that handles our custom `keydown`
-                    // events (e.g. backspace to delete a file) it doesn't handle default
-                    // ProseMirror keydown handling (e.g. arrow right to navigate).
-                    //
-                    // If the event was handled (`event.defaultPrevented` is true) then we focus the
-                    // view so future `keydown` events may be handled directly.
-                    <GlobalKeyDownEvent
-                        onGlobalKeyDown={event => {
-                            if (event.defaultPrevented) return;
-
-                            const view = assertExists(viewRef.current);
-                            view.dispatchEvent(event);
-
-                            if (event.defaultPrevented) {
-                                event.stopPropagation();
-                                view.focus();
-                            }
-                        }}
-                    />
-                )}
             {hasSelectionEnteredWhenUnfocused && !unwrappedState.selection.empty && (
                 // When `accessLevel` is `Comment` add a global keydown listener for the
                 // comment keyboard shortcut. Since the content editor won't be focused while

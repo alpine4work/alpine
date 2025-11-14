@@ -1,6 +1,7 @@
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {tooltipDelayMs} from "~/client/design/tooltip.js";
+import {getIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {
     addResizeListenerForElement,
     addSuppressResizeLoopErrorNotificationForElement,
@@ -293,7 +294,6 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     durationMs,
     containerElement,
     mediaElement,
-    isInitialAppRender,
     getReporter,
     onOpenViewer,
     onPlay,
@@ -305,7 +305,6 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     durationMs: number;
     containerElement: Element;
     mediaElement: HTMLMediaElement | null;
-    isInitialAppRender: boolean;
     getReporter: () => Reporter;
     onOpenViewer: (() => void) | undefined;
     onPlay?: () => void;
@@ -314,6 +313,9 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     onSeek?: () => void;
     onPlayAnimationFrame?: () => void;
 }) {
+    // Shouldn't add file preview behavior until after initial app render.
+    assert(!getIsInitialAppRender());
+
     assert(
         containerElement.classList.contains(
             contentFileVideoAndAudioPlayerControlsStyles.containerClassName,
@@ -350,21 +352,17 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         )[0],
     ) as HTMLDivElement;
 
-    const durationScrubberTrackProgressElement = !isInitialAppRender
-        ? (assertExists(
-              durationScrubberElement.getElementsByClassName(
-                  contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackProgressClassName,
-              )[0],
-          ) as HTMLDivElement)
-        : null;
+    const durationScrubberTrackProgressElement = assertExists(
+        durationScrubberElement.getElementsByClassName(
+            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackProgressClassName,
+        )[0],
+    ) as HTMLDivElement;
 
-    const durationScrubberTrackBufferedElement = !isInitialAppRender
-        ? (assertExists(
-              durationScrubberElement.getElementsByClassName(
-                  contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackBufferedClassName,
-              )[0],
-          ) as HTMLDivElement)
-        : null;
+    const durationScrubberTrackBufferedElement = assertExists(
+        durationScrubberElement.getElementsByClassName(
+            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackBufferedClassName,
+        )[0],
+    ) as HTMLDivElement;
 
     const playbackRateButtonElement = assertExists(
         containerElement.getElementsByClassName(
@@ -391,11 +389,9 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberThumbTargetClassName,
     )[0] as HTMLDivElement | null;
 
-    const volumeScrubberTrackProgressElement = !isInitialAppRender
-        ? (volumeScrubberElement?.getElementsByClassName(
-              contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberTrackProgressClassName,
-          )[0] as HTMLDivElement | null)
-        : null;
+    const volumeScrubberTrackProgressElement = volumeScrubberElement?.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberTrackProgressClassName,
+    )[0] as HTMLDivElement | null;
 
     const cleanupFunctions: Array<() => void> = [];
 
@@ -474,8 +470,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         durationScrubberThumbIndicatorElement.style.transform = transform;
         durationScrubberThumbTargetElement.style.transform = transform;
 
-        if (durationScrubberTrackProgressElement !== null)
-            durationScrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+        durationScrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
 
         {
             const progressTime = (durationMs * progress) / 1000;
@@ -507,8 +502,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     ) {
                         hasBufferedTimeRange = true;
                         const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
-                        if (durationScrubberTrackBufferedElement !== null)
-                            durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                        durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
                         break;
                     }
                 }
@@ -516,8 +510,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
             if (!hasBufferedTimeRange) {
                 const bufferedProgress = 0;
-                if (durationScrubberTrackBufferedElement !== null)
-                    durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
             }
         }
     };

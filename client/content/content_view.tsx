@@ -196,13 +196,6 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     isInert?: boolean;
 
     /**
-     * Are we rendering a `<ContentView>` as a placeholder during initial app
-     * render for `<ContentEditor>`? Not much changes when this is true but we
-     * disable some behaviors we save for `<ContentEditor>`.
-     */
-    isEditorInitialAppRender?: boolean;
-
-    /**
      * If the content editor supports files then you must pass in
      * `FileAttachmentTarget`. This prop is used:
      *
@@ -296,7 +289,6 @@ export function ContentView<Content extends ContentWithReferences>({
     "data-index": dataIndex,
     posAttributeOffset = 0,
     isInert = false,
-    isEditorInitialAppRender = false,
     fileAttachmentTarget,
     shouldHighlightComment,
     withUserSelectNone = false,
@@ -373,7 +365,10 @@ export function ContentView<Content extends ContentWithReferences>({
         const decorations =
             ContentViewCodeBlockDecorationsSchema.deserialize(serializedDecorations);
 
-        if (isEditorInitialAppRender && decorations.length > 0) {
+        // If this is the initial render of a `<ContentEditor>` then store the initial
+        // decorations so when we swap with `<ContentEditor>` we have the decorations
+        // ready to go.
+        if (isInitialAppRender && decorations.length > 0) {
             ContentCodeBlockIncrementalParser.getInitialDecorationsByNode().set(
                 content.doc,
                 decorations,
@@ -1125,8 +1120,6 @@ export function ContentView<Content extends ContentWithReferences>({
                                 file: actualFileStore.getSnapshot(),
                                 attachmentTarget: assertExists(fileAttachmentTarget),
                                 isInert,
-                                isInitialAppRender,
-                                isEditorInitialAppRender,
                                 rootNavigate,
                                 getReporter: () => reporter,
                             },
@@ -1196,7 +1189,6 @@ export function ContentView<Content extends ContentWithReferences>({
         reporter,
         context,
         fileAttachmentTarget,
-        isEditorInitialAppRender,
         rootNavigate,
         isInitialAppRender,
         fileRegistry,

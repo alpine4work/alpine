@@ -46,6 +46,7 @@ export function* iterateFileInfosInElement(
     getSpaceId: () => SpaceId,
 ): IterableIterator<{element: Element; info: FileInfoWithEntity | null}> {
     let currentUrl: URL | undefined;
+    let resourceServiceUrl: URL | undefined;
 
     for (const fileElement of element.querySelectorAll("img, video, audio, object, iframe")) {
         // Handle file entity elements (serialized to DOM via `<iframe>`s) separately
@@ -81,6 +82,7 @@ export function* iterateFileInfosInElement(
         }
 
         currentUrl ??= new URL(window.location.href);
+        resourceServiceUrl ??= new URL(__RESOURCE_SERVICE_URL__, currentUrl);
 
         let url: URL;
         try {
@@ -106,7 +108,7 @@ export function* iterateFileInfosInElement(
         // Then the file already exists for this space. Instead of uploading a new file
         // to our backend instead we can create a new attachment for the file that
         // already exists.
-        if (currentUrl.host === url.host) {
+        if (url.origin === currentUrl.origin || url.origin === resourceServiceUrl.origin) {
             const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
             if (
                 pathnameMatch &&

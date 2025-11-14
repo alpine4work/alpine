@@ -15,25 +15,36 @@ export function useDelayLoadingIndicator(
     isLoading: boolean,
     delayMs: number = delayLoadingIndicatorLimitMs,
 ): boolean {
-    const [originalShouldShowLoadingIndicator, setShouldShowLoadingIndicator] = useState(false);
-    let shouldShowLoadingIndicator = originalShouldShowLoadingIndicator;
+    const [originalLoadingIndicator, setLoadingIndicator] = useState<{
+        isShowing: boolean;
+        showTime: number;
+    } | null>(null);
+    let loadingIndicator = originalLoadingIndicator;
 
-    if (isLoading === false && shouldShowLoadingIndicator === true) {
-        shouldShowLoadingIndicator = false;
-        setShouldShowLoadingIndicator(false);
+    if (isLoading === false && loadingIndicator !== null) {
+        loadingIndicator = null;
+        setLoadingIndicator(null);
+    }
+
+    if (isLoading === true && loadingIndicator === null) {
+        loadingIndicator = {isShowing: false, showTime: Date.now() + delayMs};
+        setLoadingIndicator(loadingIndicator);
     }
 
     useEffect(() => {
-        if (isLoading === false) return;
+        if (loadingIndicator?.showTime === undefined) return;
 
         const timeout = createTimeout(() => {
-            setShouldShowLoadingIndicator(true);
-        }, delayMs);
+            setLoadingIndicator(loadingIndicator => {
+                if (!loadingIndicator) return null;
+                return {...loadingIndicator, isShowing: true};
+            });
+        }, loadingIndicator.showTime - Date.now());
 
         return () => {
             timeout.clear();
         };
-    }, [delayMs, isLoading]);
+    }, [loadingIndicator?.showTime]);
 
-    return shouldShowLoadingIndicator;
+    return loadingIndicator !== null && loadingIndicator.isShowing === true;
 }

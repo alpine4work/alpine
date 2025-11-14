@@ -154,12 +154,10 @@ async function actuallyUploadFile(
             const currentUrl = new URL(window.location.href);
 
             const currentOrigin = currentUrl.origin;
-            const resourceServiceOrigin = __RESOURCE_SERVICE_URL__
-                ? new URL(__RESOURCE_SERVICE_URL__).origin
-                : currentOrigin;
+            const resourceServiceOrigin = new URL(__RESOURCE_SERVICE_URL__, currentUrl).origin;
 
-            const isSameOrigin = currentOrigin === input.url.origin;
-            const isResourceService = currentOrigin === resourceServiceOrigin;
+            const isSameOrigin = input.url.origin === currentOrigin;
+            const isResourceService = input.url.origin === resourceServiceOrigin;
 
             downloadPromise = fetchWithTracer(
                 context.tracer.getTracer(),

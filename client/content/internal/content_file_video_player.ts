@@ -233,12 +233,10 @@ export function addContentFileVideoPlayerBehavior(
     containerElement: Element,
     {
         durationMs,
-        isInitialAppRender,
         getReporter,
         onOpenViewer,
     }: {
         durationMs: number;
-        isInitialAppRender: boolean;
         getReporter: () => Reporter;
         onOpenViewer?: () => void;
     },
@@ -569,7 +567,6 @@ export function addContentFileVideoPlayerBehavior(
                 durationMs,
                 containerElement,
                 mediaElement: videoElement,
-                isInitialAppRender,
                 getReporter,
                 onPlay: updateStillPointerTimeout,
                 onPause: updateStillPointerTimeout,

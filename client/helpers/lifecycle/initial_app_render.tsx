@@ -1,8 +1,33 @@
 import {AppInitialRenderContext} from "@react-aria/ssr";
-import {ReactElement, ReactNode, useContext, useEffect, useState} from "react";
+import {ReactElement, ReactNode, useContext, useEffect, useRef, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
+
+let isInitialAppRenderForClient = true;
+let wasInitialAppRenderForClient = true;
+
+/**
+ * If we're on the client you can check whether we're in the initial app render
+ * with a global.
+ */
+export function getIsInitialAppRender(): boolean {
+    assert(typeof window !== "undefined");
+    if (import.meta.jest) return false;
+    return isInitialAppRenderForClient;
+}
+
+/**
+ * This will return true during the initial app render until React finishes
+ * rendering the second render where `isInitialAppRender` is set to false.
+ * Useful for code which needs to tell if it's running immediately after an
+ * initial app render.
+ */
+export function getWasInitialAppRender(): boolean {
+    assert(typeof window !== "undefined");
+    if (import.meta.jest) return false;
+    return wasInitialAppRenderForClient;
+}
 
 /**
  * Is this the initial render of our application?
@@ -94,9 +119,19 @@ export function useAppInitialRenderContextProvider(
         id: initialAppRenderId ?? generateId(),
     }));
 
+    const wasInitialAppRenderRef = useRef(true);
+
     useEffect(() => {
+        isInitialAppRenderForClient = false;
         setInitialAppRender(false);
     }, []);
+
+    useEffect(() => {
+        if (wasInitialAppRenderRef.current && initialAppRender === false) {
+            wasInitialAppRenderRef.current = false;
+            wasInitialAppRenderForClient = false;
+        }
+    }, [initialAppRender]);
 
     return (
         <AppInitialRenderContext.Provider value={initialAppRender}>

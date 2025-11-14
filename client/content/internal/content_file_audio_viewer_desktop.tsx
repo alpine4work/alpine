@@ -18,6 +18,7 @@ import {
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -106,6 +107,7 @@ function ContentFileAudioViewerDesktopInner({
         throw new ContentFileProcessorError(file.contentType, filePreview.error);
     }
 
+    const isInitialAppRender = useIsInitialAppRender();
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
 
@@ -123,13 +125,13 @@ function ContentFileAudioViewerDesktopInner({
             filePreview,
             audioSrc,
             platform: "desktop",
-            isInitialAppRender: false,
+            isInitialAppRender,
             withoutInteractivity: false,
             layout: null,
         });
 
         return containerHtml;
-    }, [audioSrc, file, filePreview]);
+    }, [audioSrc, file, filePreview, isInitialAppRender]);
 
     const previousContainerHtmlRef = useRef<HtmlFragmentGenerator | null>(null);
 
@@ -155,11 +157,12 @@ function ContentFileAudioViewerDesktopInner({
     }, [containerHtml]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
         const containerElement = assertExists(containerRef.current);
 
         const {onPress, cleanup} = addContentFileAudioPlayerBehavior(containerElement, {
             filePreview,
-            isInitialAppRender: false,
             getReporter: () => reporter,
         });
 
@@ -178,7 +181,7 @@ function ContentFileAudioViewerDesktopInner({
             cleanup();
             containerElement.removeEventListener("click", handleClick);
         };
-    }, [filePreview, reporter]);
+    }, [filePreview, isInitialAppRender, reporter]);
 
     return (
         <div

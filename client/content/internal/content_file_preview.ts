@@ -29,6 +29,10 @@ import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {
+    getIsInitialAppRender,
+    getWasInitialAppRender,
+} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedIconSvg} from "~/client/icons/file_dotted_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
@@ -89,20 +93,13 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
-import {
-    HtmlElementGenerator,
-    HtmlGenerator,
-    HtmlTextGenerator,
-} from "~/shared/helpers/html/html_generator.js";
-import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -891,11 +888,6 @@ function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
 }
 
-let reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender: Map<
-    string,
-    Set<HTMLElement>
-> | null = null;
-
 /**
  * Render the `<img>` element for file image previews.
  *
@@ -912,54 +904,7 @@ let reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender: Map<
  * been removed from the DOM. So you always get two network requests from
  * Safari on initial render without pooling.
  */
-function renderFileImagePreviewContent(options: {
-    srcset: string;
-    maxWidth: string;
-    maxHeight: string;
-}): HtmlGenerator {
-    const reuseKey = JSON.stringify([
-        options.srcset,
-        options.maxWidth.trim(),
-        options.maxHeight.trim(),
-    ]);
-    const reuseElements =
-        reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender?.get(reuseKey);
-
-    // If there's an existing `element` for this `srcset` that's not currently in
-    // our document then let's reuse that element.
-    if (reuseElements) {
-        const reuseElement = iterableFind(
-            reuseElements,
-            element => !document.body.contains(element),
-        );
-
-        if (reuseElement) {
-            reuseElements.delete(reuseElement);
-            if (reuseElements.size === 0)
-                reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender?.delete(
-                    reuseKey,
-                );
-
-            let generator: HtmlGenerator | null = null;
-
-            return {
-                generateNode: () => reuseElement,
-                generateHtml: () => {
-                    generator ??= actuallyRenderFileImagePreviewContent(options);
-                    return generator.generateHtml();
-                },
-                patchNode: (previous, node) => {
-                    generator ??= actuallyRenderFileImagePreviewContent(options);
-                    return generator.patchNode(previous, node);
-                },
-            };
-        }
-    }
-
-    return actuallyRenderFileImagePreviewContent(options);
-}
-
-function actuallyRenderFileImagePreviewContent({
+function renderFileImagePreviewContent({
     srcset,
     maxWidth,
     maxHeight,
@@ -993,7 +938,8 @@ function actuallyRenderFileImagePreviewContent({
     // have to show the loading indicator.
     imageHtml.setAttribute("decoding", "sync");
 
-    // Needed to get a proper CORS response from the resource service where our files are hosted.
+    // Needed to get a proper CORS response from the resource service where our
+    // files are hosted.
     imageHtml.setAttribute("crossorigin", "anonymous");
 
     const srcs = srcset.startsWith("data:") ? [srcset] : srcset.split(",");
@@ -1325,13 +1271,13 @@ export function addContentFilePreviewBehaviorBase(
         // - Prevent the file from being dragged
         if (getPlatformWithoutListening() === "mobile") {
             event.preventDefault();
-        } else {
+        } else if (!event.shiftKey) {
             // By default, the browser will focus our `[contenteditable=true]` element on
             // `pointerdown`. We don't want this behavior but we can't call
             // `event.preventDefault()` since that'll also cancel the browser's ability to
             // drag our file. So instead, wait an animation frame and blur if the browser
             // focused our `[contenteditable=true]` element if it was unfocused when the
-            // `pointerdown` ocurred.
+            // `pointerdown` occurred.
             const docElement = element.closest<HTMLElement>(`.${contentStyles.docClassName}`);
             if (docElement) {
                 const wasFocused = docElement === document.activeElement;
@@ -1523,8 +1469,6 @@ export function addContentFilePreviewBehavior(
         file,
         attachmentTarget,
         isInert = false,
-        isInitialAppRender,
-        isEditorInitialAppRender = false,
         rootNavigate,
         getReporter,
         onShiftMouseDown,
@@ -1538,8 +1482,6 @@ export function addContentFilePreviewBehavior(
         file: FileModelRegistryData | undefined;
         attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
-        isInitialAppRender: boolean;
-        isEditorInitialAppRender?: boolean;
         rootNavigate: NavigateFunction;
         getReporter: () => Reporter;
         onShiftMouseDown?: (event: PointerEvent) => void;
@@ -1549,6 +1491,9 @@ export function addContentFilePreviewBehavior(
         onOpenViewer?: () => {preventDefault: boolean} | void;
     },
 ): () => void {
+    // Shouldn't add file preview behavior until after initial app render.
+    assert(!getIsInitialAppRender());
+
     let hasCleanedUp = false;
     let pollTimeout: Timeout | null = null;
     let unsubscribeFromRefreshTimer: (() => void) | null = null;
@@ -1722,10 +1667,7 @@ export function addContentFilePreviewBehavior(
         `.${contentStyles.fileImagePreviewContentClassName}`,
     );
 
-    // Wait until after `isEditorInitialAppRender` to cross fade in our images.
-    // That way our cross fade animation won't ever be interrupted by unmounting
-    // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
-    if (isEditorInitialAppRender || !imagePreviewContentElement) {
+    if (!imagePreviewContentElement) {
         if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
             element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
     }
@@ -1761,14 +1703,10 @@ export function addContentFilePreviewBehavior(
                 // the loaded class name then wait a microtask before adding the loaded class
                 // name. That way we guarantee the fade in animation runs.
                 //
-                // This is needed when rendering after `isEditorInitialAppRender`. Since the
-                // file may have loaded while we were waiting for React to mount. Even if the
-                // file is already loaded we still want to make sure the fade in animation
-                // plays.
-                if (
-                    isSync &&
-                    !element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
-                ) {
+                // This is needed when rendering after `isInitialAppRender`. Since the file may
+                // have loaded while we were waiting for React to mount. Even if the file is
+                // already loaded we still want to make sure the fade in animation plays.
+                if (isSync && getWasInitialAppRender()) {
                     scheduleMacrotask(handleLoad);
                 } else {
                     handleLoad();
@@ -1796,7 +1734,6 @@ export function addContentFilePreviewBehavior(
         if (containerElement) {
             videoPlayerBehavior = addContentFileVideoPlayerBehavior(containerElement, {
                 durationMs: file.preview.videoDuration,
-                isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
             });
@@ -1815,7 +1752,6 @@ export function addContentFilePreviewBehavior(
         if (containerElement) {
             audioPlayerBehavior = addContentFileAudioPlayerBehavior(containerElement, {
                 filePreview: file.preview,
-                isInitialAppRender,
                 getReporter,
                 onOpenViewer: openViewer,
             });
@@ -1843,42 +1779,6 @@ export function addContentFilePreviewBehavior(
 
         unsubscribeFromRefreshTimer?.();
         unsubscribeFromRefreshTimer = null;
-
-        // On `<ContentEditor>`'s initial app render when we switch from
-        // `<ContentView>` to ProseMirror's `EditorView` we want to reuse the `<img>`
-        // element so we don't need to download the image file a second time.
-        if (isEditorInitialAppRender && imagePreviewContentElement) {
-            const imagePreviewContentKey = JSON.stringify([
-                imagePreviewContentElement.getAttribute("srcset") ??
-                    imagePreviewContentElement.getAttribute("src"),
-                imagePreviewContentElement.style.maxWidth.trim(),
-                imagePreviewContentElement.style.maxHeight.trim(),
-            ]);
-
-            reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender ??= new Map();
-
-            getOrSetDefaultMapValue(
-                reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender,
-                imagePreviewContentKey,
-                () => new Set(),
-            ).add(imagePreviewContentElement);
-
-            // If the image element hasn't been reused within a microtask from the reuse
-            // map then we clean it up to avoid memory leaks.
-            scheduleMicrotask(() => {
-                const elements =
-                    reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender?.get(
-                        imagePreviewContentKey,
-                    );
-
-                if (elements?.delete(imagePreviewContentElement)) {
-                    if (elements.size === 0)
-                        reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender?.delete(
-                            imagePreviewContentKey,
-                        );
-                }
-            });
-        }
     };
 }
 

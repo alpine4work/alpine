@@ -4871,6 +4871,7 @@ exports[`file float (left direction): clipboard 1`] = `
     style="float: left; clear: both; margin-bottom: 8px; margin-right: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="175"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4sk2v7sxcrpdd9qdxxx78?exp=1727963748&sig=test-image"
@@ -4921,6 +4922,7 @@ exports[`file float (right direction): clipboard 1`] = `
     style="float: right; clear: both; margin-bottom: 8px; margin-left: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="175"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4v4se8v5pxdk7j5adnecm?exp=1727963751&sig=test-image"
@@ -4971,6 +4973,7 @@ exports[`file row (one file): clipboard 1`] = `
     style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="512"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
@@ -5224,6 +5227,7 @@ exports[`file row (one file, image type): clipboard 1`] = `
     style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="512"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vd0kf4fdbwb7f1jqtzgt7g?exp=1727880757&sig=test-image"
@@ -5522,6 +5526,7 @@ exports[`file row (three files): clipboard 1`] = `
     style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="195"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4nwky4vgc8ep46mzz5th8?exp=1727963706&sig=test-image"
@@ -5537,6 +5542,7 @@ exports[`file row (three files): clipboard 1`] = `
       width="195"
     />
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="195"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4q3yh9765742w7305p0fg?exp=1727963716&sig=test-image"
@@ -5601,6 +5607,7 @@ exports[`file row (two files): clipboard 1`] = `
     style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
   >
     <img
+      crossorigin="anonymous"
       data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
       height="296"
       src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
@@ -7446,6 +7453,7 @@ exports[`table with fileRowTable (mixed content): clipboard 1`] = `
             style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
           >
             <img
+              crossorigin="anonymous"
               data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
@@ -7465,6 +7473,7 @@ exports[`table with fileRowTable (mixed content): clipboard 1`] = `
             style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
           >
             <img
+              crossorigin="anonymous"
               data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
@@ -7593,6 +7602,7 @@ exports[`table with fileRowTable (one file): clipboard 1`] = `
             style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
           >
             <img
+              crossorigin="anonymous"
               data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
               height="512"
               src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"

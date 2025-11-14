@@ -163,7 +163,7 @@ async function handleFetch(
     });
 
     let routeString: string | null = null;
-    let route: ResourceServiceRoute;
+    let route: ResourceServiceRoute | undefined;
 
     for (const {pattern, getRoute} of routeMap) {
         const match = pattern.exec({pathname: url.pathname});
@@ -178,16 +178,18 @@ async function handleFetch(
     }
 
     // We end up here if the path matched one or more patterns but none of the routes were actually valid
-    if (!routeString) {
+    if (!routeString || !route) {
         routeString = "/*";
         route = {type: "NotFound"};
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+        let response;
+
         try {
             // Important to `await` here so that our try/catch catches any errors
             // asynchronously thrown by this function.
-            const response = await actuallyHandleFetch(
+            response = await actuallyHandleFetch(
                 request,
                 env,
                 executionContext,
@@ -200,8 +202,46 @@ async function handleFetch(
             return response;
         } catch (error) {
             span.addException(error);
-            return createSimpleErrorResponse(error);
+            response = createSimpleErrorResponse(error);
         }
+
+        const responseHeaders = new Headers(response.headers);
+
+        // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
+        // domains can access files via CORS mode.
+        const origin = request.headers.get("Origin");
+        const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
+
+        // If there is no origin header, then this isn't a CORS request
+        if (origin && trustedOrigins.includes(origin)) {
+            responseHeaders.set("Access-Control-Allow-Origin", origin);
+            responseHeaders.set("Vary", "Origin");
+        }
+
+        switch (route.type) {
+            case "AccountAvatar":
+            case "SpaceAvatar": {
+                // This header will allow no-cors requests from outside the same site as the request origin.
+                // Useful for embedding avatars in emails.
+                responseHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
+                break;
+            }
+            case "File":
+            case "FileDownload":
+            case "HealthCheck":
+            case "NotFound": {
+                // This header will prevent no-cors requests from outside the same site as the request origin.
+                responseHeaders.set("Cross-Origin-Resource-Policy", "same-site");
+                break;
+            }
+            default:
+                throw exhaustive(route);
+        }
+
+        return new Response(response.body, {
+            status: response.status,
+            headers: responseHeaders,
+        });
     });
 }
 
