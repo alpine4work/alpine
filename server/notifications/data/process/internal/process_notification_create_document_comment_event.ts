@@ -24,7 +24,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 
@@ -82,14 +81,19 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     bucketGeneration,
                 },
                 async (oldItem, {isInitialAttempt, addAdditionalTransactionEntry}) => {
-                    const commentThreadIds = new Set([
-                        ...(oldItem?.commentThreadIds ?? []),
-                        event.commentThreadId,
-                    ]);
-                    let archivedCommentThreadIds = oldItem?.archivedCommentThreadIds ?? emptySet;
-                    const commentThreadAuthorIds = new Set([
-                        ...(oldItem?.commentThreadAuthorIds ?? []),
-                        event.authorId,
+                    // We've already added this comment thread to the inbox entry.
+                    if (oldItem?.commentThreads.has(event.commentThreadId)) return "Noop";
+
+                    const commentThreads = new Map([
+                        [
+                            event.commentThreadId,
+                            {
+                                isArchived: false,
+                                authorId: event.authorId,
+                                createdTime: event.createdTime,
+                            },
+                        ],
+                        ...(oldItem?.commentThreads ?? []),
                     ]);
 
                     const documentCommentThreadInNewCommentThreadsItemKey: InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey =
@@ -114,7 +118,12 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                               documentCommentThreadInNewCommentThreadsItemKey,
                           );
 
-                    if (!documentCommentThreadInNewCommentThreadsItem) {
+                    if (documentCommentThreadInNewCommentThreadsItem) {
+                        // If a `DocumentCommentThreadInNewCommentThreadsEntry` item already exists for
+                        // this comment thread then we noop. This may happen if we process
+                        // notifications out-of-order.
+                        return "Noop";
+                    } else {
                         // When we add a comment thread to the new comment threads entry, create an
                         // item mapping the `DocumentCommentThreadId` back to this new comment
                         // threads entry.
@@ -127,36 +136,17 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                                 {isConditionCheckErrorRetriable: true},
                             ),
                         );
-                    } else {
-                        // If a `DocumentCommentThreadInNewCommentThreadsEntry` item already exists for
-                        // this post then we want to immediately archive the new comment thread in our
-                        // `DocumentNewCommentThreadsEntry`. This may happen if we process
-                        // notifications out-of-order.
-                        archivedCommentThreadIds = new Set([
-                            ...archivedCommentThreadIds,
-                            event.commentThreadId,
-                        ]);
-
-                        addAdditionalTransactionEntry(
-                            NotificationsTable.transactionExistsConditionCheck(
-                                documentCommentThreadInNewCommentThreadsItemKey,
-                            ),
-                        );
                     }
 
                     return {
-                        isArchived: commentThreadIds.size === archivedCommentThreadIds.size,
+                        isArchived: false,
                         loudNotificationCount: 0,
-                        commentThreadIds,
-                        archivedCommentThreadIds,
-                        commentThreadAuthorIds,
-                        firstCommentThread: oldItem?.firstCommentThread ?? {
-                            commentThreadId: event.commentThreadId,
-                            authorId: event.authorId,
-                            createdTime: event.createdTime,
-                            contentSnippet: event.contentSnippet,
-                        },
-                        latestCommentThreadCreatedTime: event.createdTime,
+                        commentThreads,
+                        lastAddedCommentThreadCreatedTime:
+                            oldItem &&
+                            oldItem.lastAddedCommentThreadCreatedTime >= event.createdTime
+                                ? oldItem.lastAddedCommentThreadCreatedTime
+                                : event.createdTime,
                     };
                 },
                 {clientRequestToken, initialInboxItemIfExists: inboxItem},
@@ -275,6 +265,8 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                             ? event.commentIndex
                             : oldItem?.latestArchivingCommentIndex ?? null,
                     otherCommentAuthorId,
+                    // Always set this to false when a new comment is created.
+                    isFromNewCommentThread: false,
                 };
             },
             {clientRequestToken},

@@ -203,7 +203,7 @@ export function getInboxEntryDisplayContent({
         case "ChannelPosts":
             return getInboxChannelPostsEntryDisplay({entry, locale});
         case "DocumentCommentThread":
-            return getInboxDocumentCommentThreadEntryDisplay({entry, currentAccount});
+            return getInboxDocumentCommentThreadEntryDisplay({entry, locale, currentAccount});
         case "DocumentNewCommentThreads":
             return getInboxDocumentNewCommentThreadsEntryDisplay({entry, locale});
         case "Task":
@@ -452,9 +452,11 @@ function getInboxChannelPostsEntryDisplay({
 
 function getInboxDocumentCommentThreadEntryDisplay({
     entry,
+    locale,
     currentAccount,
 }: {
     entry: InboxDocumentCommentThreadEntryModel;
+    locale: Locale;
     currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
 }): InboxEntryDisplayContent {
     const firstAccount: AccountModel =
@@ -473,7 +475,22 @@ function getInboxDocumentCommentThreadEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    if (entry.latestComment.isStickyMention) {
+    if (entry.isFromNewCommentThread) {
+        // When we archive a comment thread in `DocumentNewCommentThreadsEntry` we
+        // create an archived `DocumentCommentThreadEntry` with
+        // `isFromNewCommentThread: true`. Render this `DocumentCommentThreadEntry`
+        // the same as a `DocumentNewCommentThreadsEntry` with one comment thread.
+        return getInboxDocumentNewCommentThreadsEntryDisplay({
+            locale,
+            entry: {
+                document: entry.document,
+                commentThreadIds: new Set([entry.commentThreadId]),
+                commentThreadAuthorCount: 1,
+                firstCommentThread: entry.latestComment,
+                otherCommentThreadAuthor: null,
+            },
+        });
+    } else if (entry.latestComment.isStickyMention) {
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in ");
 
@@ -512,7 +529,14 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     entry,
     locale,
 }: {
-    entry: InboxDocumentNewCommentThreadsEntryModel;
+    entry: Pick<
+        InboxDocumentNewCommentThreadsEntryModel,
+        | "document"
+        | "commentThreadIds"
+        | "commentThreadAuthorCount"
+        | "firstCommentThread"
+        | "otherCommentThreadAuthor"
+    >;
     locale: Locale;
 }): InboxEntryDisplayContent {
     const firstAccount: AccountModel =
@@ -529,7 +553,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    summary.push(printPrettySmallNumberSummary(entry.commentThreads.size, "new comment thread"));
+    summary.push(printPrettySmallNumberSummary(entry.commentThreadIds.size, "new comment thread"));
     summary.push(` on ${documentTitle} by `);
 
     if (!secondAccount) {

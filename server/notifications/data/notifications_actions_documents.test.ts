@@ -1311,18 +1311,28 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await commentThread.createComment(session2, "test2");
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentNewCommentThreadsEntryModel({
+                    session: session2,
+                    bucketGeneration: 0,
+                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            const comment = await commentThread.createComment(session2, "test2");
 
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxDocumentNewCommentThreadsEntryModel({
+                expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
-                    bucketGeneration: 0,
-                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
+                    commentThread,
+                    latestComment: {comment, contentTextSnippet: "test2"},
                 }),
             ]);
         });
@@ -1335,50 +1345,70 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const {range} = await document.type(session2, "target");
 
             const commentThread1 = await document.createCommentThread(session1, range, "test1");
-            const commentThread2 = await document.createCommentThread(session1, range, "test2");
-            const commentThread3 = await document.createCommentThread(session1, range, "test3");
-
             await ProcessContextModule.waitForTestTasks();
 
-            await commentThread1.createComment(session2, "test4");
-            await commentThread3.createComment(session2, "test5");
+            const commentThread2 = await document.createCommentThread(session1, range, "test2");
+            await ProcessContextModule.waitForTestTasks();
 
+            const commentThread3 = await document.createCommentThread(session1, range, "test3");
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment1 = await commentThread1.createComment(session2, "test4");
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment2 = await commentThread3.createComment(session2, "test5");
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session2)).toEqual([
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        [commentThread1, {isArchived: true}],
-                        commentThread2,
-                        [commentThread3, {isArchived: true}],
-                    ],
                     firstCommentThread: {
-                        commentThread: commentThread1,
-                        contentTextSnippet: "test1",
+                        commentThread: commentThread2,
+                        contentTextSnippet: "test2",
                     },
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    commentThread: commentThread3,
+                    latestComment: {comment: comment2, contentTextSnippet: "test5"},
+                }),
+                expectInboxDocumentCommentThreadEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    commentThread: commentThread1,
+                    latestComment: {comment: comment1, contentTextSnippet: "test4"},
+                }),
+            ]);
 
-            await commentThread2.createComment(session2, "test6");
+            const comment3 = await commentThread2.createComment(session2, "test6");
 
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxDocumentNewCommentThreadsEntryModel({
+                expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
-                    bucketGeneration: 0,
-                    commentThreads: [commentThread1, commentThread2, commentThread3],
-                    firstCommentThread: {
-                        commentThread: commentThread1,
-                        contentTextSnippet: "test1",
-                    },
+                    commentThread: commentThread2,
+                    latestComment: {comment: comment3, contentTextSnippet: "test6"},
+                }),
+                expectInboxDocumentCommentThreadEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    commentThread: commentThread3,
+                    latestComment: {comment: comment2, contentTextSnippet: "test5"},
+                }),
+                expectInboxDocumentCommentThreadEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    commentThread: commentThread1,
+                    latestComment: {comment: comment1, contentTextSnippet: "test4"},
                 }),
             ]);
         });
@@ -1395,6 +1425,15 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const commentThread = await document.createCommentThread(session1, range, "test1");
 
             await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentNewCommentThreadsEntryModel({
+                    session: session2,
+                    bucketGeneration: 0,
+                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
+                }),
+            ]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
 
             const comment = await commentThread.createComment(
                 session1,
@@ -1427,14 +1466,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: true,
-                    session: session2,
-                    bucketGeneration: 0,
-                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
-                }),
-            ]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
         test("being mentioned in every comment thread in a new comment threads entry archives the new comment threads entry", async () => {
@@ -1514,14 +1546,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        [commentThread1, {isArchived: true}],
-                        commentThread2,
-                        [commentThread3, {isArchived: true}],
-                    ],
                     firstCommentThread: {
-                        commentThread: commentThread1,
-                        contentTextSnippet: "test1",
+                        commentThread: commentThread2,
+                        contentTextSnippet: "test2",
                     },
                 }),
             ]);
@@ -1580,18 +1607,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxDocumentNewCommentThreadsEntryModel({
-                    isArchived: true,
-                    session: session2,
-                    bucketGeneration: 0,
-                    commentThreads: [commentThread1, commentThread2, commentThread3],
-                    firstCommentThread: {
-                        commentThread: commentThread1,
-                        contentTextSnippet: "test1",
-                    },
-                }),
-            ]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
         test("comment notification event is processed before create comment thread notification event", async () => {
@@ -1729,7 +1745,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [commentThread1, [commentThread2, {isArchived: true}]],
                     firstCommentThread: {
                         commentThread: commentThread1,
                         contentTextSnippet: "test1",
@@ -1896,11 +1911,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        otherCommentThread1,
-                        otherCommentThread2,
-                        [commentThread, {isArchived: true}],
-                    ],
+                    commentThreads: [otherCommentThread1, otherCommentThread2],
                     firstCommentThread: {
                         commentThread: otherCommentThread1,
                         contentTextSnippet: "test1",
@@ -1924,11 +1935,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        otherCommentThread1,
-                        otherCommentThread2,
-                        [commentThread, {isArchived: true}],
-                    ],
+                    commentThreads: [otherCommentThread1, otherCommentThread2],
                     firstCommentThread: {
                         commentThread: otherCommentThread1,
                         contentTextSnippet: "test1",
@@ -2612,11 +2619,12 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxDocumentNewCommentThreadsEntryModel({
+                expectInboxDocumentCommentThreadEntryModel({
                     isArchived: true,
                     session: session2,
-                    bucketGeneration: 0,
-                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
+                    commentThread,
+                    latestComment: {comment: commentThread, contentTextSnippet: "test1"},
+                    isFromNewCommentThread: true,
                 }),
             ]);
         });
@@ -2644,11 +2652,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        commentThread1,
-                        [commentThread2, {isArchived: true}],
-                        commentThread3,
-                    ],
+                    commentThreads: [commentThread1, commentThread3],
                     firstCommentThread: {
                         commentThread: commentThread1,
                         contentTextSnippet: "test1",
@@ -2656,7 +2660,15 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    commentThread: commentThread2,
+                    latestComment: {comment: commentThread2, contentTextSnippet: "test2"},
+                    isFromNewCommentThread: true,
+                }),
+            ]);
         });
 
         test("reacting to a document comment archives the associated new document comment threads entry even if the reaction is processed before the create document comment notification event", async () => {
@@ -2754,16 +2766,79 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxDocumentNewCommentThreadsEntryModel({
                     session: session2,
                     bucketGeneration: 0,
-                    commentThreads: [
-                        commentThread1,
-                        [commentThread2, {isArchived: true}],
-                        commentThread3,
-                    ],
+                    commentThreads: [commentThread1, commentThread3],
                     firstCommentThread: {
                         commentThread: commentThread1,
                         contentTextSnippet: "test1",
                     },
-                    otherCommentThreadAuthor: session3,
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("commenting on a comment thread in a new comment threads entry with a single comment thread deletes the new comment threads entry", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session2, {access: "Public"});
+            const {range} = await document.type(session2, "abc");
+
+            const commentThread = await document.createCommentThread(session1, range, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "DocumentNewCommentThreads",
+                    documentId: document.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxDocumentNewCommentThreadsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    bucketGeneration: 0,
+                    firstCommentThread: {commentThread, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            const comment = await commentThread.createComment(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxDocumentCommentThreadEntryModel({
+                    loudNotificationCount: 1,
+                    session: session2,
+                    commentThread,
+                    latestComment: {
+                        comment,
+                        contentTextSnippet: `Hello ${session2.account.initialName}!`,
+                        isStickyMention: true,
+                    },
                 }),
             ]);
 

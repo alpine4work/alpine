@@ -1,21 +1,25 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
-import {MutableRefObject, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
 } from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+import {
+    archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+} from "~/client/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {
-    useArchiveInboxDocumentNewCommentThreadsEntryCommentThread,
-    useUnarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
-} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
@@ -32,12 +36,12 @@ import {
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
 import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/get_inbox_document_new_comment_threads_entry_comment_threads.js";
-import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -52,10 +56,10 @@ import {
     createDynamoGeneralRealtimeItemSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
@@ -63,6 +67,10 @@ import {
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModelSchema,
 } from "~/shared/notifications/inbox_model.js";
+import {
+    archiveInboxDocumentNewCommentThreadsEntryCommentThread,
+    unarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
@@ -75,6 +83,8 @@ const LoaderSchema = Schema.object({
     key: Schema.string,
     checkpoint: ServerSynchronizationCheckpointSchema,
     document: DocumentModel.schema(),
+    bucketGeneration: Schema.integer,
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
     commentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     initialCommentsByCommentThreadId: Schema.map(
         Schema.id<DocumentCommentThreadId>(),
@@ -83,13 +93,10 @@ const LoaderSchema = Schema.object({
             otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
         }),
     ),
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-
-    const url = new URL(request.url);
 
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const documentIdAndBucketGeneration = assertExists(params.documentIdAndBucketGeneration);
@@ -118,23 +125,15 @@ export async function loader({params, request, context: unauthenticatedContext}:
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
-    const [{document, commentThreads, initialCommentsByCommentThreadId}, inboxEntry] =
-        await runAllPromises([
-            getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
-                spaceId,
-                documentId,
-                bucketGeneration,
-                commentLimit: getInitialLoadMessageCount(clientInfo),
-                commentThreadCountAgainstLimit:
-                    documentCommentThreadCountAgainstLimit[platform][spacingScale],
-            }),
-            url.searchParams.get("inbox") === "show"
-                ? getInboxEntry(context, {
-                      spaceId,
-                      key: {type: "DocumentNewCommentThreads", documentId, bucketGeneration},
-                  })
-                : null,
-        ]);
+    const {inboxEntry, document, commentThreads, initialCommentsByCommentThreadId} =
+        await getInboxDocumentNewCommentThreadsEntryCommentThreads(context, {
+            spaceId,
+            documentId,
+            bucketGeneration,
+            commentLimit: getInitialLoadMessageCount(clientInfo),
+            commentThreadCountAgainstLimit:
+                documentCommentThreadCountAgainstLimit[platform][spacingScale],
+        });
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -148,9 +147,10 @@ export async function loader({params, request, context: unauthenticatedContext}:
             key: generateId(),
             checkpoint,
             document,
+            bucketGeneration,
+            inboxEntry,
             commentThreads,
             initialCommentsByCommentThreadId,
-            inboxEntry,
         },
         {propagateEventData},
     );
@@ -179,27 +179,35 @@ export default function DocumentNewCommentThreadsRoute() {
 function DocumentNewCommentThreadsRouteInner1() {
     const {inboxEntry, commentThreads} = useLoaderDataWithSchema(LoaderSchema);
 
+    const initialIsArchived = inboxEntry.model.isArchived;
+
     const inboxContext = useInboxContext();
 
     return useInboxBannerOutletContainer(
         {
             initialEntry: inboxEntry,
             maxWidth: contentStyles.contentMaxWidth,
-            withoutArchiveButton: commentThreads.length >= 2,
+            withoutArchiveButton: !initialIsArchived && commentThreads.length >= 2,
         },
         <DocumentNewCommentThreadsRouteInner2
             parentNavigation={inboxContext?.navigation ?? null}
+            initialIsArchived={initialIsArchived}
         />,
     );
 }
 
 function DocumentNewCommentThreadsRouteInner2({
     parentNavigation,
+    initialIsArchived,
 }: {
     parentNavigation: InboxContextNavigation | null;
+    initialIsArchived: boolean;
 }) {
+    const context = useAppContext();
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
+    const reporter = useReporter();
+    const {space} = useSpaceContext();
 
     const inboxContext = assertExists(useInboxContext());
     const originalInboxEntry = assertExists(inboxContext.entry);
@@ -210,9 +218,12 @@ function DocumentNewCommentThreadsRouteInner2({
     const {
         checkpoint: initialCheckpoint,
         document: initialDocument,
+        bucketGeneration,
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
     } = useLoaderDataWithSchema(LoaderSchema);
+
+    const documentId = initialDocument.id;
 
     const {
         isConnected,
@@ -222,18 +233,23 @@ function DocumentNewCommentThreadsRouteInner2({
         subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
     } = useDocumentContentEditorWebSocket({
-        documentId: initialDocument.id,
+        documentId,
         initialDocument,
     });
 
     // Spending time with document comment threads contributes affinity points
     // to the document. Since the comment thread is discussing the document,
     // the document is likely an artifact you care about.
-    useSearchAffinityViewEntityInteraction(`Document:${initialDocument.id}`);
+    useSearchAffinityViewEntityInteraction(`Document:${documentId}`);
 
     const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
 
     const commentThreadCount = initialCommentThreads.length;
+
+    const commentThreadIds = useMemo(
+        () => initialCommentThreads.map(commentThread => commentThread.id),
+        [initialCommentThreads],
+    );
 
     const [initialCommentThreadResults, setInitialCommentThreadResults] = useState<
         ReadonlyArray<{
@@ -397,28 +413,103 @@ function DocumentNewCommentThreadsRouteInner2({
         withoutDisappearingTitle: true,
     });
 
-    const archiveInboxDocumentNewCommentThreadsEntryCommentThread =
-        useArchiveInboxDocumentNewCommentThreadsEntryCommentThread();
-    const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread =
-        useUnarchiveInboxDocumentNewCommentThreadsEntryCommentThread();
+    const [
+        archivedCommentThreadIds,
+        setArchivedCommentThreadIds,
+        setArchivedCommentThreadIdsOptimistically,
+        archivedCommentThreadIdsWithoutOptimisticUpdates,
+    ] = useStateWithOptimisticUpdates<ReadonlySet<DocumentCommentThreadId>>(() => {
+        const archivedCommentThreadIds = new Set<DocumentCommentThreadId>();
+
+        for (const commentThreadId of commentThreadIds) {
+            if (!inboxEntry.model.commentThreadIds.has(commentThreadId)) {
+                archivedCommentThreadIds.add(commentThreadId);
+            }
+        }
+
+        return archivedCommentThreadIds;
+    });
+
+    const expectedArchivedCommentThreadIds = useMemo<ReadonlySet<DocumentCommentThreadId>>(() => {
+        return new Set(
+            filterIterable(
+                commentThreadIds,
+                commentThreadId => !inboxEntry.model.commentThreadIds.has(commentThreadId),
+            ),
+        );
+    }, [commentThreadIds, inboxEntry.model.commentThreadIds]);
+
+    const waitForExpectedArchivedCommentThreadIds = useWaitForState(
+        expectedArchivedCommentThreadIds,
+    );
+
+    // Make sure `archivedCommentThreadIdsWithoutOptimisticUpdates` is always equal
+    // to `expectedArchivedCommentThreadIds`.
+    if (
+        !isDeepEqual(
+            expectedArchivedCommentThreadIds,
+            archivedCommentThreadIdsWithoutOptimisticUpdates,
+        )
+    ) {
+        setArchivedCommentThreadIds(() => expectedArchivedCommentThreadIds);
+    }
+
+    useEffect(() => {
+        return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                if (event.entryKey !== inboxEntry.key) return;
+
+                // Wait for our inbox entry to update in realtime. The realtime update event
+                // may happen after `promise` resolves.
+                const waitPromise = waitForExpectedArchivedCommentThreadIds(
+                    archivedCommentThreadIds => archivedCommentThreadIds.has(event.commentThreadId),
+                );
+
+                // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
+                // if there's a new `latestCommentThread` we don't know the new
+                // `contentTextSnippet` on the client.
+                setArchivedCommentThreadIdsOptimistically(
+                    event.promise.then(() => waitPromise).then(() => true),
+                    (archivedCommentThreadIds, promiseValue) => {
+                        if (promiseValue) return archivedCommentThreadIds;
+                        const newArchivedCommentThreadIds = new Set(archivedCommentThreadIds);
+                        newArchivedCommentThreadIds.add(event.commentThreadId);
+                        return newArchivedCommentThreadIds;
+                    },
+                );
+            },
+        );
+    }, [
+        inboxEntry.key,
+        setArchivedCommentThreadIdsOptimistically,
+        waitForExpectedArchivedCommentThreadIds,
+    ]);
 
     const {handleArchiveCommentThread, handleUnarchiveCommentThread} = useEvents({
         handleArchiveCommentThread: async (commentThreadId: DocumentCommentThreadId) => {
-            archiveInboxDocumentNewCommentThreadsEntryCommentThread({
-                entry: inboxEntry,
-                withAnimation: true,
+            const promise = archiveInboxDocumentNewCommentThreadsEntryCommentThread(context, {
+                spaceId: space.id,
+                documentId,
+                bucketGeneration,
                 commentThreadId,
             });
 
-            // If we're viewing new entries and by archiving this `postId` we've archived
-            // all posts in the entry then navigate to the next entry.
+            promise.catch(error => {
+                reporter.displayError("Couldn’t mark commentThread as done", error);
+            });
+
+            archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically({
+                promise,
+                entryKey: inboxEntry.key,
+                commentThreadId,
+            });
+
+            // If we're viewing new entries and by archiving this `commentThreadId` we've archived
+            // all commentThreads in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
-                iterableEvery(
-                    inboxEntry.model.commentThreads,
-                    commentThread =>
-                        commentThread[0] === commentThreadId || commentThread[1].isArchived,
-                )
+                inboxEntry.model.commentThreadIds.size === 1 &&
+                inboxEntry.model.commentThreadIds.has(commentThreadId)
             ) {
                 if (parentNavigation.nextEntry) {
                     await parentNavigation.selectEntry(parentNavigation.nextEntry);
@@ -430,23 +521,35 @@ function DocumentNewCommentThreadsRouteInner2({
             }
         },
         handleUnarchiveCommentThread: async (commentThreadId: DocumentCommentThreadId) => {
-            unarchiveInboxDocumentNewCommentThreadsEntryCommentThread({
-                entry: inboxEntry,
-                withAnimation: true,
+            const promise = unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(context, {
+                spaceId: space.id,
+                documentId,
+                bucketGeneration,
                 commentThreadId,
             });
 
-            // If we're viewing archived entries then when we unarchive any post move to
-            // the next entry.
-            if (parentNavigation?.filter === "Archive") {
-                if (parentNavigation.nextEntry) {
-                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
-                } else if (parentNavigation.previousEntry) {
-                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
-                } else {
-                    await parentNavigation.selectEntry(null);
-                }
-            }
+            promise.catch(error => {
+                reporter.displayError("Couldn’t move notification to new", error);
+            });
+
+            // Wait for our inbox entry to update in realtime. The realtime update event
+            // may happen after `promise` resolves.
+            const waitPromise = waitForExpectedArchivedCommentThreadIds(
+                archivedCommentThreadIds => !archivedCommentThreadIds.has(commentThreadId),
+            );
+
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
+            // if there's a new `latestCommentThread` we don't know the new `contentTextSnippet` on
+            // the client.
+            setArchivedCommentThreadIdsOptimistically(
+                promise.then(() => waitPromise).then(() => true),
+                (archivedCommentThreadIds, promiseValue) => {
+                    if (promiseValue) return archivedCommentThreadIds;
+                    const newArchivedCommentThreadIds = new Set(archivedCommentThreadIds);
+                    newArchivedCommentThreadIds.delete(commentThreadId);
+                    return newArchivedCommentThreadIds;
+                },
+            );
         },
     });
 
@@ -457,7 +560,7 @@ function DocumentNewCommentThreadsRouteInner2({
             // rendering them all in a list. Since our sticky comment input UI pattern
             // doesn't work particularly well on mobile.
             key={platform === "mobile" ? `mobile-${mobileCommentThreadIndex}` : "desktop"}
-            documentId={initialDocument.id}
+            documentId={documentId}
             content={content}
             isConnected={isConnected}
             procedures={procedures}
@@ -472,7 +575,7 @@ function DocumentNewCommentThreadsRouteInner2({
                 // - Open in a peek; OR
                 // - Navigate the peek we are rendered in
                 rootNavigate(
-                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
+                    `/s/${space.id}/documents/${documentId}?${
                         platform === "mobile"
                             ? // On mobile, only scroll to where the comment lives in the document. Don't open
                               // up the comment overlay.
@@ -514,9 +617,13 @@ function DocumentNewCommentThreadsRouteInner2({
             isCommentThreadArchived={useMemo(() => {
                 if (commentThreadCount < 2) return;
 
+                // If this route was initially archived, we only let you "unarchive" the entry
+                // as a whole. You can't unarchive individual comment threads.
+                if (initialIsArchived) return;
+
                 return (commentThreadId: DocumentCommentThreadId) =>
-                    inboxEntry.model.commentThreads.get(commentThreadId)?.isArchived ?? false;
-            }, [commentThreadCount, inboxEntry.model.commentThreads])}
+                    archivedCommentThreadIds.has(commentThreadId);
+            }, [archivedCommentThreadIds, commentThreadCount, initialIsArchived])}
             onArchiveCommentThread={
                 commentThreadCount >= 2 ? handleArchiveCommentThread : undefined
             }

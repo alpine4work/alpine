@@ -1,6 +1,9 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
-import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {
+    InboxDocumentNewCommentThreadsEntryItemKey,
+    InboxTable,
+} from "~/server/notifications/data/internal/inbox_table.js";
 import {observeInboxItem} from "~/server/notifications/data/internal/observe_inbox_item.js";
 import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
 import {
@@ -8,8 +11,12 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/inbox_model.js";
 
 /**
  * Get all the comment threads in the inbox entry and some initial comments for
@@ -40,6 +47,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         commentThreadCountAgainstLimit: number;
     },
 ): Promise<{
+    inboxEntry: DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
     document: DocumentModel;
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
     initialCommentsByCommentThreadId: Map<
@@ -50,7 +58,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         }
     >;
 }> {
-    const commentThreadIdsPromise = (async () => {
+    const inboxEntryPromise = (async () => {
         const accountId = context.actor.getAccountId();
 
         await runAllPromises([
@@ -98,40 +106,60 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
             );
         }
 
-        const inboxEntryItem = await InboxTable.getItem(
-            context,
-            {
-                partitionType: "Inbox",
-                sortRangeType: "DocumentNewCommentThreadsEntry",
-                spaceId,
-                accountId,
-                documentId,
-                bucketGeneration,
-            },
-            {
-                // Use a strong read consistency when reading the entry since we don't want to
-                // miss any comment threads.
-                //
-                // At this point the comment threads entry is frozen. So we don't subscribe to
-                // realtime changes for `commentThreadIds`.
-                consistency: "Strong",
-            },
-        );
+        const inboxEntryItemKey: InboxDocumentNewCommentThreadsEntryItemKey = {
+            partitionType: "Inbox",
+            sortRangeType: "DocumentNewCommentThreadsEntry",
+            spaceId,
+            accountId,
+            documentId,
+            bucketGeneration,
+        };
 
-        return inboxEntryItem.commentThreadIds;
+        const inboxEntry = await InboxTable.getRealtimeItemIfExists(context, inboxEntryItemKey, {
+            // Use a strong read consistency when reading the entry since we don't want to
+            // miss any comment threads.
+            //
+            // At this point the comment threads entry is frozen. So we don't subscribe to
+            // realtime changes for `commentThreadIds`.
+            consistency: "Strong",
+        });
+
+        // It's possible you open a channel posts inbox entry that has been deleted
+        // since all of its posts have been archived (maybe the user bookmarked the
+        // inbox entry's URL?). In this case, we want to show a display message to the
+        // user telling them this is the case.
+        if (!inboxEntry) {
+            const deletedInboxEntry = await InboxTable.getDeletedItemIfExists(
+                context,
+                inboxEntryItemKey,
+                {consistency: "Strong"},
+            );
+
+            throw new NotFoundError("Document new comment threads entry not found", {
+                displayMessage: deletedInboxEntry
+                    ? errorDisplayMessage`All comment threads in this notification have been marked as done.`
+                    : errorDisplayMessage`This notification doesn’t exist.`,
+            });
+        }
+
+        return inboxEntry;
     })();
 
-    const [, {document, commentThreads, initialCommentsByCommentThreadId}] = await runAllPromises([
-        commentThreadIdsPromise,
-        getDocumentAndCommentThreadsWithInitialComments(context, {
-            documentId,
-            commentThreadIds: commentThreadIdsPromise,
-            commentLimit,
-            commentThreadCountAgainstLimit,
-        }),
-    ]);
+    const [inboxEntry, {document, commentThreads, initialCommentsByCommentThreadId}] =
+        await runAllPromises([
+            inboxEntryPromise,
+            getDocumentAndCommentThreadsWithInitialComments(context, {
+                documentId,
+                commentThreadIds: inboxEntryPromise.then(
+                    inboxEntry => inboxEntry.model.commentThreadIds,
+                ),
+                commentLimit,
+                commentThreadCountAgainstLimit,
+            }),
+        ]);
 
     return {
+        inboxEntry,
         document,
         commentThreads,
         initialCommentsByCommentThreadId,

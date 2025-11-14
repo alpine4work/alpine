@@ -11,7 +11,7 @@ import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
 import {
     archiveInboxChannelPostsEntryPostOptimistically,
     subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
-} from "~/client/inbox/archive_inbox_channel_posts_entry_optimistically.js";
+} from "~/client/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";

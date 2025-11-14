@@ -46,13 +46,11 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {
@@ -179,6 +177,12 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 // creating channel post entries by 2 RCU since we need to make sure a
                 // gravestone doesn't exist for the item.
                 ChannelPostsEntry: true,
+
+                // Allow deleting document new comment threads entries. Since when we remove
+                // the last comment thread from the entry we want to delete the entire entry.
+                // This increases the cost of creating document new comment threads entries by
+                // 2 RCU since we need to make sure a gravestone doesn't exist for the item.
+                DocumentNewCommentThreadsEntry: true,
             },
         },
     },
@@ -648,6 +652,21 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * `latestComment`'s author.
                          */
                         otherCommentAuthorId: Schema.id<AccountId>().nullable(),
+
+                        /**
+                         * True when the entry is created after deleting the `DocumentCommentThreadId`
+                         * from `DocumentNewCommentThreadsEntry`. Set to false when a new comment
+                         * revives the entry from the archive.
+                         */
+                        isFromNewCommentThread: Schema.boolean.default(false),
+
+                        /**
+                         * If true then the next time we update this entry we'll also try archiving the
+                         * corresponding `DocumentNewCommentThreadsEntry` again.
+                         * `unarchiveInboxDocumentNewCommentThreadsEntryCommentThread()` sets this
+                         * to true.
+                         */
+                        archiveNewCommentThreadsEntryAgain: Schema.value(true).optional(),
                     }),
                 },
                 {
@@ -680,84 +699,37 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         loudNotificationCount: Schema.integer.min(0).max(0),
 
                         /**
-                         * The comment threads in this inbox entry. In chronological order. The newest
-                         * threads appear last.
+                         * The comment threads in this inbox entry. In reverse chronological order. The
+                         * newest comment threads appear first.
                          *
-                         * This set is append only! Once a comment thread has been added, it will never
-                         * be removed. We only add to this set while the inbox is unobserved. Once the
-                         * inbox has been observed this set is frozen. Various bits of code depend on
-                         * this set being append only.
+                         * We archive individual comment threads by removing them from this map and
+                         * creating an archived `DocumentCommentThreadEntry`. If you archive the last
+                         * comment thread in this entry then we delete the
+                         * `DocumentNewCommentThreadsEntry` itself.
                          */
-                        commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(
-                            1,
-                        ),
-
-                        /**
-                         * Which `DocumentCommentThreadId`s have been archived within this inbox entry?
-                         * Once all `DocumentCommentThreadId`s in `commentThreadIds` have been added to
-                         * this set then `isArchived: true` should be automatically set.
-                         */
-                        archivedCommentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>())
-                            // If the item was archived before than `archivedCommentThreadIds` should be
-                            // the same as `commentThreadIds`.
-                            .default(item => {
-                                if (!item.isArchived) return emptySet;
-
-                                if (!isReadonlyArray(item.commentThreadIds)) return emptySet;
-
-                                return new Set(
-                                    filterMapIterable(item.commentThreadIds, commentThreadId =>
-                                        typeof commentThreadId === "string" &&
-                                        isId<DocumentCommentThreadId>(commentThreadId)
-                                            ? commentThreadId
-                                            : undefined,
-                                    ),
-                                );
+                        commentThreads: Schema.map(
+                            Schema.id<DocumentCommentThreadId>(),
+                            Schema.object({
+                                isArchived: Schema.boolean,
+                                authorId: Schema.id<AccountId>(),
+                                createdTime: Schema.date,
                             }),
-
-                        /**
-                         * The first comment author of threads in this inbox entry. Will have a size
-                         * less than or equal to `commentThreadIds`. In chronological order. The latest
-                         * authors to create threads will appear last.
-                         */
-                        commentThreadAuthorIds: Schema.set(Schema.id<AccountId>()).minSize(1),
-
-                        /**
-                         * A preview of the first comment thread. Will display a preview of the first
-                         * comment's content in the inbox entry.
-                         */
-                        firstCommentThread: Schema.object({
-                            commentThreadId: Schema.id<DocumentCommentThreadId>()
-                                .nullable()
-                                .default(null),
-                            authorId: Schema.id<AccountId>(),
-                            createdTime: Schema.date,
-                        }).originalPropertyKey("firstComment"),
-
-                        /**
-                         * The time the latest comment thread was created.
-                         */
-                        latestCommentThreadCreatedTime: Schema.date,
-                    })
-                        .validation(
-                            "All `archivedCommentThreadIds` must be present in `commentThreadIds`",
-                            item =>
-                                iterableEvery(item.archivedCommentThreadIds, postId =>
-                                    item.commentThreadIds.has(postId),
-                                ),
                         )
-                        .validation(
-                            "If `DocumentNewCommentThreadsEntry` is archived then all `commentThreadIds` must be in `archivedCommentThreadIds`",
-                            item =>
-                                !item.isArchived ||
-                                item.commentThreadIds.size === item.archivedCommentThreadIds.size,
-                        )
-                        .validation(
-                            "If all `commentThreadIds` are in `archivedCommentThreadIds` then `DocumentNewCommentThreadsEntry` must be archived",
-                            item =>
-                                item.commentThreadIds.size !== item.archivedCommentThreadIds.size ||
-                                item.isArchived,
+                            .minSize(1)
+                            .default(getInboxDocumentNewCommentThreadsEntryCommentThreadsDefault),
+
+                        /**
+                         * The time the latest comment thread was added.
+                         */
+                        lastAddedCommentThreadCreatedTime: Schema.date.originalPropertyKey(
+                            "latestCommentThreadCreatedTime",
                         ),
+                    }).validation("At least one comment thread must not be archived", item =>
+                        iterableSome(
+                            item.commentThreads.values(),
+                            commentThread => !commentThread.isArchived,
+                        ),
+                    ),
                 },
                 {
                     name: "TaskEntry",
@@ -1152,6 +1124,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 isStickyMention: item.latestComment.isStickyMention,
                             },
                             otherCommentAuthor,
+                            isFromNewCommentThread: item.isFromNewCommentThread,
                         });
                     });
                 },
@@ -1159,9 +1132,21 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             DocumentNewCommentThreadsEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
+                        const [firstCommentThreadId, firstCommentThread] = assertExists(
+                            Array.from(item.commentThreads)
+                                .reverse()
+                                .find(([, commentThread]) => !commentThread.isArchived),
+                        );
+
+                        const commentThreadAuthorIds = new Set(
+                            filterMapIterable(item.commentThreads.values(), commentThread =>
+                                !commentThread.isArchived ? commentThread.authorId : undefined,
+                            ),
+                        );
+
                         const otherCommentThreadAuthorId = iterableFind(
-                            item.commentThreadAuthorIds,
-                            accountId => accountId !== item.firstCommentThread.authorId,
+                            commentThreadAuthorIds,
+                            authorId => authorId !== firstCommentThread.authorId,
                         );
 
                         const [
@@ -1171,29 +1156,27 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             contentTextSnippetResult,
                         ] = await runAllPromises([
                             getDocumentPreviewIfPossible(context, item.documentId),
-                            getAccount(context, item.spaceId, item.firstCommentThread.authorId),
+                            getAccount(context, item.spaceId, firstCommentThread.authorId),
                             otherCommentThreadAuthorId
                                 ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
                                 : null,
 
                             // Don't throw if actor lost access to document (which we check earlier with
                             // `getDocumentPreviewIfPossible()`).
-                            item.firstCommentThread.commentThreadId
-                                ? captureResultPromise(
-                                      getDocumentCommentPayload(context, {
-                                          documentId: item.documentId,
-                                          commentThreadId: item.firstCommentThread.commentThreadId,
-                                          commentIndex: 0,
-                                      }).then(message =>
-                                          printNotificationMessageContentSnippet(
-                                              context,
-                                              item.spaceId,
-                                              message,
-                                              "comment",
-                                          ),
-                                      ),
-                                  )
-                                : null,
+                            captureResultPromise(
+                                getDocumentCommentPayload(context, {
+                                    documentId: item.documentId,
+                                    commentThreadId: firstCommentThreadId,
+                                    commentIndex: 0,
+                                }).then(message =>
+                                    printNotificationMessageContentSnippet(
+                                        context,
+                                        item.spaceId,
+                                        message,
+                                        "comment",
+                                    ),
+                                ),
+                            ),
                         ]);
 
                         // The document referenced by our inbox entry must exist. Even after deleting
@@ -1209,19 +1192,17 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ? {isPrivate: false, document: documentResult.value}
                                 : {isPrivate: true, documentId: item.documentId},
                             bucketGeneration: item.bucketGeneration,
-                            commentThreadAuthorCount: item.commentThreadAuthorIds.size,
-                            commentThreads: new Map(
-                                mapIterable(item.commentThreadIds, commentThreadId => [
-                                    commentThreadId,
-                                    {
-                                        isArchived:
-                                            item.archivedCommentThreadIds.has(commentThreadId),
-                                    },
-                                ]),
+                            commentThreadAuthorCount: commentThreadAuthorIds.size,
+                            commentThreadIds: new Set(
+                                filterMapIterable(
+                                    item.commentThreads,
+                                    ([commentThreadId, commentThread]) =>
+                                        !commentThread.isArchived ? commentThreadId : undefined,
+                                ),
                             ),
                             firstCommentThread: {
                                 author: firstCommentThreadAuthor,
-                                createdTime: item.firstCommentThread.createdTime,
+                                createdTime: firstCommentThread.createdTime,
                                 contentTextSnippet:
                                     documentResult.ok && contentTextSnippetResult
                                         ? // If the actor lost access to the document then don't show them the latest
@@ -1665,6 +1646,118 @@ function getInboxChannelPostsEntryPostsDefault(item: SchemaSerializedObjectValue
                     // Use the created time of the `latestPost` for all posts because we don't have
                     // `createdTime`s for any other post in our legacy format.
                     createdTime: latestPostCreatedTime,
+                },
+            ];
+        }),
+    );
+}
+
+/**
+ * Convert from our legacy `DocumentNewCommentThreadsEntry` format
+ * (deprecated on 2025-11-10) to our new `commentThreads` map format. Before
+ * 2025-11-10 `DocumentNewCommentThreadsEntry` looked like this:
+ *
+ * ```
+ * {
+ *     commentThreadIds: Set<DocumentCommentThreadId>,
+ *     commentThreadAuthorIds: Set<AccountId>,
+ *     firstCommentThread: {
+ *         commentThreadId: DocumentCommentThreadId,
+ *         authorId: AccountId,
+ *         createdTime: DateString,
+ *     },
+ * }
+ * ```
+ *
+ * ...this format was converted to this:
+ *
+ * ```
+ * {
+ *     commentThreads: Map<
+ *         DocumentCommentThreadId,
+ *         {authorId: AccountId; createdTime: Date},
+ *     >,
+ * }
+ * ```
+ *
+ * In the new format we know the `authorId` and `createdTime` for each comment
+ * thread. In the old format we had all the author `AccountId`s but didn't know
+ * which comment thread they belonged to. And we only had the `createdTime` for
+ * the latest comment thread.
+ *
+ * This function is best effort. For example, we use
+ * `firstCommentThread.createdTime` as the `createdTime` for all comment
+ * threads.
+ */
+function getInboxDocumentNewCommentThreadsEntryCommentThreadsDefault(
+    item: SchemaSerializedObjectValue,
+) {
+    assert(isReadonlyArray(item.commentThreadIds));
+    assert(isObject(item.firstComment));
+
+    assert(
+        item.firstComment.commentThreadId === null ||
+            item.firstComment.commentThreadId === undefined ||
+            (typeof item.firstComment.commentThreadId === "string" &&
+                isId<DocumentCommentThreadId>(item.firstComment.commentThreadId)),
+    );
+
+    assert(
+        typeof item.firstComment.authorId === "string" &&
+            isId<AccountId>(item.firstComment.authorId),
+    );
+
+    assert(
+        typeof item.firstComment.createdTime === "string" &&
+            isDateString(item.firstComment.createdTime),
+    );
+
+    const {
+        commentThreadId: firstCommentThreadId,
+        authorId: firstCommentThreadAuthorId,
+        createdTime: firstCommentThreadCreatedTimeString,
+    } = item.firstComment;
+
+    const firstCommentThreadCreatedTime = deserializeDateString(
+        firstCommentThreadCreatedTimeString,
+    );
+
+    assert(isReadonlyArray(item.commentThreadAuthorIds));
+
+    const commentThreadAuthorIds = item.commentThreadAuthorIds.map(authorId => {
+        assert(typeof authorId === "string" && isId<AccountId>(authorId));
+        return authorId;
+    });
+
+    return new Map<
+        DocumentCommentThreadId,
+        {isArchived: boolean; authorId: AccountId; createdTime: Date}
+    >(
+        item.commentThreadIds.map((commentThreadId, index) => {
+            assert(
+                typeof commentThreadId === "string" &&
+                    isId<DocumentCommentThreadId>(commentThreadId),
+            );
+
+            return [
+                commentThreadId,
+                {
+                    isArchived: false,
+
+                    // Totally wrong. In our old format `commentThreadAuthorIds` was a set in
+                    // reverse chronological order. There was no mapping between
+                    // `commentThreadAuthorIds` and `commentThreadIds`. We make up a totally
+                    // arbitrary mapping here which could be completely incorrect by looping through
+                    // `commentThreadAuthorIds`.
+                    authorId:
+                        commentThreadId === firstCommentThreadId
+                            ? firstCommentThreadAuthorId
+                            : commentThreadAuthorIds[index % commentThreadAuthorIds.length]!,
+
+                    // Use the created time of the `firstCommentThread` for all comment threads
+                    // because we don't have `createdTime`s for any other comment thread in our
+                    // legacy format.
+                    createdTime: firstCommentThreadCreatedTime,
                 },
             ];
         }),

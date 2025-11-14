@@ -1164,8 +1164,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const channel = await TestChannel.create(scenario.session1);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
 
@@ -1471,8 +1473,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const channel = await TestChannel.create(scenario.session1);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
 
@@ -1807,8 +1811,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -3234,8 +3240,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const channel = await TestChannel.create(scenario.session1);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
 
@@ -3775,8 +3783,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const comment1 = await post1.createComment(
                 scenario.session1,
@@ -3879,8 +3889,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const comment1 = await post1.createComment(
                 scenario.session1,
@@ -4380,8 +4392,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const channel = await TestChannel.create(scenario.session1);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
 

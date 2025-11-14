@@ -521,7 +521,7 @@ function getInboxEntryLatestUpdateTime(
         case "DocumentCommentThreadEntry":
             return entryItem.latestComment.createdTime;
         case "DocumentNewCommentThreadsEntry":
-            return entryItem.latestCommentThreadCreatedTime;
+            return entryItem.lastAddedCommentThreadCreatedTime;
         case "TaskEntry":
             return entryItem.latestComment.createdTime;
         default:

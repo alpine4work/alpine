@@ -271,6 +271,7 @@ export class InboxDocumentCommentThreadEntryModel
                 isStickyMention: Schema.boolean.default(false),
             }),
             otherCommentAuthor: AccountModel.schema.nullable(),
+            isFromNewCommentThread: Schema.boolean,
         }),
     )
     implements InboxEntryModelInterface
@@ -310,10 +311,7 @@ export class InboxDocumentNewCommentThreadsEntryModel
             ),
             bucketGeneration: Schema.integer,
             commentThreadAuthorCount: Schema.integer.min(1),
-            commentThreads: Schema.map(
-                Schema.id<DocumentCommentThreadId>(),
-                Schema.object({isArchived: Schema.boolean}),
-            ).minSize(1),
+            commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(1),
             firstCommentThread: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,

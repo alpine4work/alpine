@@ -46,11 +46,10 @@ export async function archiveInboxChannelPostsEntryPost(
             if (!post)
                 throw new FailedPreconditionError("Post not found in channel posts inbox entry");
 
-            const posts = new Map(item.posts);
-
             // The post is already archived!
             if (post.isArchived) return "Noop";
 
+            const posts = new Map(item.posts);
             posts.set(postId, {...post, isArchived: true});
 
             const postCommentsEntryItemKey: InboxPostCommentsEntryItemKey = {

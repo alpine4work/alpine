@@ -9011,6 +9011,19 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "isFromNewCommentThread": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": true
+                                    },
+                                    "archiveNewCommentThreadsEntryAgain": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": true
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -9059,61 +9072,37 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "commentThreadIds": {
+                                    "commentThreads": {
                                         "valueSchema": {
-                                            "type": "Set",
-                                            "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
                                                 "type": "Id"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "archivedCommentThreadIds": {
-                                        "valueSchema": {
-                                            "type": "Set",
+                                            },
                                             "valueSchema": {
-                                                "type": "Id"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
-                                    "commentThreadAuthorIds": {
-                                        "valueSchema": {
-                                            "type": "Set",
-                                            "valueSchema": {
-                                                "type": "Id"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "firstComment": {
-                                        "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "commentThreadId": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "isArchived": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "authorId": {
+                                                        "valueSchema": {
                                                             "type": "Id"
-                                                        }
+                                                        },
+                                                        "optional": false
                                                     },
-                                                    "optional": true
-                                                },
-                                                "authorId": {
-                                                    "valueSchema": {
-                                                        "type": "Id"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "createdTime": {
-                                                    "valueSchema": {
-                                                        "type": "Date"
-                                                    },
-                                                    "optional": false
+                                                    "createdTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    }
                                                 }
                                             }
                                         },
-                                        "optional": false
+                                        "optional": true
                                     },
                                     "latestCommentThreadCreatedTime": {
                                         "valueSchema": {

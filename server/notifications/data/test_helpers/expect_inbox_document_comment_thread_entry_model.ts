@@ -13,6 +13,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
     loudNotificationCount = 0,
     latestComment,
     otherCommentAuthor = null,
+    isFromNewCommentThread = false,
 }: {
     session: TestSpaceSession;
     commentThread: TestDocumentCommentThread;
@@ -25,6 +26,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
         isStickyMention?: boolean;
     };
     otherCommentAuthor?: TestSession | TestAccount | null;
+    isFromNewCommentThread?: boolean;
 }) {
     return new InboxDocumentCommentThreadEntryModel({
         isArchived,
@@ -39,22 +41,26 @@ export function expectInboxDocumentCommentThreadEntryModel({
         commentThreadId: commentThread.id,
         loudNotificationCount,
         latestComment: {
-            createdTime: latestComment.comment.createdTime,
+            createdTime:
+                latestComment.comment instanceof TestDocumentCommentThread
+                    ? latestComment.comment.firstComment.createdTime
+                    : latestComment.comment.createdTime,
             author: expect.objectContaining({
                 id:
                     latestComment.comment instanceof TestDocumentCommentThread
-                        ? latestComment.comment.firstCommentAuthor.id
+                        ? latestComment.comment.firstComment.author.id
                         : latestComment.comment.author.id,
             }),
             contentTextSnippet: latestComment.contentTextSnippet,
             isStickyMention: latestComment.isStickyMention ?? false,
         },
-        firstCommentAuthor: expect.objectContaining({id: commentThread.firstCommentAuthor.id}),
+        firstCommentAuthor: expect.objectContaining({id: commentThread.firstComment.author.id}),
         otherCommentAuthor:
             otherCommentAuthor instanceof TestSession
                 ? expect.objectContaining({id: otherCommentAuthor.account.id})
                 : otherCommentAuthor instanceof TestAccount
                 ? expect.objectContaining({id: otherCommentAuthor.id})
                 : otherCommentAuthor,
+        isFromNewCommentThread,
     });
 }

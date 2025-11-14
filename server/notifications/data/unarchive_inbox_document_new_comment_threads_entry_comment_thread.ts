@@ -1,6 +1,10 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {
+    InboxDocumentCommentThreadEntryItemKey,
+    InboxTable,
+} from "~/server/notifications/data/internal/inbox_table.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -32,22 +36,53 @@ export async function unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(
             documentId,
             bucketGeneration,
         },
-        item => {
-            if (!item) throw new NotFoundError("Inbox entry not found");
+        async (item, {addAdditionalTransactionEntry}) => {
+            // Noop so we're idempotent in case the item was deleted.
+            if (!item) return "Noop";
 
-            if (!item.commentThreadIds.has(commentThreadId))
+            const commentThread = item.commentThreads.get(commentThreadId);
+
+            if (!commentThread) {
                 throw new FailedPreconditionError(
                     "Comment thread not found in new comment threads inbox entry",
                 );
+            }
 
-            const archivedCommentThreadIds = new Set(item.archivedCommentThreadIds);
-            archivedCommentThreadIds.delete(commentThreadId);
+            // The comment thread is already unarchived!
+            if (!commentThread.isArchived) return "Noop";
 
-            return {
-                ...item,
-                isArchived: false,
-                archivedCommentThreadIds,
+            const commentThreads = new Map(item.commentThreads);
+            commentThreads.set(commentThreadId, {...commentThread, isArchived: false});
+
+            const documentCommentThreadEntryItemKey: InboxDocumentCommentThreadEntryItemKey = {
+                partitionType: "Inbox",
+                sortRangeType: "DocumentCommentThreadEntry",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                documentId,
+                commentThreadId,
             };
+
+            const documentCommentThreadEntryItem =
+                await InboxTable.getItemWithEventualThenStrongConsistency(
+                    context,
+                    documentCommentThreadEntryItemKey,
+                );
+
+            // Set `archiveNewCommentThreadsEntryAgain` to true so the next time we update
+            // the `DocumentCommentThreadEntry` we'll also archive the comment thread in
+            // this `DocumentNewCommentThreadsEntry` again. By default,
+            // `updateInboxDocumentCommentThreadEntry()` only archives
+            // `DocumentNewCommentThreadsEntry` when creating `DocumentCommentThreadEntry`.
+            addAdditionalTransactionEntry(
+                InboxTable.transactionDirectlyUpdateItem(
+                    documentCommentThreadEntryItem.update({
+                        archiveNewCommentThreadsEntryAgain: true,
+                    }),
+                ),
+            );
+
+            return {...item, commentThreads};
         },
     );
 }

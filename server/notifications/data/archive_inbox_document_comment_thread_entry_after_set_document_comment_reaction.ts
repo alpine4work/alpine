@@ -53,6 +53,7 @@ export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentRe
                     ? commentIndex
                     : oldItem.latestArchivingCommentIndex ?? null,
                 otherCommentAuthorId: oldItem.otherCommentAuthorId,
+                isFromNewCommentThread: oldItem.isFromNewCommentThread,
             };
         },
     );

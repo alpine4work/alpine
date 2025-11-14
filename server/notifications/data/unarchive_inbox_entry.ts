@@ -2,7 +2,6 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
@@ -31,15 +30,6 @@ export async function unarchiveInboxEntry(
                 isArchived: false,
                 loudNotificationCount: 0,
             };
-
-            // When unarchiving a comment threads entry, all `DocumentCommentThreadId`s in
-            // the entry are now considered unarchived.
-            if (item.sortRangeType === "DocumentNewCommentThreadsEntry") {
-                item = {
-                    ...item,
-                    archivedCommentThreadIds: emptySet,
-                };
-            }
 
             return item;
         },

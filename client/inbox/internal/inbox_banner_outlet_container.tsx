@@ -21,10 +21,6 @@ import {
 import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
-import {
-    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
-    subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
-} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -35,12 +31,8 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {
-    InboxDocumentNewCommentThreadsEntryModel,
-    InboxEntryModel,
-} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
@@ -164,78 +156,6 @@ export function InboxBannerOutletContainer({
                 };
             });
         });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
-
-    useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
-        return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
-            event => {
-                updateEntryOptimistically(event.promise, entry => {
-                    if (entry.key !== event.entry.key) return entry;
-                    if (entry.version > event.entry.version) return entry;
-                    if (!(entry.model instanceof InboxDocumentNewCommentThreadsEntryModel))
-                        return entry;
-
-                    const commentThread = entry.model.commentThreads.get(event.commentThreadId);
-                    if (!commentThread) return entry;
-                    if (commentThread.isArchived) return entry;
-
-                    const newCommentThreads = new Map(entry.model.commentThreads);
-                    newCommentThreads.set(event.commentThreadId, {isArchived: true});
-
-                    return {
-                        ...entry,
-                        version: entry.version + 1,
-                        model: entry.model.clone({
-                            isArchived: iterableEvery(
-                                newCommentThreads.values(),
-                                commentThread => commentThread.isArchived,
-                            ),
-                            commentThreads: newCommentThreads,
-                        }),
-                    };
-                });
-            },
-        );
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
-
-    useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
-        return subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
-            event => {
-                updateEntryOptimistically(event.promise, entry => {
-                    if (entry.key !== event.entry.key) return entry;
-                    if (entry.version > event.entry.version) return entry;
-                    if (!(entry.model instanceof InboxDocumentNewCommentThreadsEntryModel))
-                        return entry;
-
-                    const commentThread = entry.model.commentThreads.get(event.commentThreadId);
-                    if (!commentThread) return entry;
-                    if (!commentThread.isArchived) return entry;
-
-                    const newCommentThreads = new Map(entry.model.commentThreads);
-                    newCommentThreads.set(event.commentThreadId, {isArchived: false});
-
-                    return {
-                        ...entry,
-                        version: entry.version + 1,
-                        model: entry.model.clone({
-                            isArchived: iterableEvery(
-                                newCommentThreads.values(),
-                                commentThread => commentThread.isArchived,
-                            ),
-                            commentThreads: newCommentThreads,
-                        }),
-                    };
-                });
-            },
-        );
     }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useDynamoGeneralRealtimeItemBase(

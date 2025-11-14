@@ -21,7 +21,10 @@ import {
     TestContext,
     TestSessionActionContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {
+    TestCommentRoomBase,
+    TestMessage,
+} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -51,25 +54,31 @@ const schema = DocumentContentProsemirrorSchema;
 export class TestDocumentCommentThread extends TestCommentRoomBase {
     public readonly context: TestContext;
     public readonly space: TestSpace;
-    public readonly firstCommentAuthor: TestAccount;
     public readonly document: TestDocument;
     public readonly id: DocumentCommentThreadId;
-    public readonly createdTime: Date;
+    public readonly firstComment: TestMessage;
 
     private constructor(
         context: TestContext,
         document: TestDocument,
-        firstCommentAuthor: TestAccount,
         id: DocumentCommentThreadId,
-        createdTime: Date,
+        firstCommentAuthor: TestAccount,
+        firstCommentCreatedTime: Date,
     ) {
         super();
         this.context = context;
         this.space = document.space;
         this.document = document;
-        this.firstCommentAuthor = firstCommentAuthor;
         this.id = id;
-        this.createdTime = createdTime;
+
+        this.firstComment = TestMessage._new(
+            this.context,
+            document.space,
+            firstCommentAuthor,
+            this,
+            0,
+            firstCommentCreatedTime,
+        );
     }
 
     // Starts with an underscore since you should prefer calling
@@ -116,8 +125,8 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         return new TestDocumentCommentThread(
             session.context,
             document,
-            session.account,
             id,
+            session.account,
             createdTime,
         );
     }
