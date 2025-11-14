@@ -8,20 +8,22 @@ import {InboxPostCommentsEntryModel} from "~/shared/notifications/inbox_model.js
 
 export function expectInboxPostCommentsEntryModel({
     session,
-    channel,
     post,
+    channel = post.initialChannel,
     isArchived = false,
     loudNotificationCount = 0,
-    postContentTextSnippetIfMentioned = null,
+    postContentTextSnippet = null,
+    isForPostContentMention = false,
     latestComment = null,
     otherCommentAuthor = null,
 }: {
     session: TestSpaceSession;
-    channel: (TestChannel & {isPrivate?: false}) | {isPrivate: true};
     post: TestPost;
+    channel?: (TestChannel & {isPrivate?: false}) | {isPrivate: true};
     isArchived?: boolean;
     loudNotificationCount?: number;
-    postContentTextSnippetIfMentioned?: string | null;
+    postContentTextSnippet?: string | null;
+    isForPostContentMention?: boolean;
     latestComment?: {
         comment: TestMessage;
         contentTextSnippet: string;
@@ -40,7 +42,8 @@ export function expectInboxPostCommentsEntryModel({
         postAuthor: expect.objectContaining({id: post.author.id}),
         loudNotificationCount,
         postCreatedTime: post.createdTime,
-        postContentTextSnippetIfMentioned,
+        postContentTextSnippet,
+        isForPostContentMention,
         latestComment: latestComment
             ? {
                   createdTime: latestComment.comment.createdTime,

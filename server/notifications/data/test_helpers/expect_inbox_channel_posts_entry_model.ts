@@ -1,9 +1,7 @@
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
-import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {InboxChannelPostsEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -14,23 +12,21 @@ export function expectInboxChannelPostsEntryModel({
     isArchived = false,
     loudNotificationCount = 0,
     latestPost,
-    posts = [[latestPost.post, {isArchived}]],
-    otherPostAuthor = null,
+    posts = [latestPost.post],
 }: {
     session: TestSpaceSession;
     channel: (TestChannel & {isPrivate?: false}) | {isPrivate: true; channelId: ChannelId};
     bucketGeneration: number;
     isArchived?: boolean;
     loudNotificationCount?: number;
-    posts?: ReadonlyArray<TestPost | [TestPost, {isArchived: boolean}]>;
+    posts?: ReadonlyArray<TestPost>;
     latestPost: {
         post: TestPost;
         contentTextSnippet: string;
     };
-    otherPostAuthor?: TestSession | TestAccount | null;
 }) {
-    const actualPosts = posts.map(post =>
-        isReadonlyArray(post) ? post : ([post, {isArchived}] as const),
+    const otherPostAuthor = findMapIterable(posts, post =>
+        post.author.id !== latestPost.post.author.id ? post.author : undefined,
     );
 
     return new InboxChannelPostsEntryModel({
@@ -42,18 +38,13 @@ export function expectInboxChannelPostsEntryModel({
             : {isPrivate: false, channel: expect.objectContaining({id: channel.id})},
         bucketGeneration,
         loudNotificationCount,
-        postAuthorCount: new Set(actualPosts.map(post => post[0].author.id)).size,
-        posts: new Map(actualPosts.map(post => [post[0].id, {isArchived: post[1].isArchived}])),
+        postAuthorCount: new Set(posts.map(post => post.author.id)).size,
+        postIds: new Set(posts.map(post => post.id)),
         latestPost: {
             author: expect.objectContaining({id: latestPost.post.author.id}),
             createdTime: latestPost.post.createdTime,
             contentTextSnippet: latestPost.contentTextSnippet,
         },
-        otherPostAuthor:
-            otherPostAuthor instanceof TestSession
-                ? expect.objectContaining({id: otherPostAuthor.account.id})
-                : otherPostAuthor instanceof TestAccount
-                ? expect.objectContaining({id: otherPostAuthor.id})
-                : otherPostAuthor,
+        otherPostAuthor: otherPostAuthor ? expect.objectContaining({id: otherPostAuthor.id}) : null,
     });
 }

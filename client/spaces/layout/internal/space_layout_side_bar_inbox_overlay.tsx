@@ -15,13 +15,13 @@ import {Button} from "~/client/design/button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
-import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
-import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
-import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
-} from "~/client/inbox/use_archive_inbox_entry.js";
+} from "~/client/inbox/archive_inbox_entry_optimistically.js";
+import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
+import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
+import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";

@@ -33,7 +33,7 @@ export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentRe
             commentThreadId,
         },
         oldItem => {
-            if (!oldItem) return null;
+            if (!oldItem) return "Noop";
 
             // Don't archive if a new comment was added after the `commentCount` we had at
             // reaction time. Since a new comment will unarchive the entry. This fixes

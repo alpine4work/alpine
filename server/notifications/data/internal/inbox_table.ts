@@ -44,12 +44,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
@@ -86,7 +88,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaSerializedObjectValue, SchemaType} from "~/shared/schema/schema.js";
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
 
@@ -169,6 +171,17 @@ const inboxEntryItemTypes = [
 
 export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
     name: "Inbox",
+    features: {
+        deleteItem: {
+            Inbox: {
+                // Allow deleting channel post entries. Since when we remove the last post from
+                // the entry we want to delete the entire entry. This increases the cost of
+                // creating channel post entries by 2 RCU since we need to make sure a
+                // gravestone doesn't exist for the item.
+                ChannelPostsEntry: true,
+            },
+        },
+    },
     partitions: [
         {
             name: "Account",
@@ -504,6 +517,13 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * `latestComment`'s author.
                          */
                         otherCommentAuthorId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * If true then the next time we update this entry we'll also try archiving the
+                         * corresponding `ChannelPostsEntry` again.
+                         * `unarchiveInboxChannelPostsEntryPost()` sets this to true.
+                         */
+                        archiveChannelPostsEntryAgain: Schema.value(true).optional(),
                     }),
                 },
                 {
@@ -545,69 +565,38 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * The posts in this inbox entry. In reverse chronological order. The newest
                          * posts appear first.
                          *
-                         * We assume that if you take a slice of this list it will be frozen and
-                         * receive no updates. All new posts should be added to the beginning of the
-                         * list.
-                         *
-                         * This set is append only! Once a post has been added, it will never be
-                         * removed. We only add to this set while the inbox is unobserved. Once the
-                         * inbox has been observed this set is frozen. Various bits of code depend on
-                         * this set being append only.
+                         * We archive individual posts by removing them from this map and creating an
+                         * archived `PostCommentsEntry`. If you archive the last post in this entry
+                         * then we delete the `ChannelPostsEntry` itself.
                          */
-                        postIds: Schema.set(Schema.id<PostId>()).minSize(1),
-
-                        /**
-                         * Which `PostId`s have been archived within this inbox entry? Once all
-                         * `PostId`s in `postIds` have been added to this set then `isArchived: true`
-                         * should be automatically set.
-                         */
-                        archivedPostIds: Schema.set(Schema.id<PostId>())
-                            // If the item was archived before then `archivedPostIds` should be the
-                            // same as `postIds`.
-                            .default(item => {
-                                if (!item.isArchived) return emptySet;
-
-                                if (!isReadonlyArray(item.postIds)) return emptySet;
-
-                                return new Set(
-                                    filterMapIterable(item.postIds, postId =>
-                                        typeof postId === "string" && isId<PostId>(postId)
-                                            ? postId
-                                            : undefined,
-                                    ),
-                                );
+                        posts: Schema.map(
+                            Schema.id<PostId>(),
+                            Schema.object({
+                                isArchived: Schema.boolean,
+                                authorId: Schema.id<AccountId>(),
+                                createdTime: Schema.date,
                             }),
+                        )
+                            .minSize(1)
+                            .default(getInboxChannelPostsEntryPostsDefault),
 
                         /**
-                         * The authors of posts in this inbox entry. Will have a size less than or
-                         * equal to `postIds`. In reverse chronological order. The latest authors to
-                         * post will appear first.
+                         * The `createdTime` of the last post to be added to this inbox entry. We don't
+                         * change this property if the last added post is later removed (since the last
+                         * added post was archived).
+                         *
+                         * We use this as the `enteredTime` for the inbox entry which is why it needs
+                         * to stay the same even as posts are removed.
                          */
-                        postAuthorIds: Schema.set(Schema.id<AccountId>()).minSize(1),
-
-                        /**
-                         * A preview of the first post. Will display a preview of the first post's
-                         * content in the inbox entry.
-                         */
-                        latestPost: Schema.object({
-                            postId: Schema.id<PostId>().nullable().default(null),
-                            authorId: Schema.id<AccountId>(),
-                            createdTime: Schema.date,
+                        lastAddedPostCreatedTime: Schema.date.default(item => {
+                            assert(isObject(item.latestPost));
+                            assert(typeof item.latestPost.createdTime === "string");
+                            assert(isDateString(item.latestPost.createdTime));
+                            return deserializeDateString(item.latestPost.createdTime);
                         }),
-                    })
-                        .validation("All `archivedPostIds` must be present in `postIds`", item =>
-                            iterableEvery(item.archivedPostIds, postId => item.postIds.has(postId)),
-                        )
-                        .validation(
-                            "If `ChannelPostsEntry` is archived then all `postIds` must be in `archivedPostIds`",
-                            item =>
-                                !item.isArchived || item.postIds.size === item.archivedPostIds.size,
-                        )
-                        .validation(
-                            "If all `postIds` are in `archivedPostIds` then `ChannelPostsEntry` must be archived",
-                            item =>
-                                item.postIds.size !== item.archivedPostIds.size || item.isArchived,
-                        ),
+                    }).validation("At least one post must not be archived", item =>
+                        iterableSome(item.posts.values(), post => !post.isArchived),
+                    ),
                 },
                 {
                     name: "DocumentCommentThreadEntry",
@@ -887,11 +876,11 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
                         const [
-                            {hasPostAccess, channel, postAuthor, postContentTextSnippetIfMentioned},
+                            {hasPostAccess, channel, postAuthor, postContentTextSnippet},
                             otherCommentAuthor,
                             latestComment,
                         ] = await runAllPromises([
-                            (!item.isForPostContentMention
+                            (!item.isForPostContentMention && item.latestComment
                                 ? getPostAuthorAndChannelPreviewIfPossible(context, item.postId)
                                 : getPostContentWithCustomReferencesAndChannelPreviewIfPossible(
                                       context,
@@ -927,7 +916,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                             "content" in postResult.value
                                                 ? postResult.value.content.author
                                                 : postResult.value.author,
-                                        postContentTextSnippetIfMentioned:
+                                        postContentTextSnippet:
                                             "content" in postResult.value
                                                 ? postResult.value.content.contentTextSnippet
                                                 : null,
@@ -949,7 +938,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                                 context,
                                                 item.postId,
                                             ),
-                                        postContentTextSnippetIfMentioned: null,
+                                        postContentTextSnippet: null,
                                     };
                                 }
                             }),
@@ -994,15 +983,16 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
                             postCreatedTime: item.postCreatedTime,
-                            postContentTextSnippetIfMentioned:
+                            postContentTextSnippet:
                                 // If the actor lost access to the post then don't show them the post content
                                 // snippet. They may have already seen this content in a push notification so
                                 // it's not necessarily a permissions violation to show it again but a user
                                 // removing another user's access from a channel would probably expect the
                                 // content to be hidden.
-                                hasPostAccess && postContentTextSnippetIfMentioned !== null
-                                    ? postContentTextSnippetIfMentioned
+                                hasPostAccess && postContentTextSnippet !== null
+                                    ? postContentTextSnippet
                                     : null,
+                            isForPostContentMention: item.isForPostContentMention,
                             latestComment: latestComment
                                 ? {
                                       author: latestComment.author,
@@ -1030,22 +1020,24 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             ChannelPostsEntry: {
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
-                        // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
-                        // this date. So if we have a channel posts entry where `postId` is null then
-                        // use the first post in `item.postIds` and hope it's right. Getting this wrong
-                        // shouldn't matter since posts created before this date also won't have
-                        // attached files since files weren't implemented yet.
-                        const latestPostId =
-                            item.latestPost.postId ?? assertExists(iterableFirst(item.postIds));
+                        const [latestPostId, latestPost] = assertExists(
+                            iterableFind(item.posts, ([, post]) => !post.isArchived),
+                        );
+
+                        const postAuthorIds = new Set(
+                            filterMapIterable(item.posts.values(), post =>
+                                !post.isArchived ? post.authorId : undefined,
+                            ),
+                        );
 
                         const otherPostAuthorId = iterableFind(
-                            item.postAuthorIds,
-                            accountId => accountId !== item.latestPost.authorId,
+                            postAuthorIds,
+                            authorId => authorId !== latestPost.authorId,
                         );
 
                         const [latestPostAuthor, otherPostAuthor, postResult] =
                             await runAllPromises([
-                                getAccount(context, item.spaceId, item.latestPost.authorId),
+                                getAccount(context, item.spaceId, latestPost.authorId),
                                 otherPostAuthorId
                                     ? getAccount(context, item.spaceId, otherPostAuthorId)
                                     : null,
@@ -1076,16 +1068,15 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ? {isPrivate: false, channel: postResult.value.channel}
                                 : {isPrivate: true, channelId: item.channelId},
                             bucketGeneration: item.bucketGeneration,
-                            postAuthorCount: item.postAuthorIds.size,
-                            posts: new Map(
-                                mapIterable(item.postIds, postId => [
-                                    postId,
-                                    {isArchived: item.archivedPostIds.has(postId)},
-                                ]),
+                            postAuthorCount: postAuthorIds.size,
+                            postIds: new Set(
+                                filterMapIterable(item.posts, ([postId, post]) =>
+                                    !post.isArchived ? postId : undefined,
+                                ),
                             ),
                             latestPost: {
                                 author: latestPostAuthor,
-                                createdTime: item.latestPost.createdTime,
+                                createdTime: latestPost.createdTime,
                                 contentTextSnippet:
                                     postResult.value?.content.contentTextSnippet ?? "",
                             },
@@ -1585,4 +1576,97 @@ async function printNotificationPostContentSnippet(
         doc,
         references,
     });
+}
+
+/**
+ * Convert from our legacy `ChannelPostsEntry` format (deprecated on 2025-11-10)
+ * to our new `posts` map format. Before 2025-11-10 `ChannelPostsEntry` looked
+ * like this:
+ *
+ * ```
+ * {
+ *     postIds: Set<PostId>,
+ *     postAuthorIds: Set<AccountId>,
+ *     latestPost: {
+ *         postId: PostId,
+ *         authorId: AccountId,
+ *         createdTime: DateString,
+ *     },
+ * }
+ * ```
+ *
+ * ...this format was converted to this:
+ *
+ * ```
+ * {
+ *     posts: Map<PostId, {authorId: AccountId; createdTime: Date}>,
+ * }
+ * ```
+ *
+ * In the new format we know the `authorId` and `createdTime` for each post. In
+ * the old format we had all the author `AccountId`s but didn't know which post
+ * they belonged to. And we only had the `createdTime` for the latest post.
+ *
+ * This function is best effort. For example, we use `latestPost.createdTime`
+ * as the `createdTime` for all posts.
+ */
+function getInboxChannelPostsEntryPostsDefault(item: SchemaSerializedObjectValue) {
+    assert(isReadonlyArray(item.postIds));
+    assert(isObject(item.latestPost));
+
+    assert(
+        item.latestPost.postId === null ||
+            item.latestPost.postId === undefined ||
+            (typeof item.latestPost.postId === "string" && isId<PostId>(item.latestPost.postId)),
+    );
+
+    assert(
+        typeof item.latestPost.authorId === "string" && isId<AccountId>(item.latestPost.authorId),
+    );
+
+    assert(
+        typeof item.latestPost.createdTime === "string" &&
+            isDateString(item.latestPost.createdTime),
+    );
+
+    const {
+        postId: latestPostId,
+        authorId: latestPostAuthorId,
+        createdTime: latestPostCreatedTimeString,
+    } = item.latestPost;
+
+    const latestPostCreatedTime = deserializeDateString(latestPostCreatedTimeString);
+
+    assert(isReadonlyArray(item.postAuthorIds));
+
+    const postAuthorIds = item.postAuthorIds.map(authorId => {
+        assert(typeof authorId === "string" && isId<AccountId>(authorId));
+        return authorId;
+    });
+
+    return new Map<PostId, {isArchived: boolean; authorId: AccountId; createdTime: Date}>(
+        item.postIds.map((postId, index) => {
+            assert(typeof postId === "string" && isId<PostId>(postId));
+
+            return [
+                postId,
+                {
+                    isArchived: false,
+
+                    // Totally wrong. In our old format `postAuthorIds` was a set in reverse
+                    // chronological order. There was no mapping between `postAuthorIds` and
+                    // `postIds`. We make up a totally arbitrary mapping here which could be
+                    // completely incorrect by looping through `postAuthorIds`.
+                    authorId:
+                        postId === latestPostId
+                            ? latestPostAuthorId
+                            : postAuthorIds[index % postAuthorIds.length]!,
+
+                    // Use the created time of the `latestPost` for all posts because we don't have
+                    // `createdTime`s for any other post in our legacy format.
+                    createdTime: latestPostCreatedTime,
+                },
+            ];
+        }),
+    );
 }

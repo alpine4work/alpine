@@ -14,17 +14,13 @@ import {
 } from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
 import {
-    subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
-    subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
-} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
+    subscribeToArchiveInboxEntryOptimistically,
+    subscribeToUnarchiveInboxEntryOptimistically,
+} from "~/client/inbox/archive_inbox_entry_optimistically.js";
 import {
     subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
     subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
 } from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
-import {
-    subscribeToArchiveInboxEntryOptimistically,
-    subscribeToUnarchiveInboxEntryOptimistically,
-} from "~/client/inbox/use_archive_inbox_entry.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
@@ -40,7 +36,6 @@ import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {
-    InboxChannelPostsEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModel,
 } from "~/shared/notifications/inbox_model.js";
@@ -195,67 +190,6 @@ export function useInboxState(props: {
                 );
             });
         }
-    }, [filter, space.id, updateQueryOptimistically]);
-
-    useEffect(() => {
-        // We won't see archive post events if we're looking at archived inbox entries
-        // because in an archived channel posts entry all posts are already archived.
-        if (filter === "Archive") return;
-
-        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
-            updateQueryOptimistically(event, query =>
-                query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
-                    if (!(item.model instanceof InboxChannelPostsEntryModel)) return item;
-
-                    const post = item.model.posts.get(event.postId);
-                    if (!post) return item;
-                    if (post.isArchived) return item;
-
-                    const newPosts = new Map(item.model.posts);
-                    newPosts.set(event.postId, {isArchived: true});
-
-                    // If every post is now archived, the entire entry is archived! So delete the
-                    // entry from our query.
-                    if (iterableEvery(newPosts.values(), post => post.isArchived)) return null;
-
-                    return {
-                        ...item,
-                        model: item.model.clone({posts: newPosts}),
-                    };
-                }),
-            );
-        });
-    }, [filter, space.id, updateQueryOptimistically]);
-
-    useEffect(() => {
-        return subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(event => {
-            updateQueryOptimistically(event, query =>
-                query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
-                    if (!(item.model instanceof InboxChannelPostsEntryModel)) return item;
-
-                    const post = item.model.posts.get(event.postId);
-                    if (!post) return item;
-                    if (!post.isArchived) return item;
-
-                    const newPosts = new Map(item.model.posts);
-                    newPosts.set(event.postId, {isArchived: false});
-
-                    // If we're looking at archived inbox entries and a single post is now
-                    // unarchived then delete this entry from our query.
-                    if (
-                        filter === "Archive" &&
-                        !iterableEvery(newPosts.values(), post => post.isArchived)
-                    ) {
-                        return null;
-                    }
-
-                    return {
-                        ...item,
-                        model: item.model.clone({posts: newPosts}),
-                    };
-                }),
-            );
-        });
     }, [filter, space.id, updateQueryOptimistically]);
 
     useEffect(() => {

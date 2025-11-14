@@ -1,5 +1,6 @@
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
@@ -198,7 +199,7 @@ export function getInboxEntryDisplayContent({
         case "Chat":
             return getInboxChatEntryDisplay({entry, locale, currentAccount});
         case "PostComments":
-            return getInboxPostCommentsEntryDisplay({entry, currentAccount});
+            return getInboxPostCommentsEntryDisplay({entry, locale, currentAccount});
         case "ChannelPosts":
             return getInboxChannelPostsEntryDisplay({entry, locale});
         case "DocumentCommentThread":
@@ -309,9 +310,11 @@ function getInboxChatEntryDisplay({
 
 function getInboxPostCommentsEntryDisplay({
     entry,
+    locale,
     currentAccount,
 }: {
     entry: InboxPostCommentsEntryModel;
+    locale: Locale;
     currentAccount: AccountModel | AccountModelData | AccountModelDataWithoutAvatar | null;
 }): InboxEntryDisplayContent {
     const firstAccount: AccountModel =
@@ -326,14 +329,32 @@ function getInboxPostCommentsEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    if (entry.postContentTextSnippetIfMentioned !== null) {
+    if (entry.isForPostContentMention) {
         summary.push(entry.postAuthor);
         summary.push(
             ` mentioned you in a post in ${
                 entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name
             }`,
         );
-    } else if (entry.latestComment?.isStickyMention) {
+    } else if (!entry.latestComment) {
+        // When we archive a post in `ChannelPostsEntry` we create an archived
+        // `PostCommentsEntry` with no `latestComment`. Render this `PostCommentsEntry`
+        // the same as a `ChannelPostsEntry` with one post.
+        return getInboxChannelPostsEntryDisplay({
+            locale,
+            entry: {
+                channel: entry.channel,
+                postIds: new Set([entry.postId]),
+                postAuthorCount: 1,
+                latestPost: {
+                    author: entry.postAuthor,
+                    createdTime: entry.postCreatedTime,
+                    contentTextSnippet: entry.postContentTextSnippet ?? "",
+                },
+                otherPostAuthor: null,
+            },
+        });
+    } else if (entry.latestComment.isStickyMention) {
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in a comment on ");
 
@@ -371,13 +392,12 @@ function getInboxPostCommentsEntryDisplay({
         brandIconType: "Post",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
-        latestMessage:
-            entry.postContentTextSnippetIfMentioned !== null
-                ? {
-                      author: entry.postAuthor,
-                      contentTextSnippet: entry.postContentTextSnippetIfMentioned,
-                  }
-                : entry.latestComment,
+        latestMessage: entry.isForPostContentMention
+            ? {
+                  author: entry.postAuthor,
+                  contentTextSnippet: entry.postContentTextSnippet ?? "",
+              }
+            : entry.latestComment,
         summary,
     };
 }
@@ -386,7 +406,12 @@ function getInboxChannelPostsEntryDisplay({
     entry,
     locale,
 }: {
-    entry: InboxChannelPostsEntryModel;
+    entry: Pick<
+        InboxChannelPostsEntryModel,
+        "postIds" | "postAuthorCount" | "latestPost" | "otherPostAuthor"
+    > & {
+        channel: {isPrivate: true} | {isPrivate: false; channel: ChannelPreviewModel};
+    };
     locale: Locale;
 }): InboxEntryDisplayContent {
     const firstAccount: AccountModel = entry.otherPostAuthor ?? entry.latestPost.author;
@@ -396,7 +421,7 @@ function getInboxChannelPostsEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    summary.push(printPrettySmallNumberSummary(entry.posts.size, "new post"));
+    summary.push(printPrettySmallNumberSummary(entry.postIds.size, "new post"));
     summary.push(
         ` in ${entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name} by `,
     );

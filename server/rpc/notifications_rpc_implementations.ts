@@ -4,7 +4,6 @@ import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry
 import {subscribeToDigestNotificationsEmail} from "~/server/notifications/data/digest/subscribe_to_digest_notifications_email.js";
 import {unsubscribeFromDigestNotificationsEmail} from "~/server/notifications/data/digest/unsubscribe_from_digest_notifications_email.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
-import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {
     backfillInboxEntries,
     getInboxEntries,
@@ -119,13 +118,6 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             await observeInbox(context.actor.authorizeSession(), input);
             return {};
-        },
-    },
-
-    getInboxChannelPostsEntryPosts: {
-        visibility: ["AppClient"],
-        execute: async (context, input) => {
-            return getInboxChannelPostsEntryPosts(context.actor.authorizeSession(), input);
         },
     },
 

@@ -3,6 +3,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
+    DynamoGeneralRealtimeTableDeletedItem,
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTransactionEntry,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
@@ -17,7 +18,6 @@ import {
     InboxEntryItem,
     InboxEntryItemKey,
     InboxTable,
-    initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
 import {
     authorizeNotBotSpaceAccount,
@@ -26,6 +26,7 @@ import {
 } from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -36,7 +37,6 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
 export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
@@ -44,14 +44,31 @@ export const updateInboxEntryAfterExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 export type UpdateInboxEntryResult = {
-    readonly newInboxEntryItem: InboxEntryItem;
+    readonly newInboxEntryItem: InboxEntryItem | "Delete";
     readonly loudNotificationCountDifference: number;
 };
 
 export type UpdateInboxEntryNewItem<Item extends ItemKey, ItemKey> = DistributiveOmit<
     Item,
-    DistributiveKeyOf<ItemKey> | "generation" | "enteredTime"
->;
+    DistributiveKeyOf<ItemKey> | "generation" | "enteredTime" | "isArchived"
+> & {
+    readonly isArchived:
+        | boolean
+        // An array is truthy. So checking `if (newItem.isArchived)` will work whether
+        // `isArchived` is a boolean or an array.
+        | readonly [true, {readonly alwaysCreate?: boolean}];
+};
+
+type InboxEntryMaybeDeletedItem =
+    | {
+          readonly isDeleted: false;
+          readonly item: DynamoItem<InboxEntryItem> | null;
+      }
+    | {
+          readonly isDeleted: true;
+          readonly item: null;
+          readonly deletedItem: DynamoGeneralRealtimeTableDeletedItem;
+      };
 
 /**
  * Helper function for updating an inbox entry and the main inbox attributes
@@ -81,13 +98,14 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             updateOtherInboxEntry: <OtherItemKey extends InboxEntryItemKey>(
                 otherItemKey: OtherItemKey,
                 oldOtherItem: DynamoItem<InboxEntryItem & OtherItemKey> | null,
-                newOtherItem: UpdateInboxEntryNewItem<
-                    InboxEntryItem & OtherItemKey,
-                    InboxEntryItemKey
-                >,
+                newOtherItem:
+                    | UpdateInboxEntryNewItem<InboxEntryItem & OtherItemKey, InboxEntryItemKey>
+                    | "Delete",
             ) => void;
         },
-    ) => MaybePromise<UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey> | null>,
+    ) => MaybePromise<
+        UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey> | "Noop" | "Delete"
+    >,
     {
         clientRequestToken,
         initialInboxItemIfExists,
@@ -124,7 +142,26 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                       spaceId: itemKey.spaceId,
                       accountId: itemKey.accountId,
                   }),
-            InboxTable.getItemIfExists(context, itemKey),
+
+            InboxTable.getItemIfExists(context, itemKey).then<InboxEntryMaybeDeletedItem | null>(
+                async item => {
+                    if (item) return {isDeleted: false, item};
+
+                    // If this inbox entry is deletable, then check if there's a gravestone for the
+                    // inbox entry.
+                    if (!InboxTable.isDeleteItemEnabled(itemKey)) return null;
+
+                    // Most of the time if we can't find the inbox entry it's because it never
+                    // existed. Wait until we retry to see if the item was deleted.
+                    if (isInitialAttempt) return null;
+
+                    const deletedItem = await InboxTable.getDeletedItemIfExists(context, itemKey);
+                    if (!deletedItem) return null;
+
+                    return {isDeleted: true, item: null, deletedItem};
+                },
+            ),
+
             getAccountTimeZoneIfExists(context, itemKey.accountId),
         ]);
 
@@ -134,13 +171,59 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             ? new Date(Math.max(Date.now(), oldInboxItem.lastEntryUpdatedTime.getTime() + 1))
             : new Date();
 
-        let newInboxItem = oldInboxItem;
+        let newInboxItem =
+            oldInboxItem ??
+            DynamoItem.create(getInitialInboxItem(itemKey.spaceId, itemKey.accountId));
 
         const transactionEntries: Array<
             DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry
         > = [];
 
-        const newInboxEntryItemPartial = await update(oldInboxEntryItem, {
+        const pushTransactionEntries = (
+            oldInboxEntryItem: InboxEntryMaybeDeletedItem | null,
+            result: ComputeUpdateInboxEntryResult,
+        ) => {
+            if (result === "Noop") return;
+
+            const {newInboxEntryItem} = result;
+
+            // Set `newInboxItem` to the updated inbox item from the result.
+            newInboxItem = result.newInboxItem;
+
+            if (newInboxEntryItem === "Delete") {
+                if (!oldInboxEntryItem?.item) {
+                    // We can't delete an inbox entry that doesn't exist.
+                } else {
+                    newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
+
+                    transactionEntries.push(
+                        InboxTable.transactionDeleteItem(oldInboxEntryItem.item),
+                    );
+                }
+            }
+            // If the old inbox entry was deleted, then undelete it.
+            else if (oldInboxEntryItem?.isDeleted) {
+                newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
+
+                transactionEntries.push(
+                    InboxTable.transactionUndeleteItem(
+                        oldInboxEntryItem.deletedItem,
+                        newInboxEntryItem,
+                    ),
+                );
+            }
+            // Optimization: Don't write to the database (and so update `updateVersionLock`)
+            // if the item didn't actually update.
+            else if (!isDeepEqual(oldInboxEntryItem?.item, newInboxEntryItem)) {
+                newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
+
+                transactionEntries.push(
+                    InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+                );
+            }
+        };
+
+        const newInboxEntryItemPartial = await update(oldInboxEntryItem?.item ?? null, {
             isInitialAttempt,
             addAdditionalTransactionEntry: entry => {
                 transactionEntries.push(entry);
@@ -157,88 +240,42 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     oldInboxEntryItem: oldOtherItem,
                     newInboxEntryItem: newOtherItem,
                 });
-                if (result === null) return;
 
-                newInboxItem = result.newInboxItem;
-
-                if (
-                    result.newInboxEntryItem &&
-                    // Optimization: Don't write to the database (and so update `updateVersionLock`)
-                    // if the item didn't actually update.
-                    !(oldOtherItem && isDeepEqual(oldOtherItem, result.newInboxEntryItem))
-                ) {
-                    if (newInboxItem !== null) {
-                        newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
-                    } else {
-                        newInboxItem = DynamoItem.create({
-                            ...getInitialInboxItem(itemKey.spaceId, itemKey.accountId),
-                            lastEntryUpdatedTime: currentTime,
-                        });
-                    }
-
-                    transactionEntries.push(
-                        InboxTable.transactionDirectlyUpdateItem(result.newInboxEntryItem),
-                    );
-                }
+                pushTransactionEntries({isDeleted: false, item: oldOtherItem}, result);
             },
         });
 
-        let newInboxEntryItem: DynamoItem<InboxEntryItem> | null = null;
-        {
-            const result = computeUpdateInboxEntry(context, {
-                currentTime,
-                actorAccountId,
-                itemKey,
-                accountTimeZone,
-                // Use `newInboxItem` here in case it was updated by some other
-                // `updateOtherInboxEntry` call.
-                oldInboxItem: newInboxItem,
-                oldInboxEntryItem,
-                newInboxEntryItem: newInboxEntryItemPartial,
-            });
-            if (result) {
-                newInboxItem = result.newInboxItem;
-                newInboxEntryItem = result.newInboxEntryItem;
-            }
-        }
+        const result = computeUpdateInboxEntry(context, {
+            currentTime,
+            actorAccountId,
+            itemKey,
+            accountTimeZone,
+            // Use `newInboxItem` here in case it was updated by some other
+            // `updateOtherInboxEntry` call.
+            oldInboxItem: newInboxItem,
+            oldInboxEntryItem: oldInboxEntryItem?.item ?? null,
+            newInboxEntryItem: newInboxEntryItemPartial,
+        });
+
+        pushTransactionEntries(oldInboxEntryItem, result);
 
         const loudNotificationCountDifference =
-            (newInboxItem?.loudNotificationCount ?? 0) - (oldInboxItem?.loudNotificationCount ?? 0);
-
-        if (
-            newInboxEntryItem &&
-            // Optimization: Don't write to the database (and so update `updateVersionLock`)
-            // if the item didn't actually update.
-            !(oldInboxEntryItem && isDeepEqual(oldInboxEntryItem, newInboxEntryItem))
-        ) {
-            if (newInboxItem !== null) {
-                newInboxItem = newInboxItem.update({lastEntryUpdatedTime: currentTime});
-            } else {
-                newInboxItem = DynamoItem.create({
-                    ...getInitialInboxItem(itemKey.spaceId, itemKey.accountId),
-                    lastEntryUpdatedTime: currentTime,
-                });
-            }
-
-            transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem));
-        }
+            newInboxItem.loudNotificationCount - (oldInboxItem?.loudNotificationCount ?? 0);
 
         // In practice we update the inbox item every time we update an inbox
         // entry since we're updating the `lastEntryUpdatedTime` property on the inbox
         // item.
-        if (
-            newInboxItem &&
-            // Optimization: Don't write to the database (and so update `updateVersionLock`)
-            // if the item didn't actually update.
-            !(oldInboxItem && isDeepEqual(oldInboxItem, newInboxItem))
-        ) {
+        //
+        // Optimization: Don't write to the database (and so update `updateVersionLock`)
+        // if the item didn't actually update.
+        if (!isDeepEqual(oldInboxItem, newInboxItem)) {
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
 
         await updateInboxEntryBeforeExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
 
         if (transactionEntries.length === 0) {
-            if (!oldInboxEntryItem) return null;
+            if (!oldInboxEntryItem?.item) return null;
 
             // Even though we don't actually write a new inbox item, we still want to
             // return an update result. If we return null we won't send push notifications
@@ -249,7 +286,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             // won't update (it continues to show the sticky mention) but we still want to
             // send push notifications for any messages sent after the sticky mention.
             return {
-                newInboxEntryItem: oldInboxEntryItem,
+                newInboxEntryItem: oldInboxEntryItem.item,
                 loudNotificationCountDifference,
             };
         }
@@ -260,14 +297,21 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
         await updateInboxEntryAfterExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
 
-        if (!newInboxEntryItem) return null;
+        if (result === "Noop") return null;
 
         return {
-            newInboxEntryItem,
+            newInboxEntryItem: result.newInboxEntryItem,
             loudNotificationCountDifference,
         };
     });
 }
+
+type ComputeUpdateInboxEntryResult =
+    | {
+          newInboxItem: DynamoItem<InboxAttributesItem>;
+          newInboxEntryItem: DynamoItem<InboxEntryItem> | "Delete";
+      }
+    | "Noop";
 
 function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: Context<{tracer: TracerContextModule}>,
@@ -284,18 +328,75 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         actorAccountId: AccountId;
         itemKey: ItemKey;
         accountTimeZone: TimeZone | null;
-        oldInboxItem: DynamoItem<InboxAttributesItem> | null;
+        oldInboxItem: DynamoItem<InboxAttributesItem>;
         oldInboxEntryItem: DynamoItem<InboxEntryItem & ItemKey> | null;
-        newInboxEntryItem: UpdateInboxEntryNewItem<
-            InboxEntryItem & ItemKey,
-            InboxEntryItemKey
-        > | null;
+        newInboxEntryItem:
+            | UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey>
+            | "Noop"
+            | "Delete";
     },
-): {
-    newInboxItem: DynamoItem<InboxAttributesItem>;
-    newInboxEntryItem: DynamoItem<InboxEntryItem & ItemKey>;
-} | null {
-    if (!newInboxEntryItemPartial1) return null;
+): ComputeUpdateInboxEntryResult {
+    if (newInboxEntryItemPartial1 === "Noop") return "Noop";
+
+    const inboxGeneration = oldInboxItem.generation;
+    const oldEntryCount = oldInboxItem.entryCount;
+
+    const isCountingNewEntry =
+        newInboxEntryItemPartial1 !== "Delete" && !newInboxEntryItemPartial1.isArchived;
+
+    const isCountingOldEntry = !!oldInboxEntryItem && !oldInboxEntryItem.isArchived;
+
+    const entryCountDifference = (isCountingNewEntry ? 1 : 0) - (isCountingOldEntry ? 1 : 0);
+
+    // `Math.max` to protect against in case we under-counted the number of inbox
+    // entries at some point.
+    const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
+
+    const newLoudNotificationCount =
+        newInboxEntryItemPartial1 !== "Delete"
+            ? newInboxEntryItemPartial1.loudNotificationCount
+            : 0;
+
+    const loudNotificationCountDifference =
+        newLoudNotificationCount - (oldInboxEntryItem?.loudNotificationCount ?? 0);
+
+    let newInboxItem: DynamoItem<InboxAttributesItem> = oldInboxItem.update({
+        loudNotificationCount:
+            (oldInboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
+        entryCount: newEntryCount,
+        lastZeroEntryCountTime:
+            newEntryCount === 0 && oldEntryCount !== 0
+                ? currentTime
+                : oldInboxItem.lastZeroEntryCountTime,
+    });
+
+    // Only schedule a digest notification if this inbox change is because of
+    // someone's actions updating another person's inbox.
+    //
+    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId`
+    // since we're updating Bob's inbox) a message we want to schedule a
+    // notification digest for Bob. However, if Alice (`actorAccountId`) archives
+    // one of her own inbox entries (so `itemKey.accountId` is Alice as well) then
+    // don't schedule a notification digest.
+    //
+    // If a user is acting on their own inbox then they've seen the current state
+    // of their inbox and don't need to be notified about changes (since they made
+    // the changes!).
+    if (actorAccountId !== itemKey.accountId) {
+        newInboxItem = newInboxItem.update({
+            digestNotificationsNextScheduledDateTime:
+                computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                    currentTime,
+                    timeZone: accountTimeZone,
+                    inboxItem: newInboxItem,
+                    options: {lagTimeInMinutes: 60},
+                }),
+        });
+    }
+
+    if (newInboxEntryItemPartial1 === "Delete") {
+        return {newInboxItem, newInboxEntryItem: "Delete"};
+    }
 
     assert(
         !newInboxEntryItemPartial1.isArchived ||
@@ -306,23 +407,28 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
     assert(!oldInboxEntryItem || oldInboxEntryItem.partitionType === itemKey.partitionType);
     assert(!oldInboxEntryItem || oldInboxEntryItem.sortRangeType === itemKey.sortRangeType);
 
-    const loudNotificationCountDifference =
-        newInboxEntryItemPartial1.loudNotificationCount -
-        (oldInboxEntryItem?.loudNotificationCount ?? 0);
-
-    const inboxGeneration = oldInboxItem?.generation ?? initialInboxGeneration;
-
     const newInboxEntryItemPartial2 = {
         ...newInboxEntryItemPartial1,
+        isArchived: !!newInboxEntryItemPartial1.isArchived,
         ...itemKey,
         updateLockVersion: oldInboxEntryItem?.updateLockVersion,
     } as DistributiveOmit<Extract<InboxEntryItem, ItemKey>, "generation" | "enteredTime">;
 
+    const newInboxEntryItemIsArchivedOptions = isReadonlyArray(newInboxEntryItemPartial1.isArchived)
+        ? newInboxEntryItemPartial1.isArchived[1]
+        : undefined;
+
     // If there was no inbox entry and the new inbox entry would be archived (maybe
     // a user is sending a message to a chat they created) then don't create a
     // new entry.
-    if (!oldInboxEntryItem && newInboxEntryItemPartial2.isArchived) {
-        return null;
+    if (
+        !oldInboxEntryItem &&
+        newInboxEntryItemPartial2.isArchived &&
+        // If `alwaysCreate` is set to true then we create an archived inbox entry even
+        // if no previous entry existed.
+        !newInboxEntryItemIsArchivedOptions?.alwaysCreate
+    ) {
+        return "Noop";
     }
 
     // We don't update archived inbox entries. An archived inbox entry stays the
@@ -330,7 +436,7 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
     // make a change (e.g. `processNotificationCreateChatMessageEvent()` always
     // updates `latestMessage`) but we ignore it.
     if (oldInboxEntryItem?.isArchived && newInboxEntryItemPartial2.isArchived) {
-        return null;
+        return "Noop";
     }
 
     // Move the entry to the top of the inbox if:
@@ -396,67 +502,6 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         enteredTime: newInboxEntryItemEnteredTime,
     };
 
-    // Make sure `loudNotificationCount` is zero for archived entries.
-    assert(!newInboxEntryItem.isArchived || newInboxEntryItem.loudNotificationCount === 0);
-
-    const entryCountDifference =
-        (!newInboxEntryItem.isArchived ? 1 : 0) -
-        (oldInboxEntryItem && !oldInboxEntryItem.isArchived ? 1 : 0);
-
-    const oldEntryCount = oldInboxItem?.entryCount ?? 0;
-
-    // `Math.max` to protect against in case we under-counted the number of inbox
-    // entries at some point.
-    const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
-
-    let newInboxItem: InboxAttributesItem = {
-        ...oldInboxItem,
-        partitionType: "Account",
-        sortRangeType: "InboxAttributes",
-        spaceId: itemKey.spaceId,
-        accountId: itemKey.accountId,
-        generation: inboxGeneration,
-        loudNotificationCount:
-            (oldInboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
-        entryCount: newEntryCount,
-        lastEntryUpdatedTime: oldInboxItem?.lastEntryUpdatedTime ?? null,
-        lastZeroEntryCountTime:
-            newEntryCount === 0 && oldEntryCount !== 0
-                ? currentTime
-                : oldInboxItem?.lastZeroEntryCountTime ?? null,
-        digestNotificationsOptedOutTime: oldInboxItem?.digestNotificationsOptedOutTime ?? null,
-        digestNotificationsSchedule:
-            oldInboxItem?.digestNotificationsSchedule ?? defaultDigestNotificationSchedule,
-        digestNotificationsNextScheduledDateTime:
-            oldInboxItem?.digestNotificationsNextScheduledDateTime ?? null,
-        digestNotificationsLastSentTime: oldInboxItem?.digestNotificationsLastSentTime ?? null,
-    };
-
-    // Only schedule a digest notification if this inbox change is because of
-    // someone's actions updating another person's inbox.
-    //
-    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId`
-    // since we're updating Bob's inbox) a message we want to schedule a
-    // notification digest for Bob. However, if Alice (`actorAccountId`) archives
-    // one of her own inbox entries (so `itemKey.accountId` is Alice as well) then
-    // don't schedule a notification digest.
-    //
-    // If a user is acting on their own inbox then they've seen the current state
-    // of their inbox and don't need to be notified about changes (since they made
-    // the changes!).
-    if (actorAccountId !== itemKey.accountId) {
-        newInboxItem = {
-            ...newInboxItem,
-            digestNotificationsNextScheduledDateTime:
-                computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
-                    currentTime,
-                    timeZone: accountTimeZone,
-                    inboxItem: newInboxItem,
-                    options: {lagTimeInMinutes: 60},
-                }),
-        };
-    }
-
     return {
         newInboxItem: DynamoItem.createOrUpdate(oldInboxItem, newInboxItem),
         newInboxEntryItem: DynamoItem.createOrUpdate(oldInboxEntryItem, newInboxEntryItem),
@@ -472,7 +517,7 @@ function getInboxEntryLatestUpdateTime(
         case "PostCommentsEntry":
             return entryItem.latestComment?.createdTime ?? entryItem.postCreatedTime;
         case "ChannelPostsEntry":
-            return entryItem.latestPost.createdTime;
+            return entryItem.lastAddedPostCreatedTime;
         case "DocumentCommentThreadEntry":
             return entryItem.latestComment.createdTime;
         case "DocumentNewCommentThreadsEntry":

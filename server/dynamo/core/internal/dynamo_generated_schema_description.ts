@@ -8814,6 +8814,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "archiveChannelPostsEntryAgain": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": true
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -8862,61 +8869,43 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "postIds": {
+                                    "posts": {
                                         "valueSchema": {
-                                            "type": "Set",
-                                            "valueSchema": {
+                                            "type": "Map",
+                                            "keySchema": {
                                                 "type": "Id"
-                                            }
-                                        },
-                                        "optional": false
-                                    },
-                                    "archivedPostIds": {
-                                        "valueSchema": {
-                                            "type": "Set",
+                                            },
                                             "valueSchema": {
-                                                "type": "Id"
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "isArchived": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "authorId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "createdTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
                                             }
                                         },
                                         "optional": true
                                     },
-                                    "postAuthorIds": {
+                                    "lastAddedPostCreatedTime": {
                                         "valueSchema": {
-                                            "type": "Set",
-                                            "valueSchema": {
-                                                "type": "Id"
-                                            }
+                                            "type": "Date"
                                         },
-                                        "optional": false
-                                    },
-                                    "latestPost": {
-                                        "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "postId": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Id"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                },
-                                                "authorId": {
-                                                    "valueSchema": {
-                                                        "type": "Id"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "createdTime": {
-                                                    "valueSchema": {
-                                                        "type": "Date"
-                                                    },
-                                                    "optional": false
-                                                }
-                                            }
-                                        },
-                                        "optional": false
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

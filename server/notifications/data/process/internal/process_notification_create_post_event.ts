@@ -17,7 +17,6 @@ import {printNotificationEventAlertContentBody} from "~/server/notifications/dat
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
 
 export const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
@@ -109,9 +108,20 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                 bucketGeneration,
             },
             async (oldItem, {isInitialAttempt, addAdditionalTransactionEntry}) => {
-                const postIds = new Set([event.postId, ...(oldItem?.postIds ?? [])]);
-                let archivedPostIds = oldItem?.archivedPostIds ?? emptySet;
-                const postAuthorIds = new Set([event.authorId, ...(oldItem?.postAuthorIds ?? [])]);
+                // We've already added this post to the inbox entry.
+                if (oldItem?.posts.has(event.postId)) return "Noop";
+
+                const posts = new Map([
+                    [
+                        event.postId,
+                        {
+                            isArchived: false,
+                            authorId: event.authorId,
+                            createdTime: event.createdTime,
+                        },
+                    ],
+                    ...(oldItem?.posts ?? []),
+                ]);
 
                 const postInChannelPostsItemKey: InboxPostInChannelPostsEntryItemKey = {
                     partitionType: "Inbox",
@@ -132,7 +142,11 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                     ? null
                     : await NotificationsTable.getItemIfExists(context, postInChannelPostsItemKey);
 
-                if (!postInChannelPostsItem) {
+                if (postInChannelPostsItem) {
+                    // If a `PostInChannelPostsEntry` item already exists for this post then we
+                    // noop. This may happen if we process notifications out-of-order.
+                    return "Noop";
+                } else {
                     // When we add a post to the channel posts entry, create an item mapping the
                     // `PostId` back to this channel posts entry.
                     addAdditionalTransactionEntry(
@@ -147,35 +161,16 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                             {isConditionCheckErrorRetriable: true},
                         ),
                     );
-                } else {
-                    // If a `PostInChannelPostsEntry` item already exists for this post then we
-                    // want to immediately archive the new post in our `ChannelPostsEntry`. This
-                    // may happen if we process notifications out-of-order.
-                    archivedPostIds = new Set([...archivedPostIds, event.postId]);
-
-                    addAdditionalTransactionEntry(
-                        NotificationsTable.transactionExistsConditionCheck(
-                            postInChannelPostsItemKey,
-                        ),
-                    );
                 }
 
                 return {
-                    isArchived: postIds.size === archivedPostIds.size,
+                    isArchived: false,
                     loudNotificationCount: 0,
-                    postIds,
-                    archivedPostIds,
-                    postAuthorIds,
-                    latestPost:
-                        !oldItem ||
-                        oldItem.latestPost.createdTime.getTime() < event.createdTime.getTime()
-                            ? {
-                                  postId: event.postId,
-                                  authorId: event.authorId,
-                                  createdTime: event.createdTime,
-                                  contentSnippet: event.contentSnippet,
-                              }
-                            : oldItem.latestPost,
+                    posts,
+                    lastAddedPostCreatedTime:
+                        oldItem && oldItem.lastAddedPostCreatedTime >= event.createdTime
+                            ? oldItem.lastAddedPostCreatedTime
+                            : event.createdTime,
                 };
             },
             {clientRequestToken, initialInboxItemIfExists: inboxItem},

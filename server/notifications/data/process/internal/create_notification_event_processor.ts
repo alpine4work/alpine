@@ -354,14 +354,14 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                         eventId: event.id,
                         newInboxEntryItem: result.newInboxEntryItem,
                         loudNotificationCountDifference: result.loudNotificationCountDifference,
-                        getAlertContent: () =>
+                        getAlertContent: newInboxEntryItem =>
                             getAlertContent(context, event, {
                                 info,
                                 accountId,
                                 // TODO(calebmer): All notifications are currently in US English. When we
                                 // localize the product this should change.
                                 locale: defaultLocale,
-                                entryItem: result.newInboxEntryItem,
+                                entryItem: newInboxEntryItem,
                             }),
                     });
                 }

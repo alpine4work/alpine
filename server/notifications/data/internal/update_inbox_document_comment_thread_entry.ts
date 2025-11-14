@@ -37,10 +37,13 @@ export function updateInboxDocumentCommentThreadEntry(
     },
     update: (
         item: InboxDocumentCommentThreadEntryItem | null,
-    ) => MaybePromise<UpdateInboxEntryNewItem<
-        InboxDocumentCommentThreadEntryItem,
-        InboxDocumentCommentThreadEntryItemKey
-    > | null>,
+    ) => MaybePromise<
+        | UpdateInboxEntryNewItem<
+              InboxDocumentCommentThreadEntryItem,
+              InboxDocumentCommentThreadEntryItemKey
+          >
+        | "Noop"
+    >,
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     return updateInboxEntry(

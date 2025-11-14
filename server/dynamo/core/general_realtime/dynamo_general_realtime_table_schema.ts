@@ -99,6 +99,10 @@ export type DynamoGeneralRealtimeTableItemType<
     }
 >;
 
+export type DynamoGeneralRealtimeTableDeletedItem = {
+    readonly updateLockVersion: number | undefined;
+};
+
 type DynamoGeneralRealtimeTableSchemaPartitionShallowFeatureConfigType<
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = Partial<
@@ -1234,6 +1238,16 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Is `deleteItem()`, `undeleteItem()`, `getDeletedItemIfExists()`, and other
+     * related methods enabled for this item type?
+     */
+    public isDeleteItemEnabled<ItemType extends Types["ItemType"]>(itemType: ItemType): boolean {
+        return (
+            this._features?.deleteItem?.[itemType.partitionType]?.[itemType.sortRangeType] ?? false
+        );
+    }
+
+    /**
      * Deletes an item from the database. If the item doesn't exist or the item
      * doesn't match the item's update lock version, we throw a condition check
      * error.
@@ -1319,7 +1333,7 @@ export class DynamoGeneralRealtimeTableSchema<
             consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
-    ): Promise<{updateLockVersion: number | undefined} | null> {
+    ): Promise<DynamoGeneralRealtimeTableDeletedItem | null> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
@@ -1364,7 +1378,7 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public async undeleteItem<Item extends Types["Item"]>(
         context: ServerActionContext,
-        deletedItem: {updateLockVersion: number | undefined},
+        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
         item: Item,
     ): Promise<{
         getEvent: (
@@ -1797,7 +1811,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * object passed into `DynamoGeneralRealtimeTableSchema`.
      */
     public transactionUndeleteItem<Item extends Types["Item"]>(
-        deletedItem: {updateLockVersion: number | undefined},
+        deletedItem: DynamoGeneralRealtimeTableDeletedItem,
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
         assert(

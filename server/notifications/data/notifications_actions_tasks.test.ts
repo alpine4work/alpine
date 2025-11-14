@@ -483,6 +483,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await task.createComment(scenario.session3, "task comment from session 3");
 
+            await ProcessContextModule.waitForTestTasks();
+
             const firstTaskCommentFromSession2 = await task.createComment(
                 scenario.session2,
                 "1st task comment from session 2",

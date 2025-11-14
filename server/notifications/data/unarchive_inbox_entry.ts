@@ -32,15 +32,6 @@ export async function unarchiveInboxEntry(
                 loudNotificationCount: 0,
             };
 
-            // When unarchiving a channel posts entry, all `PostId`s in the entry are now
-            // considered unarchived.
-            if (item.sortRangeType === "ChannelPostsEntry") {
-                item = {
-                    ...item,
-                    archivedPostIds: emptySet,
-                };
-            }
-
             // When unarchiving a comment threads entry, all `DocumentCommentThreadId`s in
             // the entry are now considered unarchived.
             if (item.sortRangeType === "DocumentNewCommentThreadsEntry") {

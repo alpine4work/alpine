@@ -60,18 +60,6 @@ export async function archiveInboxEntry(
                 };
             }
 
-            // When archiving a channel posts entry, all `PostId`s in the entry are now
-            // considered archived.
-            if (
-                item.sortRangeType === "ChannelPostsEntry" &&
-                item.archivedPostIds.size !== item.postIds.size
-            ) {
-                item = {
-                    ...item,
-                    archivedPostIds: item.postIds,
-                };
-            }
-
             // When archiving a new comment threads entry, all `DocumentCommentThreadId`s
             // in the entry are now considered archived.
             if (
@@ -90,6 +78,7 @@ export async function archiveInboxEntry(
 
     // The inbox entry should always be updated so `result` must be non-null.
     assert(result);
+    assert(result.newInboxEntryItem !== "Delete");
     assert(result.newInboxEntryItem.isArchived);
 
     // If we're archiving an entry with loud notifications, we need to send an

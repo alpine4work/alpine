@@ -26,6 +26,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {decodeIdInto} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -352,6 +353,10 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 
     public abstract hasMorePosts(): boolean;
 
+    public getPostCount(): number {
+        return this._posts.getNodeCount();
+    }
+
     public getItemCount(): number {
         return this._posts.getItemCount() + (this.hasMorePosts() ? 1 : 0);
     }
@@ -658,6 +663,10 @@ export class PostBasicList extends PostListBase<number> {
 
     public getLastPostIdIfExists(): PostId | null {
         return this._posts.getLastNodeIfExists()?.model.id ?? null;
+    }
+
+    public iteratePostIds(): Iterable<PostId> {
+        return mapIterable(this._posts.iterateNodes(), node => node.model.id);
     }
 
     public loadMorePosts({

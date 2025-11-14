@@ -1,33 +1,30 @@
-import {ReactElement, useCallback, useMemo} from "react";
+import {ReactElement, useCallback, useEffect, useMemo} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+import {
+    archiveInboxChannelPostsEntryPostOptimistically,
+    subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
+} from "~/client/inbox/archive_inbox_channel_posts_entry_optimistically.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {
-    useArchiveInboxChannelPostsEntryPost,
-    useUnarchiveInboxChannelPostsEntryPost,
-} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
-import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
+import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
@@ -37,21 +34,23 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 import {
     InboxChannelPostsEntryModel,
     InboxEntryModelSchema,
 } from "~/shared/notifications/inbox_model.js";
-import {getChannelWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
-import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
+import {
+    archiveInboxChannelPostsEntryPost,
+    unarchiveInboxChannelPostsEntryPost,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
@@ -63,22 +62,18 @@ const LoaderSchema = Schema.object({
     checkpoint: ServerSynchronizationCheckpointSchema,
     channel: createDynamoGeneralRealtimeItemSchema(ChannelModel.schema()),
     bucketGeneration: Schema.integer,
-    postsResult: Schema.object({
-        totalPostCount: Schema.integer,
-        hasMorePosts: Schema.boolean,
-        posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
-        initialCommentsByPostId: Schema.map(
-            Schema.id<PostId>(),
-            Schema.object({
-                comments: Schema.array(PostCommentModel.schema()),
-                otherReferencedComments: Schema.array(PostCommentModel.schema()),
-            }),
-        ),
-    }),
-    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema),
+    posts: Schema.array(createDynamoGeneralRealtimeItemSchema(PostModel.schema())),
+    initialCommentsByPostId: Schema.map(
+        Schema.id<PostId>(),
+        Schema.object({
+            comments: Schema.array(PostCommentModel.schema()),
+            otherReferencedComments: Schema.array(PostCommentModel.schema()),
+        }),
+    ),
 });
 
-export async function loader({params, request, context: unauthenticatedContext}: LoaderArgs) {
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
@@ -100,33 +95,20 @@ export async function loader({params, request, context: unauthenticatedContext}:
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const url = new URL(request.url);
-
     const clientInfo = context.loader.getClientInfo();
 
     // Generate checkpoint before we start loading data. So when we backfill we
     // include any realtime events that happened while loading data.
     const checkpoint = generateServerSynchronizationCheckpoint();
 
-    const [channel, postsResult, inboxEntry] = await runAllPromises([
+    const [channel, {inboxEntry, posts, initialCommentsByPostId}] = await runAllPromises([
         getChannel(context, channelId),
         getInboxChannelPostsEntryPosts(context, {
             spaceId,
             channelId,
             bucketGeneration,
-            limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                clientInfo,
-                postContentViewMinHeightPx[getInitialAppRenderSpacingScale(clientInfo)],
-            ),
             commentLimit: getInitialLoadMessageCount(clientInfo),
-            afterPostId: null,
         }),
-        url.searchParams.get("inbox") === "show"
-            ? getInboxEntry(context, {
-                  spaceId,
-                  key: {type: "ChannelPosts", channelId, bucketGeneration},
-              })
-            : null,
     ]);
 
     const propagateEventData: TracerEventData = {
@@ -137,32 +119,32 @@ export async function loader({params, request, context: unauthenticatedContext}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {checkpoint, channel, bucketGeneration, postsResult, inboxEntry},
+        {
+            checkpoint,
+            channel,
+            bucketGeneration,
+            inboxEntry,
+            posts,
+            initialCommentsByPostId,
+        },
         {propagateEventData},
     );
 }
 
-export const meta = createMetaFunction(
-    LoaderSchema,
-    ({
-        data: {
-            channel,
-            postsResult: {totalPostCount},
-        },
-    }) => [
-        {
-            title: `${printPrettySmallNumberSummary(totalPostCount, "new post")} in ${
-                channel.model.name
-            }`,
-        },
-    ],
-);
+export const meta = createMetaFunction(LoaderSchema, ({data: {channel, posts}}) => [
+    {
+        title: `${printPrettySmallNumberSummary(posts.length, "new post")} in ${
+            channel.model.name
+        }`,
+    },
+]);
 
 export default function ChannelPostsRouteWrapper() {
     const {
         checkpoint: initialCheckpoint,
         channel,
-        postsResult,
+        posts,
+        initialCommentsByPostId,
         inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
@@ -176,8 +158,8 @@ export default function ChannelPostsRouteWrapper() {
     let withoutArchiveButton = false;
     let node: ReactElement;
 
-    if (postsResult.posts.length === 1 && !postsResult.hasMorePosts) {
-        const post = postsResult.posts[0]!;
+    if (posts.length === 1) {
+        const post = posts[0]!;
 
         node = (
             <PostView
@@ -186,22 +168,26 @@ export default function ChannelPostsRouteWrapper() {
                 initialCheckpoint={initialCheckpoint}
                 initialPost={post}
                 initialPostComments={
-                    postsResult.initialCommentsByPostId.get(post.model.id)?.comments ?? emptyArray
+                    initialCommentsByPostId.get(post.model.id)?.comments ?? emptyArray
                 }
                 initialOtherReferencedPostComments={
-                    postsResult.initialCommentsByPostId.get(post.model.id)
-                        ?.otherReferencedComments ?? emptyArray
+                    initialCommentsByPostId.get(post.model.id)?.otherReferencedComments ??
+                    emptyArray
                 }
                 initialScroll={null}
             />
         );
     } else {
-        withoutArchiveButton = true;
+        const initialIsArchived = inboxEntry.model.isArchived;
+
+        withoutArchiveButton = !initialIsArchived;
+
         node = (
             <ChannelPostsRoute
                 // `useInboxBannerOutletContainer()` changes the inbox context so capture the
                 // `navigation` object from our parent component and use that.
                 parentNavigation={inboxContext?.navigation ?? null}
+                initialIsArchived={initialIsArchived}
             />
         );
     }
@@ -216,10 +202,17 @@ export default function ChannelPostsRouteWrapper() {
     );
 }
 
-function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNavigation | null}) {
+function ChannelPostsRoute({
+    parentNavigation,
+    initialIsArchived,
+}: {
+    parentNavigation: InboxContextNavigation | null;
+    initialIsArchived: boolean;
+}) {
     const context = useAppContext();
     const platform = usePlatform();
     const {space} = useSpaceContext();
+    const reporter = useReporter();
 
     const inboxContext = assertExists(useInboxContext());
     const originalInboxEntry = assertExists(inboxContext.entry);
@@ -229,30 +222,57 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
     const {
         channel: initialChannel,
         bucketGeneration,
-        postsResult: initialPostsResult,
+        posts: initialPosts,
+        initialCommentsByPostId,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     // Shouldn't have loaded initial comments since all the posts should have
     // collapsed comments.
-    assert(initialPostsResult.initialCommentsByPostId.size === 0);
+    assert(initialCommentsByPostId.size === 0);
 
     const channelId = initialChannel.model.id;
 
-    const {isConnected, subscribeToEvents} = useWebSocket(
-        "ChannelRealtimeService",
-        ChannelRealtimeProtocol,
-        `/api/durable-objects/channels/${channelId}`,
-    );
-
-    const totalPostCount = initialPostsResult.totalPostCount;
-
+    // NOTE(calebmer): Posts aren't updated in realtime until the user opens the
+    // comment section for a post. At which point we keep the post up-to-date in
+    // realtime. This is the same realtime posture we have for our home feed.
     const [posts, setPosts, setPostsOptimistically] = useStateWithOptimisticUpdates(() =>
         PostBasicList.new({
             type: "Many",
-            posts: initialPostsResult.posts,
-            hasMorePosts: initialPostsResult.hasMorePosts,
+            posts: initialPosts,
+            hasMorePosts: false,
         }),
     );
+
+    const [
+        archivedPostIds,
+        setArchivedPostIds,
+        setArchivedPostIdsOptimistically,
+        archivedPostIdsWithoutOptimisticUpdates,
+    ] = useStateWithOptimisticUpdates<ReadonlySet<PostId>>(() => {
+        const archivedPostIds = new Set<PostId>();
+
+        for (const postId of posts.iteratePostIds()) {
+            if (!inboxEntry.model.postIds.has(postId)) {
+                archivedPostIds.add(postId);
+            }
+        }
+
+        return archivedPostIds;
+    });
+
+    const expectedArchivedPostIds = useMemo<ReadonlySet<PostId>>(() => {
+        return new Set(
+            filterIterable(posts.iteratePostIds(), postId => !inboxEntry.model.postIds.has(postId)),
+        );
+    }, [inboxEntry.model.postIds, posts]);
+
+    const waitForExpectedArchivedPostIds = useWaitForState(expectedArchivedPostIds);
+
+    // Make sure `archivedPostIdsWithoutOptimisticUpdates` is always equal to
+    // `expectedArchivedPostIds`.
+    if (!isDeepEqual(expectedArchivedPostIds, archivedPostIdsWithoutOptimisticUpdates)) {
+        setArchivedPostIds(() => expectedArchivedPostIds);
+    }
 
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
     // post in a new route. `<PostListView>` will throw if you pass in `posts` with
@@ -261,36 +281,53 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
         setPosts(posts => posts.closeAllPostComments());
     }
 
-    const {item: channel} = useDynamoGeneralRealtimeItem(initialChannel, {
-        isConnected,
-        subscribeToEvents: useCallback(
-            subscriber =>
-                subscribeToEvents(({eventTransaction}) => {
-                    subscriber(eventTransaction);
-                    setPosts(posts => posts.handleEventTransaction(eventTransaction));
-                }),
-            [setPosts, subscribeToEvents],
-        ),
-        reloadItemWithStrongReadConsistency: useCallback(async () => {
-            const {channel} = await getChannelWithStrongReadConsistency(context, {channelId});
-            return channel;
-        }, [channelId, context]),
-    });
-
     const navigationBar = useNavigationBar({
         isDisabled: platform !== "mobile",
-        title: printPrettySmallNumberSummary(totalPostCount, "new post"),
+        title: printPrettySmallNumberSummary(posts.getPostCount(), "new post"),
         withoutDisappearingTitle: true,
     });
 
-    const archiveInboxChannelPostsEntryPost = useArchiveInboxChannelPostsEntryPost();
-    const unarchiveInboxChannelPostsEntryPost = useUnarchiveInboxChannelPostsEntryPost();
+    useEffect(() => {
+        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
+            if (event.entryKey !== inboxEntry.key) return;
+
+            // Wait for our inbox entry to update in realtime. The realtime update event
+            // may happen after `promise` resolves.
+            const waitPromise = waitForExpectedArchivedPostIds(archivedPostIds =>
+                archivedPostIds.has(event.postId),
+            );
+
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
+            // if there's a new `latestPost` we don't know the new `contentTextSnippet` on
+            // the client.
+            setArchivedPostIdsOptimistically(
+                event.promise.then(() => waitPromise).then(() => true),
+                (archivedPostIds, promiseValue) => {
+                    if (promiseValue) return archivedPostIds;
+                    const newArchivedPostIds = new Set(archivedPostIds);
+                    newArchivedPostIds.add(event.postId);
+                    return newArchivedPostIds;
+                },
+            );
+        });
+    }, [inboxEntry.key, setArchivedPostIdsOptimistically, waitForExpectedArchivedPostIds]);
 
     const {handleArchivePost, handleUnarchivePost} = useEvents({
         handleArchivePost: async (postId: PostId) => {
-            archiveInboxChannelPostsEntryPost({
-                entry: inboxEntry,
-                withAnimation: true,
+            const promise = archiveInboxChannelPostsEntryPost(context, {
+                spaceId: space.id,
+                channelId,
+                bucketGeneration,
+                postId,
+            });
+
+            promise.catch(error => {
+                reporter.displayError("Couldn’t mark post as done", error);
+            });
+
+            archiveInboxChannelPostsEntryPostOptimistically({
+                promise,
+                entryKey: inboxEntry.key,
                 postId,
             });
 
@@ -298,10 +335,8 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
             // all posts in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
-                iterableEvery(
-                    inboxEntry.model.posts,
-                    post => post[0] === postId || post[1].isArchived,
-                )
+                inboxEntry.model.postIds.size === 1 &&
+                inboxEntry.model.postIds.has(postId)
             ) {
                 if (parentNavigation.nextEntry) {
                     await parentNavigation.selectEntry(parentNavigation.nextEntry);
@@ -313,23 +348,35 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
             }
         },
         handleUnarchivePost: async (postId: PostId) => {
-            unarchiveInboxChannelPostsEntryPost({
-                entry: inboxEntry,
-                withAnimation: true,
+            const promise = unarchiveInboxChannelPostsEntryPost(context, {
+                spaceId: space.id,
+                channelId,
+                bucketGeneration,
                 postId,
             });
 
-            // If we're viewing archived entries then when we unarchive any post move to
-            // the next entry.
-            if (parentNavigation?.filter === "Archive") {
-                if (parentNavigation.nextEntry) {
-                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
-                } else if (parentNavigation.previousEntry) {
-                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
-                } else {
-                    await parentNavigation.selectEntry(null);
-                }
-            }
+            promise.catch(error => {
+                reporter.displayError("Couldn’t move notification to new", error);
+            });
+
+            // Wait for our inbox entry to update in realtime. The realtime update event
+            // may happen after `promise` resolves.
+            const waitPromise = waitForExpectedArchivedPostIds(
+                archivedPostIds => !archivedPostIds.has(postId),
+            );
+
+            // NOTE(calebmer): We don't optimistically update `inboxEntry` itself because
+            // if there's a new `latestPost` we don't know the new `contentTextSnippet` on
+            // the client.
+            setArchivedPostIdsOptimistically(
+                promise.then(() => waitPromise).then(() => true),
+                (archivedPostIds, promiseValue) => {
+                    if (promiseValue) return archivedPostIds;
+                    const newArchivedPostIds = new Set(archivedPostIds);
+                    newArchivedPostIds.delete(postId);
+                    return newArchivedPostIds;
+                },
+            );
         },
     });
 
@@ -357,22 +404,6 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
                     ),
                 [setPostsOptimistically],
             )}
-            onLoadMorePosts={async ({limit}) => {
-                const postsResult = await getInboxChannelPostsEntryPosts(context, {
-                    spaceId: space.id,
-                    channelId: channel.model.id,
-                    bucketGeneration,
-                    limit,
-                    commentLimit: 0,
-                    afterPostId: posts.getLastPostIdIfExists(),
-                });
-
-                // Shouldn't have loaded initial comments since all the posts should have
-                // collapsed comments.
-                assert(postsResult.initialCommentsByPostId.size === 0);
-
-                setPosts(posts => posts.loadMorePosts(postsResult));
-            }}
             shouldBeConnectedToChannelRealtime={true}
             onPostRealtimeEventTransaction={useCallback(
                 eventTransaction => {
@@ -413,10 +444,13 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
             withSafeAreaInsetTop={platform !== "mobile"}
-            isPostArchived={useCallback(
-                (postId: PostId) => inboxEntry.model.posts.get(postId)?.isArchived ?? false,
-                [inboxEntry.model.posts],
-            )}
+            isPostArchived={useMemo(() => {
+                // If this route was initially archived, we only let you "unarchive" the entry
+                // as a whole. You can't unarchive individual posts.
+                if (initialIsArchived) return;
+
+                return (postId: PostId) => archivedPostIds.has(postId);
+            }, [archivedPostIds, initialIsArchived])}
             onArchivePost={handleArchivePost}
             onUnarchivePost={handleUnarchivePost}
         />

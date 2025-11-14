@@ -13,6 +13,8 @@ import {
     UpdateInboxEntryNewItem,
     updateInboxEntry,
 } from "~/server/notifications/data/internal/update_inbox_entry.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -30,10 +32,9 @@ export function updateInboxPostCommentsEntry(
     },
     update: (
         item: InboxPostCommentsEntryItem | null,
-    ) => MaybePromise<UpdateInboxEntryNewItem<
-        InboxPostCommentsEntryItem,
-        InboxPostCommentsEntryItemKey
-    > | null>,
+    ) => MaybePromise<
+        UpdateInboxEntryNewItem<InboxPostCommentsEntryItem, InboxPostCommentsEntryItemKey> | "Noop"
+    >,
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     return updateInboxEntry(
@@ -49,7 +50,15 @@ export function updateInboxPostCommentsEntry(
         async (oldItem, {updateOtherInboxEntry, addAdditionalTransactionEntry}) => {
             // If we're updating an existing `PostCommentsEntry` then don't bother updating
             // `ChannelPostsEntry`.
-            if (oldItem) return update(oldItem);
+            if (oldItem && !oldItem.archiveChannelPostsEntryAgain) return update(oldItem);
+
+            let newItem = await update(oldItem);
+
+            // Remove the `archiveChannelPostsEntryAgain` flag now that we're archiving
+            // `ChannelPostsEntry` again.
+            if (newItem !== "Noop" && newItem.archiveChannelPostsEntryAgain) {
+                newItem = omitObject(newItem, ["archiveChannelPostsEntryAgain"]);
+            }
 
             // If we're creating this `PostCommentsEntry` then at the same time if the post
             // is present in `ChannelPostsEntry` then we want to archive it in the
@@ -83,52 +92,73 @@ export function updateInboxPostCommentsEntry(
                     ),
                 );
 
-                return update(oldItem);
+                return newItem;
             }
 
             // If `channelPostsEntry` is null that means the item was created by
             // `updateInboxPostCommentsEntry()`. Any `CreatePost` events after
             // `postInChannelPostsItem` is created automatically archive the new post.
-            if (postInChannelPostsItem.channelPostsEntry) {
-                const channelPostsItemKey: InboxChannelPostsEntryItemKey = {
-                    partitionType: "Inbox",
-                    sortRangeType: "ChannelPostsEntry",
-                    spaceId,
-                    accountId,
-                    channelId: postInChannelPostsItem.channelPostsEntry.channelId,
-                    bucketGeneration: postInChannelPostsItem.channelPostsEntry.bucketGeneration,
-                };
+            if (!postInChannelPostsItem.channelPostsEntry) return newItem;
 
-                // If we have a `PostInChannelPostsEntry` item then there's definitely a
-                // corresponding `ChannelPostsEntry` item. First try loading the item with
-                // eventual consistency (cheap) and if that doesn't work try strong
-                // consistency.
-                const channelPostsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
-                    context,
-                    channelPostsItemKey,
-                );
+            const channelPostsItemKey: InboxChannelPostsEntryItemKey = {
+                partitionType: "Inbox",
+                sortRangeType: "ChannelPostsEntry",
+                spaceId,
+                accountId,
+                channelId: postInChannelPostsItem.channelPostsEntry.channelId,
+                bucketGeneration: postInChannelPostsItem.channelPostsEntry.bucketGeneration,
+            };
 
-                if (!channelPostsItem.archivedPostIds.has(postId)) {
-                    const archivedPostIds = new Set([...channelPostsItem.archivedPostIds, postId]);
+            // If we have a `PostInChannelPostsEntry` item then there's definitely a
+            // corresponding `ChannelPostsEntry` item. First try loading the item with
+            // eventual consistency (cheap) and if that doesn't work try strong
+            // consistency.
+            const channelPostsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
+                context,
+                channelPostsItemKey,
+            );
 
-                    // Archive the `ChannelPostsEntry` if all posts within the `ChannelPostsEntry`
-                    // have been archived.
-                    const isArchived = archivedPostIds.size === channelPostsItem.postIds.size;
+            const post = channelPostsItem.posts.get(postId);
 
-                    updateOtherInboxEntry(channelPostsItemKey, channelPostsItem, {
-                        isArchived,
-                        loudNotificationCount: !isArchived
-                            ? channelPostsItem.loudNotificationCount
-                            : 0,
-                        postIds: channelPostsItem.postIds,
-                        archivedPostIds,
-                        postAuthorIds: channelPostsItem.postAuthorIds,
-                        latestPost: channelPostsItem.latestPost,
-                    });
-                }
+            // Post is already archived in `ChannelPostsEntry`.
+            if (!post || post.isArchived) return newItem;
+
+            const posts = new Map(channelPostsItem.posts);
+            posts.set(postId, {...post, isArchived: true});
+
+            if (iterableEvery(posts.values(), post => post.isArchived)) {
+                // If all posts are now archived then delete the entire inbox entry!
+                updateOtherInboxEntry(channelPostsItemKey, channelPostsItem, "Delete");
+            } else {
+                updateOtherInboxEntry(channelPostsItemKey, channelPostsItem, {
+                    ...channelPostsItem,
+                    posts,
+                });
             }
 
-            return update(oldItem);
+            if (newItem === "Noop") {
+                newItem = oldItem ?? {
+                    isArchived: true,
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    isForPostContentMention: false,
+                    latestComment: null,
+                    latestArchivingCommentIndex: null,
+                    otherCommentAuthorId: null,
+                };
+            }
+
+            // Make sure we always create an archived entry for the post when we archived
+            // the post in its corresponding `ChannelPostsEntry`. So the user can unarchive
+            // the post to put it back in their inbox.
+            if (newItem.isArchived) {
+                newItem = {
+                    ...newItem,
+                    isArchived: [true, {alwaysCreate: true}],
+                };
+            }
+
+            return newItem;
         },
         {clientRequestToken},
     );

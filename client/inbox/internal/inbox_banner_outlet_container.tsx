@@ -12,23 +12,19 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
-import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
-import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
-import {
-    subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
-    subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
-} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
-import {
-    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
-    subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
-} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
-} from "~/client/inbox/use_archive_inbox_entry.js";
+} from "~/client/inbox/archive_inbox_entry_optimistically.js";
+import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
+import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
+import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
+import {
+    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+    subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -42,7 +38,6 @@ import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {
-    InboxChannelPostsEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModel,
 } from "~/shared/notifications/inbox_model.js";
@@ -166,66 +161,6 @@ export function InboxBannerOutletContainer({
                     ...entry,
                     version: entry.version + 1,
                     model: entry.model.clone({isArchived: false}),
-                };
-            });
-        });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
-
-    useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
-        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
-            updateEntryOptimistically(event.promise, entry => {
-                if (entry.key !== event.entry.key) return entry;
-                if (entry.version > event.entry.version) return entry;
-                if (!(entry.model instanceof InboxChannelPostsEntryModel)) return entry;
-
-                const post = entry.model.posts.get(event.postId);
-                if (!post) return entry;
-                if (post.isArchived) return entry;
-
-                const newPosts = new Map(entry.model.posts);
-                newPosts.set(event.postId, {isArchived: true});
-
-                return {
-                    ...entry,
-                    version: entry.version + 1,
-                    model: entry.model.clone({
-                        isArchived: iterableEvery(newPosts.values(), post => post.isArchived),
-                        posts: newPosts,
-                    }),
-                };
-            });
-        });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
-
-    useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
-        return subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(event => {
-            updateEntryOptimistically(event.promise, entry => {
-                if (entry.key !== event.entry.key) return entry;
-                if (entry.version > event.entry.version) return entry;
-                if (!(entry.model instanceof InboxChannelPostsEntryModel)) return entry;
-
-                const post = entry.model.posts.get(event.postId);
-                if (!post) return entry;
-                if (!post.isArchived) return entry;
-
-                const newPosts = new Map(entry.model.posts);
-                newPosts.set(event.postId, {isArchived: false});
-
-                return {
-                    ...entry,
-                    version: entry.version + 1,
-                    model: entry.model.clone({
-                        isArchived: iterableEvery(newPosts.values(), post => post.isArchived),
-                        posts: newPosts,
-                    }),
                 };
             });
         });

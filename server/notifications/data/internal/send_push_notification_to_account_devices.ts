@@ -45,9 +45,9 @@ export async function sendPushNotificationToAccountDevices(
     }: {
         accountId: AccountId;
         eventId: NotificationEventId;
-        newInboxEntryItem: InboxEntryItem;
+        newInboxEntryItem: InboxEntryItem | "Delete";
         loudNotificationCountDifference: number;
-        getAlertContent?: () => Promise<{
+        getAlertContent?: (newInboxEntryItem: InboxEntryItem) => Promise<{
             title: string;
             subtitle?: string;
             body: string;
@@ -59,7 +59,10 @@ export async function sendPushNotificationToAccountDevices(
     //
     // However, if the loud notification count changed then we need to send a
     // silent push notification updating the badge number.
-    if (newInboxEntryItem.isArchived && loudNotificationCountDifference === 0) {
+    if (
+        (newInboxEntryItem === "Delete" || newInboxEntryItem.isArchived) &&
+        loudNotificationCountDifference === 0
+    ) {
         return;
     }
 
@@ -124,7 +127,9 @@ export async function sendPushNotificationToAccountDevices(
                 // we want to send them notifications quickly. So it's worth speeding up
                 // notification sending even if sometimes it's a little wasteful to load alert
                 // content when we don't need it.
-                !newInboxEntryItem.isArchived ? assertExists(getAlertContent)() : null,
+                newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
+                    ? assertExists(getAlertContent)(newInboxEntryItem)
+                    : null,
 
                 // We optimistically get the account's total loud notification count even if we
                 // don't need it (e.g. since there are no registered devices).
@@ -141,11 +146,14 @@ export async function sendPushNotificationToAccountDevices(
             // Interrupt the user if tge loud notification count increased.
             const isLoud = loudNotificationCountDifference > 0;
 
-            const entryPath = getInboxEntryKeyPath(
-                newInboxEntryItem.spaceId,
-                getInboxEntryKey(newInboxEntryItem),
-                "narrow",
-            );
+            const entryPath =
+                newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
+                    ? getInboxEntryKeyPath(
+                          newInboxEntryItem.spaceId,
+                          getInboxEntryKey(newInboxEntryItem),
+                          "narrow",
+                      )
+                    : undefined;
 
             await runAllPromises(
                 accountDevices.map(async accountDevice => {
@@ -156,7 +164,10 @@ export async function sendPushNotificationToAccountDevices(
 
                             aps: {
                                 alert: alertContent ?? undefined,
-                                "thread-id": getApnsNotificationThreadId(newInboxEntryItem),
+                                "thread-id":
+                                    newInboxEntryItem !== "Delete" && !newInboxEntryItem.isArchived
+                                        ? getApnsNotificationThreadId(newInboxEntryItem)
+                                        : undefined,
 
                                 // Update the badge.
                                 //

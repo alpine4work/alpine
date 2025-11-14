@@ -56,9 +56,12 @@ test("can archive single post in a channel posts entry with three posts", async 
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    const commentThread3 = await document.createCommentThread(session1, range, "test3");
+    await ProcessContextModule.waitForTestTasks();
 
+    const commentThread2 = await document.createCommentThread(session1, range, "test2");
+    await ProcessContextModule.waitForTestTasks();
+
+    const commentThread3 = await document.createCommentThread(session1, range, "test3");
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -86,9 +89,12 @@ test("can archive two posts in a channel posts entry with three posts", async ()
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    const commentThread3 = await document.createCommentThread(session1, range, "test3");
+    await ProcessContextModule.waitForTestTasks();
 
+    const commentThread2 = await document.createCommentThread(session1, range, "test2");
+    await ProcessContextModule.waitForTestTasks();
+
+    const commentThread3 = await document.createCommentThread(session1, range, "test3");
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -127,9 +133,12 @@ test("can archive three posts in a channel posts entry with three posts", async 
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    const commentThread3 = await document.createCommentThread(session1, range, "test3");
+    await ProcessContextModule.waitForTestTasks();
 
+    const commentThread2 = await document.createCommentThread(session1, range, "test2");
+    await ProcessContextModule.waitForTestTasks();
+
+    const commentThread3 = await document.createCommentThread(session1, range, "test3");
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -172,9 +181,12 @@ test("archiving single post is idempotent when all posts are unarchived", async 
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    const commentThread3 = await document.createCommentThread(session1, range, "test3");
+    await ProcessContextModule.waitForTestTasks();
 
+    const commentThread2 = await document.createCommentThread(session1, range, "test2");
+    await ProcessContextModule.waitForTestTasks();
+
+    const commentThread3 = await document.createCommentThread(session1, range, "test3");
     await ProcessContextModule.waitForTestTasks();
 
     await runAllPromises([
@@ -216,9 +228,12 @@ test("archiving single post is idempotent when all but one posts are archived", 
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    const commentThread3 = await document.createCommentThread(session1, range, "test3");
+    await ProcessContextModule.waitForTestTasks();
 
+    const commentThread2 = await document.createCommentThread(session1, range, "test2");
+    await ProcessContextModule.waitForTestTasks();
+
+    const commentThread3 = await document.createCommentThread(session1, range, "test3");
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {

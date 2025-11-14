@@ -49,6 +49,7 @@ import {
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {encodeElenInteger} from "~/shared/helpers/number/elen_integer.js";
@@ -146,8 +147,8 @@ const context = createTestContext({
 async function testGetInboxChannelPostsEntryPosts(
     ...args: Parameters<typeof getInboxChannelPostsEntryPosts>
 ) {
-    const {hasMorePosts, posts} = await getInboxChannelPostsEntryPosts(...args);
-    return {hasMorePosts, posts: posts.map(post => post.model)};
+    const {posts} = await getInboxChannelPostsEntryPosts(...args);
+    return posts.map(post => post.model);
 }
 
 test("won’t create two inbox entries if inbox is observed between serial event processing", async () => {
@@ -279,7 +280,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -309,7 +309,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -322,7 +321,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -345,7 +343,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -358,7 +355,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -450,7 +446,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -475,7 +470,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -487,7 +481,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -609,7 +602,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
@@ -623,7 +615,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -644,7 +635,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -660,7 +650,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -681,7 +670,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     loudNotificationCount: 2,
                     latestComment: {
                         comment: comment3,
@@ -696,7 +684,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session1.account.initialName}!`,
@@ -753,7 +740,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -785,7 +771,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -813,7 +798,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -880,7 +864,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.sharedSession,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -912,7 +895,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.sharedSession,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -981,7 +963,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -1006,7 +987,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session3,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -1063,7 +1043,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -1075,7 +1054,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -1091,7 +1069,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -1103,7 +1080,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment3,
@@ -1156,7 +1132,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -1173,7 +1148,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -1229,7 +1203,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1259,7 +1233,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1298,7 +1272,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1334,7 +1308,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1384,7 +1358,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1422,7 +1396,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1452,7 +1426,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 2,
                     latestComment: {
                         comment: comment8,
@@ -1538,7 +1512,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1568,7 +1542,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1602,7 +1576,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1650,7 +1624,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1695,7 +1669,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1743,7 +1717,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1802,7 +1776,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -1879,7 +1853,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -1913,7 +1887,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2],
+                    posts: [post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -1943,7 +1917,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -1968,7 +1942,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2],
+                    posts: [post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2012,7 +1986,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2],
+                    posts: [post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2045,7 +2019,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2],
+                    posts: [post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2121,7 +2095,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -2155,7 +2129,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2205,7 +2179,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2248,7 +2222,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2267,7 +2241,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -2300,7 +2274,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2329,7 +2303,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -2362,7 +2336,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2402,7 +2376,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -2435,7 +2409,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: scenario.session3,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, post3],
+                    posts: [post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
@@ -2497,7 +2471,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -2526,7 +2499,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -2557,7 +2529,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment1,
@@ -2588,7 +2559,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -2619,7 +2589,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -2655,7 +2624,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session1,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -3826,7 +3794,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -3891,7 +3859,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -3930,7 +3898,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -3991,7 +3959,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "comment3",
@@ -4051,7 +4019,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4072,16 +4040,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await archiveInboxEntry(
                 context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
@@ -4095,7 +4054,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4126,14 +4085,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4149,7 +4100,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4179,14 +4130,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4205,7 +4148,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -4230,14 +4173,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4293,7 +4228,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4314,16 +4249,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                }),
-            ]);
+            expect(await testGetInboxEntries(scenario.session2, {filter: "Archive"})).toEqual([]);
 
             await post3.createComment(scenario.session2, createSimpleMessageContent("test"));
 
@@ -4333,7 +4259,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4364,14 +4290,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4383,7 +4301,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -4413,14 +4331,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
 
@@ -4435,7 +4345,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -4460,14 +4370,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         comment: comment3,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                     },
-                }),
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: scenario.session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: expect.any(String)},
                 }),
             ]);
         });
@@ -4529,7 +4431,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -4566,7 +4468,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -4603,7 +4505,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -4711,10 +4613,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
                 expectInboxChannelPostsEntryModel({
                     session: scenario.session2,
@@ -4731,8 +4633,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     post: post3,
                     channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session3.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
                 expectInboxChannelPostsEntryModel({
                     session: scenario.session3,
@@ -4779,10 +4681,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
             ]);
 
@@ -4797,9 +4698,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -4843,10 +4744,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
             ]);
 
@@ -4867,9 +4767,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
             ]);
 
@@ -4884,7 +4783,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "comment1",
@@ -4939,7 +4837,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment,
@@ -4956,9 +4853,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 2,
-                    postContentTextSnippetIfMentioned: `Hello ${scenario.session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -5012,7 +4909,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: scenario.session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment,
@@ -5039,7 +4935,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -5057,7 +4952,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: scenario.session2,
                     post,
-                    channel,
                     latestComment: {
                         comment,
                         contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
@@ -5211,7 +5105,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
@@ -5226,7 +5119,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
@@ -5274,7 +5166,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
@@ -5302,7 +5193,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: scenario.session1,
                 }),
             ]);
 
@@ -5387,7 +5277,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: session4,
                 }),
             ]);
 
@@ -5433,7 +5322,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post2],
                     latestPost: {post: post2, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: session4,
                 }),
             ]);
 
@@ -5444,7 +5332,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: expect.any(String)},
-                    otherPostAuthor: session4,
                 }),
             ]);
 
@@ -5474,9 +5361,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
             ).rejects.toThrow(PermissionDeniedError);
         });
@@ -5509,23 +5394,16 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post2.get(), post1.get()]),
-            });
+            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
 
             await expect(
                 testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 4,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
             ).rejects.toThrow(NotFoundError);
 
@@ -5554,28 +5432,18 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post2.get(), post1.get()]),
-            });
+            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post3.get()]),
-            });
+            ).toEqual(await runAllPromises([post3.get()]));
 
             const post4 = await channel.createPost(scenario.session1);
 
@@ -5608,42 +5476,27 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post2.get(), post1.get()]),
-            });
+            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post3.get()]),
-            });
+            ).toEqual(await runAllPromises([post3.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 4,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post4.get()]),
-            });
+            ).toEqual(await runAllPromises([post4.get()]));
         });
 
         test("getting inbox entry posts does not observe if inbox was already observed", async () => {
@@ -5696,14 +5549,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post2.get(), post1.get()]),
-            });
+            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
 
             const post4 = await channel.createPost(scenario.session1);
 
@@ -5731,210 +5579,18 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 0,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post2.get(), post1.get()]),
-            });
+            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
                     spaceId: scenario.space.id,
                     channelId: channel.id,
                     bucketGeneration: 2,
-                    limit: 100,
                     commentLimit: 100,
-                    afterPostId: null,
                 }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post4.get(), post3.get()]),
-            });
-        });
-
-        test("can paginate getting inbox entries", async () => {
-            const scenario = await createNotificationsTestScenario(context);
-
-            const channel = await TestChannel.create(scenario.session2);
-
-            const post1 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post2 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post3 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post4 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post5 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post6 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post7 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            const post8 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 100,
-                    commentLimit: 100,
-                    afterPostId: null,
-                }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([
-                    post8.get(),
-                    post7.get(),
-                    post6.get(),
-                    post5.get(),
-                    post4.get(),
-                    post3.get(),
-                    post2.get(),
-                    post1.get(),
-                ]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 4,
-                    commentLimit: 100,
-                    afterPostId: null,
-                }),
-            ).toEqual({
-                hasMorePosts: true,
-                posts: await runAllPromises([post8.get(), post7.get(), post6.get(), post5.get()]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 7,
-                    commentLimit: 100,
-                    afterPostId: null,
-                }),
-            ).toEqual({
-                hasMorePosts: true,
-                posts: await runAllPromises([
-                    post8.get(),
-                    post7.get(),
-                    post6.get(),
-                    post5.get(),
-                    post4.get(),
-                    post3.get(),
-                    post2.get(),
-                ]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 8,
-                    commentLimit: 100,
-                    afterPostId: null,
-                }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([
-                    post8.get(),
-                    post7.get(),
-                    post6.get(),
-                    post5.get(),
-                    post4.get(),
-                    post3.get(),
-                    post2.get(),
-                    post1.get(),
-                ]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 100,
-                    commentLimit: 100,
-                    afterPostId: post5.id,
-                }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post4.get(), post3.get(), post2.get(), post1.get()]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 4,
-                    commentLimit: 100,
-                    afterPostId: post5.id,
-                }),
-            ).toEqual({
-                hasMorePosts: false,
-                posts: await runAllPromises([post4.get(), post3.get(), post2.get(), post1.get()]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 3,
-                    commentLimit: 100,
-                    afterPostId: post5.id,
-                }),
-            ).toEqual({
-                hasMorePosts: true,
-                posts: await runAllPromises([post4.get(), post3.get(), post2.get()]),
-            });
-
-            expect(
-                await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 4,
-                    commentLimit: 100,
-                    afterPostId: post7.id,
-                }),
-            ).toEqual({
-                hasMorePosts: true,
-                posts: await runAllPromises([post6.get(), post5.get(), post4.get(), post3.get()]),
-            });
-
-            const post9 = await channel.createPost(scenario.session1);
-            await ProcessContextModule.waitForTestTasks();
-
-            await expect(
-                testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
-                    spaceId: scenario.space.id,
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                    limit: 4,
-                    commentLimit: 100,
-                    afterPostId: post9.id,
-                }),
-            ).rejects.toThrow(NotFoundError);
+            ).toEqual(await runAllPromises([post4.get(), post3.get()]));
         });
 
         test("account can’t backfill in a space it can’t access", async () => {
@@ -6081,7 +5737,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "Test comment 2",
@@ -6097,7 +5752,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "Test comment 3",
@@ -6129,7 +5783,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -6147,7 +5800,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -6165,7 +5817,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment4,
@@ -6199,7 +5850,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 2,
                     latestComment: {
                         comment: comment7,
@@ -6217,7 +5867,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 2,
                     latestComment: {
                         comment: comment7,
@@ -6244,7 +5893,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment9,
                         contentTextSnippet: "Test comment 9",
@@ -6459,10 +6107,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${session2.account.initialName}`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${session2.account.initialName}`,
+                    isForPostContentMention: true,
                 }),
             ]);
 
@@ -6561,10 +6208,9 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
-                    postContentTextSnippetIfMentioned: `Hello ${session2.account.initialName}`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello ${session2.account.initialName}`,
+                    isForPostContentMention: true,
                 }),
             ]);
 
@@ -6578,7 +6224,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     post,
                     channel: {isPrivate: true},
                     loudNotificationCount: 1,
-                    latestComment: null,
+                    isForPostContentMention: true,
                 }),
             ]);
         });
@@ -6606,7 +6252,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment2,
                         contentTextSnippet: "comment2",
@@ -6670,7 +6315,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment2,
@@ -6924,7 +6568,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment,
                         contentTextSnippet: "Can you see this? TOP SECRET",
@@ -6937,7 +6580,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session3,
                     post,
-                    channel,
                     latestComment: {
                         comment,
                         contentTextSnippet: "Can you see this? Private document",
@@ -7231,19 +6873,29 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await post.createComment(session2, "test2");
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            const comment = await post.createComment(session2, "test2");
 
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
                     session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: "test1"},
+                    post,
+                    latestComment: {comment, contentTextSnippet: "test2"},
                 }),
             ]);
         });
@@ -7264,8 +6916,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const post3 = await channel.createPost(session1, "test3");
             await ProcessContextModule.waitForTestTasks();
 
-            await post1.createComment(session2, "test4");
-            await post3.createComment(session2, "test5");
+            const comment1 = await post1.createComment(session2, "test4");
+            const comment2 = await post3.createComment(session2, "test5");
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -7274,27 +6926,54 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, [post3, {isArchived: true}]],
-                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                    latestPost: {post: post2, contentTextSnippet: "test2"},
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post3,
+                    channel,
+                    latestComment: {comment: comment2, contentTextSnippet: "test5"},
+                }),
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post1,
+                    channel,
+                    latestComment: {comment: comment1, contentTextSnippet: "test4"},
+                }),
+            ]);
 
-            await post2.createComment(session2, "test6");
+            const comment3 = await post2.createComment(session2, "test6");
 
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
                     session: session2,
+                    post: post2,
+
+                    latestComment: {comment: comment3, contentTextSnippet: "test6"},
+                }),
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post3,
                     channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                    latestComment: {comment: comment2, contentTextSnippet: "test5"},
+                }),
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post1,
+                    channel,
+                    latestComment: {comment: comment1, contentTextSnippet: "test4"},
                 }),
             ]);
         });
@@ -7311,6 +6990,17 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             const post = await channel.createPost(session1, "test1");
 
             await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
 
             const comment = await post.createComment(
                 session1,
@@ -7334,7 +7024,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     loudNotificationCount: 1,
                     latestComment: {
                         comment,
@@ -7344,15 +7033,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: "test1"},
-                }),
-            ]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
         test("being mentioned in every post in a channel posts entry archives the channel posts entry", async () => {
@@ -7438,8 +7119,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [[post1, {isArchived: true}], post2, [post3, {isArchived: true}]],
-                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                    latestPost: {post: post2, contentTextSnippet: "test2"},
                 }),
             ]);
 
@@ -7468,7 +7148,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post: post2,
-                    channel,
+
                     loudNotificationCount: 1,
                     latestComment: {
                         comment: comment3,
@@ -7500,16 +7180,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post1, post2, post3],
-                    latestPost: {post: post3, contentTextSnippet: "test3"},
-                }),
-            ]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
         test("post comment notification event is processed before create post notification event", async () => {
@@ -7547,7 +7218,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {comment: secondComment, contentTextSnippet: "test3"},
                 }),
             ]);
@@ -7562,7 +7232,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {comment: secondComment, contentTextSnippet: "test3"},
                 }),
             ]);
@@ -7618,7 +7287,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post: post2,
-                    channel,
+
                     latestComment: {comment: secondComment, contentTextSnippet: "test4"},
                 }),
                 expectInboxChannelPostsEntryModel({
@@ -7639,15 +7308,14 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post: post2,
-                    channel,
+
                     latestComment: {comment: secondComment, contentTextSnippet: "test4"},
                 }),
                 expectInboxChannelPostsEntryModel({
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [post1, [post2, {isArchived: true}]],
-                    latestPost: {post: post2, contentTextSnippet: "test2"},
+                    latestPost: {post: post1, contentTextSnippet: "test1"},
                 }),
             ]);
 
@@ -7712,7 +7380,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {comment: secondComment, contentTextSnippet: "test3"},
                 }),
             ]);
@@ -7780,7 +7447,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [otherPost1, otherPost2],
                     latestPost: {post: otherPost2, contentTextSnippet: "test2"},
-                    otherPostAuthor: expect.any(AccountModel),
                 }),
             ]);
 
@@ -7796,9 +7462,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [otherPost1, otherPost2, [post, {isArchived: true}]],
-                    latestPost: {post, contentTextSnippet: "test3"},
-                    otherPostAuthor: expect.any(AccountModel),
+                    posts: [otherPost1, otherPost2],
+                    latestPost: {post: otherPost2, contentTextSnippet: "test2"},
                 }),
             ]);
 
@@ -7812,23 +7477,21 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 expectInboxPostCommentsEntryModel({
                     session: session2,
                     post,
-                    channel,
                     latestComment: {comment: secondComment, contentTextSnippet: "test5"},
                 }),
                 expectInboxChannelPostsEntryModel({
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [otherPost1, otherPost2, [post, {isArchived: true}]],
-                    latestPost: {post, contentTextSnippet: "test3"},
-                    otherPostAuthor: expect.any(AccountModel),
+                    posts: [otherPost1, otherPost2],
+                    latestPost: {post: otherPost2, contentTextSnippet: "test2"},
                 }),
             ]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
         });
 
-        test("can read old channel posts inbox entry format without `archivedPostIds` property", async () => {
+        test("can read old channel posts inbox entry format without `posts` property", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -7874,8 +7537,32 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(item).toEqual(
                 expect.objectContaining({
                     isArchived: true,
-                    postIds: [post3.id, post2.id, post1.id],
-                    archivedPostIds: [post3.id, post2.id, post1.id],
+                    posts: [
+                        [
+                            post3.id,
+                            {
+                                isArchived: false,
+                                authorId: session1.account.id,
+                                createdTime: post3.createdTime.toISOString(),
+                            },
+                        ],
+                        [
+                            post2.id,
+                            {
+                                isArchived: false,
+                                authorId: session1.account.id,
+                                createdTime: post2.createdTime.toISOString(),
+                            },
+                        ],
+                        [
+                            post1.id,
+                            {
+                                isArchived: false,
+                                authorId: session1.account.id,
+                                createdTime: post1.createdTime.toISOString(),
+                            },
+                        ],
+                    ],
                 }),
             );
 
@@ -7884,27 +7571,31 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             // Item format before 2025-10-28 when we added `archivedPostIds`. We expect to
             // migrate this item such that `archivedPostIds` is added and set to the same
             // thing as `postIds`.
-            const itemWithoutArchivedPostIds = {
-                partitionKey: key.partitionKey,
-                sortKey: key.sortKey,
+            const itemWithLegacyFormat = {
+                partitionKey: assertExists(key.partitionKey),
+                sortKey: assertExists(key.sortKey),
                 isArchived: true,
                 loudNotificationCount: 0,
                 generation: 0,
-                enteredTime: item.enteredTime,
-                postIds: item.postIds,
-                postAuthorIds: item.postAuthorIds,
-                latestPost: item.latestPost,
-                updateLockVersion: item.updateLockVersion,
-                index1PartitionKey: item.index1PartitionKey,
-                index1SortKey: item.index1SortKey,
+                enteredTime: assertExists(item.enteredTime),
+                postIds: [post3.id, post2.id, post1.id],
+                postAuthorIds: [session1.account.id],
+                latestPost: {
+                    postId: post3.id,
+                    authorId: session1.account.id,
+                    createdTime: post3.createdTime.toISOString(),
+                },
+                updateLockVersion: assertExists(item.updateLockVersion),
+                index1PartitionKey: assertExists(item.index1PartitionKey),
+                index1SortKey: assertExists(item.index1SortKey),
             };
 
-            expect(itemWithoutArchivedPostIds).not.toHaveProperty("archivedPostIds");
+            expect(itemWithLegacyFormat).not.toHaveProperty("posts");
 
             await dynamoClient.putItem(context, {
                 tableName: InboxTable.getName(),
                 key,
-                item: itemWithoutArchivedPostIds,
+                item: itemWithLegacyFormat,
                 debugItemType: {
                     tableName: InboxTable.getName(),
                     partitionType: "Inbox",
@@ -7920,7 +7611,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     posts: [post3, post2, post1],
                     latestPost: {post: post3, contentTextSnippet: "test3"},
-                    otherPostAuthor: null,
                 }),
             ]);
         });
@@ -8118,8 +7808,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: "test1",
@@ -8171,8 +7861,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "test3",
@@ -8224,8 +7914,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "test3",
@@ -8271,9 +7961,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
-                    latestComment: null,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                 }),
             ]);
         });
@@ -8321,8 +8010,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "test3",
@@ -8386,8 +8075,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "test3",
@@ -8447,7 +8136,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: "test4",
@@ -8507,7 +8195,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: "test4",
@@ -8571,8 +8258,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
-                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    postContentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    isForPostContentMention: true,
                     latestComment: {
                         comment: comment3,
                         contentTextSnippet: "test3",
@@ -8632,7 +8319,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment4,
                         contentTextSnippet: "test4",
@@ -8679,7 +8365,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     loudNotificationCount: 1,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8701,7 +8386,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8748,7 +8432,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     loudNotificationCount: 1,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8770,7 +8453,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8835,7 +8517,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8854,7 +8535,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     isArchived: true,
                     session: session2,
                     post,
-                    channel,
                     latestComment: {
                         comment: comment1,
                         contentTextSnippet: `Hello, ${session2.account.initialName}!`,
@@ -8885,12 +8565,11 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
                     session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: "test1"},
+                    post,
+                    postContentTextSnippet: "test1",
                 }),
             ]);
         });
@@ -8917,12 +8596,11 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session2)).toEqual([]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
+                expectInboxPostCommentsEntryModel({
                     isArchived: true,
                     session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    latestPost: {post, contentTextSnippet: "test1"},
+                    post,
+                    postContentTextSnippet: "test1",
                 }),
             ]);
         });
@@ -8951,12 +8629,19 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [post1, [post2, {isArchived: true}], post3],
+                    posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: "test3"},
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post2,
+                    postContentTextSnippet: "test2",
+                }),
+            ]);
         });
 
         test("reacting to a post archives the post in a channel posts entry", async () => {
@@ -8983,12 +8668,19 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [post1, [post2, {isArchived: true}], post3],
+                    posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: "test3"},
                 }),
             ]);
 
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post: post2,
+                    postContentTextSnippet: "test2",
+                }),
+            ]);
         });
 
         test("reacting to a post comment archives the associated channel posts entry even if the reaction is processed before the create post notification event", async () => {
@@ -9085,9 +8777,77 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     session: session2,
                     channel,
                     bucketGeneration: 0,
-                    posts: [post1, [post2, {isArchived: true}], post3],
+                    posts: [post1, post3],
                     latestPost: {post: post3, contentTextSnippet: "test3"},
-                    otherPostAuthor: session3,
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("commenting on a post in a channel posts entry with a single post deletes the channel posts entry", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post: post, contentTextSnippet: "test1"},
+                }),
+            ]);
+
+            const comment = await post.createComment(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    loudNotificationCount: 1,
+                    session: session2,
+                    post,
+                    latestComment: {
+                        comment,
+                        contentTextSnippet: `Hello ${session2.account.initialName}!`,
+                        isStickyMention: true,
+                    },
                 }),
             ]);
 

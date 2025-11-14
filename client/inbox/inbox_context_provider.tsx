@@ -1,13 +1,13 @@
 import {Memo, ReactNode, useMemo} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {archiveInboxChannelPostsEntryPostOptimistically} from "~/client/inbox/archive_inbox_channel_posts_entry_optimistically.js";
+import {archiveInboxEntryOptimistically} from "~/client/inbox/archive_inbox_entry_optimistically.js";
 import {
     InboxContextCreateMessageOptimisticallyRoom,
     InboxContextNavigation,
 } from "~/client/inbox/inbox_context_types.js";
 import {InboxContextDefinition} from "~/client/inbox/internal/inbox_context_definition.js";
-import {archiveInboxChannelPostsEntryPostOptimistically} from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
-import {archiveInboxEntryOptimistically} from "~/client/inbox/use_archive_inbox_entry.js";
 import {
     decodePossiblyDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
@@ -52,8 +52,7 @@ export function InboxContextProvider({
                     if (room?.type === "Post") {
                         archiveInboxChannelPostsEntryPostOptimistically({
                             promise,
-                            entry,
-                            withAnimation: true,
+                            entryKey: entry.key,
                             postId: room.postId,
                         });
                     }
@@ -135,8 +134,7 @@ export function InboxContextProvider({
                     if (isId<PostId>(roomKey)) {
                         archiveInboxChannelPostsEntryPostOptimistically({
                             promise,
-                            entry,
-                            withAnimation: true,
+                            entryKey: entry.key,
                             postId: roomKey,
                         });
                     }

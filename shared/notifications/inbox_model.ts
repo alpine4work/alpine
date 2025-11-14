@@ -178,7 +178,8 @@ export class InboxPostCommentsEntryModel
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
             postCreatedTime: Schema.date,
-            postContentTextSnippetIfMentioned: Schema.string.nullable(),
+            postContentTextSnippet: Schema.string.nullable(),
+            isForPostContentMention: Schema.boolean,
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
@@ -217,10 +218,7 @@ export class InboxChannelPostsEntryModel
             ),
             bucketGeneration: Schema.integer,
             postAuthorCount: Schema.integer.min(1),
-            posts: Schema.map(
-                Schema.id<PostId>(),
-                Schema.object({isArchived: Schema.boolean}),
-            ).minSize(1),
+            postIds: Schema.set(Schema.id<PostId>()).minSize(1),
             latestPost: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,

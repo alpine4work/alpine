@@ -32,7 +32,7 @@ export async function archiveInboxChatEntryAfterSetChatMessageReaction(
             chatId,
         },
         oldItem => {
-            if (!oldItem) return null;
+            if (!oldItem) return "Noop";
 
             // Don't archive if a new message was added after the `messageCount` we had at
             // reaction time. Since a new message will unarchive the entry. This fixes

@@ -10,16 +10,16 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {
+    useArchiveInboxEntry,
+    useUnarchiveInboxEntry,
+} from "~/client/inbox/archive_inbox_entry_optimistically.js";
 import {InboxContextProvider} from "~/client/inbox/inbox_context_provider.js";
 import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
 import {InboxEntryView, inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
 import {useInboxDeletedItemAnimationState} from "~/client/inbox/internal/use_inbox_deleted_item_animation_state.js";
-import {
-    useArchiveInboxEntry,
-    useUnarchiveInboxEntry,
-} from "~/client/inbox/use_archive_inbox_entry.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed_router.js";
