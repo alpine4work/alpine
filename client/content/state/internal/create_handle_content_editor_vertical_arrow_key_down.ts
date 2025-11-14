@@ -79,7 +79,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
     return (view: EditorView, dir: -1 | 1, event: KeyboardEvent): boolean => {
         const {state} = view;
         const {selection} = state;
-        const {$head, $anchor, $from, $to} = selection;
+        const {$head, $from, $to} = selection;
 
         /* ========================================================================== *\
          *           1. Decide if we should handle this vertical navigation           *
@@ -134,31 +134,6 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         // between nodes.
         if (node.isTextblock && !view.endOfTextblock(dir > 0 ? "down" : "up")) {
             return false;
-        }
-
-        // If the user is holding shift and they press arrow up or down then in order
-        // to move blocks not only does `view.endOfTextblock()` need to be true but
-        // also we need to have selected the full textblock. So if we haven't selected
-        // the full textblock yet, do that.
-        if (
-            event.shiftKey &&
-            $pos.parent.inlineContent &&
-            $pos.parentOffset !== (dir > 0 ? $pos.parent.nodeSize - 2 : 0)
-        ) {
-            view.dispatch(
-                view.state.tr
-                    .setSelection(
-                        TextSelection.between(
-                            $anchor,
-                            $pos.doc.resolve(
-                                $pos.pos +
-                                    ((dir > 0 ? $pos.parent.nodeSize - 2 : 0) - $pos.parentOffset),
-                            ),
-                        ),
-                    )
-                    .scrollIntoView(),
-            );
-            return true;
         }
 
         // If the user is holding alt and they press arrow up or down then move to the
