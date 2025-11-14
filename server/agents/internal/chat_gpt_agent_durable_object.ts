@@ -35,6 +35,7 @@ import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messa
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {
     ApiMessageRoomPathObject,
@@ -301,6 +302,7 @@ async function initializeInstructionsInChatGptAgentConversation(
 type ChatGptAgentMessageState = {
     pushText(text: string): void;
     pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall): void;
+    pushReasoningSummary(summary: string): void;
 };
 
 async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebhookRequest) {
@@ -332,7 +334,7 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
                 // more efficient than making two separate `PUT` requests when `update()`
                 // returns multiple parts.
                 for (let part of putParts) {
-                    if (part.payload.type === "Content") {
+                    if (part.payload.type === "Content" || part.payload.type === "Reasoning") {
                         let content = part.payload.content;
 
                         // Convert all straight quotes (`'` and `"`) into proper curly quotes
@@ -376,6 +378,16 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
             updateTimeout?.clear();
             updateTimeout = null;
             update([{type: "ToolCall", call}]);
+        },
+        pushReasoningSummary: summary => {
+            updateTimeout?.clear();
+            updateTimeout = null;
+            update([
+                {
+                    type: "Reasoning",
+                    content: parseApiContentFromMarkdown(summary, {spaceId: request.spaceId}),
+                },
+            ]);
         },
     };
 
@@ -494,6 +506,13 @@ async function createChatGptAgentResponse(
             // https://platform.openai.com/docs/guides/tools-web-search
             {type: "web_search"},
         ],
+        reasoning: {
+            // Default reasoning effort is "medium", so we're just being explicit here.
+            effort: "medium",
+            // NOTE(ifitzsimmons, 2025-11-07): Ideally, this would be "concise", but that
+            // setting isn't available for GPT-5. We're using "auto" instead.
+            summary: "auto",
+        },
 
         // Load the entire conversation history and use that as our input to OpenAI.
         input,
@@ -532,6 +551,22 @@ async function createChatGptAgentResponse(
             }
             case "response.output_text.delta": {
                 messageState.pushText(event.delta);
+                break;
+            }
+            // NOTE(ifitzsimmons, 2025-11-13): At some point, we should think about storing response
+            // additions. So instead of pushing data to our database when we get the reasoning
+            // summary, we should somehow store the time that the reasoning began. That way, we can
+            // provide a better representation of what the agent is doing for the user. As is, the
+            // current UX is pretty solid and I don't think that this is something that users will
+            // even notice so I'm comfortable shipping. If we get feedback about this, we can
+            // revisit. This same argument would go for tool calls as well.
+            //
+            // NOTE(ifitzsimmons, 2025-11-07): Opted to use this event instead of
+            // `response.reasoning_summary_text.done`. They do the same exact thing.
+            // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_part/done
+            // https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary_text/done
+            case "response.reasoning_summary_part.done": {
+                messageState.pushReasoningSummary(event.part.text);
                 break;
             }
         }

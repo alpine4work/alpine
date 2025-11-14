@@ -275,12 +275,28 @@ export const MessageStreamToolCallPartPayloadSchema = Schema.object({
     call: MessageStreamToolCallPartPayloadCallSchema,
 });
 
+export type MessageStreamReasoningPartPayload = SchemaType<
+    typeof MessageStreamReasoningPartPayloadSchema
+>;
+
+export const MessageStreamReasoningPartPayloadSchema = Schema.object({
+    type: Schema.value("Reasoning"),
+    content: MessageContentSchema,
+});
+
 export type MessageStreamPartPayload = SchemaType<typeof MessageStreamPartPayloadSchema>;
 
 export const MessageStreamPartPayloadSchema = Schema.union({
     Content: MessageStreamContentPartPayloadSchema,
     ToolCall: MessageStreamToolCallPartPayloadSchema,
+    Reasoning: MessageStreamReasoningPartPayloadSchema,
 });
+
+// For stream parts created before we had the `createdTime` property, use a mock time
+// smaller than future times.
+export const MessageStreamPartCreatedTimeSchema = Schema.date.default(
+    new Date("2025-11-14T03:54:50.378Z"),
+);
 
 export type MessageStream = SchemaType<typeof MessageStreamSchema>;
 
@@ -290,6 +306,7 @@ export const MessageStreamSchema = Schema.object({
         Schema.object({
             version: Schema.integer,
             payload: MessageStreamPartPayloadSchema,
+            createdTime: Schema.date,
         }),
     ),
 });

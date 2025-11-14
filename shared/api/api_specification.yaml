@@ -2065,7 +2065,7 @@ components:
 
         MessageStreamPart:
             type: object
-            required: [index, version, payload]
+            required: [index, version, payload, createdTime]
             additionalProperties: false
             properties:
                 index:
@@ -2074,6 +2074,9 @@ components:
                 version:
                     type: integer
                     minimum: 0
+                createdTime:
+                    type: string
+                    format: date-time
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
 
@@ -2081,11 +2084,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayload"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload"
 
         MessageStreamContentPartPayload:
             type: object
@@ -2094,6 +2099,16 @@ components:
             properties:
                 type:
                     const: Content
+                content:
+                    $ref: "#/components/schemas/Content"
+
+        MessageStreamReasoningPartPayload:
+            type: object
+            required: [type, content]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content"
 

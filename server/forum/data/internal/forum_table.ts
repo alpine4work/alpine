@@ -5,6 +5,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessagePayloadSchema,
+    MessageStreamPartCreatedTimeSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -95,6 +96,19 @@ export const ForumTable = DynamoTableSchema.new({
                                     sendTime: Schema.date,
                                     delaySeconds: Schema.integer.min(0),
                                 }),
+
+                                /**
+                                 * The creation time of the last part of the stream. We allow clients to update
+                                 * stream parts as long as they're updating the last part of the stream or the
+                                 * next part. When they update a part, we don't want to have to fetch the part
+                                 * in order to maintain its creation time.
+                                 *
+                                 * Because we disallow clients from updating existing parts before the last part,
+                                 * we can safely store the creation time of the last part on the Stream's
+                                 * attributes and trust its accuracy. This will get set every time a new stream
+                                 * part is created.
+                                 */
+                                lastPartCreatedTime: Schema.date.nullable().default(null),
                             }),
                         },
                         {
@@ -104,6 +118,7 @@ export const ForumTable = DynamoTableSchema.new({
                             },
                             attributes: Schema.object({
                                 payload: MessageStreamPartPayloadSchema,
+                                createdTime: MessageStreamPartCreatedTimeSchema,
                             }),
                         },
                     ],

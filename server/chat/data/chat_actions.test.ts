@@ -4447,7 +4447,7 @@ testMessagingImplementation<ChatId>(context, {
         return deleteChatMessage(context, {chatId, messageIndex});
     },
     async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
-        await putChatMessageStreamPart(context, {
+        return await putChatMessageStreamPart(context, {
             chatId,
             messageIndex,
             partIndex,

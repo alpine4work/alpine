@@ -260,7 +260,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId, version} = await putChatMessageStreamPart(context, {
+            const {spaceId, version, createdTime} = await putChatMessageStreamPart(context, {
                 chatId: pathParameters.id,
                 messageIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
@@ -286,7 +286,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                             {
                                 index: pathParameters.index,
                                 partIndex: pathParameters.partIndex,
-                                part: {version, payload},
+                                part: {version, payload, createdTime},
                             },
                         ),
                     },

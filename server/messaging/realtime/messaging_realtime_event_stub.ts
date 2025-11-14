@@ -40,6 +40,7 @@ export type MessagingRealtimeEventStub =
           readonly part: {
               readonly version: number;
               readonly payload: MessageStreamPartPayload;
+              readonly createdTime: Date;
           };
           readonly referencedIds: ContentReferencedIds;
       }

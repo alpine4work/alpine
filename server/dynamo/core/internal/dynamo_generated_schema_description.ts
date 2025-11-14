@@ -1787,6 +1787,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "lastPartCreatedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": true
+                                            },
                                             "updateLockVersion": {
                                                 "valueSchema": {
                                                     "type": "Integer"
@@ -1893,11 +1902,36 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "optional": false
                                                                 }
                                                             }
+                                                        },
+                                                        "Reasoning": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "Reasoning"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "content": {
+                                                                    "valueSchema": {
+                                                                        "type": "Reference",
+                                                                        "reuseReferenceId": "05d7837f"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
                                                         }
                                                     },
                                                     "referenceId": "a45890f0"
                                                 },
                                                 "optional": false
+                                            },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
                                             },
                                             "updateLockVersion": {
                                                 "valueSchema": {
@@ -5382,6 +5416,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "lastPartCreatedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": true
+                                            },
                                             "updateLockVersion": {
                                                 "valueSchema": {
                                                     "type": "Integer"
@@ -5408,6 +5451,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "reuseReferenceId": "a45890f0"
                                                 },
                                                 "optional": false
+                                            },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
                                             },
                                             "updateLockVersion": {
                                                 "valueSchema": {
@@ -7192,6 +7241,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "lastPartCreatedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": true
+                                            },
                                             "updateLockVersion": {
                                                 "valueSchema": {
                                                     "type": "Integer"
@@ -7218,6 +7276,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "reuseReferenceId": "a45890f0"
                                                 },
                                                 "optional": false
+                                            },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
                                             },
                                             "updateLockVersion": {
                                                 "valueSchema": {
@@ -12625,6 +12689,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "lastPartCreatedTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    }
+                                                },
+                                                "optional": true
+                                            },
                                             "updateLockVersion": {
                                                 "valueSchema": {
                                                     "type": "Integer"
@@ -12651,6 +12724,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "reuseReferenceId": "a45890f0"
                                                 },
                                                 "optional": false
+                                            },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
                                             },
                                             "updateLockVersion": {
                                                 "valueSchema": {

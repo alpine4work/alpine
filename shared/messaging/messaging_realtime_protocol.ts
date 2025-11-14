@@ -269,6 +269,7 @@ export type MessagingRealtimeEvent<Message extends MessageModel> =
           readonly part: {
               readonly version: number;
               readonly payload: MessageStreamPartPayload;
+              readonly createdTime: Date;
           };
           readonly references: ContentReferences;
       }
@@ -347,6 +348,7 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
             part: Schema.object({
                 version: Schema.integer.min(0),
                 payload: MessageStreamPartPayloadSchema,
+                createdTime: Schema.date,
             }),
             references: ContentReferencesSchema,
         }),
@@ -412,6 +414,7 @@ export const MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema = Schem
     part: Schema.object({
         version: Schema.integer.min(0),
         payload: MessageStreamPartPayloadSchema,
+        createdTime: Schema.date,
     }),
 });
 

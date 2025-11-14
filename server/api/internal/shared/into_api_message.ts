@@ -61,6 +61,13 @@ export async function intoApiMessage(
                 // reference that content with an index.
                 break;
             }
+            case "Reasoning": {
+                // TODO(ifitzsimmons, #api): Don't show Reasoning summaries in the returned
+                // message content. This ultimately will get loaded in Agent Conversation context
+                // and is a bad use of tokens. We should expose a way to fetch a message along
+                // with *all* of its stream parts.
+                break;
+            }
             case "Content": {
                 // Concatenate all the streamed content into the content we return from the
                 // API. That way in rendering code developers don't have to worry about whether

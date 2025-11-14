@@ -253,7 +253,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId, version} = await putDocumentCommentStreamPart(context, {
+            const {spaceId, version, createdTime} = await putDocumentCommentStreamPart(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 commentIndex: pathParameters.index,
@@ -280,7 +280,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             {
                                 index: pathParameters.index,
                                 partIndex: pathParameters.partIndex,
-                                part: {version, payload},
+                                part: {version, payload, createdTime},
                             },
                         ),
                     },

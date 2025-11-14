@@ -26,6 +26,7 @@ type CommentQueryStreamPartItem = {
     readonly commentIndex: number;
     readonly partIndex: number;
     readonly payload: MessageStreamPartPayload;
+    readonly createdTime: Date;
     readonly updateLockVersion?: number;
 };
 
@@ -55,7 +56,7 @@ export async function* processCommentsQuery(
 
         let stream: {
             completedTime: Date | null;
-            parts: Array<{version: number; payload: MessageStreamPartPayload}>;
+            parts: Array<{version: number; payload: MessageStreamPartPayload; createdTime: Date}>;
         } | null = null;
 
         if (
@@ -74,6 +75,7 @@ export async function* processCommentsQuery(
                 currentStreamPartItems?.map(partItem => ({
                     version: partItem.updateLockVersion ?? 0,
                     payload: partItem.payload,
+                    createdTime: partItem.createdTime,
                 })) ?? [];
 
             // Since we queried in descending order, we need to reverse the parts to put

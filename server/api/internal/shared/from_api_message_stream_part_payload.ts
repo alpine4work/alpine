@@ -46,6 +46,14 @@ export function fromApiMessageStreamPartPayload(
                     throw exhaustive(payload.call);
             }
         }
+        case "Reasoning": {
+            return {
+                type: "Reasoning",
+                content: assertMessageContent(
+                    fromApiContent(MessageContentProsemirrorSchema, payload.content),
+                ),
+            };
+        }
         default:
             throw exhaustive(payload);
     }

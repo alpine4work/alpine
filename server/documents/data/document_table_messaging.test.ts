@@ -254,7 +254,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async putMessageStreamPart(context, {roomKey, messageIndex: commentIndex, partIndex, payload}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        await putDocumentCommentStreamPart(context, {
+        return await putDocumentCommentStreamPart(context, {
             documentId,
             commentThreadId,
             commentIndex,

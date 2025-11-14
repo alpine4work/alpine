@@ -159,7 +159,7 @@ testMessagingImplementation<TaskId>(processContext, {
         context,
         {roomKey: taskId, messageIndex: commentIndex, partIndex, payload},
     ) {
-        await putTaskCommentStreamPart(context, {
+        return await putTaskCommentStreamPart(context, {
             taskId,
             commentIndex,
             partIndex,

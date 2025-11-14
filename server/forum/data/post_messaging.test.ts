@@ -157,7 +157,7 @@ testMessagingImplementation<PostId>(context, {
         context,
         {roomKey: postId, messageIndex: commentIndex, partIndex, payload},
     ) {
-        await putPostCommentStreamPart(context, {
+        return await putPostCommentStreamPart(context, {
             postId,
             commentIndex,
             partIndex,

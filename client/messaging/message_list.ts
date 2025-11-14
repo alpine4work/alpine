@@ -1024,6 +1024,7 @@ export class MessageList<Message extends MessageModel> {
         part: {
             version: number;
             payload: MessageStreamPartPayload;
+            createdTime: Date;
         };
         references: ContentReferences;
     }) {
@@ -1068,6 +1069,7 @@ export class MessageList<Message extends MessageModel> {
                 newParts.push({
                     version: -1,
                     payload: {type: "Content", content: createSimpleMessageContent()},
+                    createdTime: event.part.createdTime,
                 });
             }
 

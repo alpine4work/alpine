@@ -1438,22 +1438,22 @@ components:
                     const: Divider
         ContentTableBlockElement:
             type: object
-            required: &a53
+            required: &a56
                 - type
                 - width
                 - columns
                 - rows
             additionalProperties: false
             properties:
-                type: &a54
+                type: &a57
                     const: Table
-                width: &a55
+                width: &a58
                     type: number
-                hasHeaderRow: &a56
+                hasHeaderRow: &a59
                     type: boolean
-                hasHeaderColumn: &a57
+                hasHeaderColumn: &a60
                     type: boolean
-                columns: &a58
+                columns: &a61
                     type: array
                     minItems: 2
                     items:
@@ -2074,7 +2074,7 @@ components:
                     $ref: "#/components/schemas/LabelString"
         Message:
             type: object
-            required: &a60
+            required: &a63
                 - index
                 - author
                 - createdTime
@@ -2082,21 +2082,21 @@ components:
                 - payload
             additionalProperties: false
             properties:
-                index: &a61
+                index: &a64
                     type: integer
                     minimum: 0
-                author: &a62
+                author: &a65
                     $ref: "#/components/schemas/Account"
-                createdTime: &a63
+                createdTime: &a66
                     $ref: "#/components/schemas/DateTime"
-                createdTimeZone: &a64
+                createdTimeZone: &a67
                     $ref: "#/components/schemas/TimeZone"
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
         MessagePayload:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload"
-                - &a59
+                - &a62
                   $ref: "#/components/schemas/MessageDeletedPayload"
             discriminator:
                 propertyName: type
@@ -2147,6 +2147,7 @@ components:
                 - index
                 - version
                 - payload
+                - createdTime
             additionalProperties: false
             properties:
                 index: &a49
@@ -2155,26 +2156,42 @@ components:
                 version: &a50
                     type: integer
                     minimum: 0
+                createdTime: &a51
+                    type: string
+                    format: date-time
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload"
         MessageStreamPartPayload:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayload"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload"
         MessageStreamContentPartPayload:
             type: object
-            required: &a51
+            required: &a52
                 - type
                 - content
             additionalProperties: false
             properties:
-                type: &a52
+                type: &a53
                     const: Content
+                content:
+                    $ref: "#/components/schemas/Content"
+        MessageStreamReasoningPartPayload:
+            type: object
+            required: &a54
+                - type
+                - content
+            additionalProperties: false
+            properties:
+                type: &a55
+                    const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content"
         MessageStreamToolCallPartPayload:
@@ -2763,11 +2780,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                - $ref: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
             discriminator:
                 propertyName: type
                 mapping:
                     Content: "#/components/schemas/MessageStreamContentPartPayload_Response"
                     ToolCall: "#/components/schemas/MessageStreamToolCallPartPayload_Response"
+                    Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
         ContentListBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement_Response"
@@ -2845,26 +2864,35 @@ components:
             properties:
                 index: *a49
                 version: *a50
+                createdTime: *a51
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload_Response"
         MessageStreamContentPartPayload_Response:
             type: object
-            required: *a51
+            required: *a52
             additionalProperties: false
             properties:
-                type: *a52
+                type: *a53
+                content:
+                    $ref: "#/components/schemas/Content_Response"
+        MessageStreamReasoningPartPayload_Response:
+            type: object
+            required: *a54
+            additionalProperties: false
+            properties:
+                type: *a55
                 content:
                     $ref: "#/components/schemas/Content_Response"
         ContentTableBlockElement_Response:
             type: object
-            required: *a53
+            required: *a56
             additionalProperties: false
             properties:
-                type: *a54
-                width: *a55
-                hasHeaderRow: *a56
-                hasHeaderColumn: *a57
-                columns: *a58
+                type: *a57
+                width: *a58
+                hasHeaderRow: *a59
+                hasHeaderColumn: *a60
+                columns: *a61
                 rows:
                     type: array
                     minItems: 1
@@ -2873,7 +2901,7 @@ components:
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - *a59
+                - *a62
             discriminator:
                 propertyName: type
                 mapping:
@@ -2881,12 +2909,12 @@ components:
                     Deleted: "#/components/schemas/MessageDeletedPayload"
         Message_Response:
             type: object
-            required: *a60
+            required: *a63
             additionalProperties: false
             properties:
-                index: *a61
-                author: *a62
-                createdTime: *a63
-                createdTimeZone: *a64
+                index: *a64
+                author: *a65
+                createdTime: *a66
+                createdTimeZone: *a67
                 payload:
                     $ref: "#/components/schemas/MessagePayload_Response"

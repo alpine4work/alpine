@@ -362,7 +362,7 @@ export const apiForumPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId, version} = await putPostCommentStreamPart(context, {
+            const {spaceId, version, createdTime} = await putPostCommentStreamPart(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
@@ -388,7 +388,7 @@ export const apiForumPaths: Pick<
                             {
                                 index: pathParameters.index,
                                 partIndex: pathParameters.partIndex,
-                                part: {version, payload},
+                                part: {version, payload, createdTime},
                             },
                         ),
                     },

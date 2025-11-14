@@ -45,6 +45,14 @@ export async function intoApiMessageStreamPartPayload(
             );
             return {type: "Content", content};
         }
+        case "Reasoning": {
+            const content = await intoApiMessageContentWithReferences(
+                context,
+                spaceId,
+                payload.content,
+            );
+            return {type: "Reasoning", content};
+        }
         default:
             throw exhaustive(payload);
     }

@@ -1787,17 +1787,28 @@ export namespace ApiSpecification {
             readonly MessageStreamPart: {
                 readonly index: number;
                 readonly version: number;
+                /** Format: date-time */
+                readonly createdTime: DateString;
                 readonly payload: components["schemas"]["MessageStreamPartPayload"];
             };
             readonly MessageStreamPartPayload:
                 | components["schemas"]["MessageStreamContentPartPayload"]
-                | components["schemas"]["MessageStreamToolCallPartPayload"];
+                | components["schemas"]["MessageStreamToolCallPartPayload"]
+                | components["schemas"]["MessageStreamReasoningPartPayload"];
             readonly MessageStreamContentPartPayload: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
                  * @enum {string}
                  */
                 readonly type: "Content";
+                readonly content: components["schemas"]["Content"];
+            };
+            readonly MessageStreamReasoningPartPayload: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content"];
             };
             readonly MessageStreamToolCallPartPayload: {
@@ -2106,7 +2117,8 @@ export namespace ApiSpecification {
             };
             readonly MessageStreamPartPayload_Response:
                 | components["schemas"]["MessageStreamContentPartPayload_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayload_Response"];
+                | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
+                | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
             readonly ContentListBlockElement_Response:
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
                 | components["schemas"]["ContentOrderedListBlockElement_Response"];
@@ -2155,6 +2167,8 @@ export namespace ApiSpecification {
             readonly MessageStreamPart_Response: {
                 readonly index: number;
                 readonly version: number;
+                /** Format: date-time */
+                readonly createdTime: DateString;
                 readonly payload: components["schemas"]["MessageStreamPartPayload_Response"];
             };
             readonly MessageStreamContentPartPayload_Response: {
@@ -2163,6 +2177,14 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "Content";
+                readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly MessageStreamReasoningPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
             };
             readonly ContentTableBlockElement_Response: {

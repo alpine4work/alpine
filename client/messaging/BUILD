@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/motion",
         "//:node_modules/phosphor-react",
+        "//:node_modules/pretty-ms",
         "//:node_modules/react",
         "//:node_modules/react-dom",
         "//client/accounts",

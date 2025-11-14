@@ -165,7 +165,7 @@ type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
         partIndex: number;
         payload: MessageStreamPartPayload;
     },
-) => Promise<void>;
+) => Promise<{createdTime: Date}>;
 
 /**
  * Complete a message stream. After this parts can't be added or updated.
@@ -10317,6 +10317,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10571,6 +10572,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10578,6 +10580,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 2"),
@@ -10585,6 +10588,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 3"),
@@ -10655,6 +10659,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 3"),
@@ -10745,6 +10750,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10752,6 +10758,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 2"),
@@ -10759,6 +10766,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 5"),
@@ -10833,6 +10841,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10840,6 +10849,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 2"),
@@ -10898,6 +10908,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10927,35 +10938,44 @@ export function testMessagingImplementation<RoomKey extends string>(
                     isStream: true,
                 });
 
-                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    partIndex: 0,
-                    payload: {
-                        type: "Content",
-                        content: createSimpleMessageContent("Test part 1"),
+                const {createdTime: createdTime1} = await putMessageStreamPart(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
                     },
-                });
+                );
 
-                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    partIndex: 1,
-                    payload: {
-                        type: "Content",
-                        content: createSimpleMessageContent("Test part 2"),
+                const {createdTime: createdTime2} = await putMessageStreamPart(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 1,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
                     },
-                });
+                );
 
-                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    partIndex: 2,
-                    payload: {
-                        type: "Content",
-                        content: createSimpleMessageContent("Test part 3"),
+                const {createdTime: createdTime3} = await putMessageStreamPart(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 2,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 3"),
+                        },
                     },
-                });
+                );
 
                 const {completedTime} = await completeMessageStream(
                     botAccount.action(getRoomBotScope(room.key)),
@@ -10976,6 +10996,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: createdTime1,
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -10983,6 +11004,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: createdTime2,
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 2"),
@@ -10990,6 +11012,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                             {
                                 version: expect.any(Number),
+                                createdTime: createdTime3,
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 3"),
@@ -11060,6 +11083,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -11130,6 +11154,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -11207,6 +11232,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -11294,6 +11320,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -11366,6 +11393,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -11425,6 +11453,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         parts: [
                             {
                                 version: expect.any(Number),
+                                createdTime: expect.any(Date),
                                 payload: {
                                     type: "Content",
                                     content: createSimpleMessageContent("Test part 1"),
@@ -12090,6 +12119,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 expect(message.stream.parts).toEqual(
                                                     createArrayWithLength(3, i => ({
                                                         version: expect.any(Number),
+                                                        createdTime: expect.any(Date),
                                                         payload: {
                                                             type: "Content",
                                                             content: createSimpleMessageContent(
@@ -12110,6 +12140,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                                                 expect(message.stream.parts).toEqual(
                                                     createArrayWithLength(5, i => ({
                                                         version: expect.any(Number),
+                                                        createdTime: expect.any(Date),
                                                         payload: {
                                                             type: "Content",
                                                             content: createSimpleMessageContent(
@@ -12130,6 +12161,114 @@ export function testMessagingImplementation<RoomKey extends string>(
                         }
                     }
                 }
+            });
+
+            test("putting a stream part update doesn’t change the parts original created timme", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    const {createdTime: originalCreatedTime} = await putMessageStreamPart(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        },
+                    );
+
+                    const {createdTime: createdTimeAfterUpdate} = await putMessageStreamPart(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        },
+                    );
+
+                    const {createdTime: createdTimeAfterSecondUpdate} = await putMessageStreamPart(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 3"),
+                            },
+                        },
+                    );
+
+                    const {createdTime: originalCreatedTimeForSecondPart} =
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 3"),
+                            },
+                        });
+
+                    const {createdTime: createdTimeAfterUpdateForSecondPart} =
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 1,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 4"),
+                            },
+                        });
+
+                    expect(createdTimeAfterUpdate.getTime()).toEqual(originalCreatedTime.getTime());
+                    expect(createdTimeAfterSecondUpdate.getTime()).toEqual(
+                        originalCreatedTime.getTime(),
+                    );
+                    expect(createdTimeAfterUpdateForSecondPart.getTime()).toEqual(
+                        originalCreatedTimeForSecondPart.getTime(),
+                    );
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 10,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
             });
 
             test("new stream message is indexed after a delay", async () => {

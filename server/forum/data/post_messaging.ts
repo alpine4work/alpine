@@ -286,6 +286,7 @@ export async function createPostComment(
                           completedTime: null,
                           partCount: 0,
                           lastPartUpdateLockVersion: null,
+                          lastPartCreatedTime: null,
                           lastIndexSearchEntityJob: {
                               sendTime: createdTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -488,6 +489,7 @@ export function putPostCommentStreamPart(
 ): Promise<{
     spaceId: SpaceId;
     version: number;
+    createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -546,7 +548,9 @@ export function putPostCommentStreamPart(
 
         let version: number;
 
+        let createdTime: Date;
         if (partIndex === item.partCount) {
+            createdTime = new Date();
             const createPartTransactionEntry = ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "Comments#StreamPart",
@@ -554,6 +558,7 @@ export function putPostCommentStreamPart(
                 commentIndex,
                 partIndex,
                 payload,
+                createdTime,
                 // `updateLockVersion: 0` is always represented as `undefined`.
                 updateLockVersion: undefined,
             });
@@ -565,6 +570,7 @@ export function putPostCommentStreamPart(
                     ...item,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
+                    lastPartCreatedTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -583,6 +589,8 @@ export function putPostCommentStreamPart(
             }
 
             assert(item.lastPartUpdateLockVersion !== null);
+            assert(item.lastPartCreatedTime !== null);
+            createdTime = item.lastPartCreatedTime;
 
             const updatePartTransactionEntry = ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
@@ -591,6 +599,7 @@ export function putPostCommentStreamPart(
                 commentIndex,
                 partIndex,
                 payload,
+                createdTime,
                 updateLockVersion: item.lastPartUpdateLockVersion + 1,
             });
 
@@ -623,7 +632,7 @@ export function putPostCommentStreamPart(
             );
         }
 
-        return {spaceId, version};
+        return {spaceId, version, createdTime};
     });
 }
 

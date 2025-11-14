@@ -868,6 +868,7 @@ function sendChatMessageForAccount(
                               completedTime: null,
                               partCount: 0,
                               lastPartUpdateLockVersion: null,
+                              lastPartCreatedTime: null,
                               lastIndexSearchEntityJob: {
                                   sendTime: createdTime,
                                   delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -1038,6 +1039,7 @@ export function putChatMessageStreamPart(
 ): Promise<{
     spaceId: SpaceId;
     version: number;
+    createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -1096,7 +1098,9 @@ export function putChatMessageStreamPart(
 
         let version: number;
 
+        let createdTime: Date;
         if (partIndex === item.partCount) {
+            createdTime = new Date();
             const createPartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "Messages#StreamPart",
@@ -1104,6 +1108,7 @@ export function putChatMessageStreamPart(
                 messageIndex,
                 partIndex,
                 payload,
+                createdTime,
                 // `updateLockVersion: 0` is always represented as `undefined`.
                 updateLockVersion: undefined,
             });
@@ -1115,6 +1120,7 @@ export function putChatMessageStreamPart(
                     ...item,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
+                    lastPartCreatedTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -1133,6 +1139,8 @@ export function putChatMessageStreamPart(
             }
 
             assert(item.lastPartUpdateLockVersion !== null);
+            assert(item.lastPartCreatedTime !== null);
+            createdTime = item.lastPartCreatedTime;
 
             const updatePartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
@@ -1141,6 +1149,7 @@ export function putChatMessageStreamPart(
                 messageIndex,
                 partIndex,
                 payload,
+                createdTime,
                 updateLockVersion: item.lastPartUpdateLockVersion + 1,
             });
 
@@ -1173,7 +1182,7 @@ export function putChatMessageStreamPart(
             );
         }
 
-        return {spaceId, version};
+        return {spaceId, version, createdTime};
     });
 }
 

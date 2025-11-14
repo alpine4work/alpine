@@ -1,28 +1,20 @@
-import classNames from "classnames";
-import {MagnifyingGlass} from "phosphor-react";
 import {Node} from "prosemirror-model";
-import {Memo, ReactNode, memo, useEffect, useMemo, useState} from "react";
+import {Memo, ReactNode, memo, useMemo, useState} from "react";
 import {ContentView} from "~/client/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
+import {MessageStreamSummary} from "~/client/messaging/internal/message_stream_summary.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {
-    contentStyles,
-    messagingStyles,
-    pulseAnimationClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {contentStyles, messagingStyles} from "~/client/styles/styles.js";
 import {actuallyComputeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {
     ContentBlockNodeTypeName,
     isContentListItemNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
-import {ContentReferences} from "~/shared/content/content_references.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {
     MessageContent,
     MessageContentWithReferences,
@@ -31,7 +23,8 @@ import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_m
 import {
     MessageStream,
     MessageStreamPartPayload,
-    MessageStreamToolCallPartPayloadCall,
+    MessageStreamReasoningPartPayload,
+    MessageStreamToolCallPartPayload,
 } from "~/shared/messaging/message_schema.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -82,6 +75,44 @@ export function MessageStreamView({
     const isContentEmpty = useMemo(() => isContentBodyEmpty(content.doc), [content.doc]);
     const [wasIncompleteWhenMounted] = useState(() => stream.completedTime === null);
 
+    return (
+        <div
+            style={{
+                minHeight: wasIncompleteWhenMounted
+                    ? contentStyles.paragraphLineHeightPx[spacingScale] * 8
+                    : contentStyles.paragraphLineHeightPx[spacingScale],
+            }}
+        >
+            <MessageStreamViewMessagesList
+                message={message}
+                isContentEmpty={isContentEmpty}
+                content={content}
+                stream={stream}
+                withUserSelectNone={withUserSelectNone}
+                getClipboardSerializerPrefix={getClipboardSerializerPrefix}
+                jumpAnimation={jumpAnimation}
+            />
+        </div>
+    );
+}
+
+function MessageStreamViewMessagesList({
+    message,
+    isContentEmpty,
+    content,
+    stream,
+    withUserSelectNone,
+    getClipboardSerializerPrefix,
+    jumpAnimation,
+}: {
+    message: MessageModel<string> | OptimisticMessageModel;
+    isContentEmpty: boolean;
+    content: MessageContentWithReferences;
+    stream: MessageStream;
+    withUserSelectNone: boolean;
+    getClipboardSerializerPrefix: Memo<() => string | null>;
+    jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
+}) {
     let posAttributeOffset = 0;
 
     const orderedListItemNumberByNode = useMemo(() => {
@@ -101,6 +132,7 @@ export function MessageStreamView({
     }, [content.doc, stream.parts]);
 
     const children: Array<ReactNode> = [];
+    let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
 
     if (!isContentEmpty) {
         children.push(
@@ -118,204 +150,143 @@ export function MessageStreamView({
         );
 
         posAttributeOffset += content.doc.content.size;
+        previousBlockNodeTypeName = content.doc.lastChild!.type.name as ContentBlockNodeTypeName;
     }
 
-    let lastRenderedPart: MessageStreamPartPayload | null = null;
+    // NOTE(ifitzsimmons, 2025-11-11): When rendering Agent messages, we have two general types of
+    // content:
+    // 1. content sections (agent response)
+    // 2. thinking sections (tool call, reasoning, etc.)
+    //
+    // Content sections are pretty straight forward and are rendered as normal content (like a
+    // message from another human).
+    //
+    // Thinking sections, however, are a bit more nuanced:
+    // 1. Thinking sections can be active or inactive.
+    // 2. Thinking sections are active if there is no content section after it. In other words,
+    //    thinking sections are active while the agent is making tool calls or reasoning.
+    // 3. When thinking sections are active, we show *only* the most recent tool call
+    //    (Reading, Searching, Thinking)
+    // 4. When thinking sections are inactive (there *is* a content section after it),
+    //    we show something like "> Thought for 2 minutes" where the active thinking items
+    //    used to be. Once dropped down, all of the actions in the thinking section
+    //    **grouped by type (Reading, Searching, Thinking)**
+    let thinkingSection: {
+        streamParts: Array<{
+            payload: MessageStreamToolCallPartPayload | MessageStreamReasoningPartPayload;
+            createdTime: Date;
+        }>;
+        previousBlockNodeTypeName: ContentBlockNodeTypeName | null;
+    } = {
+        streamParts: [],
+        previousBlockNodeTypeName,
+    };
 
     for (let index = 0; index < stream.parts.length; index++) {
-        const part = stream.parts[index]!;
+        const {payload, createdTime} = stream.parts[index]!;
 
-        // Only show tool calls that are active. Since we only make one call at a time,
-        // we know that the tool call is *not active* if there a more recent stream part!
-        if (part.payload.type === "ToolCall") {
-            if (stream.parts[index + 1]) continue;
-        }
+        // TODO(calebmer, #ai): List items are getting the wrong amount of spacing. We
+        // should have less spacing between each list item.
+        const currentBlockNodeTypeName =
+            payload.type === "Content"
+                ? (payload.content.lastChild!.type.name as ContentBlockNodeTypeName)
+                : "fileRow";
 
-        let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
+        switch (payload.type) {
+            case "ToolCall":
+            case "Reasoning":
+                thinkingSection.streamParts.push({
+                    payload,
+                    createdTime,
+                });
+                break;
+            case "Content": {
+                // When we see a content section, check to see if it was preceded by a thinking
+                // section. If so, render the thinking section as a "Completed" thinking section.
+                // This means it should look something like "> Thought for 2 minutes" that can be
+                // dropped down to show all of the actions in the thinking section
+                // **grouped by type (Reading, Searching, Thinking)**
+                if (thinkingSection.streamParts.length > 0) {
+                    // Inactive thinking section - show collapsible "Thought for X"
+                    children.push(
+                        <MessageStreamSummary
+                            key={`thinking-summary-${thinkingSection.streamParts[0]!.createdTime.toISOString()}`}
+                            message={message}
+                            streamParts={thinkingSection.streamParts}
+                            isThinkingSummaryComplete={true}
+                            previousBlockNodeTypeName={thinkingSection.previousBlockNodeTypeName}
+                            references={content.references}
+                        />,
+                    );
+                    thinkingSection = {
+                        streamParts: [],
+                        previousBlockNodeTypeName: currentBlockNodeTypeName,
+                    };
 
-        if (lastRenderedPart === null) {
-            if (isContentEmpty) {
-                previousBlockNodeTypeName = null;
-            } else {
-                previousBlockNodeTypeName = content.doc.lastChild!.type
-                    .name as ContentBlockNodeTypeName;
-            }
-        } else {
-            previousBlockNodeTypeName =
-                lastRenderedPart.type === "Content"
-                    ? (lastRenderedPart.content.lastChild!.type.name as ContentBlockNodeTypeName)
-                    : // HACK: Something with standalone margin.
-                      "fileRow";
-        }
-
-        children.push(
-            <MessageStreamViewPart
-                key={index}
-                message={message}
-                payload={part.payload}
-                references={content.references}
-                posAttributeOffset={posAttributeOffset}
-                orderedListItemNumberByNode={orderedListItemNumberByNode}
-                withUserSelectNone={withUserSelectNone}
-                getClipboardSerializerPrefix={
-                    isContentEmpty && lastRenderedPart === null
-                        ? getClipboardSerializerPrefix
-                        : undefined
+                    // NOTE(ifitzsimmons): We don't set `previousBlockNodeTypeName` to the current block
+                    // node for non-Content parts. So if we are visiting a Content part after a thinking
+                    // section, previousBlockNodeType will be null. However, once a thinking section is
+                    // complete, there's a permanent piece of Content that we need to render for the
+                    // thinking summary dropdown.
+                    previousBlockNodeTypeName = "fileRow";
                 }
-                previousBlockNodeTypeName={previousBlockNodeTypeName}
-                jumpAnimation={jumpAnimation}
-            />,
-        );
 
-        lastRenderedPart = part.payload;
+                children.push(
+                    <MessageStreamViewPart
+                        key={index}
+                        message={message}
+                        payload={payload}
+                        references={content.references}
+                        posAttributeOffset={posAttributeOffset}
+                        orderedListItemNumberByNode={orderedListItemNumberByNode}
+                        withUserSelectNone={withUserSelectNone}
+                        getClipboardSerializerPrefix={
+                            isContentEmpty && previousBlockNodeTypeName === null
+                                ? getClipboardSerializerPrefix
+                                : undefined
+                        }
+                        previousBlockNodeTypeName={previousBlockNodeTypeName}
+                        jumpAnimation={jumpAnimation}
+                    />,
+                );
 
-        if (part.payload.type === "Content") {
-            posAttributeOffset += part.payload.content.content.size;
+                posAttributeOffset += payload.content.content.size;
+                previousBlockNodeTypeName = currentBlockNodeTypeName;
+
+                break;
+            }
+            default:
+                throw exhaustive(payload);
         }
     }
 
-    // Show the thinking indicator if
-    // 1. There are no stream parts yet
-    // 2. There are stream parts, but the last part is not `Content` or a `ToolCall`.
-    //    Event though stream parts are currently typed as `ToolCall` or `Content`,
-    //    we'll need to handle `Reasoning` parts in the future. While the model is
-    //    reasoning between tool calls, we'll show the thinking indicator.
-    const shouldShowThinkingIndicator =
-        (isContentEmpty && stream.parts.length === 0) ||
-        (stream.parts.length > 0 &&
-            !new Set(["Content", "ToolCall"]).has(
-                stream.parts[stream.parts.length - 1]!.payload.type,
-            ));
+    // If thinking section is not empty, then it's active. For active thinking sections
+    // we show the most recent tool call (Reading, Searching, Thinking)
+    if (thinkingSection.streamParts.length > 0) {
+        children.push(
+            <MessageStreamSummary
+                key={`thinking-summary-${thinkingSection.streamParts[0]!.createdTime.toISOString()}`}
+                message={message}
+                streamParts={thinkingSection.streamParts}
+                isThinkingSummaryComplete={false}
+                previousBlockNodeTypeName={thinkingSection.previousBlockNodeTypeName}
+                references={content.references}
+            />,
+        );
+    } else if (children.length === 0) {
+        children.push(
+            <MessageStreamSummary
+                key="first-section"
+                message={message}
+                streamParts={[]}
+                previousBlockNodeTypeName={null}
+                isThinkingSummaryComplete={false}
+                references={emptyContentReferences}
+            />,
+        );
+    }
 
-    return (
-        <div
-            style={{
-                minHeight: wasIncompleteWhenMounted
-                    ? contentStyles.paragraphLineHeightPx[spacingScale] * 8
-                    : contentStyles.paragraphLineHeightPx[spacingScale],
-            }}
-        >
-            {children}
-            {shouldShowThinkingIndicator &&
-                (() => {
-                    let previousBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
-
-                    if (stream.parts.length > 0) {
-                        const previousPart = stream.parts[stream.parts.length - 1]!;
-
-                        previousBlockNodeTypeName =
-                            previousPart.payload.type === "Content"
-                                ? (previousPart.payload.content.lastChild!.type
-                                      .name as ContentBlockNodeTypeName)
-                                : // HACK: Something with standalone margin.
-                                  "fileRow";
-                    } else if (!isContentEmpty) {
-                        previousBlockNodeTypeName = content.doc.lastChild!.type
-                            .name as ContentBlockNodeTypeName;
-                    } else {
-                        previousBlockNodeTypeName = null;
-                    }
-
-                    return (
-                        <>
-                            {previousBlockNodeTypeName && (
-                                <div
-                                    style={{
-                                        height: hasStandaloneMarginByContentBlockNodeTypeName[
-                                            previousBlockNodeTypeName
-                                        ]
-                                            ? spacing[contentStyles.standaloneBlockMargin]
-                                            : spacing[contentStyles.paragraphMargin],
-                                    }}
-                                />
-                            )}
-                            <MessageStreamViewThinkingIndicator />
-                        </>
-                    );
-                })()}
-        </div>
-    );
-}
-
-const messageStreamViewThinkingIndicatorAlternativeVerbs = [
-    "Reasoning",
-    "Writing",
-    "Crafting",
-    "Generating",
-    "Composing",
-    "Preparing",
-    "Considering",
-    "Deliberating",
-    "Working",
-];
-
-function MessageStreamViewThinkingIndicator() {
-    const spacingScale = useSpacingScale();
-
-    const [state, setState] = useState(() => ({
-        iteration: 0,
-        verb: "Thinking",
-        previousVerbs: new Set<string>(),
-        lastChangeTime: new Date(),
-    }));
-
-    useEffect(() => {
-        const changeIntervalMs = 400;
-
-        const timeout = createTimeout(() => {
-            setState(state => {
-                state = {
-                    ...state,
-                    iteration: state.iteration + 1,
-                    lastChangeTime: new Date(),
-                };
-
-                // Switch verbs every 3 dot loops and switch when we're on 3 dots.
-                if (state.iteration % 12 === 0) {
-                    let possibleVerbs = messageStreamViewThinkingIndicatorAlternativeVerbs.filter(
-                        verb => !state.previousVerbs.has(verb),
-                    );
-
-                    // We've used all the verbs! Start over.
-                    if (possibleVerbs.length === 0) {
-                        possibleVerbs = messageStreamViewThinkingIndicatorAlternativeVerbs;
-
-                        state = {
-                            ...state,
-                            previousVerbs: new Set(),
-                        };
-                    }
-
-                    const nextVerb = possibleVerbs[randomInteger(0, possibleVerbs.length)]!;
-
-                    state = {
-                        ...state,
-                        verb: nextVerb,
-                        previousVerbs: new Set([...state.previousVerbs, nextVerb]),
-                    };
-                }
-
-                return state;
-            });
-        }, state.lastChangeTime.getTime() + changeIntervalMs - Date.now());
-
-        return () => {
-            timeout.clear();
-        };
-    }, [state.lastChangeTime]);
-
-    return (
-        <div
-            className={classNames(
-                pulseAnimationClassName,
-                sprinkles({color: "grey-50", fontSize: "100"}),
-            )}
-            style={{lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`}}
-        >
-            {state.verb}
-            {".".repeat(state.iteration % 4)}
-        </div>
-    );
+    return <>{children}</>;
 }
 
 const MessageStreamViewPart = memo(function MessageStreamViewPart({
@@ -342,10 +313,6 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
     let node: ReactNode;
 
     switch (payload.type) {
-        case "ToolCall": {
-            node = <MessageStreamViewToolCallPart call={payload.call} />;
-            break;
-        }
         case "Content": {
             node = (
                 <MessageStreamViewContentPart
@@ -361,8 +328,6 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
             );
             break;
         }
-        default:
-            throw exhaustive(payload);
     }
 
     const currentBlockNodeTypeName =
@@ -396,62 +361,6 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
         </>
     );
 });
-
-function MessageStreamViewToolCallPart({call}: {call: MessageStreamToolCallPartPayloadCall}) {
-    const spacingScale = useSpacingScale();
-
-    return (
-        <div
-            className={classNames(
-                pulseAnimationClassName,
-                sprinkles({
-                    color: "grey-60",
-                    fontSize: "100",
-                    fontStyle: "truncate",
-                    userSelect: "text",
-                }),
-            )}
-            style={{lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`}}
-        >
-            <MagnifyingGlass
-                // NOTE(calebmer): Uses the exact same design as "Deleted message"
-                // in `<MessageView>`.
-                size={spacing["4"]}
-                style={{
-                    display: "inline",
-                    verticalAlign: "top",
-                    position: "relative",
-                    // Optically align icon with text.
-                    top: "0.1875rem",
-                }}
-            />{" "}
-            {getToolCallLabel(call)}
-        </div>
-    );
-}
-
-function getToolCallLabel(call: MessageStreamToolCallPartPayloadCall) {
-    switch (call.type) {
-        case "Read": {
-            return (
-                <>
-                    Reading “
-                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.title}</span>”
-                </>
-            );
-        }
-        case "Search": {
-            return (
-                <>
-                    Searching “
-                    <span className={sprinkles({fontStyle: "semi-bold"})}>{call.query}</span>”
-                </>
-            );
-        }
-        default:
-            throw exhaustive(call);
-    }
-}
 
 function MessageStreamViewContentPart({
     message,

@@ -317,7 +317,7 @@ export const apiTasksPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId, version} = await putTaskCommentStreamPart(context, {
+            const {spaceId, version, createdTime} = await putTaskCommentStreamPart(context, {
                 taskId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
@@ -343,7 +343,7 @@ export const apiTasksPaths: Pick<
                             {
                                 index: pathParameters.index,
                                 partIndex: pathParameters.partIndex,
-                                part: {version, payload},
+                                part: {version, payload, createdTime},
                             },
                         ),
                     },

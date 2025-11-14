@@ -4580,6 +4580,7 @@ export async function createDocumentComment(
                           completedTime: null,
                           partCount: 0,
                           lastPartUpdateLockVersion: null,
+                          lastPartCreatedTime: null,
                           lastIndexSearchEntityJob: {
                               sendTime: createdTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -4695,6 +4696,7 @@ export function putDocumentCommentStreamPart(
 ): Promise<{
     spaceId: SpaceId;
     version: number;
+    createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
@@ -4754,7 +4756,9 @@ export function putDocumentCommentStreamPart(
 
         let version: number;
 
+        let createdTime: Date;
         if (partIndex === item.partCount) {
+            createdTime = new Date();
             const createPartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "Comments#StreamPart",
@@ -4763,6 +4767,7 @@ export function putDocumentCommentStreamPart(
                 commentIndex,
                 partIndex,
                 payload,
+                createdTime,
                 // `updateLockVersion: 0` is always represented as `undefined`.
                 updateLockVersion: undefined,
             });
@@ -4774,6 +4779,7 @@ export function putDocumentCommentStreamPart(
                     ...item,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
+                    lastPartCreatedTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -4792,6 +4798,8 @@ export function putDocumentCommentStreamPart(
             }
 
             assert(item.lastPartUpdateLockVersion !== null);
+            assert(item.lastPartCreatedTime !== null);
+            createdTime = item.lastPartCreatedTime;
 
             const updatePartTransactionEntry = DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "DocumentCommentThread",
@@ -4801,6 +4809,7 @@ export function putDocumentCommentStreamPart(
                 commentIndex,
                 partIndex,
                 payload,
+                createdTime,
                 updateLockVersion: item.lastPartUpdateLockVersion + 1,
             });
 
@@ -4834,7 +4843,7 @@ export function putDocumentCommentStreamPart(
             );
         }
 
-        return {spaceId, version};
+        return {spaceId, version, createdTime};
     });
 }
 
