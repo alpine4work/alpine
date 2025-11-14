@@ -1,7 +1,7 @@
 import {NotificationCreateTaskCommentEvent} from "~/server/notifications/core/notification_event.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
-import {updateInboxEntry} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {
     FileTaskAuthorizer,
@@ -37,11 +37,10 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
             }),
         );
     },
-    updateInboxEntry: (context, event, {info: {}, accountId}) => {
+    updateInboxEntry: (context, event, {info: {}, accountId, clientRequestToken}) => {
         return updateInboxEntry(
             context,
-            event,
-            accountId,
+            event.authorId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "TaskEntry",
@@ -145,6 +144,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
                     otherCommentAuthorId,
                 };
             },
+            {clientRequestToken},
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({

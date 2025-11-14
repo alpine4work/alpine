@@ -5,9 +5,9 @@ import {
     getChatAccountIds,
 } from "~/server/chat/data/chat_actions.js";
 import {NotificationCreateChatMessageEvent} from "~/server/notifications/core/notification_event.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
-import {updateInboxEntry} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
@@ -42,12 +42,11 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
     updateInboxEntry: (
         context,
         event,
-        {info: {spaceId, accountIds: chatAccountIds}, accountId},
+        {info: {spaceId, accountIds: chatAccountIds}, accountId, clientRequestToken},
     ) => {
         return updateInboxEntry(
             context,
-            event,
-            accountId,
+            event.authorId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChatEntry",
@@ -212,6 +211,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     otherAccountId,
                 };
             },
+            {clientRequestToken},
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({

@@ -30,4 +30,4 @@ export const loudNotificationInboxGenerationIncrement = 1;
  * of the unarchived entry will be higher than the ones for loud notifications
  * so the entry goes at the top.
  */
-export const unarchivedInboxEntryGenerationIncrement = 1;
+export const unarchivedInboxOwnEntryGenerationIncrement = 1;

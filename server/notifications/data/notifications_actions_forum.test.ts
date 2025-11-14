@@ -14,9 +14,8 @@ import {backfillInboxEntries} from "~/server/notifications/data/get_inbox_entrie
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {updateInboxEntryBeforeExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
-// eslint-disable-next-line no-internal-imports
-import {notificationEventBeforeExecuteTransactionTestCheckpoint} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
@@ -7623,7 +7622,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
 
             const pauseBeforeCreateSecondCommentPromise =
-                notificationEventBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
                     session3.account.id,
                 );
 
@@ -7706,7 +7705,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 notificationEventAfterProcessingTestCheckpoint.pauseForTest(session2.account.id);
 
             const pauseBeforeCreateSecondCommentPromise =
-                notificationEventBeforeExecuteTransactionTestCheckpoint.pauseForTest(
+                updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
                     session3.account.id,
                 );
 

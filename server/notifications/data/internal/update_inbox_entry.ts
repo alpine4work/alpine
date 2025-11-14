@@ -1,16 +1,16 @@
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
-import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTransactionEntry,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
-import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {computeDigestNotificationsNextScheduledDateTimeIfEligible} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time_if_eligible.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
-import {loudNotificationInboxGenerationIncrement} from "~/server/notifications/data/internal/inbox_generation_increments.js";
+import {
+    loudNotificationInboxGenerationIncrement,
+    unarchivedInboxOwnEntryGenerationIncrement,
+} from "~/server/notifications/data/internal/inbox_generation_increments.js";
 import {
     InboxAttributesItem,
     InboxEntryItem,
@@ -18,7 +18,11 @@ import {
     InboxTable,
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
-import {authorizeNotBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {
+    authorizeNotBotSpaceAccount,
+    authorizeOwnSpaceAccountAccess,
+    authorizeSpaceAccess,
+} from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -33,7 +37,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
-export const notificationEventBeforeExecuteTransactionTestCheckpoint =
+export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 export type UpdateInboxEntryResult = {
@@ -47,19 +51,17 @@ export type UpdateInboxEntryResult = {
  * updating the inbox total loud notification count when the entry loud
  * notification count updates.
  *
- * This function is idempotent if `update` is idempotent (excluding changes to
- * `isArchived` or `loudNotificationCount`). Make sure you update properties
- * (besides `isArchived` or `loudNotificationCount`) idempotently!
- *
- * This function could be idempotent regardless of how `update` is
- * implemented if we perform every write in a DynamoDB write transaction with a
- * `clientRequestToken` but as an optimization we try to avoid transactions
- * when possible which means we need `update` to be idempotent.
+ * `actorAccountId` is the account whose actions are causing this inbox update.
+ * It's often different from `itemKey.accountId` which is the account of the
+ * inbox we're updating. Let's say Alice sends Bob a message. When the
+ * `actorAccountId` in this case is "Alice" and if we're updating Bob's inbox
+ * then `itemKey.accountId` will be "Bob". If Alice is archiving an entry in
+ * their own inbox then Alice is both the `actorAccountId` and
+ * `itemKey.accountId` since Alice is taking an action on their own inbox.
  */
 export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: ServerSystemActionContext,
-    event: NotificationEvent,
-    accountId: AccountId,
+    context: ServerActionContext,
+    actorAccountId: AccountId,
     itemKey: ItemKey,
     update: (
         item: (InboxEntryItem & ItemKey) | null,
@@ -83,12 +85,25 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
         >
     >,
-    {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
+    {
+        clientRequestToken,
+        initialInboxItemIfExists,
+    }: {
+        clientRequestToken?: string;
+        initialInboxItemIfExists?: InboxAttributesItem | null;
+    } = {},
 ): Promise<UpdateInboxEntryResult | null> {
-    // Bots don't have an inbox. Don't allow updating inbox entries for a bot
-    // account. This should be free (no database reads) since we load and cache the
-    // account earlier while processing the event.
-    await authorizeNotBotSpaceAccount(context, event.spaceId, accountId);
+    await runAllPromises([
+        // Make sure we're either a system actor or we're a session actor with access
+        // to this account and this space.
+        authorizeSpaceAccess(context, itemKey.spaceId),
+        authorizeOwnSpaceAccountAccess(context, itemKey.accountId),
+
+        // Bots don't have an inbox. Don't allow updating inbox entries for a bot
+        // account. This should be free (no database reads) since we load and cache the
+        // account earlier while processing the event.
+        authorizeNotBotSpaceAccount(context, itemKey.spaceId, itemKey.accountId),
+    ]);
 
     let hasAttempted = false;
 
@@ -106,7 +121,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                       accountId: itemKey.accountId,
                   }),
             InboxTable.getItemIfExists(context, itemKey),
-            getAccountTimeZoneIfExists(context, accountId),
+            getAccountTimeZoneIfExists(context, itemKey.accountId),
         ]);
 
         // Make sure we use a time that's always monotonically increasing compared to
@@ -129,6 +144,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             updateOtherInboxEntry: (otherItemKey, oldOtherItem, newOtherItem) => {
                 const result = computeUpdateInboxEntry(context, {
                     currentTime,
+                    actorAccountId,
                     itemKey: otherItemKey,
                     accountTimeZone,
                     // Use `newInboxItem` here in case it was updated by some other
@@ -164,6 +180,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         {
             const result = computeUpdateInboxEntry(context, {
                 currentTime,
+                actorAccountId,
                 itemKey,
                 accountTimeZone,
                 // Use `newInboxItem` here in case it was updated by some other
@@ -207,7 +224,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             transactionEntries.push(InboxTable.transactionDirectlyUpdateItem(newInboxItem));
         }
 
-        await notificationEventBeforeExecuteTransactionTestCheckpoint.waitForTest(event.authorId);
+        await updateInboxEntryBeforeExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
 
         if (transactionEntries.length === 0) {
             if (!oldInboxEntryItem) return null;
@@ -226,54 +243,16 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             };
         }
 
-        const maxClientRequestTokenLengthForIds = dynamoClientRequestTokenMaxLength - 3;
-        const maxClientRequestTokenEventIdLength = Math.ceil(maxClientRequestTokenLengthForIds / 2);
-        const maxClientRequestTokenAccountIdLength = Math.floor(
-            maxClientRequestTokenLengthForIds / 2,
-        );
+        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transactionEntries, {
+            clientRequestToken,
+        });
 
-        // Fill the client request token with half of the event ID and half of the
-        // account ID. We end up using 16 characters for `AccountId`s and 17 characters
-        // for `NotificationEventId`s whereas the full length of an ID is 26
-        // characters. This does increase collision chances!
-        //
-        // However, if we're generating IDs at the rate of 1000 per hour we'll end up
-        // [needing to wait ~18 thousand years][1] for a 1% collision chance of
-        // `AccountId`s and ~101 thousand years for a 1% collision chance of
-        // `NotificationEventId`s. If we get a random collision that means a
-        // notification won't be sent which could be pretty bad if it's an urgent
-        // notification but won't leave the system in a corrupted state.
-        //
-        // We start the token with `i:` (`i` stands for `inbox`) to make sure we don't
-        // collide with `clientRequestToken`s generated by other parts of our system
-        // since `clientRequestToken`s need to be globally unique.
-        //
-        // [1]: https://zelark.github.io/nano-id-cc/
-        const clientRequestToken = `i:${event.id.slice(
-            -maxClientRequestTokenEventIdLength,
-        )}-${accountId.slice(0, maxClientRequestTokenAccountIdLength)}`;
+        if (!newInboxEntryItem) return null;
 
-        assert(clientRequestToken.length <= dynamoClientRequestTokenMaxLength);
-
-        try {
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, transactionEntries, {
-                clientRequestToken,
-            });
-
-            if (!newInboxEntryItem) return null;
-
-            return {
-                newInboxEntryItem,
-                loudNotificationCountDifference,
-            };
-        } catch (error) {
-            // If DynamoDB has committed a transaction with this `clientRequestToken` in the
-            // last 10min then we can return peacefully to make sure this function is
-            // idempotent.
-            if (isDynamoIdempotentParameterMismatchError(error)) return null;
-
-            throw error;
-        }
+        return {
+            newInboxEntryItem,
+            loudNotificationCountDifference,
+        };
     });
 }
 
@@ -281,6 +260,7 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: Context<{tracer: TracerContextModule}>,
     {
         currentTime,
+        actorAccountId,
         itemKey,
         accountTimeZone,
         oldInboxItem,
@@ -288,6 +268,7 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         newInboxEntryItem: newInboxEntryItemPartial1,
     }: {
         currentTime: Date;
+        actorAccountId: AccountId;
         itemKey: ItemKey;
         accountTimeZone: TimeZone | null;
         oldInboxItem: InboxAttributesItem | null;
@@ -344,38 +325,61 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         (!newInboxEntryItemPartial2.isArchived && oldInboxEntryItem.isArchived) ||
         loudNotificationCountDifference > 0;
 
+    // Has the actor unarchived their own entry? This happens if the user chooses
+    // "Move to new" in the UI which calls the `unarchiveInboxEntry()` RPC. If the
+    // user is personally unarchiving an entry then we want to move it to the
+    // absolute top of their inbox (instead of trying to intelligently place it
+    // near the top in the inbox's quantum state).
+    const hasActorUnarchivedOwnEntry =
+        actorAccountId === itemKey.accountId &&
+        oldInboxEntryItem &&
+        !newInboxEntryItemPartial2.isArchived &&
+        oldInboxEntryItem.isArchived;
+
+    let newInboxEntryItemGeneration: number;
+    let newInboxEntryItemEnteredTime: Date;
+
+    if (shouldMoveToTop) {
+        // Move our entry to the higher generation of:
+        //
+        // - The entry's current generation
+        // - The inbox's current generation plus an increment if this is a loud
+        //   notification since loud notifications should appear on top
+        //
+        // If our entry moves to a higher generation (usually due to a loud
+        // notification) then it should stay at that generation.
+        newInboxEntryItemGeneration = Math.max(
+            ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
+            inboxGeneration +
+                (loudNotificationCountDifference > 0
+                    ? loudNotificationInboxGenerationIncrement
+                    : hasActorUnarchivedOwnEntry
+                    ? unarchivedInboxOwnEntryGenerationIncrement
+                    : 0),
+        );
+
+        newInboxEntryItemEnteredTime = hasActorUnarchivedOwnEntry
+            ? currentTime
+            : getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2);
+    }
+    // When we archive an item it goes back to our inbox generation. That way if
+    // it's unarchived it doesn't go back into the loud notification generation.
+    else if (newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived) {
+        newInboxEntryItemGeneration = inboxGeneration;
+        newInboxEntryItemEnteredTime = currentTime;
+    } else {
+        newInboxEntryItemGeneration = oldInboxEntryItem.generation;
+        newInboxEntryItemEnteredTime = oldInboxEntryItem.enteredTime;
+    }
+
     const newInboxEntryItem: InboxEntryItem = {
         ...newInboxEntryItemPartial2,
-
-        generation: shouldMoveToTop
-            ? // Move our entry to the higher generation of:
-              //
-              // - The entry's current generation
-              // - The inbox's current generation plus an increment if this is a loud
-              //   notification since loud notifications should appear on top
-              //
-              // If our entry moves to a higher generation (usually due to a loud
-              // notification) then it should stay at that generation.
-              Math.max(
-                  ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
-                  inboxGeneration +
-                      (loudNotificationCountDifference > 0
-                          ? loudNotificationInboxGenerationIncrement
-                          : 0),
-              )
-            : // When we archive an item it goes back to our inbox generation. That way if
-            // it's unarchived it doesn't go back into the loud notification generation.
-            newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived
-            ? inboxGeneration
-            : oldInboxEntryItem.generation,
-
-        enteredTime: shouldMoveToTop
-            ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
-            : // When we archive an item, it goes to the top of the archive.
-            newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived
-            ? currentTime
-            : oldInboxEntryItem.enteredTime,
+        generation: newInboxEntryItemGeneration,
+        enteredTime: newInboxEntryItemEnteredTime,
     };
+
+    // Make sure `loudNotificationCount` is zero for archived entries.
+    assert(!newInboxEntryItem.isArchived || newInboxEntryItem.loudNotificationCount === 0);
 
     const entryCountDifference =
         (!newInboxEntryItem.isArchived ? 1 : 0) -
@@ -410,16 +414,30 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         digestNotificationsLastSentTime: oldInboxItem?.digestNotificationsLastSentTime ?? null,
     };
 
-    newInboxItem = {
-        ...newInboxItem,
-        digestNotificationsNextScheduledDateTime:
-            computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
-                currentTime,
-                timeZone: accountTimeZone,
-                inboxItem: newInboxItem,
-                options: {lagTimeInMinutes: 60},
-            }),
-    };
+    // Only schedule a digest notification if this inbox change is because of
+    // someone's actions updating another person's inbox.
+    //
+    // For example, if Alice (`actorAccountId`) sends Bob (`itemKey.accountId`
+    // since we're updating Bob's inbox) a message we want to schedule a
+    // notification digest for Bob. However, if Alice (`actorAccountId`) archives
+    // one of her own inbox entries (so `itemKey.accountId` is Alice as well) then
+    // don't schedule a notification digest.
+    //
+    // If a user is acting on their own inbox then they've seen the current state
+    // of their inbox and don't need to be notified about changes (since they made
+    // the changes!).
+    if (actorAccountId !== itemKey.accountId) {
+        newInboxItem = {
+            ...newInboxItem,
+            digestNotificationsNextScheduledDateTime:
+                computeDigestNotificationsNextScheduledDateTimeIfEligible(context, {
+                    currentTime,
+                    timeZone: accountTimeZone,
+                    inboxItem: newInboxItem,
+                    options: {lagTimeInMinutes: 60},
+                }),
+        };
+    }
 
     return {
         newInboxItem,

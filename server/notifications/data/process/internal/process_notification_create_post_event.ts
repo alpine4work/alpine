@@ -9,9 +9,9 @@ import {
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
-import {updateInboxEntry} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -43,7 +43,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
             consistency: "StrongWithinCache",
         });
     },
-    updateInboxEntry: async (context, event, {info: {}, accountId}) => {
+    updateInboxEntry: async (context, event, {info: {}, accountId, clientRequestToken}) => {
         // Don't update an entry for the account who created the post.
         if (event.authorId === accountId) return null;
 
@@ -52,8 +52,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
         if (event.mentionedAccountIds.has(accountId)) {
             return updateInboxEntry(
                 context,
-                event,
-                accountId,
+                event.authorId,
                 {
                     partitionType: "Inbox",
                     sortRangeType: "PostCommentsEntry",
@@ -83,6 +82,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                         otherCommentAuthorId: null,
                     };
                 },
+                {clientRequestToken},
             );
         }
 
@@ -97,8 +97,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
 
         return updateInboxEntry(
             context,
-            event,
-            accountId,
+            event.authorId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
@@ -187,7 +186,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                             : oldItem.latestPost,
                 };
             },
-            {initialInboxItemIfExists: inboxItem},
+            {clientRequestToken, initialInboxItemIfExists: inboxItem},
         );
     },
     getBotWebhookEvent: () => {

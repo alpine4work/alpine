@@ -10,9 +10,9 @@ import {
     InboxTable,
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
+import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
-import {updateInboxEntry} from "~/server/notifications/data/process/internal/update_inbox_entry.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -45,7 +45,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
             consistency: "StrongWithinCache",
         });
     },
-    updateInboxEntry: async (context, event, {info: {}, accountId}) => {
+    updateInboxEntry: async (context, event, {info: {}, accountId, clientRequestToken}) => {
         const isFirstComment = event.commentIndex === 0;
 
         // The first comment in a thread (if it doesn't contain a mention of our user)
@@ -65,8 +65,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
 
             return updateInboxEntry(
                 context,
-                event,
-                accountId,
+                event.authorId,
                 {
                     partitionType: "Inbox",
                     sortRangeType: "DocumentNewCommentThreadsEntry",
@@ -99,14 +98,13 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                         latestCommentThreadCreatedTime: event.createdTime,
                     };
                 },
-                {initialInboxItemIfExists: inboxItem},
+                {clientRequestToken, initialInboxItemIfExists: inboxItem},
             );
         }
 
         return updateInboxEntry(
             context,
-            event,
-            accountId,
+            event.authorId,
             {
                 partitionType: "Inbox",
                 sortRangeType: "DocumentCommentThreadEntry",
@@ -222,6 +220,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     otherCommentAuthorId,
                 };
             },
+            {clientRequestToken},
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({

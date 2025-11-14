@@ -1849,6 +1849,98 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
+        test("can’t archive inbox entries in space account lost access to", async () => {
+            const scenario = await createNotificationsTestScenario(context);
+
+            const chat1 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
+
+            await chat1.sendMessage(scenario.session2, "message1");
+
+            await chat1.sendMessage(scenario.session3, "message2");
+
+            const message3 = await chat1.sendMessage(scenario.session1, "message3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message: message3,
+                        contentTextSnippet: "message3",
+                    },
+                    otherChatAccount: scenario.session2,
+                }),
+            ]);
+
+            await scenario.space.removeAccount(scenario.session3);
+
+            await expect(
+                archiveInboxEntry(
+                    context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                    {
+                        spaceId: scenario.space.id,
+                        key: {type: "Chat", chatId: chat1.id},
+                    },
+                ),
+            ).rejects.toThrow("Account doesn’t have access to space");
+        });
+
+        test("can’t archive inbox entries that don’t exist", async () => {
+            const scenario = await createNotificationsTestScenario(context);
+
+            const chat1 = await TestChat.get(
+                scenario.session1,
+                scenario.session2,
+                scenario.session3,
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
+
+            await chat1.sendMessage(scenario.session2, "message1");
+
+            await chat1.sendMessage(scenario.session3, "message2");
+
+            const message3 = await chat1.sendMessage(scenario.session1, "message3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(scenario.session3)).toEqual([
+                expectInboxChatEntryModel({
+                    session: scenario.session3,
+                    chat: chat1,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        message: message3,
+                        contentTextSnippet: "message3",
+                    },
+                    otherChatAccount: scenario.session2,
+                }),
+            ]);
+
+            await expect(
+                archiveInboxEntry(
+                    context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                    {
+                        spaceId: scenario.space.id,
+                        key: {type: "Chat", chatId: generateId()},
+                    },
+                ),
+            ).rejects.toThrow("Inbox entry not found");
+        });
+
         test("can unarchive inbox entries", async () => {
             const scenario = await createNotificationsTestScenario(context);
 
