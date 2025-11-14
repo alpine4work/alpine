@@ -403,6 +403,15 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Get the last loaded message in our message list.
+     */
+    public getLastLoadedMessageIfExists(): Message | null {
+        const iterator = this._messages.end;
+        if (!iterator.value) return null;
+        return iterator.value;
+    }
+
+    /**
      * Get the first loaded message after the provided index. If there is no loaded
      * message after the provided index we return null. Throws an error if the
      * index is out of bounds.

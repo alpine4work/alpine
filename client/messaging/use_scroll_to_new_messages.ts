@@ -36,6 +36,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
 
     const lastItemCountRef = useRef(messages?.getItemCount() ?? null);
     const lastHasTypingIndicatorsItemRef = useRef(false);
+    const lastFinalMessageHasEndingReactionsRef = useRef(false);
+
     useLayoutEffectWithoutServerSideWarning(() => {
         if (messages === null) return;
 
@@ -50,16 +52,36 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         const hasTypingIndicatorsItem = messages.hasTypingIndicatorsItem();
         lastHasTypingIndicatorsItemRef.current = hasTypingIndicatorsItem;
 
+        const lastFinalMessageHasEndingReactions = lastFinalMessageHasEndingReactionsRef.current;
+        const finalMessageHasEndingReactions = getFinalMessageHasEndingReactions(messages);
+        lastFinalMessageHasEndingReactionsRef.current = finalMessageHasEndingReactions;
+
         // No new item changes, don't perform a scroll adjustment.
-        if (lastItemCount === itemCount && lastHasTypingIndicatorsItem === hasTypingIndicatorsItem)
+        if (
+            lastItemCount === itemCount &&
+            lastHasTypingIndicatorsItem === hasTypingIndicatorsItem &&
+            lastFinalMessageHasEndingReactions === finalMessageHasEndingReactions
+        ) {
             return;
+        }
 
         const run = () => {
-            const firstNewItemIndex =
-                lastItemCount -
-                // If we previously had typing indicators item but now we don't, we want to
-                // scroll to the item which replaced the typing indicator.
-                (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem ? 1 : 0);
+            let firstNewItemIndex = lastItemCount;
+
+            // If we previously had typing indicators item but now we don't, we want to
+            // scroll to the item which replaced the typing indicator.
+            if (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem) {
+                firstNewItemIndex -= 1;
+            }
+            // If the item count didn't change but the reaction count on the last
+            // message changed, we want to scroll the last item (can't scroll a new item
+            // since there is no new item).
+            else if (
+                lastItemCount === itemCount &&
+                lastFinalMessageHasEndingReactions !== finalMessageHasEndingReactions
+            ) {
+                firstNewItemIndex -= 1;
+            }
 
             // No new items.
             if (firstNewItemIndex >= itemCount) return;
@@ -152,4 +174,23 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             isCancelled = true;
         };
     }, [getItemKey, inputRef, isInputStickyPositioned, messages, viewRef]);
+}
+
+function getFinalMessageHasEndingReactions<Message extends MessageModel>(
+    messages: MessageList<Message> | null,
+): boolean {
+    if (!messages) return false;
+
+    const lastMessage = messages.getLastLoadedMessageIfExists();
+    if (!lastMessage) return false;
+
+    if (lastMessage.payload.type !== "Content") return false;
+    if (lastMessage.payload.reactionsByPos.size === 0) return false;
+
+    const reactions = lastMessage.payload.reactionsByPos.get(
+        lastMessage.payload.content.doc.content.size,
+    );
+    if (!reactions) return false;
+
+    return reactions.get().size > 0;
 }
