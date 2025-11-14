@@ -98,6 +98,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // to this account and this space.
         authorizeSpaceAccess(context, itemKey.spaceId),
         authorizeOwnSpaceAccountAccess(context, itemKey.accountId),
+        authorizeOwnSpaceAccountAccess(context, actorAccountId),
 
         // Bots don't have an inbox. Don't allow updating inbox entries for a bot
         // account. This should be free (no database reads) since we load and cache the

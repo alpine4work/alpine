@@ -2040,11 +2040,12 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
-
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(scenario.session1)).toEqual([]);
@@ -2704,11 +2705,12 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
-
             await ProcessContextModule.waitForTestTasks();
 
             expect(
@@ -3987,10 +3989,13 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const comment1 = await post1.createComment(
                 scenario.session1,
@@ -4226,10 +4231,13 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
 
             const post1 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post2 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(scenario.session1);
+            await ProcessContextModule.waitForTestTasks();
 
             const comment1 = await post1.createComment(
                 scenario.session1,
@@ -4631,6 +4639,8 @@ for (const [currentProcessingType, processingMultiple] of [
                 ),
             );
 
+            await ProcessContextModule.waitForTestTasks();
+
             const post2 = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
@@ -4649,6 +4659,8 @@ for (const [currentProcessingType, processingMultiple] of [
                     ]),
                 ),
             );
+
+            await ProcessContextModule.waitForTestTasks();
 
             const post3 = await channel.createPost(
                 scenario.session1,
@@ -6561,8 +6573,9 @@ for (const [currentProcessingType, processingMultiple] of [
             const post = await channel.createPost(session1);
 
             await post.createComment(session2, "comment1");
-            const comment2 = await post.createComment(session1, "comment2");
+            await ProcessContextModule.waitForTestTasks();
 
+            const comment2 = await post.createComment(session1, "comment2");
             await ProcessContextModule.waitForTestTasks();
 
             expect(await testGetInboxEntries(session1)).toEqual([]);
@@ -7211,9 +7224,12 @@ for (const [currentProcessingType, processingMultiple] of [
             await channel.subscribe(session2);
 
             const post1 = await channel.createPost(session1, "test1");
-            const post2 = await channel.createPost(session1, "test2");
-            const post3 = await channel.createPost(session1, "test3");
+            await ProcessContextModule.waitForTestTasks();
 
+            const post2 = await channel.createPost(session1, "test2");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post3 = await channel.createPost(session1, "test3");
             await ProcessContextModule.waitForTestTasks();
 
             await post1.createComment(session2, "test4");
@@ -7317,9 +7333,12 @@ for (const [currentProcessingType, processingMultiple] of [
             await channel.subscribe(session2);
 
             const post1 = await channel.createPost(session1, "test1");
-            const post2 = await channel.createPost(session1, "test2");
-            const post3 = await channel.createPost(session1, "test3");
+            await ProcessContextModule.waitForTestTasks();
 
+            const post2 = await channel.createPost(session1, "test2");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post3 = await channel.createPost(session1, "test3");
             await ProcessContextModule.waitForTestTasks();
 
             const comment1 = await post1.createComment(
@@ -7885,6 +7904,158 @@ for (const [currentProcessingType, processingMultiple] of [
                     posts: [post3, post2, post1],
                     latestPost: {post: post3, contentTextSnippet: "test3"},
                     otherPostAuthor: null,
+                }),
+            ]);
+        });
+
+        test("archiving a channel posts entry with one post archives that one post as well", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
+        test("archiving a channel posts entry with multiple posts archives all the posts", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post2 = await channel.createPost(session1, "test2");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post3 = await channel.createPost(session1, "test3");
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+        });
+
+        test("unarchiving a channel posts entry with one post unarchives that one post as well", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            await unarchiveInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
+        test("unarchiving a channel posts entry with multiple posts unarchives all the posts as well", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post2 = await channel.createPost(session1, "test2");
+            await ProcessContextModule.waitForTestTasks();
+
+            const post3 = await channel.createPost(session1, "test3");
+            await ProcessContextModule.waitForTestTasks();
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            await unarchiveInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {
+                    type: "ChannelPosts",
+                    channelId: channel.id,
+                    bucketGeneration: 0,
+                },
+            });
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, post2, post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
                 }),
             ]);
         });
