@@ -1,6 +1,8 @@
 import {CalendarDate} from "@internationalized/date";
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -24,9 +26,11 @@ import {
     completeTaskCommentStream,
     createTaskComment,
     deleteTaskComment,
+    deleteTaskCommentReaction,
     getTaskComment,
     getTaskItemForTest,
     putTaskCommentStreamPart,
+    setTaskCommentReaction,
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -46,6 +50,7 @@ import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -241,6 +246,49 @@ export class TestTask extends TestCommentRoomBase {
         await completeTaskCommentStream(context, {
             taskId: this.id,
             commentIndex: messageIndex,
+        });
+    }
+
+    public override async _setMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ) {
+        await setTaskCommentReaction(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    }
+
+    public override async _deleteMessageReaction(
+        context: ServerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
+    ) {
+        await deleteTaskCommentReaction(context, {
+            taskId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
         });
     }
 

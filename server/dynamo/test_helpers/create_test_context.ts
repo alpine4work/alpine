@@ -8,9 +8,9 @@ import {
     startOpensearchLocal,
 } from "~/admin/opensearch/local/start_opensearch_local.js";
 import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {TestFilesContextModule} from "~/server/context/files_context_module.js";
 import {
     ChatInjection,

@@ -9444,15 +9444,26 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "channelId": {
+                                    "channelPostsEntry": {
                                         "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "bucketGeneration": {
-                                        "valueSchema": {
-                                            "type": "Integer"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "channelId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "bucketGeneration": {
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
                                         },
                                         "optional": false
                                     },
@@ -9480,9 +9491,20 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
-                                    "bucketGeneration": {
+                                    "newCommentThreadsEntry": {
                                         "valueSchema": {
-                                            "type": "Integer"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "bucketGeneration": {
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
                                         },
                                         "optional": false
                                     },

@@ -15,6 +15,8 @@ ts_project(
         # Large test suites that run three times each.
         "notifications_actions_chat_test": {"size": "medium"},
         "notifications_actions_forum_test": {"size": "medium"},
+        "notifications_actions_documents_test": {"size": "medium"},
+        "notifications_actions_tasks_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",

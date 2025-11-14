@@ -1,4 +1,4 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {processNotificationCreateChatMessageEvent} from "~/server/notifications/data/process/internal/process_notification_create_chat_message_event.js";

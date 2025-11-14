@@ -1,12 +1,17 @@
+import {Node} from "prosemirror-model";
 import {AddMarkStep, AddNodeMarkStep, Step} from "prosemirror-transform";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     completeDocumentCommentStream,
     createDocumentComment,
     deleteDocumentComment,
+    deleteDocumentCommentReaction,
     getDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
     putDocumentCommentStreamPart,
+    setDocumentCommentReaction,
     updateDocumentCommentContent,
 } from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
@@ -28,6 +33,7 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
+    assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {
@@ -38,6 +44,7 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -71,7 +78,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         document: TestDocument,
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
-        content: string | MessageContent,
+        content: string | Node,
     ) {
         const id = generateId<DocumentCommentThreadId>();
         const createdTime = new Date();
@@ -97,7 +104,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                         initialCommentContent:
                             typeof content === "string"
                                 ? createSimpleMessageContent(content)
-                                : content,
+                                : assertMessageContent(content),
                         initialCommentFileIds: [],
                         createdTime,
                         createdTimeZone: defaultTimeZone,
@@ -219,6 +226,51 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,
+        });
+    }
+
+    public override async _setMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ) {
+        await setDocumentCommentReaction(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    }
+
+    public override async _deleteMessageReaction(
+        context: ServerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
+    ) {
+        await deleteDocumentCommentReaction(context, {
+            documentId: this.document.id,
+            commentThreadId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
         });
     }
 

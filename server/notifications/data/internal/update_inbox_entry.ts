@@ -86,7 +86,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 >,
             ) => void;
         },
-    ) => MaybePromise<UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey>>,
+    ) => MaybePromise<UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey> | null>,
     {
         clientRequestToken,
         initialInboxItemIfExists,
@@ -278,9 +278,14 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
         accountTimeZone: TimeZone | null;
         oldInboxItem: InboxAttributesItem | null;
         oldInboxEntryItem: (InboxEntryItem & ItemKey) | null;
-        newInboxEntryItem: UpdateInboxEntryNewItem<InboxEntryItem & ItemKey, InboxEntryItemKey>;
+        newInboxEntryItem: UpdateInboxEntryNewItem<
+            InboxEntryItem & ItemKey,
+            InboxEntryItemKey
+        > | null;
     },
 ) {
+    if (!newInboxEntryItemPartial1) return null;
+
     assert(
         !newInboxEntryItemPartial1.isArchived ||
             newInboxEntryItemPartial1.loudNotificationCount === 0,

@@ -27,7 +27,6 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -335,7 +334,7 @@ export class TestDocument {
     public createCommentThread(
         session: TestSpaceSession,
         range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
-        content: string | MessageContent = TestDocumentCommentThread.createDefaultMessageContent(),
+        content: string | Node = TestDocumentCommentThread.createDefaultMessageContent(),
     ) {
         return TestDocumentCommentThread._create(this, session, range, content);
     }

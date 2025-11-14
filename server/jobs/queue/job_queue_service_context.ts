@@ -1,5 +1,5 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";

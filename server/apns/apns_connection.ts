@@ -3,7 +3,7 @@ import http2 from "node:http2";
 import {
     ApnsAlertNotification,
     ApnsAlertNotificationOptions,
-} from "~/server/apns/apns_alert_notification.js";
+} from "~/server/context/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

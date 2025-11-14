@@ -1,3 +1,10 @@
+import {
+    ServerAccountActionContext,
+    ServerActionContext,
+    ServerSessionActionContext,
+    ServerSystemActionContext,
+} from "~/server/context/server_action_context.js";
+import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 /**
  * Bazel prevents packages from having cyclic dependencies. This is a good
  * thing! Cyclic dependencies increase bundle size, increase type checking
@@ -22,13 +29,7 @@
  * such that you can eliminate the circular dependency.
  */
 
-import {
-    ServerAccountActionContext,
-    ServerActionContext,
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
-import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
@@ -64,6 +65,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
@@ -188,12 +190,35 @@ export type NotificationsInjectionContextModule = InstanceType<
 export const NotificationsInjectionContextModule =
     createInjectionContextModule<NotificationsInjection>({
         notifyInboxOfTimeZoneChange: true,
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: true,
+        archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction: true,
     });
 
 export type NotificationsInjection = {
     notifyInboxOfTimeZoneChange(
         context: ServerSessionActionContext,
         timeZone: TimeZone,
+    ): Promise<void>;
+
+    archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
+        context: ServerSessionActionContextWithApns,
+        options: {
+            spaceId: SpaceId;
+            postId: PostId;
+            commentCount: number;
+            commentIndex: number;
+        },
+    ): Promise<void>;
+
+    archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+        context: ServerSessionActionContextWithApns,
+        options: {
+            spaceId: SpaceId;
+            documentId: DocumentId;
+            commentThreadId: DocumentCommentThreadId;
+            commentCount: number;
+            commentIndex: number;
+        },
     ): Promise<void>;
 };
 

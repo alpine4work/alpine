@@ -7,11 +7,13 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {NotificationCreateDocumentCommentEvent} from "~/server/notifications/core/notification_event.js";
 import {
-    InboxDocumentCommentThreadEntryItemKey,
     InboxTable,
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
-import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {
+    InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey,
+    NotificationsTable,
+} from "~/server/notifications/data/internal/notifications_table.js";
 import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
@@ -90,59 +92,56 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                         event.authorId,
                     ]);
 
-                    // When we add a comment thread to the new comment threads entry, create an item
-                    // mapping the `DocumentCommentThreadId` back to this new comment threads entry.
-                    if (!oldItem?.commentThreadIds.has(event.commentThreadId)) {
+                    const documentCommentThreadInNewCommentThreadsItemKey: InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey =
+                        {
+                            partitionType: "Inbox",
+                            sortRangeType: "DocumentCommentThreadInNewCommentThreadsEntry",
+                            spaceId: event.spaceId,
+                            accountId,
+                            documentId: event.documentId,
+                            commentThreadId: event.commentThreadId,
+                        };
+
+                    // Normally when processing `CreateDocumentComment` the
+                    // `DocumentCommentThreadInNewCommentThreadsEntry` item doesn't exist and we
+                    // need to create it. The `DocumentCommentThreadInNewCommentThreadsEntry` item
+                    // only already exists during race conditions when we process events
+                    // out-of-order.
+                    const documentCommentThreadInNewCommentThreadsItem = isInitialAttempt
+                        ? null
+                        : await NotificationsTable.getItemIfExists(
+                              context,
+                              documentCommentThreadInNewCommentThreadsItemKey,
+                          );
+
+                    if (!documentCommentThreadInNewCommentThreadsItem) {
+                        // When we add a comment thread to the new comment threads entry, create an
+                        // item mapping the `DocumentCommentThreadId` back to this new comment
+                        // threads entry.
                         addAdditionalTransactionEntry(
-                            NotificationsTable.transactionCreateOrReplaceItem({
-                                partitionType: "Inbox",
-                                sortRangeType: "DocumentCommentThreadInNewCommentThreadsEntry",
-                                spaceId: event.spaceId,
-                                accountId,
-                                documentId: event.documentId,
-                                commentThreadId: event.commentThreadId,
-                                bucketGeneration,
-                            }),
+                            NotificationsTable.transactionCreateItem(
+                                {
+                                    ...documentCommentThreadInNewCommentThreadsItemKey,
+                                    newCommentThreadsEntry: {bucketGeneration},
+                                },
+                                {isConditionCheckErrorRetriable: true},
+                            ),
                         );
-                    }
+                    } else {
+                        // If a `DocumentCommentThreadInNewCommentThreadsEntry` item already exists for
+                        // this post then we want to immediately archive the new comment thread in our
+                        // `DocumentNewCommentThreadsEntry`. This may happen if we process
+                        // notifications out-of-order.
+                        archivedCommentThreadIds = new Set([
+                            ...archivedCommentThreadIds,
+                            event.commentThreadId,
+                        ]);
 
-                    const commentsItemKey: InboxDocumentCommentThreadEntryItemKey = {
-                        partitionType: "Inbox",
-                        sortRangeType: "DocumentCommentThreadEntry",
-                        spaceId: event.spaceId,
-                        accountId,
-                        documentId: event.documentId,
-                        commentThreadId: event.commentThreadId,
-                    };
-
-                    // If a `PostCommentsEntry` already exists for this post then we want to
-                    // immediately archive the new post in `ChannelPostsEntry`. This may happen if
-                    // we process notifications out-of-order.
-                    //
-                    // Normally we'll create `ChannelPostsEntry` first when `PostCommentsEntry`
-                    // doesn't exist. So as an optimization, assume `PostCommentsEntry` doesn't
-                    // exist on the initial attempt
-                    {
-                        const postCommentsItem = isInitialAttempt
-                            ? null
-                            : await InboxTable.getItemIfExists(context, commentsItemKey);
-
-                        if (!postCommentsItem) {
-                            addAdditionalTransactionEntry(
-                                InboxTable.transactionDoesNotExistConditionCheck(commentsItemKey, {
-                                    isConditionCheckErrorRetriable: true,
-                                }),
-                            );
-                        } else {
-                            archivedCommentThreadIds = new Set([
-                                ...archivedCommentThreadIds,
-                                event.commentThreadId,
-                            ]);
-
-                            addAdditionalTransactionEntry(
-                                InboxTable.transactionExistsConditionCheck(commentsItemKey),
-                            );
-                        }
+                        addAdditionalTransactionEntry(
+                            NotificationsTable.transactionExistsConditionCheck(
+                                documentCommentThreadInNewCommentThreadsItemKey,
+                            ),
+                        );
                     }
 
                     return {

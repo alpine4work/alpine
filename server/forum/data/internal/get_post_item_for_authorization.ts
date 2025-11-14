@@ -13,7 +13,16 @@ export const PostItemAuthorizationCache = new DynamoContextCache<
     PostId,
     Pick<
         PostAttributesItem,
-        "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
+        | "partitionType"
+        | "sortRangeType"
+        | "postId"
+        | "spaceId"
+        | "channelId"
+        | "authorId"
+        | "createdTime"
+        | "contentUpdate"
+        | "commentsSummary"
+        | "updateLockVersion"
     > | null
 >({
     // Allow sharing this cache because the loaded DynamoDB item doesn't depend
@@ -27,7 +36,16 @@ export async function getPostItemForAuthorizationIfExists(
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<Pick<
     PostAttributesItem,
-    "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
+    | "partitionType"
+    | "sortRangeType"
+    | "postId"
+    | "spaceId"
+    | "channelId"
+    | "authorId"
+    | "createdTime"
+    | "contentUpdate"
+    | "commentsSummary"
+    | "updateLockVersion"
 > | null> {
     return PostItemAuthorizationCache.get(context, consistency, postId, consistency =>
         ForumRealtimeTable.getPartialItemIfExists(
@@ -39,7 +57,15 @@ export async function getPostItemForAuthorizationIfExists(
             },
             {
                 consistency,
-                attributes: ["spaceId", "channelId", "authorId"],
+                attributes: [
+                    "spaceId",
+                    "channelId",
+                    "authorId",
+                    "createdTime",
+                    "contentUpdate",
+                    "commentsSummary",
+                    "updateLockVersion",
+                ],
             },
         ),
     );
@@ -52,7 +78,14 @@ export async function getPostItemForAuthorization(
 ): Promise<
     Pick<
         PostAttributesItem,
-        "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
+        | "partitionType"
+        | "sortRangeType"
+        | "postId"
+        | "spaceId"
+        | "channelId"
+        | "authorId"
+        | "createdTime"
+        | "commentsSummary"
     >
 > {
     const item = await getPostItemForAuthorizationIfExists(context, postId, options);

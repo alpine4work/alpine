@@ -1,12 +1,10 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {
     sendPushNotificationToAccountDevices,
     shouldSendPushNotification,
 } from "~/server/notifications/data/internal/send_push_notification_to_account_devices.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {Context} from "~/shared/context/context.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -23,7 +21,7 @@ import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: ServerSessionActionContextWithApns,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     const result = await updateInboxEntry(

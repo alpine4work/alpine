@@ -2,12 +2,16 @@ import {Step} from "prosemirror-transform";
 import {
     completeChatMessageStream,
     deleteChatMessage,
+    deleteChatMessageReaction,
     getChatMessage,
     getOrCreateChatForAccounts,
     putChatMessageStreamPart,
     sendChatMessage,
+    setChatMessageReaction,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -29,6 +33,7 @@ import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 
 export class TestChat extends TestMessageRoomBase {
     public readonly context: TestContext;
@@ -185,6 +190,49 @@ export class TestChat extends TestMessageRoomBase {
         await completeChatMessageStream(context, {
             chatId: this.id,
             messageIndex,
+        });
+    }
+
+    public override async _setMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ) {
+        await setChatMessageReaction(context, {
+            chatId: this.id,
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    }
+
+    public override async _deleteMessageReaction(
+        context: ServerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
+    ) {
+        await deleteChatMessageReaction(context, {
+            chatId: this.id,
+            messageIndex,
+            contentVersion,
+            pos,
         });
     }
 }

@@ -1,6 +1,9 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
     TestActionContext,
@@ -30,6 +33,7 @@ import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 
 const testMessageCountByConstructor = new DefaultMap<
     typeof TestMessagingRoomBase,
@@ -114,6 +118,29 @@ export abstract class TestMessagingRoomBase {
     public abstract _completeMessageStream(
         context: TestBotActionContext,
         options: {messageIndex: number},
+    ): Promise<void>;
+
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside
+    // of this file.
+    public abstract _setMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        options: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ): Promise<void>;
+
+    // Public so that we can call from `TestMessage`. Shouldn't be called outside
+    // of this file.
+    public abstract _deleteMessageReaction(
+        context: ServerSessionActionContext,
+        options: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
     ): Promise<void>;
 
     public static createDefaultMessageContent() {
@@ -305,5 +332,46 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public completeStream(context: TestBotActionContext) {
         return this.room._completeMessageStream(context, {messageIndex: this.index});
+    }
+
+    public async setReaction(
+        session: TestSession,
+        reaction: Reaction | "GenericLike" = "GenericLike",
+    ) {
+        const message = await this.room._getMessage(
+            // Use a system action since if there's a `PermissionDeniedError` we want it
+            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            this.space.systemAction(),
+            this.index,
+        );
+
+        assert(message.payload.type === "Content");
+
+        return this.room._setMessageReaction(
+            session.action().clone({apns: new TestApnsContextModule()}),
+            {
+                messageIndex: this.index,
+                contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+                pos: message.payload.content.doc.content.size,
+                reaction,
+            },
+        );
+    }
+
+    public async deleteReaction(session: TestSession) {
+        const message = await this.room._getMessage(
+            // Use a system action since if there's a `PermissionDeniedError` we want it
+            // thrown from `_setMessageReaction()` instead of `_getMessage()`.
+            this.space.systemAction(),
+            this.index,
+        );
+
+        assert(message.payload.type === "Content");
+
+        return this.room._deleteMessageReaction(session.action(), {
+            messageIndex: this.index,
+            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+            pos: message.payload.content.doc.content.size,
+        });
     }
 }

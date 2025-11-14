@@ -32,6 +32,9 @@ import {AccountId, PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext({
     forumInjection,
+    notificationsInjection: {
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
 });
 
 testMessagingImplementation<PostId>(context, {

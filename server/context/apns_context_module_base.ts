@@ -1,34 +1,28 @@
-import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {
     ApnsAlertNotification,
     ApnsAlertNotificationOptions,
 } from "~/server/context/apns_alert_notification.js";
-import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 
-export class ApnsContextModule extends ApnsContextModuleBase {
-    private readonly _connectionPool: ApnsConnectionPool;
-
-    constructor(connectionPool: ApnsConnectionPool) {
-        super();
-        this._connectionPool = connectionPool;
-    }
-
+export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActionContextModules> {
     /**
      * Send a push notification to the provided Apple device token.
      *
      * For more information on supported properties on a notification object
      * see “[Generating a remove notification][1]”.
      *
+     * If this function returns `wasDeviceTokenUnregistered` then you should delete
+     * the provided device token from the database to avoid sending notifications
+     * to it again.
+     *
      * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
-    public sendAlert(
+    public abstract sendAlert(
         deviceToken: Uint8Array,
         notification: ApnsAlertNotification,
         options?: ApnsAlertNotificationOptions,
-    ) {
-        return this._connectionPool.sendAlert(this._context, deviceToken, notification, options);
-    }
+    ): Promise<{wasDeviceTokenUnregistered: boolean}>;
 
     /**
      * Provides a `sendAlert()` function to the action that does the same thing as
@@ -40,8 +34,12 @@ export class ApnsContextModule extends ApnsContextModuleBase {
      *
      * Use this function as an optimization when you want to connect to APNs in
      * parallel with some other work.
+     *
+     * If the `sendAlert()` function returns `wasDeviceTokenUnregistered` then you
+     * should delete the provided device token from the database to avoid sending
+     * notifications to it again.
      */
-    public withSendAlert<Value>(
+    public abstract withSendAlert<Value>(
         action: (
             sendAlert: (
                 deviceToken: Uint8Array,
@@ -49,25 +47,5 @@ export class ApnsContextModule extends ApnsContextModuleBase {
                 options?: ApnsAlertNotificationOptions,
             ) => Promise<{wasDeviceTokenUnregistered: boolean}>,
         ) => Promise<Value>,
-    ): Promise<Value> {
-        return this._connectionPool.withSendAlert(this._context, action);
-    }
-}
-
-export class TestApnsContextModule extends ApnsContextModuleBase {
-    constructor() {
-        super();
-        assert(process.env.NODE_ENV === "test");
-    }
-
-    public async sendAlert() {
-        // Noop in tests...
-        return {wasDeviceTokenUnregistered: false};
-    }
-
-    public withSendAlert<Value>(
-        action: (sendAlert: () => Promise<{wasDeviceTokenUnregistered: boolean}>) => Promise<Value>,
-    ): Promise<Value> {
-        return action((...args) => this.sendAlert(...args));
-    }
+    ): Promise<Value>;
 }

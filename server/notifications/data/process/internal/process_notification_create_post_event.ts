@@ -4,11 +4,13 @@ import {getChannelNotificationSubscribers} from "~/server/forum/data/get_channel
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {NotificationCreatePostEvent} from "~/server/notifications/core/notification_event.js";
 import {
-    InboxPostCommentsEntryItemKey,
     InboxTable,
     initialInboxGeneration,
 } from "~/server/notifications/data/internal/inbox_table.js";
-import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
+import {
+    InboxPostInChannelPostsEntryItemKey,
+    NotificationsTable,
+} from "~/server/notifications/data/internal/notifications_table.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
@@ -111,61 +113,51 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                 let archivedPostIds = oldItem?.archivedPostIds ?? emptySet;
                 const postAuthorIds = new Set([event.authorId, ...(oldItem?.postAuthorIds ?? [])]);
 
-                // When we add a post to the channel posts entry, create an item mapping the
-                // `PostId` back to this channel posts entry. Create-or-replace is fine, a post
-                // SHOULD only ever be in one channel posts inbox entry. If notification
-                // processing code works normally. However, we don't guarantee that anywhere.
-                // It's possible to imagine edge cases where a `PostId` is in multiple channel
-                // post entries if the `ProcessNotificationEvent` job is retried at just the
-                // right time. It's not a big deal if a `PostId` is in two channel post entries
-                // and this item arbitrarily points to one of them.
-                if (!oldItem?.postIds.has(event.postId)) {
-                    addAdditionalTransactionEntry(
-                        NotificationsTable.transactionCreateOrReplaceItem({
-                            partitionType: "Inbox",
-                            sortRangeType: "PostInChannelPostsEntry",
-                            spaceId: event.spaceId,
-                            accountId,
-                            postId: event.postId,
-                            channelId: event.channelId,
-                            bucketGeneration,
-                        }),
-                    );
-                }
-
-                const postCommentsItemKey: InboxPostCommentsEntryItemKey = {
+                const postInChannelPostsItemKey: InboxPostInChannelPostsEntryItemKey = {
                     partitionType: "Inbox",
-                    sortRangeType: "PostCommentsEntry",
+                    sortRangeType: "PostInChannelPostsEntry",
                     spaceId: event.spaceId,
                     accountId,
                     postId: event.postId,
                 };
 
-                // If a `PostCommentsEntry` already exists for this post then we want to
-                // immediately archive the new post in `ChannelPostsEntry`. This may happen if
-                // we process notifications out-of-order.
+                // Normally when processing `CreatePost` the `PostInChannelPostsEntry` item
+                // doesn't exist and we need to create it. The `PostInChannelPostsEntry` item
+                // only already exists during race conditions when we process events
+                // out-of-order.
                 //
-                // Normally we'll create `ChannelPostsEntry` first when `PostCommentsEntry`
-                // doesn't exist. So as an optimization, assume `PostCommentsEntry` doesn't
-                // exist on the initial attempt
-                {
-                    const postCommentsItem = isInitialAttempt
-                        ? null
-                        : await InboxTable.getItemIfExists(context, postCommentsItemKey);
+                // So as an optimization, assume `PostInChannelPostsEntry` doesn't exist on the
+                // initial attempt
+                const postInChannelPostsItem = isInitialAttempt
+                    ? null
+                    : await NotificationsTable.getItemIfExists(context, postInChannelPostsItemKey);
 
-                    if (!postCommentsItem) {
-                        addAdditionalTransactionEntry(
-                            InboxTable.transactionDoesNotExistConditionCheck(postCommentsItemKey, {
-                                isConditionCheckErrorRetriable: true,
-                            }),
-                        );
-                    } else {
-                        archivedPostIds = new Set([...archivedPostIds, event.postId]);
+                if (!postInChannelPostsItem) {
+                    // When we add a post to the channel posts entry, create an item mapping the
+                    // `PostId` back to this channel posts entry.
+                    addAdditionalTransactionEntry(
+                        NotificationsTable.transactionCreateItem(
+                            {
+                                ...postInChannelPostsItemKey,
+                                channelPostsEntry: {
+                                    channelId: event.channelId,
+                                    bucketGeneration,
+                                },
+                            },
+                            {isConditionCheckErrorRetriable: true},
+                        ),
+                    );
+                } else {
+                    // If a `PostInChannelPostsEntry` item already exists for this post then we
+                    // want to immediately archive the new post in our `ChannelPostsEntry`. This
+                    // may happen if we process notifications out-of-order.
+                    archivedPostIds = new Set([...archivedPostIds, event.postId]);
 
-                        addAdditionalTransactionEntry(
-                            InboxTable.transactionExistsConditionCheck(postCommentsItemKey),
-                        );
-                    }
+                    addAdditionalTransactionEntry(
+                        NotificationsTable.transactionExistsConditionCheck(
+                            postInChannelPostsItemKey,
+                        ),
+                    );
                 }
 
                 return {

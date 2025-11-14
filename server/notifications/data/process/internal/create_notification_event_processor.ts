@@ -1,5 +1,5 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {getBot} from "~/server/bots/bots_table.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {
     ServerImpersonatedAccountActionContext,
     ServerSystemActionContext,

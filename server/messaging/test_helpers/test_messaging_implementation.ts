@@ -3,12 +3,14 @@
 import {addDays, addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -182,7 +184,7 @@ type CompleteMessageStreamFunctionForTest<RoomKey extends string> = (
  * Sets a reaction on a message.
  */
 type SetMessageReactionFunctionForTest<RoomKey extends string> = (
-    context: TestSessionActionContext,
+    context: ServerSessionActionContextWithApns,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -12742,13 +12744,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[13, [[session2.account.id, "GenericLike"]]]]),
@@ -12781,13 +12786,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, "GenericLike"]]]]),
@@ -12820,13 +12828,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[39, [[session2.account.id, "GenericLike"]]]]),
@@ -12859,25 +12870,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, "GenericLike"]]]]),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: reaction1,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -12886,13 +12903,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ]),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction2,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction2,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -12931,25 +12951,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session3.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session3.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session3.account.id, "GenericLike"]]]]),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: reaction1,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -12958,13 +12984,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ]),
                 );
 
-                await setMessageReaction(session4.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction2,
-                });
+                await setMessageReaction(
+                    session4.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction2,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -12979,13 +13008,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ]),
                 );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction3,
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction3,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -13001,13 +13033,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ]),
                 );
 
-                await setMessageReaction(session3.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: reaction4,
-                });
+                await setMessageReaction(
+                    session3.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: reaction4,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -13056,25 +13091,31 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, "GenericLike"]]]]),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction1,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, reaction1]]]]),
@@ -13107,37 +13148,49 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: "GenericLike",
+                    },
+                );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: "GenericLike",
+                    },
+                );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -13158,13 +13211,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ]),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction1,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -13191,13 +13247,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 const [, session2] = await space.createSessions(2);
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: getMissingRoomKey(),
-                        messageIndex: 0,
-                        contentVersion: 0,
-                        pos: 26,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: getMissingRoomKey(),
+                            messageIndex: 0,
+                            contentVersion: 0,
+                            pos: 26,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(/not found/);
             });
 
@@ -13233,13 +13292,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session3.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 26,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session3.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 26,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     /^(Account doesn’t have access to chat|Actor doesn’t have `Comment` access level)$/,
                 );
@@ -13277,13 +13339,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 26,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 26,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction on messages with a non-content payload");
             });
 
@@ -13310,13 +13375,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 100,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 100,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
             });
 
@@ -13347,13 +13415,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 25,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 25,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13390,13 +13461,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 22,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 22,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13433,13 +13507,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 27,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 27,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13478,13 +13555,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 27,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 27,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13522,13 +13602,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 41,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 41,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[41, [[session2.account.id, "GenericLike"]]]]),
@@ -13562,13 +13645,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 0,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 0,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction on the content’s start position");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
@@ -13603,13 +13689,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 1,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 1,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13652,13 +13741,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 1,
-                    pos: 31,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 1,
+                        pos: 31,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[31, [[session2.account.id, "GenericLike"]]]]),
@@ -13699,13 +13791,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 1,
-                        pos: 26,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 1,
+                            pos: 26,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13714,13 +13809,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[31, [[session2.account.id, "GenericLike"]]]]),
@@ -13761,13 +13859,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 1,
-                        pos: 26,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 1,
+                            pos: 26,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow(
                     "Can only set reaction on position immediately after a block node",
                 );
@@ -13776,13 +13877,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[20, [[session2.account.id, "GenericLike"]]]]),
@@ -13816,13 +13920,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 1,
-                        pos: 31,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 1,
+                            pos: 31,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction with future content version");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
@@ -13857,13 +13964,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session2.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: -1,
-                        pos: 31,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session2.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: -1,
+                            pos: 31,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction with negative content version");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
@@ -13940,13 +14050,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[13, [[session1.account.id, "GenericLike"]]]]),
@@ -14022,13 +14135,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[39, [[session1.account.id, "GenericLike"]]]]),
@@ -14100,13 +14216,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(
-                    setMessageReaction(session1.action(), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 39,
-                        reaction: "GenericLike",
-                    }),
+                    setMessageReaction(
+                        session1.action().clone({apns: new TestApnsContextModule()}),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            contentVersion: 0,
+                            pos: 39,
+                            reaction: "GenericLike",
+                        },
+                    ),
                 ).rejects.toThrow("Can’t set reaction with position outside the message’s bounds");
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
@@ -14169,13 +14288,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[39, [[session1.account.id, "GenericLike"]]]]),
@@ -14204,13 +14326,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, "GenericLike"]]]]),
@@ -14250,13 +14375,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[26, [[session2.account.id, "GenericLike"]]]]),
@@ -14300,55 +14428,73 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session3.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session3.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction1,
+                    },
+                );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction2,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction2,
+                    },
+                );
 
-                await setMessageReaction(session4.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction3,
-                });
+                await setMessageReaction(
+                    session4.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction3,
+                    },
+                );
 
                 // Test adding the first paragraph reactions last. They'll appear first in the
                 // merged reaction set even though they were added last.
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction4,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction4,
+                    },
+                );
 
-                await setMessageReaction(session1.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction5,
-                });
+                await setMessageReaction(
+                    session1.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction5,
+                    },
+                );
 
-                await setMessageReaction(session5.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction6,
-                });
+                await setMessageReaction(
+                    session5.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction6,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -14416,13 +14562,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([[39, [[session2.account.id, "GenericLike"]]]]),
@@ -14462,29 +14611,38 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction1,
+                    },
+                );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction2,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction2,
+                    },
+                );
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: reaction3,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: reaction3,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -14532,21 +14690,27 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction1,
+                    },
+                );
 
-                await setMessageReaction(session3.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 13,
-                    reaction: reaction2,
-                });
+                await setMessageReaction(
+                    session3.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 13,
+                        reaction: reaction2,
+                    },
+                );
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
                     new Map([
@@ -14594,13 +14758,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction1,
+                    },
+                );
 
                 await updateMessageContent(session1.action(), {
                     roomKey: room.key,
@@ -14647,13 +14814,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     fileIds: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 26,
-                    reaction: reaction1,
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 26,
+                        reaction: reaction1,
+                    },
+                );
 
                 await updateMessageContent(session1.action(), {
                     roomKey: room.key,
@@ -14719,13 +14889,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messages: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(
                     await backfillMessages(session1.action(), {
@@ -14778,13 +14951,16 @@ export function testMessagingImplementation<RoomKey extends string>(
                     messages: [],
                 });
 
-                await setMessageReaction(session2.action(), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                    contentVersion: 0,
-                    pos: 39,
-                    reaction: "GenericLike",
-                });
+                await setMessageReaction(
+                    session2.action().clone({apns: new TestApnsContextModule()}),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        contentVersion: 0,
+                        pos: 39,
+                        reaction: "GenericLike",
+                    },
+                );
 
                 expect(
                     await backfillMessages(session1.action(), {

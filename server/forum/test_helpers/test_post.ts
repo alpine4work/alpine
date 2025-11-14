@@ -1,5 +1,7 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -16,8 +18,10 @@ import {
     completePostCommentStream,
     createPostComment,
     deletePostComment,
+    deletePostCommentReaction,
     getPostComment,
     putPostCommentStreamPart,
+    setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
@@ -45,6 +49,7 @@ import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 
 let testPostCount = 1;
 
@@ -302,6 +307,49 @@ export class TestPost extends TestCommentRoomBase {
         await completePostCommentStream(context, {
             postId: this.id,
             commentIndex: messageIndex,
+        });
+    }
+
+    public override async _setMessageReaction(
+        context: ServerSessionActionContextWithApns,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+            reaction: Reaction | "GenericLike";
+        },
+    ) {
+        await setPostCommentReaction(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
+            reaction,
+        });
+    }
+
+    public override async _deleteMessageReaction(
+        context: ServerSessionActionContext,
+        {
+            messageIndex,
+            contentVersion,
+            pos,
+        }: {
+            messageIndex: number;
+            contentVersion: number;
+            pos: number;
+        },
+    ) {
+        await deletePostCommentReaction(context, {
+            postId: this.id,
+            commentIndex: messageIndex,
+            contentVersion,
+            pos,
         });
     }
 

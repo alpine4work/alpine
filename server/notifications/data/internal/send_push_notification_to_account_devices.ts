@@ -1,5 +1,5 @@
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_actions.js";
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {getInboxEntryKey} from "~/server/notifications/data/internal/get_inbox_entry_key.js";

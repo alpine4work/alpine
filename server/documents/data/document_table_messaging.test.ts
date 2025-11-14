@@ -46,6 +46,9 @@ import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js"
 
 const context = createTestContext({
     documentsInjection,
+    notificationsInjection: {
+        archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction: async () => {},
+    },
 });
 
 testMessagingImplementation<DocumentCommentRoomKey>(context, {

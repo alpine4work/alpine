@@ -39,8 +39,10 @@ export const NotificationsTable = DynamoTableSchema.new({
                         postId: DynamoKeyAttributeSchema.id<PostId>(),
                     },
                     attributes: Schema.object({
-                        channelId: Schema.id<ChannelId>(),
-                        bucketGeneration: Schema.integer,
+                        channelPostsEntry: Schema.object({
+                            channelId: Schema.id<ChannelId>(),
+                            bucketGeneration: Schema.integer,
+                        }).nullable(),
                     }),
                 },
 
@@ -59,7 +61,9 @@ export const NotificationsTable = DynamoTableSchema.new({
                         commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
                     },
                     attributes: Schema.object({
-                        bucketGeneration: Schema.integer,
+                        newCommentThreadsEntry: Schema.object({
+                            bucketGeneration: Schema.integer,
+                        }).nullable(),
                     }),
                 },
             ],

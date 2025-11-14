@@ -27,6 +27,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     DocumentIndexSearchEntityJob,
     DocumentsTable,
@@ -5312,7 +5313,6 @@ export function deleteDocumentComment(
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
             authorizeDocumentAccess(context, documentId, "Comment"),
-
             getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
@@ -5397,7 +5397,7 @@ export function deleteDocumentComment(
 }
 
 export function setDocumentCommentReaction(
-    context: ServerAccountActionContext,
+    context: ServerSessionActionContextWithApns,
     {
         documentId,
         commentThreadId,
@@ -5415,8 +5415,12 @@ export function setDocumentCommentReaction(
     },
 ) {
     return context.dynamo.retryTransaction(async context => {
-        const [, commentItem] = await runAllPromises([
+        const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
             authorizeDocumentAccess(context, documentId, "Comment"),
+            getDocumentCommentThreadItem(context, {
+                documentId,
+                commentThreadId,
+            }),
             getDocumentCommentItemIfExistsWithoutAuthorization(
                 context,
                 documentId,
@@ -5463,6 +5467,22 @@ export function setDocumentCommentReaction(
                 expirationTime: addDays(currentTime, messagingEventExpirationDays),
             }),
         ]);
+
+        context.process.waitUntil(
+            context.notificationsInjection.archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
+                {
+                    spaceId,
+                    documentId,
+                    commentThreadId,
+                    commentCount: reduceIterable(
+                        commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                        (a, b) => a + b,
+                        0,
+                    ),
+                    commentIndex,
+                },
+            ),
+        );
 
         return {
             version: transactionEntry.newItem.updateLockVersion ?? 0,

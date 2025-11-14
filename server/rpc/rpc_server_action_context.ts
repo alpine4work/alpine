@@ -1,4 +1,4 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
+import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";

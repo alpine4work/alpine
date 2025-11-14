@@ -37,12 +37,10 @@ export function updateInboxDocumentCommentThreadEntry(
     },
     update: (
         item: InboxDocumentCommentThreadEntryItem | null,
-    ) => MaybePromise<
-        UpdateInboxEntryNewItem<
-            InboxDocumentCommentThreadEntryItem,
-            InboxDocumentCommentThreadEntryItemKey
-        >
-    >,
+    ) => MaybePromise<UpdateInboxEntryNewItem<
+        InboxDocumentCommentThreadEntryItem,
+        InboxDocumentCommentThreadEntryItemKey
+    > | null>,
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     return updateInboxEntry(
@@ -83,11 +81,15 @@ export function updateInboxDocumentCommentThreadEntry(
 
             // The post isn't present in any `DocumentNewCommentThreadsEntry`.
             if (!commentThreadInNewCommentThreadsItem) {
-                // Make sure there's no `DocumentNewCommentThreadsEntry` when we commit this
-                // transaction. Otherwise we need to retry.
+                // Create the `DocumentCommentThreadInNewCommentThreadsEntry` item when we
+                // commit this transaction. This item existing means if a
+                // `CreateDocumentComment` event is processed later we'll automatically archive
+                // the document comment thread in the new document comment threads entry.
+                //
+                // If the item already exists then we need to retry.
                 addAdditionalTransactionEntry(
-                    NotificationsTable.transactionDoesNotExistConditionCheck(
-                        commentThreadInNewCommentThreadsItemKey,
+                    NotificationsTable.transactionCreateItem(
+                        {...commentThreadInNewCommentThreadsItemKey, newCommentThreadsEntry: null},
                         {isConditionCheckErrorRetriable: true},
                     ),
                 );
@@ -95,47 +97,57 @@ export function updateInboxDocumentCommentThreadEntry(
                 return update(oldItem);
             }
 
-            const newCommentThreadsItemKey: InboxDocumentNewCommentThreadsEntryItemKey = {
-                partitionType: "Inbox",
-                sortRangeType: "DocumentNewCommentThreadsEntry",
-                spaceId,
-                accountId,
-                documentId,
-                bucketGeneration: commentThreadInNewCommentThreadsItem.bucketGeneration,
-            };
+            // If `newCommentThreadsEntry` is null that means the item was created by
+            // `updateInboxDocumentCommentThreadEntry()`. Any `CreateDocumentComment`
+            // events after `commentThreadInNewCommentThreadsItem` is created automatically
+            // archive the new comment thread.
+            if (commentThreadInNewCommentThreadsItem.newCommentThreadsEntry) {
+                const newCommentThreadsItemKey: InboxDocumentNewCommentThreadsEntryItemKey = {
+                    partitionType: "Inbox",
+                    sortRangeType: "DocumentNewCommentThreadsEntry",
+                    spaceId,
+                    accountId,
+                    documentId,
+                    bucketGeneration:
+                        commentThreadInNewCommentThreadsItem.newCommentThreadsEntry
+                            .bucketGeneration,
+                };
 
-            // If we have a `DocumentCommentThreadInNewCommentThreadsEntry` item then
-            // there's definitely a corresponding `DocumentNewCommentThreadsEntry` item.
-            // First try loading the item with eventual consistency (cheap) and if that
-            // doesn't work try strong consistency.
-            const newCommentThreadsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
-                context,
-                newCommentThreadsItemKey,
-            );
+                // If we have a `DocumentCommentThreadInNewCommentThreadsEntry` item then
+                // there's definitely a corresponding `DocumentNewCommentThreadsEntry` item.
+                // First try loading the item with eventual consistency (cheap) and if that
+                // doesn't work try strong consistency.
+                const newCommentThreadsItem =
+                    await InboxTable.getItemWithEventualThenStrongConsistency(
+                        context,
+                        newCommentThreadsItemKey,
+                    );
 
-            if (!newCommentThreadsItem.archivedCommentThreadIds.has(commentThreadId)) {
-                const archivedCommentThreadIds = new Set([
-                    ...newCommentThreadsItem.archivedCommentThreadIds,
-                    commentThreadId,
-                ]);
+                if (!newCommentThreadsItem.archivedCommentThreadIds.has(commentThreadId)) {
+                    const archivedCommentThreadIds = new Set([
+                        ...newCommentThreadsItem.archivedCommentThreadIds,
+                        commentThreadId,
+                    ]);
 
-                // Archive the `DocumentNewCommentThreadsEntry` if all posts within the
-                // `DocumentNewCommentThreadsEntry` have been archived.
-                const isArchived =
-                    archivedCommentThreadIds.size === newCommentThreadsItem.commentThreadIds.size;
+                    // Archive the `DocumentNewCommentThreadsEntry` if all posts within the
+                    // `DocumentNewCommentThreadsEntry` have been archived.
+                    const isArchived =
+                        archivedCommentThreadIds.size ===
+                        newCommentThreadsItem.commentThreadIds.size;
 
-                updateOtherInboxEntry(newCommentThreadsItemKey, newCommentThreadsItem, {
-                    isArchived,
-                    loudNotificationCount: !isArchived
-                        ? newCommentThreadsItem.loudNotificationCount
-                        : 0,
-                    commentThreadIds: newCommentThreadsItem.commentThreadIds,
-                    archivedCommentThreadIds,
-                    commentThreadAuthorIds: newCommentThreadsItem.commentThreadAuthorIds,
-                    firstCommentThread: newCommentThreadsItem.firstCommentThread,
-                    latestCommentThreadCreatedTime:
-                        newCommentThreadsItem.latestCommentThreadCreatedTime,
-                });
+                    updateOtherInboxEntry(newCommentThreadsItemKey, newCommentThreadsItem, {
+                        isArchived,
+                        loudNotificationCount: !isArchived
+                            ? newCommentThreadsItem.loudNotificationCount
+                            : 0,
+                        commentThreadIds: newCommentThreadsItem.commentThreadIds,
+                        archivedCommentThreadIds,
+                        commentThreadAuthorIds: newCommentThreadsItem.commentThreadAuthorIds,
+                        firstCommentThread: newCommentThreadsItem.firstCommentThread,
+                        latestCommentThreadCreatedTime:
+                            newCommentThreadsItem.latestCommentThreadCreatedTime,
+                    });
+                }
             }
 
             return update(oldItem);

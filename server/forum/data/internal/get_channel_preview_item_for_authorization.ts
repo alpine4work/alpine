@@ -39,7 +39,7 @@ export const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
     whenActorChanges: "DangerouslyShare",
 });
 
-export async function getChannelPreviewItemForAuthorizationIfExists(
+export function getChannelPreviewItemForAuthorizationIfExists(
     context: Context<{
         process: ProcessContextModule;
         tracer: TracerContextModule;

@@ -412,9 +412,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
 
                         /**
-                         * If the chat was archived by a message then this will be set to the message's
-                         * index. Check this to make sure you don't unarchive when processing an older
-                         * message.
+                         * If the chat was archived by a message or reaction on a message then this
+                         * will be set to the message's index. Check this to make sure you don't
+                         * unarchive when processing an older message.
                          */
                         latestArchivingMessageIndex: Schema.integer.nullable().default(null),
 
@@ -491,9 +491,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }).nullable(),
 
                         /**
-                         * If the chat was archived by a message then this will be set to the message's
-                         * index. Check this to make sure you don't unarchive when processing an older
-                         * message.
+                         * If the post was archived by a comment or reaction on a comment then this
+                         * will be set to the comment's index. Check this to make sure you don't
+                         * unarchive when processing an older message.
                          */
                         latestArchivingCommentIndex: Schema.integer.nullable().default(null),
 
@@ -646,9 +646,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
 
                         /**
-                         * If the chat was archived by a message then this will be set to the message's
-                         * index. Check this to make sure you don't unarchive when processing an older
-                         * message.
+                         * If the document comment thread was archived by a comment or reaction on a
+                         * comment then this will be set to the comment's index. Check this to make
+                         * sure you don't unarchive when processing an older message.
                          */
                         latestArchivingCommentIndex: Schema.integer.nullable().default(null),
 
@@ -801,9 +801,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
 
                         /**
-                         * If the chat was archived by a message then this will be set to the message's
-                         * index. Check this to make sure you don't unarchive when processing an older
-                         * message.
+                         * If the task was archived by a comment or reaction on a comment then this
+                         * will be set to the comment's index. Check this to make sure you don't
+                         * unarchive when processing an older message.
                          */
                         latestArchivingCommentIndex: Schema.integer.nullable().default(null),
 

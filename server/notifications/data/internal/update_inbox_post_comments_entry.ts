@@ -30,9 +30,10 @@ export function updateInboxPostCommentsEntry(
     },
     update: (
         item: InboxPostCommentsEntryItem | null,
-    ) => MaybePromise<
-        UpdateInboxEntryNewItem<InboxPostCommentsEntryItem, InboxPostCommentsEntryItemKey>
-    >,
+    ) => MaybePromise<UpdateInboxEntryNewItem<
+        InboxPostCommentsEntryItem,
+        InboxPostCommentsEntryItemKey
+    > | null>,
     {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     return updateInboxEntry(
@@ -70,11 +71,14 @@ export function updateInboxPostCommentsEntry(
 
             // The post isn't present in any `ChannelPostsEntry`.
             if (!postInChannelPostsItem) {
-                // Make sure there's no `ChannelPostsEntry` when we commit this transaction.
-                // Otherwise we need to retry.
+                // Create the `PostInChannelPostsEntry` item when we commit this transaction.
+                // This item existing means if a `CreatePost` event is processed later we'll
+                // automatically archive the post in the channel posts entry.
+                //
+                // If the item already exists then we need to retry.
                 addAdditionalTransactionEntry(
-                    NotificationsTable.transactionDoesNotExistConditionCheck(
-                        postInChannelPostsItemKey,
+                    NotificationsTable.transactionCreateItem(
+                        {...postInChannelPostsItemKey, channelPostsEntry: null},
                         {isConditionCheckErrorRetriable: true},
                     ),
                 );
@@ -82,39 +86,46 @@ export function updateInboxPostCommentsEntry(
                 return update(oldItem);
             }
 
-            const channelPostsItemKey: InboxChannelPostsEntryItemKey = {
-                partitionType: "Inbox",
-                sortRangeType: "ChannelPostsEntry",
-                spaceId,
-                accountId,
-                channelId: postInChannelPostsItem.channelId,
-                bucketGeneration: postInChannelPostsItem.bucketGeneration,
-            };
+            // If `channelPostsEntry` is null that means the item was created by
+            // `updateInboxPostCommentsEntry()`. Any `CreatePost` events after
+            // `postInChannelPostsItem` is created automatically archive the new post.
+            if (postInChannelPostsItem.channelPostsEntry) {
+                const channelPostsItemKey: InboxChannelPostsEntryItemKey = {
+                    partitionType: "Inbox",
+                    sortRangeType: "ChannelPostsEntry",
+                    spaceId,
+                    accountId,
+                    channelId: postInChannelPostsItem.channelPostsEntry.channelId,
+                    bucketGeneration: postInChannelPostsItem.channelPostsEntry.bucketGeneration,
+                };
 
-            // If we have a `PostInChannelPostsEntry` item then there's definitely a
-            // corresponding `ChannelPostsEntry` item. First try loading the item with
-            // eventual consistency (cheap) and if that doesn't work try strong
-            // consistency.
-            const channelPostsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
-                context,
-                channelPostsItemKey,
-            );
+                // If we have a `PostInChannelPostsEntry` item then there's definitely a
+                // corresponding `ChannelPostsEntry` item. First try loading the item with
+                // eventual consistency (cheap) and if that doesn't work try strong
+                // consistency.
+                const channelPostsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
+                    context,
+                    channelPostsItemKey,
+                );
 
-            if (!channelPostsItem.archivedPostIds.has(postId)) {
-                const archivedPostIds = new Set([...channelPostsItem.archivedPostIds, postId]);
+                if (!channelPostsItem.archivedPostIds.has(postId)) {
+                    const archivedPostIds = new Set([...channelPostsItem.archivedPostIds, postId]);
 
-                // Archive the `ChannelPostsEntry` if all posts within the `ChannelPostsEntry`
-                // have been archived.
-                const isArchived = archivedPostIds.size === channelPostsItem.postIds.size;
+                    // Archive the `ChannelPostsEntry` if all posts within the `ChannelPostsEntry`
+                    // have been archived.
+                    const isArchived = archivedPostIds.size === channelPostsItem.postIds.size;
 
-                updateOtherInboxEntry(channelPostsItemKey, channelPostsItem, {
-                    isArchived,
-                    loudNotificationCount: !isArchived ? channelPostsItem.loudNotificationCount : 0,
-                    postIds: channelPostsItem.postIds,
-                    archivedPostIds,
-                    postAuthorIds: channelPostsItem.postAuthorIds,
-                    latestPost: channelPostsItem.latestPost,
-                });
+                    updateOtherInboxEntry(channelPostsItemKey, channelPostsItem, {
+                        isArchived,
+                        loudNotificationCount: !isArchived
+                            ? channelPostsItem.loudNotificationCount
+                            : 0,
+                        postIds: channelPostsItem.postIds,
+                        archivedPostIds,
+                        postAuthorIds: channelPostsItem.postAuthorIds,
+                        latestPost: channelPostsItem.latestPost,
+                    });
+                }
             }
 
             return update(oldItem);
