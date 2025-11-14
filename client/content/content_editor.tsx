@@ -3477,7 +3477,68 @@ function ContentEditor<Content extends ContentWithReferences>(
         lastTransactionRef.current = null;
         if (transaction?.doc !== newState.doc) transaction = null;
 
-        view.updateState(newState);
+        // When ProseMirror applies a mark like `code` or `italic`, under the hood what
+        // happens is the text to be marked is removed from the DOM. Then a new
+        // `<code>` or `<em>` element is inserted into the DOM. Removing the text from
+        // the DOM sometimes causes the content editor to temporarily shrink. Then
+        // adding the text back sets the content editor back to its original size.
+        //
+        // To explain this visually. Let's say you have the following wrapped text in
+        // your content editor.
+        //
+        // ```
+        // The quick brown fox jumps over
+        // the lazy dog
+        // ```
+        //
+        // I'm selecting "over the lazy dog" to turn it into italic text. To produce
+        // this change in the DOM, ProseMirror will first _delete_ the text "over the
+        // lazy dog".
+        //
+        // ```
+        // The quick brown fox jumps
+        // ```
+        //
+        // Then it will _insert_ the text again wrapped in an `<em>` element.
+        //
+        // ```
+        // The quick brown fox jumps <em>over
+        // the lazy dog</em>
+        // ```
+        //
+        // So you can see that temporarily the content editor's height went from 2
+        // lines of text to 1 line of text.
+        //
+        // This causes a bug in `<ChatView>` (and perhaps other message surfaces). In
+        // `<ChatView>` we use `display: flex` with the chat messages setting
+        // `flex-grow: 1` and the chat message input setting `flex-shrink: 1`. So the
+        // chat messages take up all vertical space not used by the message input. The
+        // chat messages is a scrollable area usually scrolled to bottom.
+        //
+        // If the chat message input shrinks then grows then the chat message area will
+        // grow then shrink! Causing the chat message area to scroll up if it was
+        // previously scrolled to the bottom. You can see this bug [here][1].
+        //
+        // The fix is to set `min-height` on the content editor right before calling
+        // `view.updateState()` when ProseMirror applies its updates to the DOM. Then
+        // removing `min-height` after `view.updateState()` finishes. That way the
+        // content editor never shrinks below its original height when content is
+        // temporarily removed.
+        //
+        // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/zkhvbgxayzf05xzt2bm7p9veyg
+        const previousMinHeight = view.dom.style.minHeight;
+        try {
+            const viewRect = view.dom.getBoundingClientRect();
+            view.dom.style.minHeight = `${viewRect.height}px`;
+
+            view.updateState(newState);
+        } finally {
+            if (previousMinHeight) {
+                view.dom.style.minHeight = previousMinHeight;
+            } else {
+                view.dom.style.removeProperty("min-height");
+            }
+        }
 
         // If the document changes then map our triple click selection based on the
         // document changes.

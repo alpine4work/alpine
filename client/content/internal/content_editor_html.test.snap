@@ -535,6 +535,7 @@ exports[`2x2 table (1st row has content)  plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -599,6 +600,7 @@ exports[`2x2 table (1st row has content)  plain 2`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -1257,6 +1259,7 @@ exports[`3x3 table (1st row has content)  plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -1922,6 +1925,7 @@ exports[`3x3 table (2nd row has content)  plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -2587,6 +2591,7 @@ exports[`3x3 table (3rd row has content)  plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -2826,6 +2831,7 @@ exports[`account long mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -2892,6 +2898,7 @@ exports[`account short mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -2959,6 +2966,7 @@ exports[`bold 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -2996,6 +3004,7 @@ exports[`breaks inside list items 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3037,6 +3046,7 @@ exports[`breaks inside paragraphs 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -3176,6 +3186,7 @@ exports[`bullet list plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3231,6 +3242,7 @@ exports[`bullet list with multiple items 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3306,6 +3318,7 @@ exports[`bullet list with sub-list 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3362,6 +3375,7 @@ exports[`bullet list with sub-list of another type 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3637,6 +3651,7 @@ exports[`check list (checked) plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3844,6 +3859,7 @@ exports[`check list (unchecked) plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -3917,6 +3933,7 @@ exports[`check list with multiple items 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4036,6 +4053,7 @@ exports[`check list with sub-list 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4132,6 +4150,7 @@ exports[`check list with sub-list of another type 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4492,6 +4511,7 @@ exports[`code (multiline) plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4615,6 +4635,7 @@ exports[`code 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -4718,6 +4739,7 @@ exports[`code plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4794,6 +4816,7 @@ exports[`divider 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <hr
@@ -4817,6 +4840,7 @@ exports[`file float (left direction) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4866,6 +4890,7 @@ exports[`file float (right direction) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4915,6 +4940,7 @@ exports[`file row (one file) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -4964,6 +4990,7 @@ exports[`file row (one file, audio type) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5119,6 +5146,7 @@ exports[`file row (one file, channel entity) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5165,6 +5193,7 @@ exports[`file row (one file, image type) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5214,6 +5243,7 @@ exports[`file row (one file, null reference) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5261,6 +5291,7 @@ exports[`file row (one file, video type) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5432,6 +5463,7 @@ exports[`file row (three files) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5524,6 +5556,7 @@ exports[`file row (two files) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -5679,6 +5712,7 @@ exports[`heading 1 plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <h2
@@ -5804,6 +5838,7 @@ exports[`heading 2 plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <h3
@@ -5929,6 +5964,7 @@ exports[`heading 3 plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <h4
@@ -5970,6 +6006,7 @@ exports[`highlight 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -6010,6 +6047,7 @@ exports[`italic 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -6047,6 +6085,7 @@ exports[`link (XSS vulnerability) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -6073,6 +6112,7 @@ exports[`link 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -6117,6 +6157,7 @@ exports[`multiple paragraphs inside list items 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6286,6 +6327,7 @@ exports[`ordered list (explicit start) plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6455,6 +6497,7 @@ exports[`ordered list plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6511,6 +6554,7 @@ exports[`ordered list with multiple items 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6589,6 +6633,7 @@ exports[`ordered list with sub-list 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6649,6 +6694,7 @@ exports[`ordered list with sub-list of another type 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -6912,6 +6958,7 @@ exports[`paragraph plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -6953,6 +7000,7 @@ exports[`private search entity mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -7120,6 +7168,7 @@ exports[`quote plain 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <blockquote
@@ -7169,6 +7218,7 @@ exports[`search entity mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -7227,6 +7277,7 @@ exports[`strike 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -7264,6 +7315,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -7465,6 +7517,7 @@ exports[`table with fileRowTable (one file) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -7841,6 +7894,7 @@ exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with cont
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -8243,6 +8297,7 @@ exports[`table with multiple blocks in cells (1st cell with content, 2nd cell em
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -8381,6 +8436,7 @@ exports[`table(2x2) with fileRowTable (null reference) 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -8475,6 +8531,7 @@ exports[`table(3x3) with both header row and column 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -8661,6 +8718,7 @@ exports[`table(3x3) with header column only 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -8846,6 +8904,7 @@ exports[`table(3x3) with header row only 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
@@ -9031,6 +9090,7 @@ exports[`unknown account mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -9075,6 +9135,7 @@ exports[`unknown search entity mention 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <p
@@ -9133,6 +9194,7 @@ exports[`will serialize table(3x3) with no headers 1`] = `
   contenteditable="true"
   role="textbox"
   spellcheck="false"
+  style=""
   translate="no"
 >
   <div
