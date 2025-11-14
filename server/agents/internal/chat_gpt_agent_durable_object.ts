@@ -19,6 +19,7 @@ import {
 } from "~/server/agents/internal/chat_gpt_instructions.js";
 import {
     ChatGptAgentConversationItemCollection,
+    ChatGptAgentConversationState,
     ChatGptAgentConversationStore,
 } from "~/server/agents/internal/conversation/chat_gpt_agent_conversation_store.js";
 import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_api_content_to_proper_quotes.js";
@@ -419,6 +420,7 @@ function createChatGptAgentEmptyStreamMessage(
         } = await createApiMessage(tracer, request.apiClient, request.room, {
             isStream: true,
             content: {elements: []},
+            createdTimeZone: conversation.getState().timeZone,
         });
 
         // We're going to update our conversation with the output directly from OpenAI
@@ -584,13 +586,14 @@ function getChatGptAgentConversationItemsAndCallPendingFunctions(
                         tracer,
                     ): Promise<OpenAi.Responses.ResponseInputItem.FunctionCallOutput> => {
                         const result = await captureResultPromise(
-                            callChatGptAgentFunction(
+                            callChatGptAgentFunction({
                                 tracer,
                                 transaction,
                                 request,
                                 messageState,
                                 functionCall,
-                            ),
+                                conversationState: state.getState(),
+                            }),
                         );
 
                         if (!result.ok) {
@@ -685,13 +688,21 @@ function renderErrorDisplayMessageForChatGptAgent(displayMessage: ErrorDisplayMe
     return string;
 }
 
-async function callChatGptAgentFunction(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    messageState: ChatGptAgentMessageState,
-    functionCall: OpenAi.Responses.ResponseFunctionToolCall,
-): Promise<string> {
+async function callChatGptAgentFunction({
+    tracer,
+    transaction,
+    request,
+    messageState,
+    functionCall,
+    conversationState,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    messageState: ChatGptAgentMessageState;
+    functionCall: OpenAi.Responses.ResponseFunctionToolCall;
+    conversationState: ChatGptAgentConversationState;
+}): Promise<string> {
     let functionCallArguments: unknown;
     try {
         functionCallArguments = JSON.parse(functionCall.arguments);
@@ -743,6 +754,7 @@ async function callChatGptAgentFunction(
                 transaction,
                 request,
                 link,
+                conversationState,
             });
             return printMarkdownTree(markdownTree);
         }

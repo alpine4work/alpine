@@ -1754,6 +1754,7 @@ export namespace ApiSpecification {
                 readonly index: number;
                 readonly author: components["schemas"]["Account"];
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly payload: components["schemas"]["MessagePayload"];
             };
             readonly MessagePayload:
@@ -2185,6 +2186,7 @@ export namespace ApiSpecification {
                 readonly index: number;
                 readonly author: components["schemas"]["Account"];
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly payload: components["schemas"]["MessagePayload_Response"];
             };
         };

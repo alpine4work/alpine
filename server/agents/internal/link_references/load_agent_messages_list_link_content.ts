@@ -1,6 +1,7 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
@@ -44,20 +45,16 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * [Next chunk](/chat/ian-first-post-sentence?chunk=1)
  * ```
  */
-export async function loadAgentMessagesListLinkContent({
-    tracer,
-    transaction,
-    request,
-    link,
-}: {
+export async function loadAgentMessagesListLinkContent(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     link: AgentPaginatedMessagesListLink;
+    conversationState: AgentConversationState;
 }): Promise<Root> {
-    const messages = await loadPageMessages({tracer, transaction, request, link});
+    const messages = await loadPageMessages(options);
 
-    const preambleElements = await getPagePreambleElements(tracer, request, transaction, link);
+    const preambleElements = await getPagePreambleElements(options);
 
     return {
         type: "root",
@@ -65,44 +62,32 @@ export async function loadAgentMessagesListLinkContent({
     };
 }
 
-async function loadPageMessages({
-    tracer,
-    transaction,
-    request,
-    link,
-}: {
+async function loadPageMessages(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     link: AgentPaginatedMessagesListLink;
+    conversationState: AgentConversationState;
 }): Promise<Root> {
+    const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
-            return await getMarkdownContentForPageFromStart(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return await getMarkdownContentForPageFromStart({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         case "Middle": {
-            return getMarkdownContentForPageFromMiddle(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return getMarkdownContentForPageFromMiddle({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         case "End": {
-            return getMarkdownContentForPageFromEnd(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return getMarkdownContentForPageFromEnd({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         default:
             throw exhaustive(link.pageInfo);
@@ -119,12 +104,13 @@ async function loadPageMessages({
 // ...page content (messages)
 //
 // ```
-async function getPagePreambleElements(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-    transaction: DurableObjectTransaction,
-    link: AgentPaginatedMessagesListLink,
-): Promise<Array<Root["children"][number]>> {
+async function getPagePreambleElements(options: {
+    tracer: TracerBase;
+    request: AgentWebhookRequest;
+    transaction: DurableObjectTransaction;
+    link: AgentPaginatedMessagesListLink;
+}): Promise<Array<Root["children"][number]>> {
+    const {tracer, request, transaction, link} = options;
     switch (link.type) {
         case "ChatMessages":
             return getPreambleForChatMessages(tracer, request, transaction, link);
@@ -138,16 +124,24 @@ async function getPagePreambleElements(
     }
 }
 
-async function getMarkdownContentForPageFromStart(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPaginatedMessagesListLink,
+async function getMarkdownContentForPageFromStart({
+    tracer,
+    transaction,
+    request,
+    link,
+    conversationState,
+    cursorOptions,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPaginatedMessagesListLink;
+    conversationState: AgentConversationState;
     cursorOptions: {
         from: "Start";
         index: number;
-    },
-): Promise<Root> {
+    };
+}): Promise<Root> {
     const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
         tracer,
         transaction,
@@ -170,16 +164,25 @@ async function getMarkdownContentForPageFromStart(
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: messages,
+        conversationState,
     });
 }
 
-async function getMarkdownContentForPageFromEnd(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPaginatedMessagesListLink,
-    cursorOptions: {from: "End"; index: number},
-): Promise<Root> {
+async function getMarkdownContentForPageFromEnd({
+    tracer,
+    transaction,
+    request,
+    link,
+    cursorOptions,
+    conversationState,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPaginatedMessagesListLink;
+    cursorOptions: {from: "End"; index: number};
+    conversationState: AgentConversationState;
+}): Promise<Root> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -202,16 +205,25 @@ async function getMarkdownContentForPageFromEnd(
         nextPageLinkString: null,
         paginationType: link.paginationType,
         pageMessages: messages,
+        conversationState,
     });
 }
 
-async function getMarkdownContentForPageFromMiddle(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPaginatedMessagesListLink,
-    cursorOptions: {from: "Middle"; index: number},
-): Promise<Root> {
+async function getMarkdownContentForPageFromMiddle({
+    tracer,
+    transaction,
+    request,
+    link,
+    cursorOptions,
+    conversationState,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPaginatedMessagesListLink;
+    cursorOptions: {from: "Middle"; index: number};
+    conversationState: AgentConversationState;
+}): Promise<Root> {
     const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
         await getAgentMessagesFromEndUntilLimitTokenCount(
             tracer,
@@ -253,6 +265,7 @@ async function getMarkdownContentForPageFromMiddle(
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: [...messagesBeforeCurrent, ...messagesAfterCurrent],
+        conversationState,
     });
 }
 

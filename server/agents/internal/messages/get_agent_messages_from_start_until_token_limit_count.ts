@@ -43,6 +43,7 @@ export async function getAgentMessagesFromStartUntilTokenLimitCount(
                 index: currentMessage.index,
                 author: currentMessage.author,
                 createdTime: currentMessage.createdTime,
+                createdTimeZone: currentMessage.createdTimeZone,
                 payload: currentMessage.payload,
             });
             const tokenCount = message.getTokenCount();

@@ -23,8 +23,12 @@ export async function loadNewMessagesInAgentConversation(
         lastMessageIndex,
         newMessageIndex,
     );
-    if (messages === null) return;
+    if (messages === null || messages.length === 0) return;
 
-    const agentMessagesLog = printAgentMessagesLog(messages);
+    const conversationState = conversation.getState();
+    const agentMessagesLog = printAgentMessagesLog(messages, {
+        time: conversationState.startTime,
+        timeZone: conversationState.timeZone,
+    });
     await conversation.insertMessages(transaction, newMessageIndex, agentMessagesLog.trimEnd());
 }

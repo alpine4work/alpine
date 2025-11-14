@@ -2078,6 +2078,7 @@ components:
                 - index
                 - author
                 - createdTime
+                - createdTimeZone
                 - payload
             additionalProperties: false
             properties:
@@ -2088,6 +2089,8 @@ components:
                     $ref: "#/components/schemas/Account"
                 createdTime: &a63
                     $ref: "#/components/schemas/DateTime"
+                createdTimeZone: &a64
+                    $ref: "#/components/schemas/TimeZone"
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
         MessagePayload:
@@ -2884,5 +2887,6 @@ components:
                 index: *a61
                 author: *a62
                 createdTime: *a63
+                createdTimeZone: *a64
                 payload:
                     $ref: "#/components/schemas/MessagePayload_Response"

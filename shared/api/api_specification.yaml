@@ -1998,7 +1998,7 @@ components:
 
         Message:
             type: object
-            required: [index, author, createdTime, payload]
+            required: [index, author, createdTime, createdTimeZone, payload]
             additionalProperties: false
             properties:
                 index:
@@ -2010,6 +2010,8 @@ components:
                     $ref: "#/components/schemas/Account"
                 createdTime:
                     $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
 

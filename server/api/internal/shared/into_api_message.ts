@@ -36,6 +36,7 @@ export async function intoApiMessage(
             index: message.index,
             author,
             createdTime: serializeDateString(message.createdTime),
+            createdTimeZone: message.createdTimeZone,
             payload,
         };
     }
@@ -82,6 +83,7 @@ export async function intoApiMessage(
         index: message.index,
         author,
         createdTime: serializeDateString(message.createdTime),
+        createdTimeZone: message.createdTimeZone,
         payload: {
             ...payload,
             content: {elements: contentElements},

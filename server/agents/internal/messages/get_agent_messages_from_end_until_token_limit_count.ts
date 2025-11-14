@@ -40,6 +40,7 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
                 index: currentMessage.index,
                 author: currentMessage.author,
                 createdTime: currentMessage.createdTime,
+                createdTimeZone: currentMessage.createdTimeZone,
                 payload: currentMessage.payload,
             });
 

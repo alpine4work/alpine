@@ -6,12 +6,15 @@ import {
     ApiMessageResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {DateString} from "~/shared/helpers/date/date_string.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export class AgentMessage {
     public readonly index: number;
     public readonly author: ApiMessageResponse["author"];
     public readonly createdTime: DateString;
+
+    public readonly createdTimeZone: TimeZone;
     public readonly text: string;
     private _tokenCount: number | null = null;
 
@@ -20,16 +23,19 @@ export class AgentMessage {
             index,
             author,
             createdTime,
+            createdTimeZone,
         }: {
             index: number;
             author: ApiMessageResponse["author"];
             createdTime: DateString;
+            createdTimeZone: TimeZone;
         },
         text: string,
     ) {
         this.index = index;
         this.author = author;
         this.createdTime = createdTime;
+        this.createdTimeZone = createdTimeZone;
         this.text = text;
     }
 
@@ -40,6 +46,7 @@ export class AgentMessage {
             index: number;
             author: ApiMessageResponse["author"];
             createdTime: DateString;
+            createdTimeZone: TimeZone;
             payload: ApiMessageContentPayloadResponse;
         },
     ) {

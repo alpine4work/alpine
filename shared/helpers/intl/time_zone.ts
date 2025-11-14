@@ -48,3 +48,63 @@ export function assertTimeZone(string: string): TimeZone {
 export function getCurrentTimeZone(): TimeZone {
     return Intl.DateTimeFormat().resolvedOptions().timeZone as TimeZone;
 }
+
+/**
+ * Formats a timezone to its abbreviated form (e.g., "America/New_York" -> "EST" or
+ * "EDT" depending on whether daylight saving time is active).
+ *
+ * Uses the Intl API to get the localized timezone abbreviation for a given time.
+ * Falls back to extracting abbreviations from the long format if the short format
+ * returns generic GMT offsets (common in limited ICU environments).
+ */
+export function formatTimeZoneAbbreviation(timeZone: TimeZone, time: Date): string {
+    // Try short format first (e.g., "EST", "JST")
+    const shortFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        timeZoneName: "short",
+    });
+
+    const shortParts = shortFormatter.formatToParts(time);
+    const shortTimeZonePart = shortParts.find(part => part.type === "timeZoneName");
+    const shortValue = shortTimeZonePart?.value;
+
+    // If we got a good abbreviation (not a GMT offset), use it
+    if (shortValue && !shortValue.startsWith("GMT")) {
+        return shortValue;
+    }
+
+    // Fallback: try to create an abbreviation from the long format
+    // e.g., "Japan Standard Time" -> "JST", "Australian Eastern Daylight Time" -> "AEDT"
+    try {
+        const longFormatter = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            timeZoneName: "long",
+        });
+
+        const longParts = longFormatter.formatToParts(time);
+        const longTimeZonePart = longParts.find(part => part.type === "timeZoneName");
+        const longValue = longTimeZonePart?.value;
+
+        if (longValue) {
+            // Extract first letter of each significant word
+            const abbreviation = longValue
+                .split(" ")
+                .filter(
+                    word =>
+                        // Keep words that start with uppercase (significant words)
+                        word.length > 0 && word[0] === word[0]!.toUpperCase(),
+                )
+                .map(word => word[0])
+                .join("");
+
+            if (abbreviation.length > 0) {
+                return abbreviation;
+            }
+        }
+    } catch {
+        // Fall through to final fallback
+    }
+
+    // Final fallback: return the GMT offset or the timezone identifier
+    return shortValue ?? timeZone;
+}

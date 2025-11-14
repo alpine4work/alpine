@@ -26,6 +26,10 @@ export async function initializeMessagesInAgentConversation(
         },
     );
 
-    const agentMessagesLog = printAgentMessagesLog(messages);
+    const conversationState = conversation.getState();
+    const agentMessagesLog = printAgentMessagesLog(messages, {
+        time: conversationState.startTime,
+        timeZone: conversationState.timeZone,
+    });
     await conversation.insertMessages(transaction, request.event.index, agentMessagesLog.trimEnd());
 }

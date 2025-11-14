@@ -1,6 +1,7 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
@@ -45,27 +46,18 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * [Next Page](/post/ian-first-post-sentence?chunk=1)
  * ```
  */
-export async function loadAgentPostCommentsLinkContent({
-    tracer,
-    transaction,
-    request,
-    link,
-}: {
+export async function loadAgentPostCommentsLinkContent(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     link: AgentPostCommentsLink;
+    conversationState: AgentConversationState;
 }): Promise<Root> {
-    const {content, shouldShowPreamble} = await loadPageMessages({
-        tracer,
-        transaction,
-        request,
-        link,
-    });
+    const {content, shouldShowPreamble} = await loadPageMessages(options);
 
     if (!shouldShowPreamble) return content;
 
-    const preambleElements = await getPreambleForPostComments(tracer, request, transaction, link);
+    const preambleElements = await getPreambleForPostComments(options);
 
     return {
         type: "root",
@@ -73,60 +65,56 @@ export async function loadAgentPostCommentsLinkContent({
     };
 }
 
-async function loadPageMessages({
-    tracer,
-    transaction,
-    request,
-    link,
-}: {
+async function loadPageMessages(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     link: AgentPostCommentsLink;
+    conversationState: AgentConversationState;
 }): Promise<{content: Root; shouldShowPreamble: boolean}> {
+    const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
-            return await getMarkdownContentForPageFromStart(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return await getMarkdownContentForPageFromStart({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         case "Middle": {
-            return await getMarkdownContentForPageFromMiddle(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return await getMarkdownContentForPageFromMiddle({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         case "End": {
-            return getMarkdownContentForPageFromEnd(
-                tracer,
-                transaction,
-                request,
-                link,
-                link.pageInfo,
-            );
+            return getMarkdownContentForPageFromEnd({
+                ...options,
+                cursorOptions: link.pageInfo,
+            });
         }
         default:
             throw exhaustive(link.pageInfo);
     }
 }
 
-async function getMarkdownContentForPageFromStart(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPostCommentsLink,
+async function getMarkdownContentForPageFromStart({
+    tracer,
+    transaction,
+    request,
+    link,
+    conversationState,
+    cursorOptions,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPostCommentsLink;
+    conversationState: AgentConversationState;
     cursorOptions: {
         from: "Start";
         index: number;
-    },
-): Promise<{content: Root; shouldShowPreamble: boolean}> {
+    };
+}): Promise<{content: Root; shouldShowPreamble: boolean}> {
     const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
         tracer,
         transaction,
@@ -149,6 +137,7 @@ async function getMarkdownContentForPageFromStart(
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: messages,
+        conversationState,
     });
 
     // If we are loading the first page of post comments, we should load the post as
@@ -170,13 +159,24 @@ async function getMarkdownContentForPageFromStart(
     };
 }
 
-async function getMarkdownContentForPageFromEnd(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPostCommentsLink,
-    cursorOptions: {from: "End"; index: number},
-): Promise<{content: Root; shouldShowPreamble: boolean}> {
+async function getMarkdownContentForPageFromEnd({
+    tracer,
+    transaction,
+    request,
+    link,
+    conversationState,
+    cursorOptions,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPostCommentsLink;
+    conversationState: AgentConversationState;
+    cursorOptions: {
+        from: "End";
+        index: number;
+    };
+}): Promise<{content: Root; shouldShowPreamble: boolean}> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -199,6 +199,7 @@ async function getMarkdownContentForPageFromEnd(
         nextPageLinkString: null,
         paginationType: link.paginationType,
         pageMessages: messages,
+        conversationState,
     });
 
     // If we loaded the first comment when loading this page, load the post content as well.
@@ -217,13 +218,24 @@ async function getMarkdownContentForPageFromEnd(
     };
 }
 
-async function getMarkdownContentForPageFromMiddle(
-    tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPostCommentsLink,
-    cursorOptions: {from: "Middle"; index: number},
-): Promise<{content: Root; shouldShowPreamble: boolean}> {
+async function getMarkdownContentForPageFromMiddle({
+    tracer,
+    transaction,
+    request,
+    link,
+    conversationState,
+    cursorOptions,
+}: {
+    tracer: TracerBase;
+    transaction: DurableObjectTransaction;
+    request: AgentWebhookRequest;
+    link: AgentPostCommentsLink;
+    conversationState: AgentConversationState;
+    cursorOptions: {
+        from: "Middle";
+        index: number;
+    };
+}): Promise<{content: Root; shouldShowPreamble: boolean}> {
     const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
         await getAgentMessagesFromEndUntilLimitTokenCount(
             tracer,
@@ -265,6 +277,7 @@ async function getMarkdownContentForPageFromMiddle(
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: [...messagesBeforeCurrent, ...messagesAfterCurrent],
+        conversationState,
     });
 
     // If we loaded the first comment when loading this page, load the post content as well.
@@ -287,12 +300,17 @@ function getMessageRoomPath(link: AgentPostCommentsLink): ApiMessageRoomPath {
     return `/posts/${link.postId}`;
 }
 
-async function getPreambleForPostComments(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-    transaction: DurableObjectTransaction,
-    link: Extract<AgentPostCommentsLink, {type: "PostComments"}>,
-): Promise<Array<Root["children"][number]>> {
+async function getPreambleForPostComments({
+    tracer,
+    request,
+    transaction,
+    link,
+}: {
+    tracer: TracerBase;
+    request: AgentWebhookRequest;
+    transaction: DurableObjectTransaction;
+    link: Extract<AgentPostCommentsLink, {type: "PostComments"}>;
+}): Promise<Array<Root["children"][number]>> {
     let postLink = await findAgentLinkForApiPathIfExists(transaction, `/posts/${link.postId}`);
     if (!postLink) {
         // TODO(ifitzsimmons, #ai): add post preview API endpoint so we can fetch the

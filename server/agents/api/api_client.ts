@@ -28,6 +28,7 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -346,7 +347,7 @@ export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,
-    body: {isStream?: boolean; content: ApiContentResponse},
+    body: {isStream?: boolean; content: ApiContentResponse; createdTimeZone?: TimeZone},
 ) {
     switch (roomPathObject.type) {
         case "Chat": {

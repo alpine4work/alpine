@@ -1,5 +1,6 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
+import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {loadAgentAccountLinkContent} from "~/server/agents/internal/link_references/load_agent_account_link_content.js";
 import {loadAgentChannelLinkContent} from "~/server/agents/internal/link_references/load_agent_channel_link_content.js";
@@ -16,6 +17,7 @@ export async function loadAgentLinkContent(options: {
     transaction: DurableObjectTransaction;
     request: AgentWebhookRequest;
     link: AgentLink;
+    conversationState: AgentConversationState;
 }): Promise<Root> {
     const {link} = options;
     switch (link.type) {

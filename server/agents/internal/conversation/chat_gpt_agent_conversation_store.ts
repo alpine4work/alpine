@@ -1,11 +1,14 @@
 import OpenAi from "openai";
 import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {DurableObjectStorageCollection} from "~/server/agents/internal/durable_object_storage_collection.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 
 export type ChatGptAgentConversationState = {
     readonly lastOrderKey: OrderKey | null;
     readonly lastMessageIndex: number | null;
+    readonly startTime: Date;
+    readonly timeZone: TimeZone;
 };
 
 export const ChatGptAgentConversationStateCollection = new DurableObjectStorageCollection<
@@ -37,6 +40,8 @@ export class ChatGptAgentConversationStore extends AgentConversationStore<ChatGp
         const state = (await ChatGptAgentConversationStateCollection.get(transaction, "")) ?? {
             lastMessageIndex: null,
             lastOrderKey: null,
+            timeZone: defaultTimeZone,
+            startTime: new Date(),
         };
 
         return new ChatGptAgentConversationStore(state);

@@ -45,6 +45,7 @@ export async function getAgentMessagesBetweenIndexes(
                 index: currentMessage.index,
                 author: currentMessage.author,
                 createdTime: currentMessage.createdTime,
+                createdTimeZone: currentMessage.createdTimeZone,
                 payload: currentMessage.payload,
             });
 
