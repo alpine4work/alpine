@@ -583,7 +583,7 @@ test("can highlight syntax after updating a single line", () => {
     view2.dispatch(transaction);
 
     // Make sure we performed an incremental parse instead of a full parse.
-    expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(169);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
     expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
@@ -662,7 +662,7 @@ test("can highlight syntax after adding a new line", () => {
     view2.dispatch(transaction);
 
     // Make sure we performed an incremental parse instead of a full parse.
-    expect(mockedHighlightTree).toHaveBeenCalledTimes(153);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
     expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
@@ -690,7 +690,7 @@ test("can highlight syntax after deleting line", () => {
     view2.dispatch(transaction);
 
     // Make sure we performed an incremental parse instead of a full parse.
-    expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
     expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
@@ -714,7 +714,7 @@ test("can highlight syntax after updating multiple lines", () => {
     view2.dispatch(transaction);
 
     // Make sure we performed an incremental parse instead of a full parse.
-    expect(mockedHighlightTree).toHaveBeenCalledTimes(152);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
     expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
@@ -895,6 +895,77 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(mockedHighlightTree).toHaveBeenCalledTimes(15);
     expect(getMockedRustParseCalls()).toEqual([false, false]);
     expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
+
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+});
+
+test("can highlight syntax after the line being edited (e.g. for comments)", () => {
+    const steps = [
+        {stepType: "replace", from: 859, to: 859, slice: {content: [{type: "text", text: "/"}]}},
+        {stepType: "replace", from: 860, to: 860, slice: {content: [{type: "text", text: "*"}]}},
+        {stepType: "replace", from: 861, to: 861, slice: {content: [{type: "text", text: " "}]}},
+    ].map(step => stepSchema.deserialize(step));
+
+    const view1 = createView();
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
+    const view2 = createView();
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
+
+    const transaction = view2.state.tr;
+    for (const step of steps) transaction.step(step);
+    view2.dispatch(transaction);
+
+    // Make sure we performed an incremental parse instead of a full parse.
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(169);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
+
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+});
+
+test("can highlight syntax after the line being edited when deleting a line (e.g. for comments)", () => {
+    const steps1 = [
+        {
+            stepType: "replace",
+            from: 872,
+            to: 872,
+            slice: {
+                content: [
+                    {type: "codeBlockLine"},
+                    {type: "codeBlockLine", content: [{type: "text", text: "          "}]},
+                ],
+                openStart: 1,
+                openEnd: 1,
+            },
+            structure: true,
+        },
+        {stepType: "replace", from: 882, to: 884},
+        {stepType: "replace", from: 882, to: 882, slice: {content: [{type: "text", text: "/"}]}},
+        {stepType: "replace", from: 883, to: 883, slice: {content: [{type: "text", text: "*"}]}},
+        {stepType: "replace", from: 884, to: 884, slice: {content: [{type: "text", text: " "}]}},
+    ].map(step => stepSchema.deserialize(step));
+
+    const steps2 = [{stepType: "replace", from: 872, to: 884}].map(step =>
+        stepSchema.deserialize(step),
+    );
+
+    const doc2 = steps1.reduce((doc, step) => assertExists(step.apply(doc).doc), doc1);
+
+    const view1 = createView(doc2);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(76);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
+    const view2 = createView(doc2);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(152);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
+
+    const transaction2 = view2.state.tr;
+    for (const step of steps2) transaction2.step(step);
+    view2.dispatch(transaction2);
+
+    // Make sure we performed an incremental parse instead of a full parse.
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(171);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
     expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });

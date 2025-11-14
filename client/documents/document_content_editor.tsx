@@ -140,6 +140,7 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
+    assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
@@ -170,6 +171,7 @@ import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -321,8 +323,16 @@ export function DocumentContentEditor({
             () => ({
                 prosemirrorSchema: DocumentContentProsemirrorSchema,
                 toggleShouldConnect,
+                createDocument: (content: any) => {
+                    return createDocument(context, {
+                        spaceId,
+                        content: assertDocumentContent(
+                            DocumentContentProsemirrorSchema.nodeFromJSON(content),
+                        ),
+                    });
+                },
             }),
-            [toggleShouldConnect],
+            [context, spaceId, toggleShouldConnect],
         ),
     );
 

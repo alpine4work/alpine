@@ -404,7 +404,7 @@ export class ContentCodeBlockIncrementalParser {
                         );
                     }
                     // Here is where we actually perform our incremental parsing! At this point we
-                    // have an parse tree and highlights for an old code block in the same position.
+                    // have a parse tree and highlights for an old code block in the same position.
                     // We reuse the parse tree and highlights as much as we can.
                     //
                     // We diff to see which lines of code changed then re-parse and re-highlight
@@ -442,7 +442,6 @@ export class ContentCodeBlockIncrementalParser {
                         > = [];
 
                         let oldLineIndex = 0;
-                        let oldPosToNewPos = 0;
 
                         // `length` corresponds to the current position in the input string. It's
                         // different from the ProseMirror position `pos` in that for `pos` each line
@@ -450,34 +449,58 @@ export class ContentCodeBlockIncrementalParser {
                         // (a `\n` character).
                         let newLength = 0;
                         let newPos = 0;
+                        let seenLineChange = false;
 
                         for (const lineChange of lineChanges) {
                             switch (lineChange.type) {
                                 case null: {
                                     const oldHighlights = oldHighlightsByLine[oldLineIndex]!;
 
+                                    const lineFrom = newLength;
+                                    const lineTo = lineFrom + lineChange.value.content.size + 1;
+                                    const lengthToPos = newPos - newLength;
+
                                     oldLineIndex++;
                                     newLength += lineChange.value.content.size + 1;
                                     newPos += lineChange.value.nodeSize;
 
-                                    // Reuse highlights from a line that hasn't changed...
-                                    newHighlightsByLine.push(
-                                        oldPosToNewPos !== 0
-                                            ? oldHighlights.map(highlight => ({
-                                                  from: highlight.from + oldPosToNewPos,
-                                                  to: highlight.to + oldPosToNewPos,
-                                                  classes: highlight.classes,
-                                              }))
-                                            : oldHighlights,
-                                    );
+                                    // Reuse highlights from a line before any changed lines. All lines after a
+                                    // changed line must be highlighted. Since code from one line might effect how
+                                    // code is highlighted in all following lines.
+                                    if (!seenLineChange) {
+                                        newHighlightsByLine.push(oldHighlights);
+                                    } else {
+                                        const highlights: Array<{
+                                            from: number;
+                                            to: number;
+                                            classes: string;
+                                        }> = [];
+
+                                        (mockedHighlightTreeForTest ?? highlightTree)(
+                                            newTree,
+                                            lezerClassHighlighter.get(),
+                                            (from, to, classes) => {
+                                                highlights.push({
+                                                    from: from + lengthToPos,
+                                                    to: to + lengthToPos,
+                                                    classes,
+                                                });
+                                            },
+                                            lineFrom,
+                                            lineTo - 1,
+                                        );
+
+                                        newHighlightsByLine.push(highlights);
+                                    }
                                     break;
                                 }
                                 case "Added": {
-                                    oldPosToNewPos += lineChange.value.nodeSize;
+                                    seenLineChange = true;
 
                                     const lineFrom = newLength;
                                     const lineTo = lineFrom + lineChange.value.content.size + 1;
                                     const lengthToPos = newPos - newLength;
+
                                     newLength = lineTo;
                                     newPos += lineChange.value.nodeSize;
 
@@ -498,15 +521,15 @@ export class ContentCodeBlockIncrementalParser {
                                                 classes,
                                             }),
                                         lineFrom,
-                                        lineTo,
+                                        lineTo - 1,
                                     );
 
                                     newHighlightsByLine.push(highlights);
                                     break;
                                 }
                                 case "Deleted": {
+                                    seenLineChange = true;
                                     oldLineIndex++;
-                                    oldPosToNewPos -= lineChange.value.nodeSize;
                                     break;
                                 }
                                 default:
@@ -621,7 +644,7 @@ function createInitialContentCodeBlockIncrementalParserResult(
             (from, to, classes) =>
                 highlights.push({from: from + lengthToPos, to: to + lengthToPos, classes}),
             lineFrom,
-            lineTo,
+            lineTo - 1,
         );
 
         highlightsByLine.push(highlights);

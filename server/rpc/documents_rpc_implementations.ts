@@ -54,6 +54,7 @@ export default implementRpcs(definitions, {
             const {id, createdTime} = await createDocument(context.actor.authorizeSession(), {
                 id: input.documentId,
                 spaceId: input.spaceId,
+                content: input.content,
             });
             return {documentId: id, createdTime};
         },

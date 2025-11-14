@@ -642,6 +642,353 @@ exports[`can highlight syntax after inserting a code block 1`] = `
 "
 `;
 
+exports[`can highlight syntax after the line being edited (e.g. for comments) 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -262,147 +262,99 @@
+           <span class="tok-variableName">c2</span>
+           <span class="tok-operator">!==</span>
+           <span class="tok-string">"["</span>
+           <span class="tok-punctuation">)</span>
+-          <span class="tok-keyword tok-controlKeyword">return</span>
+-          <span class="tok-bool">false</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">/* return false;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">break</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">break;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">case</span>
+-          <span class="tok-string">"{"</span>
+-          <span class="tok-punctuation">:</span>
+-          <span class="tok-punctuation">{</span>
++          <span class="tok-comment">case "{": {</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-variableName">stack</span>
+-          <span class="tok-operator">.</span>
+-          <span class="tok-propertyName">push</span>
+-          <span class="tok-punctuation">(</span>
+-          <span class="tok-string">"{"</span>
+-          <span class="tok-punctuation">)</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">stack.push("{");</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">break</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">break;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">case</span>
+-          <span class="tok-string">"}"</span>
+-          <span class="tok-punctuation">:</span>
+-          <span class="tok-punctuation">{</span>
++          <span class="tok-comment">case "}": {</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword">const</span>
+-          <span class="tok-variableName tok-definition">c2</span>
+-          <span class="tok-operator">=</span>
+-          <span class="tok-variableName">stack</span>
+-          <span class="tok-operator">.</span>
+-          <span class="tok-propertyName">pop</span>
+-          <span class="tok-punctuation">(</span>
+-          <span class="tok-punctuation">)</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">const c2 = stack.pop();</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">if</span>
+-          <span class="tok-punctuation">(</span>
+-          <span class="tok-variableName">c2</span>
+-          <span class="tok-operator">!==</span>
+-          <span class="tok-string">"{"</span>
+-          <span class="tok-punctuation">)</span>
+-          <span class="tok-keyword tok-controlKeyword">return</span>
+-          <span class="tok-bool">false</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">if (c2 !== "{") return false;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">break</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">break;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">default</span>
+-          <span class="tok-punctuation">:</span>
++          <span class="tok-comment">default:</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">throw</span>
+-          <span class="tok-keyword">new</span>
+-          <span class="tok-variableName">Error</span>
+-          <span class="tok-punctuation">(</span>
+-          <span class="tok-string2">\`Unexpected character: "</span>
+-          <span class="tok-punctuation2">\${</span>
+-          <span class="tok-variableName">c</span>
+-          <span class="tok-punctuation2">}</span>
+-          <span class="tok-string2">"\`</span>
+-          <span class="tok-punctuation">)</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">
++            throw new Error(\`Unexpected character: "\${c}"\`);
++          </span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent"><br /></div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-keyword tok-controlKeyword">return</span>
+-          <span class="tok-variableName">stack</span>
+-          <span class="tok-operator">.</span>
+-          <span class="tok-propertyName">length</span>
+-          <span class="tok-operator">===</span>
+-          <span class="tok-number">0</span>
+-          <span class="tok-punctuation">;</span>
++          <span class="tok-comment">return stack.length === 0;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-punctuation">}</span>
++          <span class="tok-comment">}</span>
+         </div>
+       </div>
+     </code>
+   </div>
+"
+`;
+
+exports[`can highlight syntax after the line being edited when deleting a line (e.g. for comments) 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -269,99 +269,140 @@
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">/*</span>
++          <span class="tok-keyword tok-controlKeyword">break</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">break;</span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
++          <span class="tok-keyword tok-controlKeyword">case</span>
++          <span class="tok-string">"{"</span>
++          <span class="tok-punctuation">:</span>
++          <span class="tok-punctuation">{</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">case "{": {</span>
++          <span class="tok-variableName">stack</span>
++          <span class="tok-operator">.</span>
++          <span class="tok-propertyName">push</span>
++          <span class="tok-punctuation">(</span>
++          <span class="tok-string">"{"</span>
++          <span class="tok-punctuation">)</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">stack.push("{");</span>
++          <span class="tok-keyword tok-controlKeyword">break</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">break;</span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
++          <span class="tok-keyword tok-controlKeyword">case</span>
++          <span class="tok-string">"}"</span>
++          <span class="tok-punctuation">:</span>
++          <span class="tok-punctuation">{</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">case "}": {</span>
++          <span class="tok-keyword">const</span>
++          <span class="tok-variableName tok-definition">c2</span>
++          <span class="tok-operator">=</span>
++          <span class="tok-variableName">stack</span>
++          <span class="tok-operator">.</span>
++          <span class="tok-propertyName">pop</span>
++          <span class="tok-punctuation">(</span>
++          <span class="tok-punctuation">)</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">const c2 = stack.pop();</span>
++          <span class="tok-keyword tok-controlKeyword">if</span>
++          <span class="tok-punctuation">(</span>
++          <span class="tok-variableName">c2</span>
++          <span class="tok-operator">!==</span>
++          <span class="tok-string">"{"</span>
++          <span class="tok-punctuation">)</span>
++          <span class="tok-keyword tok-controlKeyword">return</span>
++          <span class="tok-bool">false</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">if (c2 !== "{") return false;</span>
++          <span class="tok-keyword tok-controlKeyword">break</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">break;</span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
++          <span class="tok-keyword tok-controlKeyword">default</span>
++          <span class="tok-punctuation">:</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">default:</span>
++          <span class="tok-keyword tok-controlKeyword">throw</span>
++          <span class="tok-keyword">new</span>
++          <span class="tok-variableName">Error</span>
++          <span class="tok-punctuation">(</span>
++          <span class="tok-string2">\`Unexpected character: "</span>
++          <span class="tok-punctuation2">\${</span>
++          <span class="tok-variableName">c</span>
++          <span class="tok-punctuation2">}</span>
++          <span class="tok-string2">"\`</span>
++          <span class="tok-punctuation">)</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">
+-            throw new Error(\`Unexpected character: "\${c}"\`);
+-          </span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+-        <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
+-        </div>
+-      </div>
+-      <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent"><br /></div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">return stack.length === 0;</span>
++          <span class="tok-keyword tok-controlKeyword">return</span>
++          <span class="tok-variableName">stack</span>
++          <span class="tok-operator">.</span>
++          <span class="tok-propertyName">length</span>
++          <span class="tok-operator">===</span>
++          <span class="tok-number">0</span>
++          <span class="tok-punctuation">;</span>
+         </div>
+       </div>
+       <div class="content_codeBlockLine">
+         <div class="content_codeBlockLineContent">
+-          <span class="tok-comment">}</span>
++          <span class="tok-punctuation">}</span>
+         </div>
+       </div>
+     </code>
+   </div>
+"
+`;
+
 exports[`can highlight syntax after updating a single line 1`] = `
 "===================================================================
 --- old.html

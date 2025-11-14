@@ -60,6 +60,7 @@ export const createDocument = defineRpc({
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>().optional(),
+        content: DocumentContentSchema.optional(),
     },
     output: {
         documentId: Schema.id<DocumentId>(),
