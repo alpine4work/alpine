@@ -3,7 +3,14 @@ import {
     DynamoTableItemKeyType,
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
-import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    DocumentCommentThreadId,
+    DocumentId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // Regular DynamoDB table for any data regarding notifications that does not
@@ -36,6 +43,25 @@ export const NotificationsTable = DynamoTableSchema.new({
                         bucketGeneration: Schema.integer,
                     }),
                 },
+
+                // This is a reverse index from `DocumentId` + `DocumentCommentThreadId` to
+                // `DocumentNewCommentThreadsEntry` in `InboxTable`. So we can easily check
+                // whether a given comment thread is present in a new comment threads inbox
+                // entry.
+                //
+                // Once a `DocumentCommentThreadInNewCommentThreadsEntry` item has been
+                // created, it will never be deleted. Since we never delete `commentThreadIds`
+                // from a `DocumentNewCommentThreadsEntry`.
+                {
+                    name: "DocumentCommentThreadInNewCommentThreadsEntry",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+                    },
+                    attributes: Schema.object({
+                        bucketGeneration: Schema.integer,
+                    }),
+                },
             ],
         },
     ],
@@ -45,4 +71,10 @@ export type InboxPostInChannelPostsEntryItemKey = DynamoTableItemKeyType<
     typeof NotificationsTable,
     "Inbox",
     "PostInChannelPostsEntry"
+>;
+
+export type InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey = DynamoTableItemKeyType<
+    typeof NotificationsTable,
+    "Inbox",
+    "DocumentCommentThreadInNewCommentThreadsEntry"
 >;

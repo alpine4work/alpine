@@ -5,7 +5,14 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    DocumentCommentThreadId,
+    DocumentId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
@@ -97,6 +104,28 @@ export const unarchiveInboxChannelPostsEntryPost = defineRpc({
         channelId: Schema.id<ChannelId>(),
         bucketGeneration: Schema.integer,
         postId: Schema.id<PostId>(),
+    },
+    output: {},
+});
+
+export const archiveInboxDocumentNewCommentThreadsEntryCommentThread = defineRpc({
+    name: "archiveInboxDocumentNewCommentThreadsEntryCommentThread",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        documentId: Schema.id<DocumentId>(),
+        bucketGeneration: Schema.integer,
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+    },
+    output: {},
+});
+
+export const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread = defineRpc({
+    name: "unarchiveInboxDocumentNewCommentThreadsEntryCommentThread",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        documentId: Schema.id<DocumentId>(),
+        bucketGeneration: Schema.integer,
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
     },
     output: {},
 });

@@ -18,6 +18,10 @@ import {
     subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
 } from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {
+    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+    subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
+import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
 } from "~/client/inbox/use_archive_inbox_entry.js";
@@ -35,7 +39,11 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {InboxChannelPostsEntryModel, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxChannelPostsEntryModel,
+    InboxDocumentNewCommentThreadsEntryModel,
+    InboxEntryModel,
+} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
     getInboxEntries,
@@ -248,6 +256,84 @@ export function useInboxState(props: {
                 }),
             );
         });
+    }, [filter, space.id, updateQueryOptimistically]);
+
+    useEffect(() => {
+        // We won't see archive comment thread events if we're looking at archived
+        // inbox entries because in an archived document new comment threads entry all
+        // comment threads are already archived.
+        if (filter === "Archive") return;
+
+        return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                updateQueryOptimistically(event, query =>
+                    query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
+                        if (!(item.model instanceof InboxDocumentNewCommentThreadsEntryModel))
+                            return item;
+
+                        const commentThread = item.model.commentThreads.get(event.commentThreadId);
+                        if (!commentThread) return item;
+                        if (commentThread.isArchived) return item;
+
+                        const newCommentThreads = new Map(item.model.commentThreads);
+                        newCommentThreads.set(event.commentThreadId, {isArchived: true});
+
+                        // If every comment thread is now archived, the entire entry is archived! So
+                        // delete the entry from our query.
+                        if (
+                            iterableEvery(
+                                newCommentThreads.values(),
+                                commentThread => commentThread.isArchived,
+                            )
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            ...item,
+                            model: item.model.clone({commentThreads: newCommentThreads}),
+                        };
+                    }),
+                );
+            },
+        );
+    }, [filter, space.id, updateQueryOptimistically]);
+
+    useEffect(() => {
+        return subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                updateQueryOptimistically(event, query =>
+                    query.optimisticallyUpdateItemByKeyIfExists(event.entry.key, item => {
+                        if (!(item.model instanceof InboxDocumentNewCommentThreadsEntryModel))
+                            return item;
+
+                        const commentThread = item.model.commentThreads.get(event.commentThreadId);
+                        if (!commentThread) return item;
+                        if (!commentThread.isArchived) return item;
+
+                        const newCommentThreads = new Map(item.model.commentThreads);
+                        newCommentThreads.set(event.commentThreadId, {isArchived: false});
+
+                        // If we're looking at archived inbox entries and a single post is now
+                        // unarchived then delete this entry from our query.
+                        if (
+                            filter === "Archive" &&
+                            !iterableEvery(
+                                newCommentThreads.values(),
+                                commentThread => commentThread.isArchived,
+                            )
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            ...item,
+                            model: item.model.clone({commentThreads: newCommentThreads}),
+                        };
+                    }),
+                );
+            },
+        );
     }, [filter, space.id, updateQueryOptimistically]);
 
     useDynamoGeneralRealtimeIndexQueryBase(

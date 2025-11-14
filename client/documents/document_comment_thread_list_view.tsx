@@ -56,25 +56,14 @@ import {
     messagingViewMarginBottom,
     messagingViewMarginBottomCalcExpression,
 } from "~/client/styles/messaging_shared_styles.js";
-import {
-    contentStyles,
-    documentCommentThreadsStyles,
-    inputPlaceholderStyles,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, addRemLengths, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
@@ -93,6 +82,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
@@ -100,7 +90,10 @@ import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
-const documentCommentThreadListViewMarginY: Spacing = "24";
+const documentCommentThreadListViewMarginY = addRemLengths(
+    documentCommentThreadHeaderPaddingY,
+    documentCommentThreadHeaderPaddingY,
+);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -246,6 +239,9 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
+        isCommentThreadArchived,
+        onArchiveCommentThread,
+        onUnarchiveCommentThread,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -343,6 +339,28 @@ function DocumentCommentThreadListView(
          * fullscreen size but when collapsed we have offscreen slop.
          */
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
+
+        /**
+         * Is this comment thread archived?
+         *
+         * We should the inbox archival button if this property is provided (even if
+         * always returns false).
+         */
+        isCommentThreadArchived?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
+
+        /**
+         * Archive an individual comment thread.
+         */
+        onArchiveCommentThread?: Memo<
+            (commentThreadId: DocumentCommentThreadId) => MaybePromise<void>
+        >;
+
+        /**
+         * Unarchive an individual comment thread.
+         */
+        onUnarchiveCommentThread?: Memo<
+            (commentThreadId: DocumentCommentThreadId) => MaybePromise<void>
+        >;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -841,10 +859,6 @@ function DocumentCommentThreadListView(
                             : documentCommentThreadActionsHeight,
                     );
 
-                    const nodeIndex = assertExists(
-                        tree.getNodeIndexByKeyIfExists(item.commentThread.id),
-                    );
-
                     return {
                         key: `DocumentCommentThreadHeader:${item.commentThread.id}`,
                         minHeight,
@@ -864,43 +878,48 @@ function DocumentCommentThreadListView(
                                             : undefined,
                                 })}
                             >
+                                {index === 0 && !isSingleCommentThreadWithPinnedCommentInput && (
+                                    <div
+                                        className={sprinkles({
+                                            position: "relative",
+                                            height: "0",
+                                            width: "full",
+                                            maxWidth: contentStyles.contentMaxWidth,
+                                            paddingX: screenPaddingX,
+                                        })}
+                                    >
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                left: "0",
+                                                right: "0",
+                                                height: "border-thick",
+                                                backgroundColor: "grey-5",
+                                            })}
+                                            style={{top: -1}}
+                                        />
+                                    </div>
+                                )}
                                 {index !== 0 && (
                                     <div
                                         className={sprinkles({
                                             position: "relative",
                                             width: "full",
-                                            height: documentCommentThreadListViewMarginY,
                                             maxWidth: contentStyles.contentMaxWidth,
                                             paddingX: screenPaddingX,
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            justifyContent: "center",
                                         })}
+                                        style={{height: documentCommentThreadListViewMarginY}}
                                     >
-                                        <div style={{height: spacing["2"]}} />
-                                        <div
-                                            className={
-                                                documentCommentThreadsStyles.sawtoothBorderClassName
-                                            }
-                                        />
                                         <div
                                             className={sprinkles({
-                                                width: "full",
-                                                paddingY: "0.5",
-                                                color: "grey-30",
-                                                fontSize: "50",
-                                                display: "flex",
-                                                justifyContent: "center",
-                                                alignItems: "center",
-                                                gap: "1",
+                                                position: "absolute",
+                                                left: "0",
+                                                right: "0",
+                                                bottom: documentCommentThreadHeaderPaddingY,
+                                                height: "border-thick",
+                                                backgroundColor: "grey-5",
                                             })}
-                                            style={{
-                                                ...inputPlaceholderStyles,
-                                                fontVariantNumeric: "tabular-nums",
-                                            }}
-                                        >
-                                            {nodeIndex + 1} of {tree.getNodeCount()}
-                                        </div>
+                                        />
                                     </div>
                                 )}
                                 <div
@@ -939,6 +958,9 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
+                                        isCommentThreadArchived={isCommentThreadArchived}
+                                        onArchiveCommentThread={onArchiveCommentThread}
+                                        onUnarchiveCommentThread={onUnarchiveCommentThread}
                                     />
                                 </div>
                             </div>
@@ -1213,6 +1235,9 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
+            isCommentThreadArchived,
+            onArchiveCommentThread,
+            onUnarchiveCommentThread,
             procedures,
             spacingScale,
             fileAttachmentTarget,
@@ -1264,9 +1289,13 @@ function DocumentCommentThreadListView(
                             left: "0",
                             right: "0",
                             zIndex: "10",
-                            height: "safe-area-inset-top",
                             backgroundColor: "grey-0",
                         })}
+                        style={{
+                            // Subtract 1px from `safe-area-inset-top` to account for the thick (2px) top
+                            // border on comment threads.
+                            height: `calc(var(--safe-area-inset-top, 0px) - 1px)`,
+                        }}
                     />
                 )}
                 <VirtualizedScrollView

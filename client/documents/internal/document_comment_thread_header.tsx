@@ -1,8 +1,9 @@
 import {Check} from "phosphor-react";
 import {Node} from "prosemirror-model";
-import {useRef, useState} from "react";
+import {Memo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -15,6 +16,7 @@ import {
 import {spacing} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
 export function DocumentCommentThreadHeader({
@@ -26,6 +28,9 @@ export function DocumentCommentThreadHeader({
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
+    isCommentThreadArchived,
+    onArchiveCommentThread,
+    onUnarchiveCommentThread,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -35,6 +40,11 @@ export function DocumentCommentThreadHeader({
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
+    isCommentThreadArchived?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
+    onArchiveCommentThread?: Memo<(commentThreadId: DocumentCommentThreadId) => MaybePromise<void>>;
+    onUnarchiveCommentThread?: Memo<
+        (commentThreadId: DocumentCommentThreadId) => MaybePromise<void>
+    >;
 }) {
     const reporter = useReporter();
 
@@ -106,6 +116,28 @@ export function DocumentCommentThreadHeader({
                         {isResolved ? "Resolved" : "Mark as resolved"}
                     </Box>
                 </Box>
+                {isCommentThreadArchived && (
+                    <Button
+                        variant={
+                            isCommentThreadArchived(commentThread.id)
+                                ? "neutral-disabled"
+                                : "neutral"
+                        }
+                        height="6"
+                        paddingX="2"
+                        icon={<Check />}
+                        pressErrorTitle="Can’t mark as done"
+                        onPress={async () => {
+                            if (isCommentThreadArchived(commentThread.id)) {
+                                await onUnarchiveCommentThread?.(commentThread.id);
+                            } else {
+                                await onArchiveCommentThread?.(commentThread.id);
+                            }
+                        }}
+                    >
+                        Done
+                    </Button>
+                )}
             </Box>
             {!withoutCommentThreadPreview && (
                 <>

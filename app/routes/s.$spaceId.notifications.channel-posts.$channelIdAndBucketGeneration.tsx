@@ -222,8 +222,9 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
     const {space} = useSpaceContext();
 
     const inboxContext = assertExists(useInboxContext());
-    const inboxEntry = inboxContext.entry?.model;
-    assert(inboxEntry instanceof InboxChannelPostsEntryModel);
+    const originalInboxEntry = assertExists(inboxContext.entry);
+    assert(originalInboxEntry.model instanceof InboxChannelPostsEntryModel);
+    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>;
 
     const {
         channel: initialChannel,
@@ -288,7 +289,7 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
     const {handleArchivePost, handleUnarchivePost} = useEvents({
         handleArchivePost: async (postId: PostId) => {
             archiveInboxChannelPostsEntryPost({
-                entry: inboxContext.entry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>,
+                entry: inboxEntry,
                 withAnimation: true,
                 postId,
             });
@@ -297,7 +298,10 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
             // all posts in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
-                iterableEvery(inboxEntry.posts, post => post[0] === postId || post[1].isArchived)
+                iterableEvery(
+                    inboxEntry.model.posts,
+                    post => post[0] === postId || post[1].isArchived,
+                )
             ) {
                 if (parentNavigation.nextEntry) {
                     await parentNavigation.selectEntry(parentNavigation.nextEntry);
@@ -310,7 +314,7 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
         },
         handleUnarchivePost: async (postId: PostId) => {
             unarchiveInboxChannelPostsEntryPost({
-                entry: inboxContext.entry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>,
+                entry: inboxEntry,
                 withAnimation: true,
                 postId,
             });
@@ -410,8 +414,8 @@ function ChannelPostsRoute({parentNavigation}: {parentNavigation: InboxContextNa
             // `navigationBar`.
             withSafeAreaInsetTop={platform !== "mobile"}
             isPostArchived={useCallback(
-                (postId: PostId) => inboxEntry.posts.get(postId)?.isArchived ?? false,
-                [inboxEntry.posts],
+                (postId: PostId) => inboxEntry.model.posts.get(postId)?.isArchived ?? false,
+                [inboxEntry.model.posts],
             )}
             onArchivePost={handleArchivePost}
             onUnarchivePost={handleUnarchivePost}

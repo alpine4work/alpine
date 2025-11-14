@@ -41,6 +41,15 @@ export async function unarchiveInboxEntry(
                 };
             }
 
+            // When unarchiving a comment threads entry, all `DocumentCommentThreadId`s in
+            // the entry are now considered unarchived.
+            if (item.sortRangeType === "DocumentNewCommentThreadsEntry") {
+                item = {
+                    ...item,
+                    archivedCommentThreadIds: emptySet,
+                };
+            }
+
             return item;
         },
     );

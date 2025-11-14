@@ -33,6 +33,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     //    they can see it.
     // 2. The user is actively having a conversation at the end of the messaging
     //    view and another person in the conversation sends a message.
+
     const lastItemCountRef = useRef(messages?.getItemCount() ?? null);
     const lastHasTypingIndicatorsItemRef = useRef(false);
     useLayoutEffectWithoutServerSideWarning(() => {

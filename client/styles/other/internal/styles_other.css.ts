@@ -16,7 +16,6 @@ export * as contentViewStyles from "~/client/styles/other/internal/content_view.
 export * as contentStyles from "~/client/styles/other/internal/content.css.js";
 export * as blobsArtStyles from "~/client/styles/other/internal/blobs_art.css.js";
 export * as documentBlobsStyles from "~/client/styles/other/internal/document_blobs.css.js";
-export * as documentCommentThreadsStyles from "~/client/styles/other/internal/document_comment_threads.css.js";
 export * as documentContentStyles from "~/client/styles/other/internal/document_content.css.js";
 export * as documentPresentationStyles from "~/client/styles/other/internal/document_presentation.css.js";
 export * as forumStyles from "~/client/styles/other/internal/forum.css.js";

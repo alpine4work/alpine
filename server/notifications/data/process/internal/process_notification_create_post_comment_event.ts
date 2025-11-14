@@ -49,12 +49,12 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
         {info: {postCreatedTime}, accountId, clientRequestToken},
     ) => {
         // Update function for just a single `InboxPostCommentsEntryItem`.
-        function update(
+        const update = (
             oldItem: InboxPostCommentsEntryItem | null,
         ): Omit<
             InboxPostCommentsEntryItem,
             keyof InboxPostCommentsEntryItemKey | "generation" | "enteredTime"
-        > {
+        > => {
             // When the user comments on a post we archive the corresponding inbox entry. Or
             // if the entry is already archived, we keep it archived. By sending a comment
             // the user implicitly marks their entry as done.
@@ -158,7 +158,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                         : oldItem?.latestArchivingCommentIndex ?? null,
                 otherCommentAuthorId,
             };
-        }
+        };
 
         return updateInboxEntry(
             context,

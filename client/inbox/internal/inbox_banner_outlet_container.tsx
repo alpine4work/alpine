@@ -20,6 +20,10 @@ import {
     subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically,
 } from "~/client/inbox/use_archive_inbox_channel_posts_entry_post.js";
 import {
+    subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+    subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
+} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
+import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
     useArchiveInboxEntry,
@@ -37,7 +41,11 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {InboxChannelPostsEntryModel, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxChannelPostsEntryModel,
+    InboxDocumentNewCommentThreadsEntryModel,
+    InboxEntryModel,
+} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
@@ -124,7 +132,9 @@ export function InboxBannerOutletContainer({
     const isInboxEntryTask = entry.model.type === "Task";
 
     useEffect(() => {
-        if (withoutRealtime) return;
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
 
         return subscribeToArchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
@@ -139,10 +149,12 @@ export function InboxBannerOutletContainer({
                 };
             });
         });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useEffect(() => {
-        if (withoutRealtime) return;
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
 
         return subscribeToUnarchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
@@ -157,10 +169,12 @@ export function InboxBannerOutletContainer({
                 };
             });
         });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useEffect(() => {
-        if (withoutRealtime) return;
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
 
         return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
@@ -185,10 +199,12 @@ export function InboxBannerOutletContainer({
                 };
             });
         });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useEffect(() => {
-        if (withoutRealtime) return;
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
 
         return subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
@@ -213,7 +229,79 @@ export function InboxBannerOutletContainer({
                 };
             });
         });
-    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates, withoutRealtime]);
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
+
+    useEffect(() => {
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
+
+        return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                updateEntryOptimistically(event.promise, entry => {
+                    if (entry.key !== event.entry.key) return entry;
+                    if (entry.version > event.entry.version) return entry;
+                    if (!(entry.model instanceof InboxDocumentNewCommentThreadsEntryModel))
+                        return entry;
+
+                    const commentThread = entry.model.commentThreads.get(event.commentThreadId);
+                    if (!commentThread) return entry;
+                    if (commentThread.isArchived) return entry;
+
+                    const newCommentThreads = new Map(entry.model.commentThreads);
+                    newCommentThreads.set(event.commentThreadId, {isArchived: true});
+
+                    return {
+                        ...entry,
+                        version: entry.version + 1,
+                        model: entry.model.clone({
+                            isArchived: iterableEvery(
+                                newCommentThreads.values(),
+                                commentThread => commentThread.isArchived,
+                            ),
+                            commentThreads: newCommentThreads,
+                        }),
+                    };
+                });
+            },
+        );
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
+
+    useEffect(() => {
+        // We need to watch for events here even if `withoutRealtime` is true because
+        // if this optimistic event removes the entry from our parent's inbox then we
+        // still want to apply the update locally here so the user can see the change.
+
+        return subscribeToUnarchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                updateEntryOptimistically(event.promise, entry => {
+                    if (entry.key !== event.entry.key) return entry;
+                    if (entry.version > event.entry.version) return entry;
+                    if (!(entry.model instanceof InboxDocumentNewCommentThreadsEntryModel))
+                        return entry;
+
+                    const commentThread = entry.model.commentThreads.get(event.commentThreadId);
+                    if (!commentThread) return entry;
+                    if (!commentThread.isArchived) return entry;
+
+                    const newCommentThreads = new Map(entry.model.commentThreads);
+                    newCommentThreads.set(event.commentThreadId, {isArchived: false});
+
+                    return {
+                        ...entry,
+                        version: entry.version + 1,
+                        model: entry.model.clone({
+                            isArchived: iterableEvery(
+                                newCommentThreads.values(),
+                                commentThread => commentThread.isArchived,
+                            ),
+                            commentThreads: newCommentThreads,
+                        }),
+                    };
+                });
+            },
+        );
+    }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useDynamoGeneralRealtimeItemBase(
         {item: entry, onUpdateItem: updateEntry},
@@ -464,6 +552,20 @@ export function InboxBannerOutletContainer({
                                                 // expand the peek.
                                                 await navigate(-1);
                                             }
+
+                                            if (navigation?.filter === "New") {
+                                                if (navigation.nextEntry) {
+                                                    await navigation.selectEntry(
+                                                        navigation.nextEntry,
+                                                    );
+                                                } else if (navigation.previousEntry) {
+                                                    await navigation.selectEntry(
+                                                        navigation.previousEntry,
+                                                    );
+                                                } else {
+                                                    await navigation.selectEntry(null);
+                                                }
+                                            }
                                         }
                                         // This button works as a toggle button. If you click it when the notification
                                         // has already been archived then we'll unarchive.
@@ -472,17 +574,19 @@ export function InboxBannerOutletContainer({
                                                 entry,
                                                 withAnimation: true,
                                             });
-                                        }
 
-                                        if (navigation) {
-                                            if (navigation.nextEntry) {
-                                                await navigation.selectEntry(navigation.nextEntry);
-                                            } else if (navigation.previousEntry) {
-                                                await navigation.selectEntry(
-                                                    navigation.previousEntry,
-                                                );
-                                            } else {
-                                                await navigation.selectEntry(null);
+                                            if (navigation?.filter === "Archive") {
+                                                if (navigation.nextEntry) {
+                                                    await navigation.selectEntry(
+                                                        navigation.nextEntry,
+                                                    );
+                                                } else if (navigation.previousEntry) {
+                                                    await navigation.selectEntry(
+                                                        navigation.previousEntry,
+                                                    );
+                                                } else {
+                                                    await navigation.selectEntry(null);
+                                                }
                                             }
                                         }
                                     }}

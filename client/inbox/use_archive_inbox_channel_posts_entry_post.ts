@@ -16,9 +16,9 @@ const archiveInboxChannelPostsEntryPostOptimisticallyEmitter =
 
 export type ArchiveInboxChannelPostsEntryPostOptimisticallyEvent = {
     readonly promise: Promise<unknown>;
-    readonly postId: PostId;
     readonly entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     readonly withAnimation: boolean;
+    readonly postId: PostId;
 };
 
 export function subscribeToArchiveInboxChannelPostsEntryPostOptimistically(
@@ -73,13 +73,13 @@ const unarchiveInboxChannelPostsEntryPostOptimisticallyEmitter =
 
 export type UnarchiveInboxChannelPostsEntryPostOptimisticallyEvent = {
     readonly promise: Promise<unknown>;
-    readonly postId: PostId;
     readonly entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
     readonly withAnimation: boolean;
+    readonly postId: PostId;
 };
 
 export function subscribeToUnarchiveInboxChannelPostsEntryPostOptimistically(
-    listener: (event: ArchiveInboxChannelPostsEntryPostOptimisticallyEvent) => void,
+    listener: (event: UnarchiveInboxChannelPostsEntryPostOptimisticallyEvent) => void,
 ) {
     return unarchiveInboxChannelPostsEntryPostOptimisticallyEmitter.subscribe(listener);
 }

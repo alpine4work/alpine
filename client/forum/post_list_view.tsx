@@ -360,7 +360,7 @@ function PostListView(
          * Is this post archived?
          *
          * We should the inbox archival button if this property is provided (even if
-         * it's an empty set).
+         * always returns false).
          */
         isPostArchived?: Memo<(postId: PostId) => boolean>;
 

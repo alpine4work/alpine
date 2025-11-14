@@ -1,4 +1,5 @@
 import {archiveInboxChannelPostsEntryPost} from "~/server/notifications/data/archive_inbox_channel_posts_entry_post.js";
+import {archiveInboxDocumentNewCommentThreadsEntryCommentThread} from "~/server/notifications/data/archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {subscribeToDigestNotificationsEmail} from "~/server/notifications/data/digest/subscribe_to_digest_notifications_email.js";
 import {unsubscribeFromDigestNotificationsEmail} from "~/server/notifications/data/digest/unsubscribe_from_digest_notifications_email.js";
@@ -11,6 +12,7 @@ import {
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
 import {unarchiveInboxChannelPostsEntryPost} from "~/server/notifications/data/unarchive_inbox_channel_posts_entry_post.js";
+import {unarchiveInboxDocumentNewCommentThreadsEntryCommentThread} from "~/server/notifications/data/unarchive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
 import {unsubscribeFromEmailNotificationWithUrl} from "~/server/notifications/data/unsubscribe_from_email_notification_with_url.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
@@ -86,6 +88,28 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await unarchiveInboxChannelPostsEntryPost(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    archiveInboxDocumentNewCommentThreadsEntryCommentThread: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await archiveInboxDocumentNewCommentThreadsEntryCommentThread(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {};
+        },
+    },
+
+    unarchiveInboxDocumentNewCommentThreadsEntryCommentThread: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {};
         },
     },

@@ -104,6 +104,30 @@ export type InboxPostCommentsEntryItemKey = DynamoGeneralRealtimeTableItemKeyTyp
     "PostCommentsEntry"
 >;
 
+export type InboxDocumentNewCommentThreadsEntryItem = DynamoGeneralRealtimeTableItemType<
+    typeof InboxTable,
+    "Inbox",
+    "DocumentNewCommentThreadsEntry"
+>;
+
+export type InboxDocumentNewCommentThreadsEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+    typeof InboxTable,
+    "Inbox",
+    "DocumentNewCommentThreadsEntry"
+>;
+
+export type InboxDocumentCommentThreadEntryItem = DynamoGeneralRealtimeTableItemType<
+    typeof InboxTable,
+    "Inbox",
+    "DocumentCommentThreadEntry"
+>;
+
+export type InboxDocumentCommentThreadEntryItemKey = DynamoGeneralRealtimeTableItemKeyType<
+    typeof InboxTable,
+    "Inbox",
+    "DocumentCommentThreadEntry"
+>;
+
 /**
  * The initial generation of a new inbox.
  */
@@ -635,10 +659,38 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * The comment threads in this inbox entry. In chronological order. The newest
                          * threads appear last.
+                         *
+                         * This set is append only! Once a comment thread has been added, it will never
+                         * be removed. We only add to this set while the inbox is unobserved. Once the
+                         * inbox has been observed this set is frozen. Various bits of code depend on
+                         * this set being append only.
                          */
                         commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(
                             1,
                         ),
+
+                        /**
+                         * Which `DocumentCommentThreadId`s have been archived within this inbox entry?
+                         * Once all `DocumentCommentThreadId`s in `commentThreadIds` have been added to
+                         * this set then `isArchived: true` should be automatically set.
+                         */
+                        archivedCommentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>())
+                            // If the item was archived before than `archivedCommentThreadIds` should be
+                            // the same as `commentThreadIds`.
+                            .default(item => {
+                                if (!item.isArchived) return emptySet;
+
+                                if (!isReadonlyArray(item.commentThreadIds)) return emptySet;
+
+                                return new Set(
+                                    filterMapIterable(item.commentThreadIds, commentThreadId =>
+                                        typeof commentThreadId === "string" &&
+                                        isId<DocumentCommentThreadId>(commentThreadId)
+                                            ? commentThreadId
+                                            : undefined,
+                                    ),
+                                );
+                            }),
 
                         /**
                          * The first comment author of threads in this inbox entry. Will have a size
@@ -651,20 +703,39 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * A preview of the first comment thread. Will display a preview of the first
                          * comment's content in the inbox entry.
                          */
-                        firstComment: Schema.object({
+                        firstCommentThread: Schema.object({
                             commentThreadId: Schema.id<DocumentCommentThreadId>()
                                 .nullable()
                                 .default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
-                        }),
+                        }).originalPropertyKey("firstComment"),
 
                         /**
                          * The time the latest comment thread was created.
                          */
                         latestCommentThreadCreatedTime: Schema.date,
-                    }),
+                    })
+                        .validation(
+                            "All `archivedCommentThreadIds` must be present in `commentThreadIds`",
+                            item =>
+                                iterableEvery(item.archivedCommentThreadIds, postId =>
+                                    item.commentThreadIds.has(postId),
+                                ),
+                        )
+                        .validation(
+                            "If `DocumentNewCommentThreadsEntry` is archived then all `commentThreadIds` must be in `archivedCommentThreadIds`",
+                            item =>
+                                !item.isArchived ||
+                                item.commentThreadIds.size === item.archivedCommentThreadIds.size,
+                        )
+                        .validation(
+                            "If all `commentThreadIds` are in `archivedCommentThreadIds` then `DocumentNewCommentThreadsEntry` must be archived",
+                            item =>
+                                item.commentThreadIds.size !== item.archivedCommentThreadIds.size ||
+                                item.isArchived,
+                        ),
                 },
                 {
                     name: "TaskEntry",
@@ -1040,21 +1111,21 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     return protectInboxEntryModelBuilder(context, item, async context => {
                         const otherCommentThreadAuthorId = iterableFind(
                             item.commentThreadAuthorIds,
-                            accountId => accountId !== item.firstComment.authorId,
+                            accountId => accountId !== item.firstCommentThread.authorId,
                         );
 
                         const [
                             documentResult,
-                            firstCommentAuthor,
-                            firstCommentContentSnippetReferences,
+                            firstCommentThreadAuthor,
+                            firstCommentThreadContentSnippetReferences,
                             otherCommentThreadAuthor,
                         ] = await runAllPromises([
                             getDocumentPreviewIfPossible(context, item.documentId),
-                            getAccount(context, item.spaceId, item.firstComment.authorId),
+                            getAccount(context, item.spaceId, item.firstCommentThread.authorId),
                             getMessageContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                item.firstComment.contentSnippet,
+                                item.firstCommentThread.contentSnippet,
                             ),
                             otherCommentThreadAuthorId
                                 ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
@@ -1074,11 +1145,19 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 ? {isPrivate: false, document: documentResult.value}
                                 : {isPrivate: true, documentId: item.documentId},
                             bucketGeneration: item.bucketGeneration,
-                            commentThreadCount: item.commentThreadIds.size,
                             commentThreadAuthorCount: item.commentThreadAuthorIds.size,
-                            firstComment: {
-                                author: firstCommentAuthor,
-                                createdTime: item.firstComment.createdTime,
+                            commentThreads: new Map(
+                                mapIterable(item.commentThreadIds, commentThreadId => [
+                                    commentThreadId,
+                                    {
+                                        isArchived:
+                                            item.archivedCommentThreadIds.has(commentThreadId),
+                                    },
+                                ]),
+                            ),
+                            firstCommentThread: {
+                                author: firstCommentThreadAuthor,
+                                createdTime: item.firstCommentThread.createdTime,
                                 contentTextSnippet: documentResult.ok
                                     ? // If the actor lost access to the document then don't show them the latest
                                       // comment snippet. They may have already seen this content in a push
@@ -1090,8 +1169,8 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                       // was a mention because the user has already theoretically seen these things
                                       // (via push notification) and otherwise the notification loses all structure.
                                       printContentSingleLineTextSnippetForServer({
-                                          doc: item.firstComment.contentSnippet,
-                                          references: firstCommentContentSnippetReferences,
+                                          doc: item.firstCommentThread.contentSnippet,
+                                          references: firstCommentThreadContentSnippetReferences,
                                       })
                                     : "",
                             },

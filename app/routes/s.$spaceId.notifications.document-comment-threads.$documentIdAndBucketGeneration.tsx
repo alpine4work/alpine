@@ -9,7 +9,13 @@ import {
     DocumentCommentThreadListViewRef,
 } from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
+import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
+import {
+    useArchiveInboxDocumentNewCommentThreadsEntryCommentThread,
+    useUnarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
+} from "~/client/inbox/use_archive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
@@ -41,14 +47,22 @@ import {
     DocumentCommentThreadModel,
     DocumentModel,
 } from "~/shared/documents/document_model.js";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {
+    DynamoGeneralRealtimeItem,
+    createDynamoGeneralRealtimeItemSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
-import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxDocumentNewCommentThreadsEntryModel,
+    InboxEntryModelSchema,
+} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
@@ -155,23 +169,49 @@ export default function DocumentNewCommentThreadsRoute() {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
-        <DocumentNewCommentThreadsRouteInner
+        <DocumentNewCommentThreadsRouteInner1
             // Completely re-mount the route when we get new data from the server.
             key={key}
         />
     );
 }
 
-function DocumentNewCommentThreadsRouteInner() {
+function DocumentNewCommentThreadsRouteInner1() {
+    const {inboxEntry, commentThreads} = useLoaderDataWithSchema(LoaderSchema);
+
+    const inboxContext = useInboxContext();
+
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            maxWidth: contentStyles.contentMaxWidth,
+            withoutArchiveButton: commentThreads.length >= 2,
+        },
+        <DocumentNewCommentThreadsRouteInner2
+            parentNavigation={inboxContext?.navigation ?? null}
+        />,
+    );
+}
+
+function DocumentNewCommentThreadsRouteInner2({
+    parentNavigation,
+}: {
+    parentNavigation: InboxContextNavigation | null;
+}) {
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
+
+    const inboxContext = assertExists(useInboxContext());
+    const originalInboxEntry = assertExists(inboxContext.entry);
+    assert(originalInboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel);
+    const inboxEntry =
+        originalInboxEntry as DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
 
     const {
         checkpoint: initialCheckpoint,
         document: initialDocument,
         commentThreads: initialCommentThreads,
         initialCommentsByCommentThreadId,
-        inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {
@@ -357,7 +397,60 @@ function DocumentNewCommentThreadsRouteInner() {
         withoutDisappearingTitle: true,
     });
 
-    const node = (
+    const archiveInboxDocumentNewCommentThreadsEntryCommentThread =
+        useArchiveInboxDocumentNewCommentThreadsEntryCommentThread();
+    const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread =
+        useUnarchiveInboxDocumentNewCommentThreadsEntryCommentThread();
+
+    const {handleArchiveCommentThread, handleUnarchiveCommentThread} = useEvents({
+        handleArchiveCommentThread: async (commentThreadId: DocumentCommentThreadId) => {
+            archiveInboxDocumentNewCommentThreadsEntryCommentThread({
+                entry: inboxEntry,
+                withAnimation: true,
+                commentThreadId,
+            });
+
+            // If we're viewing new entries and by archiving this `postId` we've archived
+            // all posts in the entry then navigate to the next entry.
+            if (
+                parentNavigation?.filter === "New" &&
+                iterableEvery(
+                    inboxEntry.model.commentThreads,
+                    commentThread =>
+                        commentThread[0] === commentThreadId || commentThread[1].isArchived,
+                )
+            ) {
+                if (parentNavigation.nextEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
+                } else if (parentNavigation.previousEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
+                } else {
+                    await parentNavigation.selectEntry(null);
+                }
+            }
+        },
+        handleUnarchiveCommentThread: async (commentThreadId: DocumentCommentThreadId) => {
+            unarchiveInboxDocumentNewCommentThreadsEntryCommentThread({
+                entry: inboxEntry,
+                withAnimation: true,
+                commentThreadId,
+            });
+
+            // If we're viewing archived entries then when we unarchive any post move to
+            // the next entry.
+            if (parentNavigation?.filter === "Archive") {
+                if (parentNavigation.nextEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.nextEntry);
+                } else if (parentNavigation.previousEntry) {
+                    await parentNavigation.selectEntry(parentNavigation.previousEntry);
+                } else {
+                    await parentNavigation.selectEntry(null);
+                }
+            }
+        },
+    });
+
+    return (
         <DocumentCommentThreadListView
             ref={listViewRef}
             // When rendering for mobile, we render one comment thread at a time. Instead of
@@ -418,14 +511,18 @@ function DocumentNewCommentThreadsRouteInner() {
                     ),
                 };
             }, [platform])}
-        />
-    );
+            isCommentThreadArchived={useMemo(() => {
+                if (commentThreadCount < 2) return;
 
-    return useInboxBannerOutletContainer(
-        {
-            initialEntry: inboxEntry,
-            maxWidth: contentStyles.contentMaxWidth,
-        },
-        node,
+                return (commentThreadId: DocumentCommentThreadId) =>
+                    inboxEntry.model.commentThreads.get(commentThreadId)?.isArchived ?? false;
+            }, [commentThreadCount, inboxEntry.model.commentThreads])}
+            onArchiveCommentThread={
+                commentThreadCount >= 2 ? handleArchiveCommentThread : undefined
+            }
+            onUnarchiveCommentThread={
+                commentThreadCount >= 2 ? handleUnarchiveCommentThread : undefined
+            }
+        />
     );
 }

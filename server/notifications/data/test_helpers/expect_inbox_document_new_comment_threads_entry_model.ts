@@ -2,17 +2,17 @@ import {TestDocumentCommentThread} from "~/server/documents/test_helpers/test_do
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {InboxDocumentNewCommentThreadsEntryModel} from "~/shared/notifications/inbox_model.js";
 
-export function expectDocumentNewCommentThreadsEntryModel({
+export function expectInboxDocumentNewCommentThreadsEntryModel({
     session,
     isDocumentPrivate = false,
     bucketGeneration,
     isArchived = false,
     loudNotificationCount = 0,
-    commentThreadCount = 1,
-    commentThreadAuthorCount = 1,
-    firstComment,
+    firstCommentThread,
+    commentThreads = [[firstCommentThread.commentThread, {isArchived}]],
     otherCommentThreadAuthor = null,
 }: {
     session: TestSpaceSession;
@@ -20,32 +20,48 @@ export function expectDocumentNewCommentThreadsEntryModel({
     bucketGeneration: number;
     isArchived?: boolean;
     loudNotificationCount?: number;
-    commentThreadCount?: number;
-    commentThreadAuthorCount?: number;
-    firstComment: {
+    commentThreads?: ReadonlyArray<
+        TestDocumentCommentThread | [TestDocumentCommentThread, {isArchived: boolean}]
+    >;
+    firstCommentThread: {
         commentThread: TestDocumentCommentThread;
         contentTextSnippet: string;
     };
     otherCommentThreadAuthor?: TestSession | TestAccount | null;
 }) {
+    const actualCommentThreads = commentThreads.map(commentThread =>
+        isReadonlyArray(commentThread) ? commentThread : ([commentThread, {isArchived}] as const),
+    );
+
     return new InboxDocumentNewCommentThreadsEntryModel({
         isArchived,
         spaceId: session.space.id,
         accountId: session.account.id,
         document: isDocumentPrivate
-            ? {isPrivate: true, documentId: firstComment.commentThread.document.id}
+            ? {isPrivate: true, documentId: firstCommentThread.commentThread.document.id}
             : {
                   isPrivate: false,
-                  document: expect.objectContaining({id: firstComment.commentThread.document.id}),
+                  document: expect.objectContaining({
+                      id: firstCommentThread.commentThread.document.id,
+                  }),
               },
         bucketGeneration,
         loudNotificationCount,
-        commentThreadCount,
-        commentThreadAuthorCount,
-        firstComment: {
-            author: expect.objectContaining({id: firstComment.commentThread.firstCommentAuthor.id}),
-            createdTime: firstComment.commentThread.createdTime,
-            contentTextSnippet: firstComment.contentTextSnippet,
+        commentThreadAuthorCount: new Set(
+            actualCommentThreads.map(commentThread => commentThread[0].firstCommentAuthor.id),
+        ).size,
+        commentThreads: new Map(
+            actualCommentThreads.map(commentThread => [
+                commentThread[0].id,
+                {isArchived: commentThread[1].isArchived},
+            ]),
+        ),
+        firstCommentThread: {
+            author: expect.objectContaining({
+                id: firstCommentThread.commentThread.firstCommentAuthor.id,
+            }),
+            createdTime: firstCommentThread.commentThread.createdTime,
+            contentTextSnippet: firstCommentThread.contentTextSnippet,
         },
         otherCommentThreadAuthor:
             otherCommentThreadAuthor instanceof TestSession

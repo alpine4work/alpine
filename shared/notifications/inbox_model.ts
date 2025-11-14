@@ -217,7 +217,10 @@ export class InboxChannelPostsEntryModel
             ),
             bucketGeneration: Schema.integer,
             postAuthorCount: Schema.integer.min(1),
-            posts: Schema.map(Schema.id<PostId>(), Schema.object({isArchived: Schema.boolean})),
+            posts: Schema.map(
+                Schema.id<PostId>(),
+                Schema.object({isArchived: Schema.boolean}),
+            ).minSize(1),
             latestPost: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
@@ -306,9 +309,12 @@ export class InboxDocumentNewCommentThreadsEntryModel
                 }),
             ),
             bucketGeneration: Schema.integer,
-            commentThreadCount: Schema.integer.min(1),
             commentThreadAuthorCount: Schema.integer.min(1),
-            firstComment: Schema.object({
+            commentThreads: Schema.map(
+                Schema.id<DocumentCommentThreadId>(),
+                Schema.object({isArchived: Schema.boolean}),
+            ).minSize(1),
+            firstCommentThread: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
@@ -323,11 +329,13 @@ export class InboxDocumentNewCommentThreadsEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "DocumentNewCommentThreads",
-            documentId: this.document.isPrivate
-                ? this.document.documentId
-                : this.document.document.id,
+            documentId: this.getDocumentId(),
             bucketGeneration: this.bucketGeneration,
         };
+    }
+
+    public getDocumentId(): DocumentId {
+        return this.document.isPrivate ? this.document.documentId : this.document.document.id;
     }
 }
 

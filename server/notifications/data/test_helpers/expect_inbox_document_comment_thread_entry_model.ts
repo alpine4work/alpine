@@ -12,7 +12,6 @@ export function expectInboxDocumentCommentThreadEntryModel({
     isArchived = false,
     loudNotificationCount = 0,
     latestComment,
-    firstCommentAuthor,
     otherCommentAuthor = null,
 }: {
     session: TestSpaceSession;
@@ -25,7 +24,6 @@ export function expectInboxDocumentCommentThreadEntryModel({
         contentTextSnippet: string;
         isStickyMention?: boolean;
     };
-    firstCommentAuthor: TestSession | TestAccount;
     otherCommentAuthor?: TestSession | TestAccount | null;
 }) {
     return new InboxDocumentCommentThreadEntryModel({
@@ -51,10 +49,7 @@ export function expectInboxDocumentCommentThreadEntryModel({
             contentTextSnippet: latestComment.contentTextSnippet,
             isStickyMention: latestComment.isStickyMention ?? false,
         },
-        firstCommentAuthor:
-            firstCommentAuthor instanceof TestSession
-                ? expect.objectContaining({id: firstCommentAuthor.account.id})
-                : expect.objectContaining({id: firstCommentAuthor.id}),
+        firstCommentAuthor: expect.objectContaining({id: commentThread.firstCommentAuthor.id}),
         otherCommentAuthor:
             otherCommentAuthor instanceof TestSession
                 ? expect.objectContaining({id: otherCommentAuthor.account.id})

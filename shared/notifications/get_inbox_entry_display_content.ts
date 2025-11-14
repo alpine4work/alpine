@@ -490,10 +490,13 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     entry: InboxDocumentNewCommentThreadsEntryModel;
     locale: Locale;
 }): InboxEntryDisplayContent {
-    const firstAccount: AccountModel = entry.otherCommentThreadAuthor ?? entry.firstComment.author;
+    const firstAccount: AccountModel =
+        entry.otherCommentThreadAuthor ?? entry.firstCommentThread.author;
 
     const secondAccount: AccountModel | null =
-        entry.firstComment.author.id !== firstAccount.id ? entry.firstComment.author : null;
+        entry.firstCommentThread.author.id !== firstAccount.id
+            ? entry.firstCommentThread.author
+            : null;
 
     const documentTitle = entry.document.isPrivate
         ? "a private document"
@@ -501,7 +504,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
 
-    summary.push(printPrettySmallNumberSummary(entry.commentThreadCount, "new comment thread"));
+    summary.push(printPrettySmallNumberSummary(entry.commentThreads.size, "new comment thread"));
     summary.push(` on ${documentTitle} by `);
 
     if (!secondAccount) {
@@ -519,11 +522,11 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     }
 
     return {
-        time: entry.firstComment.createdTime,
+        time: entry.firstCommentThread.createdTime,
         brandIconType: "Document",
         firstAccount: firstAccount,
         secondAccount: secondAccount,
-        latestMessage: entry.firstComment,
+        latestMessage: entry.firstCommentThread,
         summary,
     };
 }

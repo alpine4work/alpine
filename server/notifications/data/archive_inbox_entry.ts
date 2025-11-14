@@ -74,6 +74,18 @@ export async function archiveInboxEntry(
                 };
             }
 
+            // When archiving a new comment threads entry, all `DocumentCommentThreadId`s
+            // in the entry are now considered archived.
+            if (
+                item.sortRangeType === "DocumentNewCommentThreadsEntry" &&
+                item.archivedCommentThreadIds.size !== item.commentThreadIds.size
+            ) {
+                item = {
+                    ...item,
+                    archivedCommentThreadIds: item.commentThreadIds,
+                };
+            }
+
             return item;
         },
     );

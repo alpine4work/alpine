@@ -201,6 +201,7 @@ export function DocumentCommentInput({
             }}
             fileAttachmentTarget={fileAttachmentTarget}
             messageEditing={messageEditing}
+            documentCommentThreadRoom={commentThread}
             parent={parent}
             onParentClear={onParentClear}
             onJumpToMessageRange={onJumpToCommentRange}
