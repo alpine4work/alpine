@@ -27,6 +27,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependenciesWithoutDispatch} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
+import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -534,6 +535,7 @@ function PostContentViewFooter({
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const reporter = useReporter();
+    const inboxContext = useInboxContext();
 
     const [isNavigatePending, setIsNavigatePending] = useState(false);
 
@@ -609,6 +611,11 @@ function PostContentViewFooter({
                         promise.catch(error => {
                             reporter.displayError("Couldn’t add reaction to post", error);
                         });
+
+                        // On the server, `setPostReaction()` uses the same logic as
+                        // `setPostCommentReaction()` for archiving a post in response to a
+                        // reaction. So use the same logic on the client as well.
+                        inboxContext?.onSetMessageReactionOptimistically(promise, post.id);
 
                         onOptimisticPostRealtimeEventTransaction(promise, post.id, post => {
                             const newReactions = new Map(post.reactions.get());

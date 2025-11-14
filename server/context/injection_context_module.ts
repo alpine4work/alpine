@@ -229,7 +229,7 @@ export type NotificationsInjection = {
             spaceId: SpaceId;
             postId: PostId;
             commentCount: number;
-            commentIndex: number;
+            commentIndex: number | null;
         },
     ): Promise<void>;
 

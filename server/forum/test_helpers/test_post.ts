@@ -1,5 +1,6 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
@@ -11,6 +12,7 @@ import {
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {createOrReplacePostDraft} from "~/server/forum/data/create_or_replace_post_draft.js";
 import {createPost} from "~/server/forum/data/create_post.js";
+import {deletePostReaction} from "~/server/forum/data/delete_post_reaction.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getPost} from "~/server/forum/data/get_post.js";
 import {getPostContentAndChannelPreview} from "~/server/forum/data/get_post_content_and_channel_preview.js";
@@ -24,10 +26,12 @@ import {
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
+import {setPostReaction} from "~/server/forum/data/set_post_reaction.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -448,5 +452,20 @@ export class TestPost extends TestCommentRoomBase {
                 new ReplaceStep(0, post.content.content.size, new Slice(content.content, 0, 0)),
             ],
         });
+    }
+
+    public async setReaction(
+        session: TestSession,
+        reaction: Reaction | "GenericLike" = "GenericLike",
+    ) {
+        return setPostReaction(
+            session.action().clone({apns: new TestApnsContextModule()}),
+            this.id,
+            reaction,
+        );
+    }
+
+    public async deleteReaction(session: TestSession) {
+        return deletePostReaction(session.action(), this.id);
     }
 }

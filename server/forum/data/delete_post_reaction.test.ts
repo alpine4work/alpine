@@ -1,10 +1,13 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {deletePostReaction} from "~/server/forum/data/delete_post_reaction.js";
-import {setPostReaction} from "~/server/forum/data/set_post_reaction.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    notificationsInjection: {
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
+});
 
 test("can remove a reaction from a post", async () => {
     const space = await TestSpace.create(context);
@@ -13,7 +16,7 @@ test("can remove a reaction from a post", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -36,7 +39,7 @@ test("can’t remove a reaction from a post actor has lost access to", async () 
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -69,7 +72,7 @@ test("can remove a reaction from a post where actor only has comment access", as
 
     await channel.access.grant(session1, session2, "Comment");
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -94,7 +97,7 @@ test("can’t remove a reaction from a post where actor has been downgraded to v
 
     await channel.access.grant(session1, session2, "Comment");
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });

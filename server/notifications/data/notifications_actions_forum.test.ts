@@ -8234,6 +8234,103 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
+        test("setting a reaction on a post archives the post comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post,
+                    channel,
+                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    latestComment: null,
+                }),
+            ]);
+        });
+
+        test("setting a reaction on a post with comments archives the post comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.createComment(session1, "test1");
+            await post.createComment(session1, "test2");
+            const comment3 = await post.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post,
+                    channel,
+                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
         test("setting a reaction on the latest post comment, explicitly unarchiving, then setting a reaction on a different post comment archives the post comment inbox entry", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
@@ -8419,6 +8516,131 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
+        test("setting a reaction on the latest post comment, explicitly unarchiving, then setting a reaction on the post archives the post comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.createComment(session1, "test1");
+            await post.createComment(session1, "test2");
+            const comment3 = await post.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await unarchiveInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {
+                    type: "PostComments",
+                    postId: post.id,
+                },
+            });
+
+            await post.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post,
+                    channel,
+                    postContentTextSnippetIfMentioned: `Hello, ${session2.account.initialName}!`,
+                    latestComment: {
+                        comment: comment3,
+                        contentTextSnippet: "test3",
+                    },
+                }),
+            ]);
+        });
+
+        test("setting a reaction on the latest post comment, implicitly unarchiving, then setting a reaction on the post archives the post comment inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.createComment(session1, "test1");
+            await post.createComment(session1, "test2");
+            const comment3 = await post.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment4 = await post.createComment(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {
+                        comment: comment4,
+                        contentTextSnippet: "test4",
+                    },
+                }),
+            ]);
+        });
+
         test("clears `isStickyMention` when archiving by reacting to a post comment", async () => {
             const schema = MessageContentProsemirrorSchema;
 
@@ -8469,6 +8691,75 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
 
             await comment3.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                    },
+                }),
+            ]);
+        });
+
+        test("clears `isStickyMention` when archiving by reacting to a post", async () => {
+            const schema = MessageContentProsemirrorSchema;
+
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            const comment1 = await post.createComment(
+                session1,
+                schema.node("doc", null, [
+                    schema.node("paragraph", null, [
+                        schema.text("Hello, "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
+                        }),
+                        schema.text("!"),
+                    ]),
+                ]),
+            );
+            await post.createComment(session1, "test2");
+            await post.createComment(session1, "test3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxPostCommentsEntryModel({
+                    loudNotificationCount: 1,
+                    session: session2,
+                    post,
+                    channel,
+                    latestComment: {
+                        comment: comment1,
+                        contentTextSnippet: `Hello, ${session2.account.initialName}!`,
+                        isStickyMention: true,
+                    },
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+
+            await post.setReaction(session2);
 
             await ProcessContextModule.waitForTestTasks();
 
@@ -8604,6 +8895,38 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
         });
 
+        test("reacting to a post archives the associated channel posts entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post = await channel.createPost(session1, "test1");
+
+            await post.createComment(session1, "test2");
+            await post.createComment(session1, "test3");
+            await post.createComment(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    isArchived: true,
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    latestPost: {post, contentTextSnippet: "test1"},
+                }),
+            ]);
+        });
+
         test("reacting to a post comment archives the post in a channel posts entry", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
@@ -8620,6 +8943,38 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             await ProcessContextModule.waitForTestTasks();
 
             await comment.setReaction(session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxChannelPostsEntryModel({
+                    session: session2,
+                    channel,
+                    bucketGeneration: 0,
+                    posts: [post1, [post2, {isArchived: true}], post3],
+                    latestPost: {post: post3, contentTextSnippet: "test3"},
+                }),
+            ]);
+
+            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
+        });
+
+        test("reacting to a post archives the post in a channel posts entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+            await channel.subscribe(session2);
+
+            const post1 = await channel.createPost(session1, "test1");
+            const post2 = await channel.createPost(session1, "test2");
+            const post3 = await channel.createPost(session1, "test3");
+
+            await post2.createComment(session1, "test4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await post2.setReaction(session2);
 
             await ProcessContextModule.waitForTestTasks();
 

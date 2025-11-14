@@ -18,7 +18,7 @@ export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
         spaceId: SpaceId;
         postId: PostId;
         commentCount: number;
-        commentIndex: number;
+        commentIndex: number | null;
     },
 ) {
     const result = await updateInboxPostCommentsEntry(

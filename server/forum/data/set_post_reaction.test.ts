@@ -1,10 +1,13 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {deletePostReaction} from "~/server/forum/data/delete_post_reaction.js";
-import {setPostReaction} from "~/server/forum/data/set_post_reaction.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    notificationsInjection: {
+        archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
+});
 
 test("can add a reaction to post", async () => {
     const space = await TestSpace.create(context);
@@ -15,7 +18,7 @@ test("can add a reaction to post", async () => {
 
     expect((await post.get()).reactions.get()).toEqual(new Map());
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -36,7 +39,7 @@ test("can add a default reaction to post", async () => {
 
     expect((await post.get()).reactions.get()).toEqual(new Map());
 
-    await setPostReaction(session2.action(), post.id, "GenericLike");
+    await post.setReaction(session2, "GenericLike");
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([[session2.account.id, "GenericLike"]]),
@@ -50,12 +53,12 @@ test("can update a reaction to post", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Lolsob",
     });
@@ -74,12 +77,12 @@ test("can update a reaction to post to default reaction", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
-    await setPostReaction(session2.action(), post.id, "GenericLike");
+    await post.setReaction(session2, "GenericLike");
 
     expect((await post.get()).reactions.get()).toEqual(
         new Map([[session2.account.id, "GenericLike"]]),
@@ -93,9 +96,9 @@ test("can update a reaction to post from default reaction", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, "GenericLike");
+    await post.setReaction(session2, "GenericLike");
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Lolsob",
     });
@@ -114,17 +117,17 @@ test("multiple accounts can react to post", async () => {
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
-    await setPostReaction(session4.action(), post.id, {
+    await post.setReaction(session4, {
         character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
@@ -144,22 +147,22 @@ test("updating a reaction preserves the account’s order in the post’s reacti
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
-    await setPostReaction(session4.action(), post.id, {
+    await post.setReaction(session4, {
         character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Yeti", variant: "Blue"},
         emotion: "No",
     });
@@ -179,17 +182,17 @@ test("deleting a reaction then adding a new one changes the account’s order in
     const channel = await TestChannel.create(session1);
     const post = await channel.createPost(session1);
 
-    await setPostReaction(session2.action(), post.id, {
+    await post.setReaction(session2, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Yeti", variant: "Blue"},
         emotion: "Yes",
     });
 
-    await setPostReaction(session4.action(), post.id, {
+    await post.setReaction(session4, {
         character: {type: "Cat", variant: "Yellow"},
         emotion: "Celebrate",
     });
@@ -202,7 +205,7 @@ test("deleting a reaction then adding a new one changes the account’s order in
         [session4.account.id, {character: {type: "Cat", variant: "Yellow"}, emotion: "Celebrate"}],
     ]);
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Yeti", variant: "Blue"},
         emotion: "No",
     });
@@ -225,7 +228,7 @@ test("can’t react to post actor doesn’t have access to", async () => {
     expect((await post.get()).reactions.get()).toEqual(new Map());
 
     await expect(
-        setPostReaction(session2.action(), post.id, {
+        post.setReaction(session2, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
@@ -244,13 +247,13 @@ test("can react to post in private channel if actor has access", async () => {
     await channel.access.grant(session1, session3, "Manage");
 
     await expect(
-        setPostReaction(session2.action(), post.id, {
+        post.setReaction(session2, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -272,14 +275,14 @@ test("can’t react to post in private channel if actor has view access", async 
     await channel.access.grant(session1, session3, "View");
 
     await expect(
-        setPostReaction(session2.action(), post.id, {
+        post.setReaction(session2, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
     await expect(
-        setPostReaction(session3.action(), post.id, {
+        post.setReaction(session3, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
@@ -298,13 +301,13 @@ test("can react to post in private channel if actor has comment access", async (
     await channel.access.grant(session1, session3, "Comment");
 
     await expect(
-        setPostReaction(session2.action(), post.id, {
+        post.setReaction(session2, {
             character: {type: "Tree", variant: "Green"},
             emotion: "Laugh",
         }),
     ).rejects.toThrow("Actor doesn’t have `Comment` access level");
 
-    await setPostReaction(session3.action(), post.id, {
+    await post.setReaction(session3, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });
@@ -323,7 +326,7 @@ test("can react to own post", async () => {
     const channel = await TestChannel.create(session);
     const post = await channel.createPost(session);
 
-    await setPostReaction(session.action(), post.id, {
+    await post.setReaction(session, {
         character: {type: "Tree", variant: "Green"},
         emotion: "Laugh",
     });

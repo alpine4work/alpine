@@ -1,7 +1,8 @@
-import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemWithContentForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -15,7 +16,7 @@ import {ReactionSet} from "~/shared/reactions/reaction_set.js";
  * changing their reaction then the position stays the same.
  */
 export async function setPostReaction(
-    context: ServerAccountActionContext,
+    context: ServerSessionActionContextWithApns,
     postId: PostId,
     reaction: Reaction | "GenericLike",
 ) {
@@ -29,7 +30,7 @@ export async function setPostReaction(
         item => {
             const newReactions = new Map(item.reactions.get());
 
-            newReactions.set(context.actor.getPossiblyBotAccountId(), reaction);
+            newReactions.set(context.actor.getAccountId(), reaction);
 
             return {
                 ...item,
@@ -37,6 +38,15 @@ export async function setPostReaction(
             };
         },
         {initialItem: item},
+    );
+
+    context.process.waitUntil(
+        context.notificationsInjection.archiveInboxPostCommentsEntryAfterSetPostCommentReaction({
+            spaceId: item.spaceId,
+            postId,
+            commentCount: sumIterable(item.commentsSummary.commentCountByAuthorId.values()),
+            commentIndex: null,
+        }),
     );
 
     return {getDynamoGeneralRealtimeEvent: getEvent};
