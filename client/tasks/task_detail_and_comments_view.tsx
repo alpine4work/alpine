@@ -1,15 +1,10 @@
-import {animate, spring} from "motion";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentBlockWidthContextProvider} from "~/client/content/content_block_width.js";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -32,12 +27,10 @@ import {
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {hasAccessLevel} from "~/shared/access/access_policy.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {ConstStore} from "~/shared/store/const_store.js";
@@ -172,9 +165,7 @@ export function TaskDetailAndCommentsView({
 
     const [commentsState, setCommentsState] = useState<
         | {type: "ClosedWaitingToOpen"; readyPromiseResolver: PromiseResolver<void>}
-        | {type: "Opening"}
         | {type: "Opened"}
-        | {type: "Closing"}
         | {type: "Closed"}
     >(() => {
         if (!showComments) {
@@ -185,20 +176,13 @@ export function TaskDetailAndCommentsView({
     });
 
     switch (commentsState.type) {
+        case "Opened":
         case "ClosedWaitingToOpen": {
             if (!showComments) {
                 setCommentsState({type: "Closed"});
             }
             break;
         }
-        case "Opening":
-        case "Opened": {
-            if (!showComments) {
-                setCommentsState({type: routeLayout === "narrow" ? "Closed" : "Closing"});
-            }
-            break;
-        }
-        case "Closing":
         case "Closed": {
             if (showComments) {
                 setCommentsState({
@@ -223,147 +207,18 @@ export function TaskDetailAndCommentsView({
         if (lastCommentsStateTypeRef.current === commentsState.type) return;
         lastCommentsStateTypeRef.current = commentsState.type;
 
-        switch (commentsState.type) {
-            case "ClosedWaitingToOpen": {
-                void Promise.race([
-                    commentsState.readyPromiseResolver.promise,
-                    wait(delayScreenTransitionLoadingIndicatorLimitMs),
-                ]).then(() => {
-                    setCommentsState(commentsState => {
-                        if (commentsState.type !== "ClosedWaitingToOpen") return commentsState;
-                        return {type: "Opening"};
-                    });
+        if (commentsState.type === "ClosedWaitingToOpen") {
+            void Promise.race([
+                commentsState.readyPromiseResolver.promise,
+                wait(delayScreenTransitionLoadingIndicatorLimitMs),
+            ]).then(() => {
+                setCommentsState(commentsState => {
+                    if (commentsState.type !== "ClosedWaitingToOpen") return commentsState;
+                    return {type: "Opened"};
                 });
-                break;
-            }
-            case "Opening": {
-                const platform = getPlatformWithoutListening();
-                const spacingScale = getSpacingScaleWithoutListening();
-
-                const blockMaxWidth = convertRemLengthToPx(
-                    contentStyles.blockMaxWidth[platform],
-                    spacingScale,
-                );
-                const sidebarWidth = convertRemLengthToPx(
-                    spacing[documentContentEditorSidebarWidth],
-                    spacingScale,
-                );
-                const sidebarOffscreenBufferWidth = convertRemLengthToPx("10", spacingScale);
-
-                const detailElement = assertExists(detailRef.current);
-                const commentsElement = assertExists(commentsRef.current);
-
-                const oldContentOffset = Math.max(
-                    0,
-                    (detailElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
-                );
-                const newContentOffset = Math.max(
-                    0,
-                    (detailElement.clientWidth - blockMaxWidth) / 2,
-                );
-
-                const animation = animate(
-                    [
-                        [
-                            commentsElement,
-                            {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]},
-                            {type: spring, stiffness: 300, damping: 31},
-                        ],
-                        [
-                            detailElement,
-                            {x: [oldContentOffset - newContentOffset, 0]},
-                            {at: 0, type: spring, stiffness: 300, damping: 31},
-                        ],
-                    ],
-                    {
-                        // Add a little bit of delay so React can finish rendering before playing our
-                        // animation.
-                        delay: 0.05,
-                    },
-                );
-
-                void animation.finished.finally(() => {
-                    setCommentsState(commentsState => {
-                        if (commentsState.type !== "Opening") return commentsState;
-                        return {type: "Opened"};
-                    });
-                });
-                break;
-            }
-            case "Closing": {
-                const platform = getPlatformWithoutListening();
-                const spacingScale = getSpacingScaleWithoutListening();
-
-                const blockMaxWidth = convertRemLengthToPx(
-                    contentStyles.blockMaxWidth[platform],
-                    spacingScale,
-                );
-                const sidebarWidth = convertRemLengthToPx(
-                    spacing[documentContentEditorSidebarWidth],
-                    spacingScale,
-                );
-                const sidebarOffscreenBufferWidth = convertRemLengthToPx("10", spacingScale);
-
-                const detailElement = assertExists(detailRef.current);
-                const commentsElement = assertExists(commentsRef.current);
-
-                const oldContentOffset = Math.max(
-                    0,
-                    (detailElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
-                );
-                const newContentOffset = Math.max(
-                    0,
-                    (detailElement.clientWidth - blockMaxWidth) / 2,
-                );
-
-                const animation = animate(
-                    [
-                        [
-                            commentsElement,
-                            {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]},
-                            {type: spring, stiffness: 300, damping: 31},
-                        ],
-                        [
-                            detailElement,
-                            {x: [0, oldContentOffset - newContentOffset]},
-                            {at: 0, type: spring, stiffness: 300, damping: 31},
-                        ],
-                    ],
-                    {
-                        // Add a little bit of delay so React can finish rendering before playing our
-                        // animation.
-                        delay: 0.05,
-                    },
-                );
-
-                void animation.finished.finally(() => {
-                    setCommentsState(commentsState => {
-                        if (commentsState.type !== "Closing") return commentsState;
-                        return {type: "Closed"};
-                    });
-                });
-                break;
-            }
-            case "Opened": {
-                const detailElement = assertExists(detailRef.current);
-                const commentsElement = assertExists(commentsRef.current);
-
-                // Reset any animation state.
-                void animate(detailElement, {x: 0}, {duration: 0});
-                void animate(commentsElement, {x: 0}, {duration: 0});
-                break;
-            }
-            case "Closed": {
-                const detailElement = assertExists(detailRef.current);
-
-                // Reset any animation state.
-                void animate(detailElement, {x: 0}, {duration: 0});
-                break;
-            }
-            default:
-                throw exhaustive(commentsState);
+            });
         }
-    }, [commentsState]);
+    }, [commentsState, routeLayout]);
 
     // If `showComments` is true then switches to false, we don't want to pass
     // `initialComments` into `<TaskDetailAndCommentsView>` anymore. If

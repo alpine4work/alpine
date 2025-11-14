@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {AnimationPlaybackControls, animate, spring} from "motion";
+import {AnimationPlaybackControls, animate} from "motion";
 import {
     ArrowLeft,
     ArrowUp,
@@ -382,6 +382,14 @@ export function DocumentContentEditor({
         setSidebarState({...sidebarState, mobileState: {isFullScreen: false}});
     }
 
+    if (routeLayout !== "narrow" && sidebarState.isOpen && sidebarState.animationState !== null) {
+        if (sidebarState.animationState === "Closing") {
+            setSidebarState({isOpen: false, transition: null});
+        } else {
+            setSidebarState({...sidebarState, animationState: null});
+        }
+    }
+
     const pinnedCommentInputRef = useRef<MessageInputRef>(null);
     const mobileFakeCommentInputRef = useRef<HTMLDivElement>(null);
     const mobileFakeCommentInputEditorRef = useRef<HTMLDivElement>(null);
@@ -390,6 +398,11 @@ export function DocumentContentEditor({
     const sidebarAnimationOutRef = useRef<AnimationPlaybackControls | null>(null);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (routeLayout !== "narrow") {
+            // We only animate the sidebar on narrow displays
+            return;
+        }
+
         if (!(sidebarState.isOpen && sidebarState.animationState === "Opening")) {
             sidebarAnimationInRef.current?.cancel();
             sidebarAnimationInRef.current = null;
@@ -404,77 +417,34 @@ export function DocumentContentEditor({
 
         const spacingScale = getSpacingScaleWithoutListening();
 
-        let animation: AnimationPlaybackControls;
+        const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-        if (routeLayout === "narrow") {
-            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+        const sidebarHeight =
+            editorContainerRect.height -
+            convertRemLengthToPx(documentContentEditorMobileSidebarInsetTop, spacingScale);
 
-            const sidebarHeight =
-                editorContainerRect.height -
-                convertRemLengthToPx(documentContentEditorMobileSidebarInsetTop, spacingScale);
+        const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
-            const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
-
-            animation = animate(
+        const animation = animate(
+            [
                 [
-                    [
-                        sidebarElement,
-                        {y: [sidebarHeight, 0]},
-                        {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
-                    ],
-                    [
-                        mobileFakeCommentInputElement ?? [],
-                        {y: [sidebarHeight, 0]},
-                        {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
-                    ],
+                    sidebarElement,
+                    {y: [sidebarHeight, 0]},
+                    {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                 ],
-                {
-                    // Add a little bit of delay so React can finish rendering before playing our
-                    // animation.
-                    delay: 0.05,
-                    duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
-                },
-            );
-        } else {
-            const blockMaxWidth = convertRemLengthToPx(
-                contentStyles.blockMaxWidth[platform],
-                spacingScale,
-            );
-            const sidebarWidth = convertRemLengthToPx(
-                spacing[documentContentEditorSidebarWidth],
-                spacingScale,
-            );
-            const sidebarOffscreenBufferWidth = convertRemLengthToPx("10", spacingScale);
-
-            const oldContentOffset = Math.max(
-                0,
-                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
-            );
-            const newContentOffset = Math.max(
-                0,
-                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
-            );
-
-            animation = animate(
                 [
-                    [
-                        sidebarElement,
-                        {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]},
-                        {type: spring, stiffness: 300, damping: 31},
-                    ],
-                    [
-                        editorContainerElement,
-                        {x: [oldContentOffset - newContentOffset, 0]},
-                        {at: 0, type: spring, stiffness: 300, damping: 31},
-                    ],
+                    mobileFakeCommentInputElement ?? [],
+                    {y: [sidebarHeight, 0]},
+                    {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
                 ],
-                {
-                    // Add a little bit of delay so React can finish rendering before playing our
-                    // animation.
-                    delay: 0.05,
-                },
-            );
-        }
+            ],
+            {
+                // Add a little bit of delay so React can finish rendering before playing our
+                // animation.
+                delay: 0.05,
+                duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
+            },
+        );
 
         void animation.finished.finally(() => {
             // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
@@ -483,7 +453,7 @@ export function DocumentContentEditor({
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.
-            if (isMobileWebKit && routeLayout === "narrow") {
+            if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
                 sidebarElement.style.transform = "translateY(0)";
@@ -506,11 +476,15 @@ export function DocumentContentEditor({
                 });
             });
         });
-
         sidebarAnimationInRef.current = animation;
     }, [platform, routeLayout, sidebarState]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
+        if (routeLayout !== "narrow") {
+            // We only animate the sidebar on narrow displays
+            return;
+        }
+
         if (!(sidebarState.isOpen && sidebarState.animationState === "Closing")) {
             sidebarAnimationOutRef.current?.cancel();
             sidebarAnimationOutRef.current = null;
@@ -525,94 +499,50 @@ export function DocumentContentEditor({
 
         const spacingScale = getSpacingScaleWithoutListening();
 
-        let animation: AnimationPlaybackControls;
-        let sidebarHeight: number | undefined;
+        const editorContainerRect = editorContainerElement.getBoundingClientRect();
 
-        if (routeLayout === "narrow") {
-            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+        const sidebarHeight =
+            editorContainerRect.height -
+            convertRemLengthToPx(documentContentEditorMobileSidebarInsetTop, spacingScale);
 
-            sidebarHeight =
-                editorContainerRect.height -
-                convertRemLengthToPx(documentContentEditorMobileSidebarInsetTop, spacingScale);
+        const scrollBottom =
+            editorContainerElement.scrollHeight -
+            (editorContainerElement.scrollTop + editorContainerElement.clientHeight);
 
-            const scrollBottom =
-                editorContainerElement.scrollHeight -
-                (editorContainerElement.scrollTop + editorContainerElement.clientHeight);
-
-            // After our sidebar is done closing we'll remove the safe area we added to the
-            // bottom of the document. If we've scrolled to the bottom of the document this
-            // will cause the document to jump back into place. This is jarring so instead
-            // animate a scroll along with our close animation to get us back to the right
-            // place before the document size changes.
-            if (scrollBottom < sidebarHeight) {
-                editorContainerElement.scrollTo({
-                    top: editorContainerElement.scrollTop - (sidebarHeight - scrollBottom),
-                    behavior: "smooth",
-                });
-            }
-
-            const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
-
-            animation = animate(
-                [
-                    [
-                        sidebarElement,
-                        {y: [0, sidebarHeight]},
-                        {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
-                    ],
-                    [
-                        mobileFakeCommentInputElement ?? [],
-                        {y: [0, sidebarHeight]},
-                        {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
-                    ],
-                ],
-                {
-                    // Add a little bit of delay so React can finish rendering before playing our
-                    // animation.
-                    delay: 0.05,
-                    duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
-                },
-            );
-        } else {
-            const blockMaxWidth = convertRemLengthToPx(
-                contentStyles.blockMaxWidth[platform],
-                spacingScale,
-            );
-            const sidebarWidth = convertRemLengthToPx(
-                documentContentEditorSidebarWidth,
-                spacingScale,
-            );
-            const sidebarOffscreenBufferWidth = convertRemLengthToPx("10", spacingScale);
-
-            const oldContentOffset = Math.max(
-                0,
-                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
-            );
-            const newContentOffset = Math.max(
-                0,
-                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
-            );
-
-            animation = animate(
-                [
-                    [
-                        sidebarElement,
-                        {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]},
-                        {type: spring, stiffness: 420, damping: 35},
-                    ],
-                    [
-                        editorContainerElement,
-                        {x: [0, -(oldContentOffset - newContentOffset)]},
-                        {at: 0, type: spring, stiffness: 420, damping: 35},
-                    ],
-                ],
-                {
-                    // Add a little bit of delay so React can finish rendering before playing our
-                    // animation.
-                    delay: 0.05,
-                },
-            );
+        // After our sidebar is done closing we'll remove the safe area we added to the
+        // bottom of the document. If we've scrolled to the bottom of the document this
+        // will cause the document to jump back into place. This is jarring so instead
+        // animate a scroll along with our close animation to get us back to the right
+        // place before the document size changes.
+        if (scrollBottom < sidebarHeight) {
+            editorContainerElement.scrollTo({
+                top: editorContainerElement.scrollTop - (sidebarHeight - scrollBottom),
+                behavior: "smooth",
+            });
         }
+
+        const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
+
+        const animation = animate(
+            [
+                [
+                    sidebarElement,
+                    {y: [0, sidebarHeight]},
+                    {ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
+                ],
+                [
+                    mobileFakeCommentInputElement ?? [],
+                    {y: [0, sidebarHeight]},
+                    {at: 0, ease: mobileFullScreenModalAnimationEasingParsedCubicBezier},
+                ],
+            ],
+            {
+                // Add a little bit of delay so React can finish rendering before playing our
+                // animation.
+                delay: 0.05,
+                duration: mobileFullScreenModalAnimationDurationLongMs / 1000,
+            },
+        );
 
         void animation.finished.finally(() => {
             // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
@@ -621,12 +551,12 @@ export function DocumentContentEditor({
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.
-            if (isMobileWebKit && routeLayout === "narrow") {
+            if (isMobileWebKit) {
                 const mobileFakeCommentInputElement = mobileFakeCommentInputRef.current;
 
-                sidebarElement.style.transform = `translateY(${sidebarHeight!}px)`;
+                sidebarElement.style.transform = `translateY(${sidebarHeight}px)`;
                 if (mobileFakeCommentInputElement)
-                    mobileFakeCommentInputElement.style.transform = `translateY(${sidebarHeight!}px)`;
+                    mobileFakeCommentInputElement.style.transform = `translateY(${sidebarHeight}px)`;
             }
 
             // Our native app doesn't automatically update scrollbar insets after a scroll
@@ -945,7 +875,7 @@ export function DocumentContentEditor({
                 if (!sidebarState.isOpen) {
                     return {
                         isOpen: true,
-                        animationState: "Opening",
+                        animationState: routeLayout === "narrow" ? "Opening" : null,
                         transition: null,
                         commentThreadId: transition.commentThreadId,
                         dataPromise: transition.dataPromise,
@@ -954,7 +884,8 @@ export function DocumentContentEditor({
                 } else {
                     return {
                         isOpen: true,
-                        animationState: sidebarState.animationState,
+                        animationState:
+                            routeLayout === "narrow" ? sidebarState.animationState : null,
                         transition: null,
                         commentThreadId: transition.commentThreadId,
                         dataPromise: transition.dataPromise,
@@ -998,7 +929,7 @@ export function DocumentContentEditor({
             timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
-    }, [reporter, sidebarState.transition]);
+    }, [reporter, routeLayout, sidebarState.transition]);
 
     const [
         mobileDiscardSidebarCommentInputModalState,
@@ -1015,7 +946,12 @@ export function DocumentContentEditor({
             const run = () => {
                 setSidebarState(sidebarState => {
                     if (!sidebarState.isOpen) return sidebarState;
-                    return {...sidebarState, animationState: "Closing" as const};
+
+                    if (routeLayout === "narrow") {
+                        return {...sidebarState, animationState: "Closing" as const};
+                    } else {
+                        return {isOpen: false, transition: null};
+                    }
                 });
             };
 
