@@ -84,6 +84,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -545,6 +546,13 @@ function PostContentViewFooter({
         [locale, commentCount],
     );
 
+    const hasOnlyGenericLikeReactions = useMemo(() => {
+        return iterableEvery(
+            post.reactions.get().values() ?? [],
+            reaction => reaction === "GenericLike",
+        );
+    }, [post.reactions]);
+
     return (
         <Box
             data-testid={
@@ -553,13 +561,39 @@ function PostContentViewFooter({
                     : undefined
             }
             paddingX={screenPaddingX}
+            marginLeft={hasOnlyGenericLikeReactions ? "-1.5" : "-1"}
             height={postContentViewFooterHeight}
             display="flex"
             alignItems="center"
         >
+            <ContentBlockWidthContextProvider
+                maxWidth={contentStyles.contentMaxWidth}
+                paddingRight={useMemo(
+                    () =>
+                        addRemLengths(
+                            screenPaddingX[platform],
+                            "-1.5",
+                            commentButtonAndAvatarsAreaWidth,
+                            postContentViewFooterReactionButtonAreaWidth,
+                        ),
+                    [commentButtonAndAvatarsAreaWidth, platform],
+                )}
+            >
+                <ReactionParty
+                    reactions={post.reactions}
+                    randomSeed={post.id}
+                    onPress={() => {
+                        if (isNavigatePending) return;
+
+                        setIsNavigatePending(true);
+                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
+                            setIsNavigatePending(false);
+                        });
+                    }}
+                />
+            </ContentBlockWidthContextProvider>
             <Box
                 flexShrink="0"
-                marginLeft="-1.5"
                 display="flex"
                 justifyContent="flex-start"
                 alignItems="center"
@@ -602,40 +636,6 @@ function PostContentViewFooter({
                     }}
                 />
             </Box>
-            <ContentBlockWidthContextProvider
-                maxWidth={contentStyles.contentMaxWidth}
-                paddingLeft={useMemo(
-                    () =>
-                        addRemLengths(
-                            screenPaddingX[platform],
-                            postContentViewFooterReactionButtonAreaWidth,
-                            "-1.5",
-                        ),
-                    [platform],
-                )}
-                paddingRight={useMemo(
-                    () =>
-                        addRemLengths(
-                            screenPaddingX[platform],
-                            commentButtonAndAvatarsAreaWidth,
-                            "-1.5",
-                        ),
-                    [commentButtonAndAvatarsAreaWidth, platform],
-                )}
-            >
-                <ReactionParty
-                    reactions={post.reactions}
-                    randomSeed={post.id}
-                    onPress={() => {
-                        if (isNavigatePending) return;
-
-                        setIsNavigatePending(true);
-                        navigate(`/s/${space.id}/posts/${post.id}/reactions`).finally(() => {
-                            setIsNavigatePending(false);
-                        });
-                    }}
-                />
-            </ContentBlockWidthContextProvider>
             <Box flexGrow="1" />
             <Box
                 flexShrink="0"

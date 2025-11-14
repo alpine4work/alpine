@@ -2,41 +2,32 @@
 
 import {useId, useMemo} from "react";
 import {usePress} from "react-aria";
-import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useContentBlockWidth} from "~/client/content/content_block_width.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {Tooltip} from "~/client/design/tooltip.js";
-import {useStore} from "~/client/helpers/use_store.js";
 import {ReactionIcon} from "~/client/reactions/icons/reaction_icon.js";
 import {reactionIconSvgs} from "~/client/reactions/icons/reaction_icon_svgs.js";
 import {
     ReactionEntry,
     layoutReactionParty,
 } from "~/client/reactions/internal/layout_reaction_party.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {ReactionTooltip} from "~/client/reactions/internal/reaction_tooltip.js";
+import {reactionButtonContextMenuActionKey} from "~/client/reactions/reaction_button.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {postContentViewFooterHeight} from "~/client/styles/forum_shared_styles.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {
+    Spacing,
+    parseRemLength,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {getValueByReaction, mapReactionMap} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
-import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
-import {computeStore} from "~/shared/store/compute_store.js";
 
 const iconSize = 256;
 const iconSizeSpacing = "8";
@@ -88,13 +79,14 @@ export function ReactionParty({
     reactions,
     randomSeed,
     onPress,
+    offsetTopIfManyReactions = "0",
 }: {
     reactions: ReactionSet;
     randomSeed: string;
     onPress: () => void;
+    offsetTopIfManyReactions?: Spacing;
 }) {
     const spacingScale = useSpacingScale();
-    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const idBase = useId();
 
@@ -113,13 +105,13 @@ export function ReactionParty({
         const {reactionEntries, firstRowReactionEntries, secondRowReactionEntries} =
             layoutReactionParty(maxReactionEntryCount, reactions);
 
-        const partyWidthFirstRowReactionEntryCount =
-            firstRowReactionEntries.length +
-            (secondRowReactionEntries.length >= firstRowReactionEntries.length ? 1 : 0);
-
-        const partyWidth =
-            iconSize * partyWidthFirstRowReactionEntryCount +
-            firstRowGap * (partyWidthFirstRowReactionEntryCount - 1);
+        const partyWidth = Math.max(
+            iconSize * firstRowReactionEntries.length +
+                firstRowGap * (firstRowReactionEntries.length - 1),
+            iconSize / 2 +
+                iconSize * secondRowReactionEntries.length +
+                firstRowGap * (secondRowReactionEntries.length - 1),
+        );
 
         const partyWidthRem = partyWidth * (iconSizeRem / iconSize);
 
@@ -133,13 +125,6 @@ export function ReactionParty({
         // Special rendering for a single reaction that puts the reaction in the middle
         // of the post footer instead of on a second line.
         if (reactionEntries.length === 1) {
-            // If the only reaction is our current account's reaction then don't render
-            // anything. Our current account's reaction will already be visible on
-            // `<ReactionButton>`.
-            if (currentAccount.id === reactionEntries[0]!.accountId) {
-                return {reactionEntries, node: null};
-            }
-
             return {
                 reactionEntries,
                 widthStyle: `${round3(partyWidthRem)}rem`,
@@ -166,7 +151,10 @@ export function ReactionParty({
                     style={{
                         position: "absolute",
                         left: "0",
-                        top: `calc(50% - ${spacing["1"]})`,
+                        top: `calc(50% - ${subtractRemLengths(
+                            spacing["1"],
+                            offsetTopIfManyReactions,
+                        )})`,
                         transform: "translateY(-50%)",
                         width: `${round3(partyWidthRem)}rem`,
                         height: `${round3(partyHeightRem)}rem`,
@@ -182,132 +170,44 @@ export function ReactionParty({
                 />
             ),
         };
-    }, [blockWidth, currentAccount.id, idBase, randomSeed, reactions, spacingScale]);
-
-    const allAccounts =
-        useLazyLoadRpc(
-            expensivelyGetAllSpaceAccounts,
-            reactionEntries.length > 0 ? {spaceId: space.id} : null,
-            {
-                // Only fetch our space accounts once. Won't refetch as subsequent
-                // `<ReactionParty>` components mount. Also won't refetch if the user hides the
-                // window then comes back.
-                //
-                // We render `<ReactionParty>` a lot so we don't want it making a bunch of RPC
-                // calls every time it mounts.
-                onlyFetchIfNotAvailable: true,
-            },
-        ).output?.accounts ?? emptyArray;
+    }, [blockWidth, idBase, offsetTopIfManyReactions, randomSeed, reactions, spacingScale]);
 
     const {isPressed, pressProps} = usePress({onPress});
 
     if (!node) return null;
 
     return (
-        <Tooltip
-            placement="top-start"
-            content={
-                <ReactionPartyTooltipContent
-                    allAccounts={allAccounts}
-                    currentAccount={currentAccount}
-                    reactions={reactions}
-                />
-            }
-        >
-            <FocusRing insetTop={reactionEntries.length > 1 ? "-1.5" : undefined}>
-                <div
-                    {...pressProps}
-                    tabIndex={0}
-                    style={{
-                        position: "relative",
-                        zIndex: "0",
-                        height: spacing[postContentViewFooterHeight],
-                        opacity: isPressed ? 0.6 : undefined,
-                        width: widthStyle,
-                    }}
-                >
-                    {node}
-                </div>
-            </FocusRing>
-        </Tooltip>
+        <ReactionTooltip reactions={reactionEntries}>
+            <ContextMenuActions
+                actions={[
+                    [
+                        {
+                            key: reactionButtonContextMenuActionKey,
+                            label: "See reactions",
+                            pressErrorTitle: "Couldn’t open reactions",
+                            onPress,
+                        },
+                    ],
+                ]}
+            >
+                <FocusRing insetTop={reactionEntries.length > 1 ? "-1.5" : undefined}>
+                    <div
+                        {...pressProps}
+                        tabIndex={0}
+                        style={{
+                            position: "relative",
+                            zIndex: "0",
+                            height: spacing[postContentViewFooterHeight],
+                            opacity: isPressed ? 0.6 : undefined,
+                            width: widthStyle,
+                        }}
+                    >
+                        {node}
+                    </div>
+                </FocusRing>
+            </ContextMenuActions>
+        </ReactionTooltip>
     );
-}
-
-function ReactionPartyTooltipContent({
-    allAccounts,
-    currentAccount,
-    reactions,
-}: {
-    allAccounts: ReadonlyArray<AccountModel>;
-    currentAccount: AccountModel;
-    reactions: ReactionSet;
-}) {
-    const {locale} = useClientInfo();
-    const accountRegistry = useAccountRegistry();
-
-    const string = useStore(
-        useMemo(() => {
-            const reactionsMap = reactions.get();
-
-            return computeStore(get => {
-                // If there's only one reaction, use the full name of the account.
-                if (reactionsMap.size === 1) {
-                    if (reactionsMap.has(currentAccount.id)) {
-                        return "You";
-                    }
-
-                    const accountId = assertExists(iterableFirst(reactionsMap.keys()));
-
-                    const account =
-                        allAccounts.find(account => account.id === accountId) ??
-                        AccountModel.getUnknown();
-
-                    return get(accountRegistry.getAccountStore(account)).name;
-                }
-
-                const maxAccountNameCount = 4;
-
-                const accountNames = Array.from(
-                    sliceIterable(
-                        // Iterate through `allAccounts` which should be in affinity order so we show
-                        // accounts the user has the most affinity for first.
-                        filterMapIterable(allAccounts, account =>
-                            account.id !== currentAccount.id && reactionsMap.has(account.id)
-                                ? getAccountShortNameWithoutFullNameTooltip(
-                                      get(accountRegistry.getAccountStore(account)),
-                                  )
-                                : undefined,
-                        ),
-                        0,
-                        maxAccountNameCount,
-                    ),
-                );
-
-                if (reactionsMap.has(currentAccount.id)) {
-                    accountNames.unshift("You");
-                }
-
-                // Use the unknown account name for any accounts we didn't find in
-                // `allAccounts`.
-                while (
-                    accountNames.length < maxAccountNameCount &&
-                    reactionsMap.size > accountNames.length
-                ) {
-                    accountNames.push(AccountModel.getUnknown().initialData.name);
-                }
-
-                if (reactionsMap.size > accountNames.length) {
-                    accountNames.push(
-                        printPrettyNumber(locale, reactionsMap.size - accountNames.length, "other"),
-                    );
-                }
-
-                return joinPrettyConjunctionList(accountNames);
-            });
-        }, [accountRegistry, allAccounts, currentAccount.id, locale, reactions]),
-    );
-
-    return <>{string}</>;
 }
 
 function renderReactionPartySvg({

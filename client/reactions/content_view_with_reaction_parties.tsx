@@ -13,7 +13,7 @@ import {
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
-import {addRemLengths} from "~/shared/design/core/spacing.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
@@ -115,11 +115,6 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     );
 }
 
-const contentBlockWidthContextPaddingLeft = addRemLengths(
-    postContentViewFooterReactionButtonAreaWidth,
-    "-1.5",
-);
-
 function ContentViewWithReactionPartiesPart<Content extends ContentWithReferences>({
     content,
     contentUpdatedTime,
@@ -188,6 +183,13 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
         return jumpAnimation;
     }, [content.doc.content.size, originalJumpAnimation, posAttributeOffset]);
 
+    const hasOnlyGenericLikeReactions = useMemo(() => {
+        return iterableEvery(
+            reactions?.get().values() ?? [],
+            reaction => reaction === "GenericLike",
+        );
+    }, [reactions]);
+
     return (
         <>
             <ContentView
@@ -216,7 +218,7 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                 <div
                     className={sprinkles({
                         height: postContentViewFooterHeight,
-                        marginTop: contentStyles.paragraphMargin,
+                        marginLeft: hasOnlyGenericLikeReactions ? "-1.5" : "-1",
                         marginBottom:
                             partIndex < partCount - 1
                                 ? contentStyles.standaloneBlockMargin
@@ -225,28 +227,14 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                         alignItems: "center",
                     })}
                 >
-                    <div
-                        className={sprinkles({
-                            flexShrink: "0",
-                            marginLeft: "-1.5",
-                            display: "flex",
-                            justifyContent: "flex-start",
-                            alignItems: "center",
-                        })}
-                        style={{width: postContentViewFooterReactionButtonAreaWidth}}
-                    >
-                        <ReactionButton
-                            reactions={reactions}
-                            onSetReaction={reaction => onSetReaction(pos, reaction)}
-                            onDeleteReaction={() => onDeleteReaction(pos)}
-                            onPressSeeReactions={() => onPressSeeReactions(pos)}
-                        />
-                    </div>
                     <ContentBlockWidthContextProvider
                         maxWidth={contentStyles.contentMaxWidth}
-                        paddingLeft={contentBlockWidthContextPaddingLeft}
+                        paddingRight={postContentViewFooterReactionButtonAreaWidth}
                     >
                         <ReactionParty
+                            // The reaction party runs into the previous text if it's not offset
+                            // a little.
+                            offsetTopIfManyReactions="1.5"
                             reactions={reactions}
                             // This works well in `<MessageView>` where `data-room` and `data-index` are
                             // passed in as props. Currently this component is only used in `<MessageView>`
@@ -269,6 +257,22 @@ function ContentViewWithReactionPartiesPart<Content extends ContentWithReference
                             }}
                         />
                     </ContentBlockWidthContextProvider>
+                    <div
+                        className={sprinkles({
+                            flexShrink: "0",
+                            display: "flex",
+                            justifyContent: "flex-start",
+                            alignItems: "center",
+                        })}
+                        style={{width: postContentViewFooterReactionButtonAreaWidth}}
+                    >
+                        <ReactionButton
+                            reactions={reactions}
+                            onSetReaction={reaction => onSetReaction(pos, reaction)}
+                            onDeleteReaction={() => onDeleteReaction(pos)}
+                            onPressSeeReactions={() => onPressSeeReactions(pos)}
+                        />
+                    </div>
                 </div>
             )}
         </>

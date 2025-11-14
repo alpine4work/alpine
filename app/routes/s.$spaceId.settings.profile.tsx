@@ -176,7 +176,7 @@ export default function SpaceProfileSettingsRoute() {
                             Character
                         </Box>
                         <Box paddingTop="1" fontSize="75" color="grey-60" userSelect="text">
-                            Your personal character, used for likes
+                            Your personal character, used for reactions
                         </Box>
                     </Box>
                     <Box marginY="-2">

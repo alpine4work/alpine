@@ -49,6 +49,7 @@ function OverlayAnimated(
         disableAnimationOut = false,
         overlay: originalOverlay,
         overlayZIndex,
+        overlayPointerEvents,
         onActuallyVisibleChange,
         animateOut,
         ...props
@@ -81,6 +82,13 @@ function OverlayAnimated(
          * added by `<OverlayAnimated>`.
          */
         overlayZIndex?: Sprinkles["zIndex"];
+
+        /**
+         * The `pointerEvents` to use for the overlay wrapper `<div>`. Setting
+         * `pointerEvents` on the element you pass into `overlay` won't work since
+         * there's a wrapper `<div>` added by `<OverlayAnimated>`.
+         */
+        overlayPointerEvents?: Sprinkles["pointerEvents"];
 
         /**
          * Called when whether the overlay is actually hidden/visible changes. If the
@@ -134,7 +142,9 @@ function OverlayAnimated(
             ref={overlayContainerRef}
             className={classNames(
                 overlayAnimateContainerClassName,
-                overlayZIndex ? sprinkles({zIndex: overlayZIndex}) : undefined,
+                overlayZIndex !== undefined || overlayPointerEvents !== undefined
+                    ? sprinkles({zIndex: overlayZIndex, pointerEvents: overlayPointerEvents})
+                    : undefined,
             )}
         >
             {useElementWithRef(originalOverlay, overlayRef)}
@@ -302,5 +312,24 @@ function OverlayAnimated(
         }
     });
 
-    return <Overlay {...props} ref={ref} isVisible={isActuallyVisible} overlay={overlay} />;
+    return (
+        <Overlay
+            {...props}
+            ref={ref}
+            isVisible={isActuallyVisible}
+            // While animating out, use the previous position of the overlay in case the
+            // overlay closing comes with the targeted element moving.
+            //
+            // For example, in `<PostContentView>` when you add/remove a reaction the
+            // `<ReactionButton>` shifts to make way for the reaction party. When you
+            // add/remove a reaction that also starts the `<ReactionRadialPicker>` exit
+            // animation. We don't want the `<ReactionRadialPicker>` to shift at the start
+            // of its exit animation! We want the `<ReactionRadialPicker>` to stay in its
+            // old position. [Demo video][1].
+            //
+            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/t2r2edbxjmnbsrzcv3c9d6ff2c
+            withPreviousPosition={!state.isVisible && state.isAnimating}
+            overlay={overlay}
+        />
+    );
 }

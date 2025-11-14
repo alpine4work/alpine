@@ -52,6 +52,7 @@ export function ReactionMegaPicker({
 
     return (
         <Box
+            pointerEvents="auto"
             height="32"
             backgroundColor="grey-0"
             boxShadow="elevation-20"

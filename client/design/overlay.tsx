@@ -236,6 +236,13 @@ export type OverlayProps = {
     onBlockingCoverPointerDown?: () => void;
 
     /**
+     * Stop updating the position of the overlay and instead use the previously
+     * rendered position. Useful if the target element is moving around but you
+     * want the overlay to stay in the same position.
+     */
+    withPreviousPosition?: boolean;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      *
@@ -286,6 +293,7 @@ function Overlay(
         withoutRootBlockingScope = false,
         withoutBlockingTarget = false,
         onBlockingCoverPointerDown,
+        withPreviousPosition,
         children,
         targetElement,
     }: OverlayProps,
@@ -303,6 +311,7 @@ function Overlay(
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<(Instance & {maybeStartAnimationLoop(): void}) | null>(null);
+    const previousAttributesRef = useRef<Map<string, string> | null>(null);
     const blockingCoverRef = useRef<OverlayBlockingCoverRef>(null);
 
     useImperativeHandle(
@@ -371,9 +380,21 @@ function Overlay(
     useEffect(() => {
         if (!isVisible) return;
 
-        setElementState({
-            portalElement: getPortalElement(),
-            blockingCoverPortalElement: getBlockingCoverPortalElement?.() ?? null,
+        const portalElement = getPortalElement();
+        const blockingCoverPortalElement = getBlockingCoverPortalElement?.() ?? null;
+
+        setElementState(elementState => {
+            if (
+                elementState.portalElement === portalElement &&
+                elementState.blockingCoverPortalElement === blockingCoverPortalElement
+            ) {
+                return elementState;
+            }
+
+            return {
+                portalElement,
+                blockingCoverPortalElement,
+            };
         });
     }, [getBlockingCoverPortalElement, getPortalElement, isVisible]);
 
@@ -386,15 +407,40 @@ function Overlay(
                 "Expected the children of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
 
-            if (!isVisible || !portalElement) return;
-
-            let isDestroyed = false;
+            if (!isVisible || !portalElement) {
+                previousAttributesRef.current = null;
+                return;
+            }
 
             assert(
                 overlayRef.current && overlayRef.current instanceof HTMLElement,
                 "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
             const overlayElement = overlayRef.current;
+
+            // If `isVisible` is true and `withPreviousPosition` is true then the overlay
+            // uses the style attributes from the popper we just destroyed.
+            if (withPreviousPosition) {
+                if (previousAttributesRef.current === null) {
+                    // TODO(calebmer): In this case, maybe we should call `createPopper()` to get
+                    // the position, immediately `destroy()` the popper instance, but use the
+                    // position here. This seems like a much better solution than putting the
+                    // overlay in the top left corner which'll feel pretty janky if a user ever sees
+                    // this state.
+                    overlayElement.style.position = "absolute";
+                    overlayElement.style.top = "0";
+                    overlayElement.style.left = "0";
+                } else {
+                    for (const [attributeName, attributeValue] of previousAttributesRef.current) {
+                        overlayElement.setAttribute(attributeName, attributeValue);
+                    }
+                }
+
+                return;
+            }
+
+            let isDestroyed = false;
+
             const blockingCover =
                 isBlocking !== false ? assertExists(blockingCoverRef.current) : null;
 
@@ -449,6 +495,7 @@ function Overlay(
                 };
 
                 return {
+                    strategy: "absolute" as const,
                     placement: placement === "center" ? "top-start" : placement,
                     modifiers: [
                         {
@@ -767,6 +814,20 @@ function Overlay(
                     });
 
                 return () => {
+                    // Before destroying, record the attributes which determine the overlay's
+                    // position. We'll restore these attributes if `withPreviousPosition` is true.
+                    {
+                        const previousAttributes = new Map<string, string>();
+                        previousAttributesRef.current = previousAttributes;
+
+                        for (const attributeName of ["data-popper-placement", "style"]) {
+                            const attributeValue = overlayElement.getAttribute(attributeName);
+                            if (attributeValue !== null) {
+                                previousAttributes.set(attributeName, attributeValue);
+                            }
+                        }
+                    }
+
                     isDestroyed = true;
                     overlayVisiblePoppers.delete(popper);
                     popperRef.current = null;
@@ -794,6 +855,7 @@ function Overlay(
         [
             isVisible,
             portalElement,
+            withPreviousPosition,
             isBlocking,
             sameHeight,
             overflowTop,

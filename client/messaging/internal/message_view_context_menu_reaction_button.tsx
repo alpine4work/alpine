@@ -10,7 +10,10 @@ import {
     deleteMessageReactionWithOptimisticUpdate,
     setMessageReactionWithOptimisticUpdate,
 } from "~/client/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
-import {ReactionButtonBase, ReactionButtonIcon} from "~/client/reactions/reaction_button.js";
+import {
+    CurrentAccountReactionButtonIcon,
+    ReactionButtonBase,
+} from "~/client/reactions/reaction_button.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -143,7 +146,7 @@ export function MessageViewContextMenuReactionButton<
                                         weight: "regular",
                                     }}
                                 >
-                                    <ReactionButtonIcon
+                                    <CurrentAccountReactionButtonIcon
                                         currentAccountReaction={currentAccountReaction}
                                         isPressed={isMouseDownFromOverlayOpen}
                                     />

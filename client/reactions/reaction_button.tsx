@@ -1,5 +1,5 @@
 import {ThumbsUp} from "phosphor-react";
-import {ReactElement, useRef, useState} from "react";
+import {ReactElement, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -12,6 +12,7 @@ import {
     ReactionRadialPicker,
     ReactionRadialPickerRef,
 } from "~/client/reactions/internal/reaction_radial_picker.js";
+import {ReactionTooltip} from "~/client/reactions/internal/reaction_tooltip.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
@@ -25,6 +26,7 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
@@ -41,48 +43,76 @@ export function ReactionButton({
     onDeleteReaction: () => void;
     onPressSeeReactions: () => Promise<void>;
 }) {
+    const genericLikeReactions = useMemo(
+        () =>
+            Array.from(
+                filterMapIterable(reactions.get(), ([accountId, reaction]) =>
+                    reaction === "GenericLike" ? {accountId} : undefined,
+                ),
+            ),
+        [reactions],
+    );
+
     return (
         <ReactionButtonBase
             reactions={reactions}
             onSetReaction={onSetReaction}
             onDeleteReaction={onDeleteReaction}
         >
-            {({currentAccountReaction, isMouseDownFromOverlayOpen}) => (
-                <ContextMenuActions
-                    actions={[
-                        [
-                            {
-                                key: reactionButtonContextMenuActionKey,
-                                label: "See reactions",
-                                pressErrorTitle: "Couldn’t open reactions",
-                                onPress: onPressSeeReactions,
-                            },
-                        ],
-                    ]}
+            {({isMouseDownFromOverlayOpen}) => (
+                <ReactionTooltip
+                    introduction="Liked by"
+                    reactions={genericLikeReactions}
+                    withContextMenuInstructions={true}
                 >
-                    <Button
-                        variant="quietest"
-                        isPressed={isMouseDownFromOverlayOpen}
-                        height={postContentViewFooterButtonHeight}
-                        paddingX="1.5"
-                        icon={({isPressed}) => (
-                            <ReactionButtonIcon
-                                currentAccountReaction={currentAccountReaction}
-                                isPressed={isPressed}
-                            />
-                        )}
+                    <ContextMenuActions
+                        actions={[
+                            [
+                                {
+                                    key: reactionButtonContextMenuActionKey,
+                                    label: "See reactions",
+                                    pressErrorTitle: "Couldn’t open reactions",
+                                    onPress: onPressSeeReactions,
+                                },
+                            ],
+                        ]}
                     >
-                        <span style={{fontVariantNumeric: "tabular-nums"}}>
-                            <PrettyNumber number={reactions.get().size} />
-                        </span>
-                    </Button>
-                </ContextMenuActions>
+                        <Button
+                            variant={genericLikeReactions.length > 0 ? "quieter" : "quietest"}
+                            isPressed={isMouseDownFromOverlayOpen}
+                            height={postContentViewFooterButtonHeight}
+                            paddingX="1.5"
+                            icon={({isPressed}) =>
+                                genericLikeReactions.length > 0 ? (
+                                    <Box
+                                        color={
+                                            isPressed
+                                                ? {light: "theme-60-const", dark: "theme-40-const"}
+                                                : "theme-50-const"
+                                        }
+                                    >
+                                        <ThumbsUpFill2Icon
+                                            size={spacing[postContentViewFooterButtonIconSize]}
+                                            color="currentColor"
+                                        />
+                                    </Box>
+                                ) : (
+                                    <ThumbsUp size={spacing[postContentViewFooterButtonIconSize]} />
+                                )
+                            }
+                        >
+                            <span style={{fontVariantNumeric: "tabular-nums"}}>
+                                <PrettyNumber number={reactions.get().size} />
+                            </span>
+                        </Button>
+                    </ContextMenuActions>
+                </ReactionTooltip>
             )}
         </ReactionButtonBase>
     );
 }
 
-export function ReactionButtonIcon({
+export function CurrentAccountReactionButtonIcon({
     currentAccountReaction,
     isPressed,
 }: {
@@ -145,6 +175,9 @@ export function ReactionButtonBase({
             aria-haspopup="true"
             placement="bottom-start"
             offset={!isMegaPickerOpen ? "0" : undefined}
+            // Don't allow clicking the overlay element before we've applied additional
+            // translations to it.
+            overlayPointerEvents="none"
             // Don't move the overlay if it's near the container bounds. We position the
             // overlay relative to the button using the cursor position.
             fallbackPlacements={!isMegaPickerOpen ? emptyArray : undefined}
@@ -226,7 +259,10 @@ export function ReactionButtonBase({
                 }
             }}
         >
-            {children({currentAccountReaction, isMouseDownFromOverlayOpen})}
+            {children({
+                currentAccountReaction,
+                isMouseDownFromOverlayOpen,
+            })}
         </OverlayTriggerButton>
     );
 }

@@ -38,6 +38,7 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {Sprinkles} from "~/client/styles/styles.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -112,6 +113,8 @@ function OverlayTriggerButton(
         fallbackPlacements,
         offset = defaultTooltipOffset,
         offsetAlong,
+        overlayZIndex,
+        overlayPointerEvents,
         withoutButtonElementRequirement = false,
         children: actualChildren,
         onOpen: onOpenFromProps,
@@ -173,6 +176,20 @@ function OverlayTriggerButton(
          * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
          */
         offsetAlong?: ParsableRemLength;
+
+        /**
+         * The `zIndex` to use for the overlay wrapper `<div>`. Setting `zIndex` on the
+         * element you pass into `overlay` won't work since there's a wrapper `<div>`
+         * added by `<OverlayAnimated>`.
+         */
+        overlayZIndex?: Sprinkles["zIndex"];
+
+        /**
+         * The `pointerEvents` to use for the overlay wrapper `<div>`. Setting
+         * `pointerEvents` on the element you pass into `overlay` won't work since
+         * there's a wrapper `<div>` added by `<OverlayAnimated>`.
+         */
+        overlayPointerEvents?: Sprinkles["pointerEvents"];
 
         /**
          * Disable the requirement that `children` must be a `<button>` element.
@@ -640,6 +657,8 @@ function OverlayTriggerButton(
             fallbackPlacements={fallbackPlacements}
             offset={offset}
             offsetAlong={offsetAlong}
+            overlayZIndex={overlayZIndex}
+            overlayPointerEvents={overlayPointerEvents}
             disableAnimationIn={true}
             disableAnimationOut={state.disableAnimationOut}
             animateOut={animateOverlayOutFromProps !== undefined ? animateOverlayOut : undefined}

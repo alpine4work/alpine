@@ -322,7 +322,27 @@ function ReactionRadialPicker(
                     width: `${reactionRadialPickerSizeRem}rem`,
                     height: `${reactionRadialPickerSizeRem}rem`,
                 }}
-                onPointerDown={() => {
+                onPointerDown={event => {
+                    const circleElement = event.currentTarget;
+                    const circleRect = circleElement.getBoundingClientRect();
+
+                    const circleCenterX = circleRect.left + circleRect.width / 2;
+                    const circleCenterY = circleRect.top + circleRect.height / 2;
+                    const circleRadius = circleRect.width / 2;
+
+                    const pointerVector = new Vector2(
+                        event.clientX - circleCenterX,
+                        event.clientY - circleCenterY,
+                    );
+
+                    // Clicks within the `<Box>`'s rectangle (before applying `borderRadius`) are
+                    // sent to this element's `onPointerDown` handler. Make sure the click is within
+                    // the radial picker circle, not in empty space just outside the circle.
+                    if (pointerVector.magnitude > circleRadius) {
+                        onCloseWithAnimation();
+                        return;
+                    }
+
                     setIsPressed(true);
 
                     const cleanup = () => {
