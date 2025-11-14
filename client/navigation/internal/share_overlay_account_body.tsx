@@ -10,6 +10,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -143,6 +144,7 @@ export function ShareOverlayAccountBody({
                                             ? {
                                                   accountIds: selectedAccounts.map(({id}) => id),
                                                   content: trimContent(messageState.getDoc()),
+                                                  createdTimeZone: getClientInfo().timeZone,
                                               }
                                             : null,
                                     );
@@ -252,6 +254,7 @@ export function ShareOverlayAccountBody({
                                         ? {
                                               accountIds: selectedAccounts.map(({id}) => id),
                                               content: trimContent(messageState.getDoc()),
+                                              createdTimeZone: getClientInfo().timeZone,
                                           }
                                         : null,
                                 );

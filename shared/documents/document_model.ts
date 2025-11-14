@@ -10,6 +10,7 @@ import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -73,6 +74,7 @@ export class DocumentCommentModel
             version: Schema.integer,
             author: AccountModel.schema,
             createdTime: Schema.date,
+            createdTimeZone: TimeZoneSchema,
             payload: MessagePayloadModelSchema,
             stream: MessageStreamSchema.nullable(),
         }),

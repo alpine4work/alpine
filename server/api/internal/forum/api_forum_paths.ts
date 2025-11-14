@@ -27,6 +27,7 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     MessageContentProsemirrorSchema,
@@ -244,10 +245,13 @@ export const apiForumPaths: Pick<
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
+            const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+
             const {spaceId, index, createdTime} = await createPostComment(context, {
                 postId: pathParameters.id,
                 parent: null,
                 content,
+                createdTimeZone,
                 fileIds: [],
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
@@ -288,6 +292,7 @@ export const apiForumPaths: Pick<
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
+                            createdTimeZone,
                             payload,
                             stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
@@ -303,6 +308,7 @@ export const apiForumPaths: Pick<
                         version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
+                        createdTimeZone,
                         payload,
                         stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),

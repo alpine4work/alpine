@@ -39,6 +39,7 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
@@ -184,6 +185,7 @@ async function sendChatMessageToAccounts(
         parent,
         content,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 }
 
@@ -3689,6 +3691,7 @@ test("will send share notification messages separately to each account", async (
         notification: {
             accountIds: [session2.account.id, session3.account.id],
             content: createSimpleMessageContent("foobar"),
+            createdTimeZone: defaultTimeZone,
         },
     });
 
@@ -3770,6 +3773,7 @@ test("will send share notification messages separately to each account", async (
         notification: {
             accountIds: [session2.account.id, session4.account.id],
             content: createSimpleMessageContent("quxbaz"),
+            createdTimeZone: defaultTimeZone,
         },
     });
 
@@ -3900,6 +3904,7 @@ test("won’t send share notification messages to bot account", async () => {
         notification: {
             accountIds: [botAccountId, session2.account.id],
             content: createSimpleMessageContent("foobar"),
+            createdTimeZone: defaultTimeZone,
         },
     });
 
@@ -3973,6 +3978,7 @@ test("processing send share notification message job is idempotent", async () =>
         notification: {
             accountIds: [session2.account.id, session3.account.id],
             content: createSimpleMessageContent("foobar"),
+            createdTimeZone: defaultTimeZone,
         },
     });
 
@@ -4052,6 +4058,7 @@ test("processing send share notification message job is idempotent", async () =>
         notification: {
             accountIds: [session2.account.id, session3.account.id],
             content: createSimpleMessageContent("foobar"),
+            createdTimeZone: defaultTimeZone,
         },
     });
 
@@ -4235,6 +4242,7 @@ test("bot can’t send messages in a chat if it’s not a member even if its sco
             parent: null,
             content: createSimpleMessageContent("bar"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Account doesn’t have access to chat");
 });
@@ -4255,6 +4263,7 @@ test("bot can send messages in a chat if it’s a member", async () => {
         parent: null,
         content: createSimpleMessageContent("bar"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 });
 
@@ -4402,13 +4411,17 @@ testMessagingImplementation<ChatId>(context, {
     getRoomBotScope(chatId) {
         return {type: "Chat", chatId};
     },
-    async createMessage(context, {roomKey: chatId, parent, content, fileIds, isStream}) {
+    async createMessage(
+        context,
+        {roomKey: chatId, parent, content, fileIds, createdTimeZone, isStream},
+    ) {
         const message = await sendChatMessage(context, {
             chatId,
             parent,
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
 
         return {

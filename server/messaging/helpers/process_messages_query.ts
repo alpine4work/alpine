@@ -1,4 +1,5 @@
 import {DataLossError} from "~/shared/error/error.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MessagePayload,
@@ -10,6 +11,7 @@ type MessageQueryItem = {
     readonly sortRangeType: "Messages";
     readonly messageIndex: number;
     readonly createdTime: Date;
+    readonly createdTimeZone: TimeZone;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
     readonly updateLockVersion?: number;
@@ -34,6 +36,7 @@ export type MessageItem = {
     readonly index: number;
     readonly version: number;
     readonly createdTime: Date;
+    readonly createdTimeZone: TimeZone;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
     readonly stream: MessageStream | null;
@@ -106,6 +109,7 @@ export async function* processMessagesQuery(
             index: currentItem.messageIndex,
             version: currentItem.updateLockVersion ?? 0,
             createdTime: currentItem.createdTime,
+            createdTimeZone: currentItem.createdTimeZone,
             authorId: currentItem.authorId,
             payload: currentItem.payload,
             stream,

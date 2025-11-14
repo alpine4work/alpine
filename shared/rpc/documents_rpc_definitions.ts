@@ -36,6 +36,7 @@ import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messa
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -138,6 +139,7 @@ export const updateDocumentContent = defineRpc({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 initialCommentContent: MessageContentSchema,
                 initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+                createdTimeZone: TimeZoneSchema,
                 createdTime: Schema.date.optional(),
             }),
         ),
@@ -233,6 +235,7 @@ export const createDocumentComment = defineRpc({
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        createdTimeZone: TimeZoneSchema,
         parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),

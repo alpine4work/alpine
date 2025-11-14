@@ -1,4 +1,5 @@
 import {ContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageReferencedIds} from "~/shared/messaging/message_references.js";
 import {
@@ -52,6 +53,7 @@ export type MessagingRealtimeEventStubNewMessage = {
     readonly index: number;
     readonly version: number;
     readonly authorId: AccountId;
+    readonly createdTimeZone: TimeZone;
     readonly createdTime: Date;
     readonly payload: MessageContentPayload;
     readonly stream: MessageStream | null;

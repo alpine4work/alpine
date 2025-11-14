@@ -110,6 +110,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -7025,6 +7026,7 @@ test("can only send share notification as a member of channel", async () => {
         sendChannelShareNotification(session1.action(), channel.id, {
             accountIds: [session2.account.id],
             content: emptyMessageContent,
+            createdTimeZone: defaultTimeZone,
         }),
     ).resolves.toEqual(undefined);
 
@@ -7032,6 +7034,7 @@ test("can only send share notification as a member of channel", async () => {
         sendChannelShareNotification(session2.action(), channel.id, {
             accountIds: [session1.account.id],
             content: emptyMessageContent,
+            createdTimeZone: defaultTimeZone,
         }),
     ).resolves.toEqual(undefined);
 
@@ -7039,6 +7042,7 @@ test("can only send share notification as a member of channel", async () => {
         sendChannelShareNotification(session3.action(), channel.id, {
             accountIds: [session1.account.id],
             content: emptyMessageContent,
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Actor doesn’t have `View` access level");
 });

@@ -13,6 +13,7 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
@@ -121,7 +122,12 @@ testMessagingRealtimeImplementation<PostId>(context, {
                     };
                 },
                 createMessage: ({parent, content, fileIds}) =>
-                    connection.procedures.createComment({parent, content, fileIds}),
+                    connection.procedures.createComment({
+                        parent,
+                        content,
+                        fileIds,
+                        createdTimeZone: defaultTimeZone,
+                    }),
                 updateMessageContent: ({messageIndex: commentIndex, contentVersion, steps}) =>
                     connection.procedures.updateCommentContent({
                         commentIndex,
@@ -162,6 +168,7 @@ testMessagingRealtimeImplementation<PostId>(context, {
             index,
             version,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             author,
             payload,
             stream: null,
@@ -173,6 +180,7 @@ testMessagingRealtimeImplementation<PostId>(context, {
             parent,
             content,
             fileIds,
+            createdTimeZone: defaultTimeZone,
         });
     },
     updateMessageContent(

@@ -12,6 +12,7 @@ import {
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {
@@ -103,6 +104,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
                 parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
+                createdTimeZone: TimeZoneSchema,
             },
             output: {},
         },

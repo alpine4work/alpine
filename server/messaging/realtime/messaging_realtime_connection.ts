@@ -19,6 +19,7 @@ import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
@@ -55,6 +56,7 @@ export type CreateMessageFunction<RoomKey extends string> = (
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        createdTimeZone: TimeZone;
     },
 ) => Promise<{
     index: number;
@@ -532,10 +534,12 @@ export class MessagingRealtimeConnection<
         {
             parent,
             content,
+            createdTimeZone,
             fileIds,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
+            createdTimeZone: TimeZone;
             fileIds: ReadonlyArray<FileId | FileEntityId>;
         },
     ): Promise<{}> {
@@ -550,6 +554,7 @@ export class MessagingRealtimeConnection<
             parent,
             content,
             fileIds,
+            createdTimeZone,
         });
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
@@ -576,6 +581,7 @@ export class MessagingRealtimeConnection<
                 index,
                 version: 0,
                 authorId,
+                createdTimeZone,
                 createdTime,
                 payload: messagePayload,
                 stream: null,
@@ -860,6 +866,7 @@ export class MessagingRealtimeConnection<
             index: request.index,
             version: request.version,
             authorId: request.authorId,
+            createdTimeZone: request.createdTimeZone,
             createdTime: request.createdTime,
             payload: request.payload,
             stream: request.stream,

@@ -16,6 +16,7 @@ import {
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {
@@ -62,6 +63,7 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
                 parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
+                createdTimeZone: TimeZoneSchema,
             },
             output: {},
         },

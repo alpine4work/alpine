@@ -32,6 +32,7 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -302,6 +303,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             optimisticRequestErrorState: {hasError: false},
             author: currentAccount,
             createdTime: new Date(),
+            createdTimeZone: getClientInfo().timeZone,
             payload: {
                 type: "Content",
                 parent: parent ? parentWithoutMessages : null,

@@ -37,6 +37,7 @@ import {
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -224,11 +225,13 @@ export class TestPost extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            createdTimeZone,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            createdTimeZone?: TimeZone;
             isStream?: boolean;
         },
     ) {
@@ -238,6 +241,7 @@ export class TestPost extends TestCommentRoomBase {
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
     }
 

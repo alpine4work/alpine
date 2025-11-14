@@ -10,6 +10,7 @@ import {
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
 import {
@@ -113,6 +114,7 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             index,
             version,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             author,
             payload,
             stream: null,
@@ -124,6 +126,7 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             parent,
             content,
             fileIds,
+            createdTimeZone: defaultTimeZone,
         });
     },
     updateMessageContent(context, {roomKey: chatId, messageIndex, contentVersion, steps}) {

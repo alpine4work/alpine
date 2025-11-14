@@ -120,6 +120,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -2424,6 +2425,7 @@ export async function updateDocumentContent(
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
             initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+            createdTimeZone: TimeZone;
             /**
              * Optionally allow the caller to specify the time at which we report the
              * thread was created. Used by our document collaboration service to use the
@@ -3156,6 +3158,7 @@ export async function updateDocumentContent(
                         commentIndex: 0,
                         authorId: context.actor.getAccountId(),
                         createdTime,
+                        createdTimeZone: createCommentThread.createdTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,
@@ -4401,6 +4404,7 @@ export async function createDocumentComment(
         commentThreadId,
         parent,
         content,
+        createdTimeZone,
         fileIds,
         isStream,
         consistency,
@@ -4409,6 +4413,7 @@ export async function createDocumentComment(
         commentThreadId: DocumentCommentThreadId;
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
+        createdTimeZone: TimeZone;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -4534,6 +4539,7 @@ export async function createDocumentComment(
                     commentIndex,
                     authorId,
                     createdTime,
+                    createdTimeZone,
                     payload: {
                         type: "Content",
                         parent,
@@ -5153,6 +5159,7 @@ async function createDocumentCommentModelFromItem(
         version: item.version,
         author,
         createdTime: item.createdTime,
+        createdTimeZone: item.createdTimeZone,
         payload,
         stream: item.stream,
     });

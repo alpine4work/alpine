@@ -37,6 +37,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
@@ -76,6 +77,7 @@ export const documentCollaborationContentManagerBeforePersist2TestCheckpoint =
 export type DocumentCollaborationContentManagerOptimisticCommentThread = {
     readonly persistedPromise: Promise<void>;
     readonly createdTime: Date;
+    readonly createdTimeZone: TimeZone;
     readonly initialComment: {
         readonly authorId: AccountId;
         readonly content: MessageContent;
@@ -111,6 +113,7 @@ export class DocumentCollaborationContentManager {
                 readonly commentThreadId: DocumentCommentThreadId;
                 readonly initialCommentContent: MessageContent;
                 readonly createdTime: Date;
+                readonly createdTimeZone: TimeZone;
             }>;
             readonly intentionallyUpdateAccessPolicyRef: {
                 current: {
@@ -143,6 +146,7 @@ export class DocumentCollaborationContentManager {
             readonly persistedAfterVersion: number;
             readonly persistedPromiseResolver: PromiseResolver<void>;
             readonly createdTime: Date;
+            readonly createdTimeZone: TimeZone;
             readonly initialComment: {
                 readonly authorId: AccountId;
                 readonly content: MessageContent;
@@ -275,6 +279,7 @@ export class DocumentCollaborationContentManager {
             clientId: ContentEditorClientId;
             createCommentThreads: ReadonlyArray<{
                 commentThreadId: DocumentCommentThreadId;
+                createdTimeZone: TimeZone;
                 initialCommentContent: MessageContent;
                 initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             }>;
@@ -391,6 +396,7 @@ export class DocumentCollaborationContentManager {
                     persistedAfterVersion: oldVersion + steps.length,
                     persistedPromiseResolver,
                     createdTime: commentThreadCreatedTime,
+                    createdTimeZone: createCommentThread.createdTimeZone,
                     initialComment: {
                         authorId: context.actor.getAccountId(),
                         content: createCommentThread.initialCommentContent,
@@ -898,6 +904,7 @@ export class DocumentCollaborationContentManager {
         return {
             persistedPromise: optimisticCommentThread.persistedPromiseResolver.promise,
             createdTime: optimisticCommentThread.createdTime,
+            createdTimeZone: optimisticCommentThread.createdTimeZone,
             initialComment: optimisticCommentThread.initialComment,
         };
     }

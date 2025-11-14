@@ -14,6 +14,7 @@ import {getMessageListItemKey} from "~/client/messaging/render_message_list_item
 import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {
     DocumentCommentModel,
@@ -195,6 +196,7 @@ export function DocumentCommentInput({
                     parent: input.parent,
                     content: input.content,
                     fileIds: input.fileIds,
+                    createdTimeZone: getClientInfo().timeZone,
                 });
             }}
             fileAttachmentTarget={fileAttachmentTarget}

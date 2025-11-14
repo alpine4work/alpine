@@ -7,6 +7,7 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
@@ -69,6 +70,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
         parent: null,
         content: content1,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -152,6 +154,7 @@ test("task comments are visible in task detail view and can add comments", async
         parent: null,
         content: content1,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -192,6 +195,7 @@ test("mobile task comments route navigates to task detail view when window size 
         parent: null,
         content: content1,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();

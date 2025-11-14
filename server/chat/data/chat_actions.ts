@@ -83,6 +83,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
@@ -648,6 +649,7 @@ export function sendChatMessage(
         parent,
         content,
         fileIds,
+        createdTimeZone,
         isStream,
         consistency,
     }: {
@@ -655,6 +657,7 @@ export function sendChatMessage(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        createdTimeZone: TimeZone;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
@@ -670,6 +673,7 @@ export function sendChatMessage(
         parent,
         content,
         fileIds,
+        createdTimeZone,
         clerical: isStream ? {type: "Stream"} : undefined,
         consistency,
     });
@@ -686,6 +690,7 @@ function sendChatMessageForAccount(
         parent,
         content,
         fileIds,
+        createdTimeZone,
         clerical,
         consistency,
         clientRequestToken,
@@ -695,6 +700,7 @@ function sendChatMessageForAccount(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        createdTimeZone: TimeZone;
         clerical?: MessageContentPayloadClerical;
         consistency?: DynamoCacheReadConsistency;
         clientRequestToken?: string;
@@ -823,6 +829,7 @@ function sendChatMessageForAccount(
                         messageIndex,
                         authorId,
                         createdTime,
+                        createdTimeZone,
                         payload: {
                             type: "Content",
                             parent,
@@ -2004,6 +2011,7 @@ async function createChatMessageModelFromItem(
         version: item.version,
         author,
         createdTime: item.createdTime,
+        createdTimeZone: item.createdTimeZone,
         payload,
         stream: item.stream,
     });
@@ -3034,6 +3042,7 @@ export async function processSendShareNotificationJob(
                         type: "ShareNotification",
                         entityType: parseFileEntityId(entityId).type,
                     },
+                    createdTimeZone: notification.createdTimeZone,
                     clientRequestToken: [
                         jobId.slice(0, clientRequestTokenIdLength),
                         otherAccountId.slice(0, clientRequestTokenIdLength),

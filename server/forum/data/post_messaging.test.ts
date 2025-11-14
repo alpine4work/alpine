@@ -25,6 +25,7 @@ import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_acce
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, PostId} from "~/shared/id/types/id_types.js";
@@ -134,13 +135,17 @@ testMessagingImplementation<PostId>(context, {
     getRoomBotScope(postId) {
         return {type: "Post", postId};
     },
-    async createMessage(context, {roomKey: postId, parent, content, fileIds, isStream}) {
+    async createMessage(
+        context,
+        {roomKey: postId, parent, content, fileIds, isStream, createdTimeZone},
+    ) {
         const comment = await createPostComment(context, {
             postId,
             parent,
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
 
         return {

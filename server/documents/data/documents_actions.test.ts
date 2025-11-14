@@ -87,6 +87,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -2953,6 +2954,7 @@ test("can’t add comment mark to `fileRow` node in a document", async () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -3033,6 +3035,7 @@ test("can add comment mark to `file` node in a document with `fileRow` as a pare
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         clientId: generateId(),
@@ -3113,6 +3116,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -3134,6 +3138,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -3155,6 +3160,7 @@ test("can’t add comment mark to `fileRowTable` node in a document", async () =
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -3239,6 +3245,7 @@ test("can add comment mark to `file` node in a document with `fileRowTable` as a
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         clientId: generateId(),
@@ -8606,6 +8613,7 @@ test("can make updates to comment marks with comment access", async () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         }),
@@ -8625,6 +8633,7 @@ test("can make updates to comment marks with comment access", async () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         }),
@@ -8659,6 +8668,7 @@ test("can make updates to comment marks with comment access", async () => {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
     });
@@ -8887,6 +8897,7 @@ test("can add comment mark to `file` node in a document with comment access leve
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -8906,6 +8917,7 @@ test("can add comment mark to `file` node in a document with comment access leve
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test comment"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
             clientId: generateId(),
@@ -8930,6 +8942,7 @@ test("can add comment mark to `file` node in a document with comment access leve
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         clientId: generateId(),
@@ -9403,6 +9416,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -9510,6 +9524,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -9539,6 +9554,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 2"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             }),
@@ -9612,6 +9628,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             }),
@@ -9820,6 +9837,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10024,6 +10042,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10172,6 +10191,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 2"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             }),
@@ -10288,6 +10308,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10556,6 +10577,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10591,6 +10613,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10744,6 +10767,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -10832,6 +10856,7 @@ describe("Comments", () => {
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -10929,6 +10954,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11026,6 +11052,7 @@ describe("Comments", () => {
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -11123,6 +11150,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11246,6 +11274,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11281,6 +11310,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11383,6 +11413,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11418,6 +11449,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11484,6 +11516,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId1,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11519,6 +11552,7 @@ describe("Comments", () => {
                     commentThreadId: commentThreadId2,
                     initialCommentContent: createSimpleMessageContent("Test message content 2"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11578,6 +11612,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -11608,6 +11643,7 @@ describe("Comments", () => {
             parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -11636,6 +11672,7 @@ describe("Comments", () => {
             parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 3"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -11713,6 +11750,7 @@ describe("Comments", () => {
             parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 4"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -11790,6 +11828,7 @@ describe("Comments", () => {
             parent: {type: "Message", index: 0},
             content: createSimpleMessageContent("Test message content 5"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
 
         expect(
@@ -11887,6 +11926,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -11940,6 +11980,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12009,6 +12050,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12051,6 +12093,7 @@ describe("Comments", () => {
                 parent: null,
                 content: createSimpleMessageContent("Test message content 2"),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12103,6 +12146,7 @@ describe("Comments", () => {
                 parent: null,
                 content: createSimpleMessageContent("Test message content 3"),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12169,6 +12213,7 @@ describe("Comments", () => {
                 parent: null,
                 content: createSimpleMessageContent("Test message content 4"),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12262,6 +12307,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12304,6 +12350,7 @@ describe("Comments", () => {
                 parent: null,
                 content: createSimpleMessageContent("Test message content 2"),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12433,6 +12480,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12489,6 +12537,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12566,6 +12615,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12624,6 +12674,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12691,6 +12742,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12747,6 +12799,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -12824,6 +12877,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -12882,6 +12936,7 @@ describe("Comments", () => {
                 parent: null,
                 content: oldContent,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13023,6 +13078,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -13079,6 +13135,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13204,6 +13261,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("Test message content 1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -13254,6 +13312,7 @@ describe("Comments", () => {
                 parent: null,
                 content: oldContent,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13400,6 +13459,7 @@ describe("Comments", () => {
                             ]),
                         ),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -13460,6 +13520,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13538,6 +13599,7 @@ describe("Comments", () => {
                     ]),
                 ),
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13622,6 +13684,7 @@ describe("Comments", () => {
                 parent: null,
                 content: oldContent,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(
@@ -13822,6 +13885,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -13892,6 +13956,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -13970,6 +14035,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -14061,6 +14127,7 @@ describe("Comments", () => {
                     commentThreadId,
                     initialCommentContent: createSimpleMessageContent("Test message content 1"),
                     initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
                 },
             ],
         });
@@ -14147,6 +14214,7 @@ describe("Comments", () => {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("test1"),
                         initialCommentFileIds: [],
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             },

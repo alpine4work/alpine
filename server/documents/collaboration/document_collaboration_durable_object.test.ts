@@ -53,6 +53,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
@@ -553,6 +554,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -639,6 +641,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -673,6 +676,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -734,6 +738,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -768,6 +773,7 @@ test("will respond optimistically with a comment thread even if it has not been 
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -825,6 +831,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -996,6 +1003,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [file1Id, file2Id],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -1082,6 +1090,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1141,6 +1150,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1227,6 +1237,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1286,6 +1297,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1359,6 +1371,7 @@ test("when comment threads are added back to the document they will be loaded", 
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
     });
@@ -1369,6 +1382,7 @@ test("when comment threads are added back to the document they will be loaded", 
         parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await updateDocumentContent(session1.action(), {
@@ -1516,6 +1530,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -1530,6 +1545,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await connection1.procedures.updateContent({
@@ -1752,6 +1768,7 @@ test("can create comments in comment threads", async () => {
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -1764,6 +1781,7 @@ test("can create comments in comment threads", async () => {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -1866,6 +1884,7 @@ test("can create comments in comment threads", async () => {
         parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -1883,6 +1902,7 @@ test("can create comments in comment threads", async () => {
                     version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1914,6 +1934,7 @@ test("can create comments in comment threads", async () => {
                     version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1959,6 +1980,7 @@ test("can create comments in comment threads", async () => {
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2009,6 +2031,7 @@ test("can create comments in comment threads", async () => {
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2029,6 +2052,7 @@ test("can create comments in comment threads", async () => {
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2061,6 +2085,7 @@ test("can create comments in comment threads", async () => {
         parent: null,
         content: createSimpleMessageContent("Test message content 3"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -2078,6 +2103,7 @@ test("can create comments in comment threads", async () => {
                     version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2109,6 +2135,7 @@ test("can create comments in comment threads", async () => {
                     version: 0,
                     author: await getAccount(session1.action(), space.id, session1.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2167,6 +2194,7 @@ test("if comment thread is persisting we will wait to create messages but respon
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -2182,6 +2210,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -2247,6 +2276,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -2308,6 +2338,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2357,6 +2388,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                     version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2393,6 +2425,7 @@ test("if comment thread is persisting we will wait to create messages but respon
                     version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2451,6 +2484,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -2468,6 +2502,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -2607,6 +2642,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime: expect.any(Date),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2635,6 +2671,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
         parent: null,
         content: createSimpleMessageContent("Test message content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     expect(connection1.takeEvents()).toEqual([]);
@@ -2663,6 +2700,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2699,6 +2737,7 @@ test("if comment thread update message hasn’t been processed we will wait to r
                     version: 0,
                     author: await getAccount(session2.action(), space.id, session2.account.id),
                     createdTime: expect.any(Date),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -2757,6 +2796,7 @@ test("while comment thread is persisting we will respond to comment load request
             parent: null,
             content: createSimpleMessageContent("Test message content 2"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -2772,6 +2812,7 @@ test("while comment thread is persisting we will respond to comment load request
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -2866,6 +2907,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2908,6 +2950,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -2984,6 +3027,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3018,6 +3062,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3104,6 +3149,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3138,6 +3184,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3254,6 +3301,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3296,6 +3344,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3372,6 +3421,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3406,6 +3456,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3492,6 +3543,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3526,6 +3578,7 @@ test("while comment thread is persisting we will respond to comment load request
                 version: 0,
                 author: await getAccount(session1.action(), space.id, session1.account.id),
                 createdTime,
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -3656,6 +3709,7 @@ test("will cleanup comment thread marks if from a different document", async () 
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -4038,6 +4092,7 @@ test("can add comment thread marks back to document after they’ve been removed
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test message content 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -4880,6 +4935,7 @@ test("can’t call comment procedures as viewer", async () => {
             parent: null,
             content: createSimpleMessageContent("foo"),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Can’t see document comments");
 
@@ -4890,6 +4946,7 @@ test("can’t call comment procedures as viewer", async () => {
         parent: null,
         content: oldContent,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await expect(
@@ -5256,6 +5313,7 @@ test("viewer receives update events without comment data", async () => {
                 commentThreadId,
                 initialCommentContent: createSimpleMessageContent("Test comment 1"),
                 initialCommentFileIds: [],
+                createdTimeZone: defaultTimeZone,
             },
         ],
         intentionallyUpdateAccessPolicy: null,
@@ -5374,6 +5432,7 @@ test("viewer receives update events without comment data", async () => {
         parent: null,
         content: createSimpleMessageContent("Test comment 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -6064,6 +6123,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
                         parent,
                         content,
                         fileIds,
+                        createdTimeZone: defaultTimeZone,
                     }),
                 updateMessageContent: ({messageIndex: commentIndex, contentVersion, steps}) =>
                     connection.procedures.updateCommentContent({
@@ -6112,6 +6172,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             index,
             version: 0,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             author,
             payload,
             stream: null,
@@ -6126,6 +6187,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             parent,
             content,
             fileIds,
+            createdTimeZone: defaultTimeZone,
         });
     },
     updateMessageContent(context, {roomKey, messageIndex: commentIndex, contentVersion, steps}) {

@@ -489,11 +489,14 @@ export class DocumentCollaborationConnection {
             };
         },
 
-        createComment: async (context, {commentThreadId, parent, content, fileIds}) => {
+        createComment: async (
+            context,
+            {commentThreadId, parent, content, fileIds, createdTimeZone},
+        ) => {
             this._authorizeCommentAccess();
 
             const connection = await this._getCommentThreadConnection(commentThreadId);
-            return connection.createMessage(context, {parent, content, fileIds});
+            return connection.createMessage(context, {parent, content, fileIds, createdTimeZone});
         },
 
         updateCommentContent: async (
@@ -960,7 +963,10 @@ export class DocumentCollaborationConnection {
                     connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
                 );
             },
-            createMessage: async (context, {roomKey, parent, content, fileIds}) => {
+            createMessage: async (
+                context,
+                {roomKey, parent, content, fileIds, createdTimeZone},
+            ) => {
                 const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
                 // Wait for our optimistic comment thread to persist before talking to
@@ -979,6 +985,7 @@ export class DocumentCollaborationConnection {
                     commentThreadId,
                     parent,
                     content,
+                    createdTimeZone,
                     fileIds,
                 });
             },
@@ -1190,6 +1197,7 @@ export class DocumentCollaborationConnection {
             commentThreadId,
             index: 0,
             version: 0,
+            createdTimeZone: optimisticCommentThread.createdTimeZone,
             author,
             createdTime: optimisticCommentThread.createdTime,
             payload: {
@@ -1260,6 +1268,7 @@ const createMessageModel: CreateMessageModelFunction<
         index: message.index,
         version: message.version,
         createdTime: message.createdTime,
+        createdTimeZone: message.createdTimeZone,
         author: references.author,
         payload: {
             type: "Content",

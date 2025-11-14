@@ -58,6 +58,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -89,6 +90,7 @@ export async function createPostComment(
         postId,
         parent,
         content,
+        createdTimeZone,
         fileIds,
         isStream,
         consistency = "Eventual",
@@ -96,6 +98,7 @@ export async function createPostComment(
         postId: PostId;
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
+        createdTimeZone: TimeZone;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -238,6 +241,7 @@ export async function createPostComment(
                     postId,
                     commentIndex,
                     authorId,
+                    createdTimeZone,
                     createdTime,
                     payload: {
                         type: "Content",
@@ -835,6 +839,7 @@ async function createPostCommentModelFromItem(
         version: item.version,
         author,
         createdTime: item.createdTime,
+        createdTimeZone: item.createdTimeZone,
         payload,
         stream: item.stream,
     });

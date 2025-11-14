@@ -17,6 +17,7 @@ import {
 } from "~/server/chat/data/chat_actions.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     MessageContentProsemirrorSchema,
@@ -142,11 +143,14 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
+            const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+
             const {spaceId, index, createdTime} = await sendChatMessage(context, {
                 chatId: pathParameters.id,
                 parent: null,
                 content,
                 fileIds: [],
+                createdTimeZone,
                 consistency: "StrongWithinCache",
                 isStream: requestBody.isStream,
             });
@@ -186,6 +190,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
+                            createdTimeZone,
                             payload,
                             stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
@@ -201,6 +206,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                         version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
+                        createdTimeZone,
                         payload,
                         stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),

@@ -9,6 +9,7 @@ import {
     DocumentWithOptionalTitleContentSchema,
     dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -23,6 +24,7 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
@@ -514,6 +516,7 @@ export const DocumentsTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         authorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
+                        createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
                         payload: MessagePayloadSchema,
                     }),
                     childSortRanges: [

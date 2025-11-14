@@ -35,6 +35,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {
@@ -71,6 +72,7 @@ type DocumentContentEditorExtraState = {
         readonly commentThreadId: DocumentCommentThreadId;
         readonly initialCommentContent: MessageContent;
         readonly initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+        readonly createdTimeZone: TimeZone;
     }> | null;
 
     /**
@@ -271,6 +273,7 @@ export function reduceDocumentContentEditorState(
                         commentThreadId: DocumentCommentThreadId;
                         initialCommentContent: MessageContentWithReferences;
                         initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+                        createdTimeZone: TimeZone;
                     } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
 
                     const intentionallyUpdateAccessPolicy: {
@@ -292,6 +295,7 @@ export function reduceDocumentContentEditorState(
                         commentThreadId: createCommentThread.commentThreadId,
                         initialCommentContent: createCommentThread.initialCommentContent.doc,
                         initialCommentFileIds: createCommentThread.initialCommentFileIds,
+                        createdTimeZone: createCommentThread.createdTimeZone,
                     };
                 }),
             );

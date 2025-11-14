@@ -275,11 +275,12 @@ export class TaskNotesCollaborationConnection {
             };
         },
 
-        createComment: (context, {parent, content, fileIds}) =>
+        createComment: (context, {parent, content, fileIds, createdTimeZone}) =>
             this._messagingConnection.createMessage(context, {
                 parent,
                 content,
                 fileIds,
+                createdTimeZone,
             }),
 
         updateCommentContent: (context, {commentIndex: messageIndex, steps, contentVersion}) =>
@@ -411,13 +412,14 @@ export class TaskNotesCollaborationConnection {
 
 const createMessage: CreateMessageFunction<TaskId> = (
     context,
-    {roomKey: taskId, parent, content, fileIds},
+    {roomKey: taskId, parent, content, fileIds, createdTimeZone},
 ) => {
     return createTaskComment(context, {
         taskId,
         parent,
         content,
         fileIds,
+        createdTimeZone,
     });
 };
 
@@ -506,6 +508,7 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
         index: message.index,
         version: message.version,
         createdTime: message.createdTime,
+        createdTimeZone: message.createdTimeZone,
         author: references.author,
         payload: {
             type: "Content",

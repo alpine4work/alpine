@@ -31,6 +31,7 @@ import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_a
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
@@ -164,6 +165,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await createMessage(context.action(session2), {
@@ -171,6 +173,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await createMessage(context.action(session3), {
@@ -178,6 +181,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -366,6 +370,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -420,6 +425,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -530,6 +536,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -616,6 +623,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -683,6 +691,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(await waitForTakeSomeEvents(connection1)).toEqual([
@@ -733,6 +742,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(await waitForTakeSomeEvents(connection1)).toEqual([
@@ -856,6 +866,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -923,6 +934,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             expect(await waitForTakeSomeEvents(connection1)).toEqual([
@@ -1097,6 +1109,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause} = await pausePromise;
@@ -1109,12 +1122,14 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await connection3.procedures.createMessage({
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1275,6 +1290,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause: unpause1} = await pause1Promise;
@@ -1292,6 +1308,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause: unpause2} = await pause2Promise;
@@ -1300,6 +1317,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1472,6 +1490,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause} = await pausePromise;
@@ -1485,12 +1504,14 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await connection3.procedures.createMessage({
                 parent: null,
                 content: content3,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -1654,6 +1675,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause} = await pausePromise;
@@ -1771,6 +1793,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause: unpause1} = await pausePromise1;
@@ -1869,6 +1892,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const message2 = await createMessage(context.action(session2), {
@@ -1876,6 +1900,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const message3 = await createMessage(context.action(session3), {
@@ -1883,6 +1908,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await updateMessageContent(context.action(session3), {
@@ -2076,6 +2102,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const message2 = await createMessage(context.action(session2), {
@@ -2083,6 +2110,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await createMessage(context.action(session3), {
@@ -2090,6 +2118,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -2264,6 +2293,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const message2 = await createMessage(context.action(session2), {
@@ -2271,6 +2301,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             await createMessage(context.action(session3), {
@@ -2278,6 +2309,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -2525,6 +2557,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [`Document:${document1.id}`],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -2640,6 +2673,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content3,
                 fileIds: [`Document:${document2.id}`, `Document:${document3.id}`],
+                createdTimeZone: defaultTimeZone,
             });
 
             await ProcessContextModule.waitForTestTasks();
@@ -2909,6 +2943,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection1 = await connectForTest(context.action(session1), room.key);
@@ -3150,6 +3185,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content2,
                 fileIds: [`Document:${document.id}`],
+                createdTimeZone: defaultTimeZone,
             });
 
             const {unpause} = await pausePromise;
@@ -3325,6 +3361,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                 parent: null,
                 content: content1,
                 fileIds: [],
+                createdTimeZone: defaultTimeZone,
             });
 
             const connection2 = await connectForTest(context.action(session2), room.key);
@@ -3596,6 +3633,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
+                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,
@@ -3676,6 +3714,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
+                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,
@@ -3703,6 +3742,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
+                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,
@@ -3783,6 +3823,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
+                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,
@@ -3810,6 +3851,7 @@ export function testMessagingRealtimeImplementation<RoomKey extends string>(
                         version: 0,
                         authorId: botAccount.id,
                         createdTime: new Date(),
+                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             parent: null,

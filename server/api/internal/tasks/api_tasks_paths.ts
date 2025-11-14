@@ -20,6 +20,7 @@ import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_read
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     MessageContentProsemirrorSchema,
@@ -199,10 +200,13 @@ export const apiTasksPaths: Pick<
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
+            const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+
             const {spaceId, index, createdTime} = await createTaskComment(context, {
                 taskId: pathParameters.id,
                 parent: null,
                 content,
+                createdTimeZone,
                 fileIds: [],
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
@@ -243,6 +247,7 @@ export const apiTasksPaths: Pick<
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
+                            createdTimeZone,
                             payload,
                             stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
@@ -258,6 +263,7 @@ export const apiTasksPaths: Pick<
                         version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
+                        createdTimeZone,
                         payload,
                         stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),

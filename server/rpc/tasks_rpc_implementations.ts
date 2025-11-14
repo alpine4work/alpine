@@ -180,10 +180,13 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const {index, createdTime} = await createTaskComment(
-                context.actor.authorizeSession(),
-                input,
-            );
+            const {index, createdTime} = await createTaskComment(context.actor.authorizeSession(), {
+                taskId: input.taskId,
+                parent: input.parent,
+                content: input.content,
+                fileIds: input.fileIds,
+                createdTimeZone: input.createdTimeZone,
+            });
 
             return {index, createdTime};
         },

@@ -33,6 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -2593,6 +2594,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 notification: {
                     accountIds: [session2.account.id],
                     content: emptyMessageContent,
+                    createdTimeZone: defaultTimeZone,
                 },
             });
 
@@ -2634,6 +2636,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 notification: {
                     accountIds: [session2.account.id],
                     content: createSimpleMessageContent("foobar"),
+                    createdTimeZone: defaultTimeZone,
                 },
             });
 
@@ -2688,6 +2691,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             ]),
                         ]),
                     ),
+                    createdTimeZone: defaultTimeZone,
                 },
             });
 
@@ -2774,6 +2778,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     notification: {
                         accountIds: [session2.account.id],
                         content: createSimpleMessageContent("message3"),
+                        createdTimeZone: defaultTimeZone,
                     },
                 });
 

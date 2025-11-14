@@ -8,7 +8,7 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
@@ -243,6 +243,7 @@ export function TaskCommentsView({
                 content: input.content,
                 parent: input.parent,
                 fileIds: input.fileIds,
+                createdTimeZone: getClientInfo().timeZone,
             });
         },
         [procedures],

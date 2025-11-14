@@ -19,6 +19,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -658,7 +659,12 @@ testMessagingRealtimeImplementation<TaskId>(context, {
                     };
                 },
                 createMessage: ({parent, content, fileIds}) =>
-                    connection.procedures.createComment({parent, content, fileIds}),
+                    connection.procedures.createComment({
+                        parent,
+                        content,
+                        fileIds,
+                        createdTimeZone: defaultTimeZone,
+                    }),
                 updateMessageContent: ({messageIndex: commentIndex, contentVersion, steps}) =>
                     connection.procedures.updateCommentContent({
                         commentIndex,
@@ -699,6 +705,7 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             index,
             version,
             createdTime,
+            createdTimeZone: defaultTimeZone,
             author,
             payload,
             stream: null,
@@ -710,6 +717,7 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             parent,
             content,
             fileIds,
+            createdTimeZone: defaultTimeZone,
         });
     },
     updateMessageContent(

@@ -8,6 +8,7 @@ import {createPost} from "~/server/forum/data/create_post.js";
 import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
@@ -42,6 +43,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -126,6 +128,7 @@ test("can’t edit or delete a post comment that’s not yours", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -183,6 +186,7 @@ test("can see a post comment edited in realtime", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session2);
@@ -268,6 +272,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -331,6 +336,7 @@ test("can see a post comment deleted in realtime", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session2);
@@ -410,6 +416,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session2);
@@ -507,6 +514,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session2);

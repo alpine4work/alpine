@@ -28,6 +28,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
@@ -136,13 +137,17 @@ testMessagingImplementation<TaskId>(processContext, {
     getRoomBotScope(taskId) {
         return {type: "Task", taskId};
     },
-    async createMessage(context, {roomKey: taskId, parent, content, fileIds, isStream}) {
+    async createMessage(
+        context,
+        {roomKey: taskId, parent, content, fileIds, isStream, createdTimeZone},
+    ) {
         const comment = await createTaskComment(context, {
             taskId,
             parent,
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
 
         return {

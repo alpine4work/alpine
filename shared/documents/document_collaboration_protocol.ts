@@ -26,6 +26,7 @@ import {
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -89,6 +90,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 createCommentThreads: Schema.array(
                     Schema.object({
                         commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                        createdTimeZone: TimeZoneSchema,
                         initialCommentContent: MessageContentSchema,
                         initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
                     }),
@@ -155,6 +157,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
+                createdTimeZone: TimeZoneSchema,
             },
             output: {},
         },

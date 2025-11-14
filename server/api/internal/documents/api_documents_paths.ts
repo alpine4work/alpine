@@ -16,6 +16,7 @@ import {
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {
     MessageContentProsemirrorSchema,
@@ -133,11 +134,14 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 fromApiContent(MessageContentProsemirrorSchema, requestBody.content),
             );
 
+            const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
+
             const {spaceId, index, createdTime} = await createDocumentComment(context, {
                 documentId: pathParameters.id,
                 commentThreadId: pathParameters.threadId,
                 parent: null,
                 content,
+                createdTimeZone,
                 fileIds: [],
                 isStream: requestBody.isStream,
                 consistency: "StrongWithinCache",
@@ -178,6 +182,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             version: 0,
                             authorId: context.actor.getBotAccountId(),
                             createdTime,
+                            createdTimeZone,
                             payload,
                             stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                         }),
@@ -193,6 +198,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         version: 0,
                         authorId: context.actor.getBotAccountId(),
                         createdTime,
+                        createdTimeZone,
                         payload: payload,
                         stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
                     }),

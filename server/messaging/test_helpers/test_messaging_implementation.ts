@@ -44,6 +44,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -82,6 +83,7 @@ type CreateMessageFunctionForTest<RoomKey extends string> = (
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId>;
+        createdTimeZone?: TimeZone;
         isStream?: boolean;
     },
 ) => Promise<{
@@ -822,6 +824,27 @@ export function testMessagingImplementation<RoomKey extends string>(
                     hasContentUpdated: false,
                 },
             );
+        });
+
+        test("createdTimeZone is reflected in returned message model", async () => {
+            const room = await createRoom(context.action(session1), space.id);
+
+            const testTimeZone = "America/Los_Angeles" as TimeZone;
+
+            const createdMessage = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parent: null,
+                content: content1,
+                fileIds: [],
+                createdTimeZone: testTimeZone,
+            });
+
+            const retrievedMessage = await getMessage(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: createdMessage.index,
+            });
+
+            expect(retrievedMessage.createdTimeZone).toEqual(testTimeZone);
         });
 
         test("can create multiple messages", async () => {

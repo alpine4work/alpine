@@ -15,6 +15,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -38,6 +39,7 @@ const testMessageCountByConstructor = new DefaultMap<
 type TestMessagingRoomCreateMessageOptions = {
     parent?: TestMessage | MessageContentPayloadParent;
     files?: Iterable<TestFile | FileId>;
+    createdTimeZone?: TimeZone;
     isStream?: boolean;
 };
 
@@ -63,6 +65,7 @@ export abstract class TestMessagingRoomBase {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            createdTimeZone?: TimeZone;
             isStream?: boolean;
         },
     ): Promise<{index: number; createdTime: Date}>;
@@ -135,7 +138,7 @@ export abstract class TestMessagingRoomBase {
         content: string | Node | {isStream: true} = (
             this.constructor as typeof TestMessagingRoomBase
         ).createDefaultMessageContent(),
-        {parent, files, isStream}: TestMessagingRoomCreateMessageOptions = {},
+        {parent, files, createdTimeZone, isStream}: TestMessagingRoomCreateMessageOptions = {},
     ): Promise<TestMessage<this>> {
         if (parent instanceof TestMessage) {
             const roomKey = this._getRoomKey();
@@ -164,6 +167,7 @@ export abstract class TestMessagingRoomBase {
                 fileIds: files
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
+                createdTimeZone,
                 isStream:
                     isStream ||
                     (typeof content !== "string" &&

@@ -1,5 +1,6 @@
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 
@@ -7,6 +8,7 @@ type CommentQueryItem = {
     readonly sortRangeType: "Comments";
     readonly commentIndex: number;
     readonly createdTime: Date;
+    readonly createdTimeZone: TimeZone;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
     readonly updateLockVersion?: number;
@@ -94,6 +96,7 @@ export async function* processCommentsQuery(
             index: currentItem.commentIndex,
             version: currentItem.updateLockVersion ?? 0,
             createdTime: currentItem.createdTime,
+            createdTimeZone: currentItem.createdTimeZone,
             authorId: currentItem.authorId,
             payload: currentItem.payload,
             stream,

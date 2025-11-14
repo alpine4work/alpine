@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/array-type */
 
 import type {DateString} from "~/shared/helpers/date/date_string.js";
+import type {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import type * as IdTypes from "~/shared/id/types/id_types.js";
 
 export namespace ApiSpecification {
@@ -1173,6 +1174,9 @@ export namespace ApiSpecification {
     export interface components {
         schemas: {
             readonly LabelString: string;
+            /** Format: date-time */
+            readonly DateTime: DateString;
+            readonly TimeZone: TimeZone;
             readonly AccountId: IdTypes.AccountId;
             readonly BotId: IdTypes.BotId;
             readonly BotWebhookEventId: IdTypes.BotWebhookEventId;
@@ -1652,14 +1656,12 @@ export namespace ApiSpecification {
                 readonly space: {
                     /** @enum {string} */
                     readonly role: "Owner" | "Admin" | "Member";
-                    /** Format: date-time */
-                    readonly addedTime: DateString;
+                    readonly addedTime: components["schemas"]["DateTime"];
                     readonly inactive?:
                         | {
                               /** @constant */
                               readonly type: "Removed";
-                              /** Format: date-time */
-                              readonly removedTime?: DateString;
+                              readonly removedTime?: components["schemas"]["DateTime"];
                           }
                         | {
                               /** @constant */
@@ -1751,8 +1753,7 @@ export namespace ApiSpecification {
             readonly Message: {
                 readonly index: number;
                 readonly author: components["schemas"]["Account"];
-                /** Format: date-time */
-                readonly createdTime: DateString;
+                readonly createdTime: components["schemas"]["DateTime"];
                 readonly payload: components["schemas"]["MessagePayload"];
             };
             readonly MessagePayload:
@@ -2183,8 +2184,7 @@ export namespace ApiSpecification {
             readonly Message_Response: {
                 readonly index: number;
                 readonly author: components["schemas"]["Account"];
-                /** Format: date-time */
-                readonly createdTime: DateString;
+                readonly createdTime: components["schemas"]["DateTime"];
                 readonly payload: components["schemas"]["MessagePayload_Response"];
             };
         };
@@ -2234,8 +2234,7 @@ export namespace ApiSpecification {
                     readonly "application/json": {
                         readonly spaceId: components["schemas"]["SpaceId"];
                         readonly completion: {
-                            /** Format: date-time */
-                            readonly completedTime: DateString;
+                            readonly completedTime: components["schemas"]["DateTime"];
                         };
                     };
                 };
@@ -2268,6 +2267,7 @@ export namespace ApiSpecification {
                 readonly content: {
                     readonly "application/json": {
                         readonly isStream?: boolean;
+                        readonly createdTimeZone?: components["schemas"]["TimeZone"];
                         readonly content: components["schemas"]["Content"];
                     };
                 };

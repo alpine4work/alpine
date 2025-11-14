@@ -53,6 +53,7 @@ import {parseHtml} from "~/client/helpers/parse_html.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
@@ -383,6 +384,7 @@ function ContentEditorCommentInput({
             initialCommentFileIds: files.map(file =>
                 file.type === "FileEntity" ? file.fileEntityId : file.file.id,
             ),
+            createdTimeZone: getClientInfo().timeZone,
             openCommentThreadPromiseRef,
         });
 

@@ -23,6 +23,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {
@@ -99,6 +100,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                                 : content,
                         initialCommentFileIds: [],
                         createdTime,
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             },
@@ -135,11 +137,13 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             parent,
             content,
             fileIds,
+            createdTimeZone,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
+            createdTimeZone?: TimeZone;
             isStream?: boolean;
         },
     ) {
@@ -150,6 +154,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
     }
 

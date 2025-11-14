@@ -121,7 +121,7 @@ import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
@@ -170,6 +170,7 @@ import {Reaction} from "~/shared/reactions/reaction.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
@@ -831,6 +832,7 @@ const TaskTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         authorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
+                        createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
                         payload: MessagePayloadSchema,
                     }),
                     childSortRanges: [
@@ -5250,6 +5252,7 @@ async function createTaskCommentModelFromItem(
         version: item.version,
         author,
         createdTime: item.createdTime,
+        createdTimeZone: item.createdTimeZone,
         payload,
         stream: item.stream,
     });
@@ -5632,6 +5635,7 @@ export async function createTaskComment(
         parent,
         content,
         fileIds,
+        createdTimeZone,
         isStream,
         consistency,
     }: {
@@ -5639,6 +5643,7 @@ export async function createTaskComment(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
+        createdTimeZone: TimeZone;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
     },
@@ -5749,6 +5754,7 @@ export async function createTaskComment(
                     commentIndex,
                     authorId,
                     createdTime,
+                    createdTimeZone,
                     payload: {
                         type: "Content",
                         parent,

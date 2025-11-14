@@ -950,6 +950,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
                                     "payload": {
                                         "valueSchema": {
                                             "type": "Union",
@@ -5297,6 +5303,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
                                     "payload": {
                                         "valueSchema": {
                                             "type": "Reference",
@@ -7100,6 +7112,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Date"
                                         },
                                         "optional": false
+                                    },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
                                     },
                                     "payload": {
                                         "valueSchema": {
@@ -12427,6 +12445,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Date"
                                         },
                                         "optional": false
+                                    },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
                                     },
                                     "payload": {
                                         "valueSchema": {

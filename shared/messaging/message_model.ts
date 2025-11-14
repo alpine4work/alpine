@@ -4,6 +4,7 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -37,6 +38,13 @@ export interface MessageModelBase {
      * The time at which the message was created.
      */
     readonly createdTime: Date;
+
+    /**
+     * The time zone in which the message was created. Importantly, this is not the
+     * author's `observedTimeZone` in their Account Settings. Instead, this it the
+     * client's time zone **when the message was sent**
+     */
+    readonly createdTimeZone: TimeZone;
 
     /**
      * The message payload. Determines the contents of the message and how it

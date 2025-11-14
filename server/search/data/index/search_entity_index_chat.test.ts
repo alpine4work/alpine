@@ -306,6 +306,7 @@ test("will index streaming chat message after delay", async () => {
         content: createSimpleMessageContent(),
         fileIds: [],
         isStream: true,
+        createdTimeZone: defaultTimeZone,
     });
 
     await putChatMessageStreamPart(botAccount.action(session), {

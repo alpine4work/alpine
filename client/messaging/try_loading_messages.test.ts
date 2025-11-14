@@ -3,6 +3,7 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
@@ -121,6 +122,7 @@ test("will load messages when there are messages at the start", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -228,6 +230,7 @@ test("will load messages when there are messages at the start from multiple load
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -256,6 +259,7 @@ test("will load messages when there are messages at the start from multiple load
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -284,6 +288,7 @@ test("will load messages when there are messages at the start from multiple load
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -393,6 +398,7 @@ test("will load messages when there are messages at the end", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -502,6 +508,7 @@ test("will load messages when there are messages at the end from multiple loads"
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -532,6 +539,7 @@ test("will load messages when there are messages at the end from multiple loads"
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -562,6 +570,7 @@ test("will load messages when there are messages at the end from multiple loads"
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -671,6 +680,7 @@ test("will load messages when there are messages at the start and end", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -699,6 +709,7 @@ test("will load messages when there are messages at the start and end", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -858,6 +869,7 @@ test("will load messages when there are messages at the start, end, and middle",
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -886,6 +898,7 @@ test("will load messages when there are messages at the start, end, and middle",
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -916,6 +929,7 @@ test("will load messages when there are messages at the start, end, and middle",
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1171,6 +1185,7 @@ test("will load messages when there are messages at the end when there are some 
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1199,6 +1214,7 @@ test("will load messages when there are messages at the end when there are some 
                 version: 0,
                 author: account,
                 createdTime: new Date(),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1218,6 +1234,7 @@ test("will load messages when there are messages at the end when there are some 
                 version: 0,
                 author: account,
                 createdTime: new Date(),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1325,6 +1342,7 @@ test("will load messages when there are messages at the start when there are som
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1351,6 +1369,7 @@ test("will load messages when there are messages at the start when there are som
                 version: 0,
                 author: account,
                 createdTime: new Date(),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1370,6 +1389,7 @@ test("will load messages when there are messages at the start when there are som
                 version: 0,
                 author: account,
                 createdTime: new Date(),
+                createdTimeZone: defaultTimeZone,
                 payload: {
                     type: "Content",
                     parent: null,
@@ -1398,6 +1418,7 @@ test("will load messages when there are messages at the start when there are som
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1505,6 +1526,7 @@ test("will load messages in the middle of two loaded ranges", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -1533,6 +1555,7 @@ test("will load messages in the middle of two loaded ranges", () => {
                     version: 0,
                     author: account,
                     createdTime: new Date(),
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,

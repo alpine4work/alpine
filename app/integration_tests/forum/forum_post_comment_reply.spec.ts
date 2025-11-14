@@ -6,6 +6,7 @@ import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
@@ -41,6 +42,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session2), {
@@ -48,6 +50,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
         parent: null,
         content: createSimpleMessageContent("Test post comment content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -213,6 +216,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
                 }: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac varius turpis, vel lacinia lectus. Cras ultricies felis purus, a mollis leo suscipit nec. Duis in eros libero. Pellentesque sed volutpat nunc. Fusce accumsan, turpis non cursus bibendum, lorem tortor sollicitudin augue, ut efficitur lectus augue id felis. Duis vel dolor ante. Fusce dictum tempor lacus, vitae interdum nibh bibendum eget.`,
             ),
             fileIds: [],
+            createdTimeZone: defaultTimeZone,
         });
     }
 
@@ -221,6 +225,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
         parent: {type: "Message", index: 49},
         content: createSimpleMessageContent("Test post comment content 101"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);

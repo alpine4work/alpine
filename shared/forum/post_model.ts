@@ -5,6 +5,7 @@ import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/messag
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -68,6 +69,7 @@ export class PostCommentModel
             version: Schema.integer,
             author: AccountModel.schema,
             createdTime: Schema.date,
+            createdTimeZone: TimeZoneSchema,
             payload: MessagePayloadModelSchema,
             stream: MessageStreamSchema.nullable(),
         }),

@@ -2,6 +2,7 @@ import {Step} from "prosemirror-transform";
 import {ContentReferences, ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
@@ -19,6 +20,7 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
@@ -55,6 +57,7 @@ export type CreateMessageProcedure = (input: {
     parent: MessageContentPayloadParent | null;
     content: MessageContent;
     fileIds: ReadonlyArray<FileId | FileEntityId>;
+    createdTimeZone: TimeZone;
 }) => Promise<{}>;
 
 export type UpdateMessageContentProcedure = (input: {
@@ -146,6 +149,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
                 parent: MessageContentPayloadParentSchema.nullable(),
                 content: MessageContentSchema,
                 fileIds: Schema.array(FileIdOrFileEntityIdSchema),
+                createdTimeZone: TimeZoneSchema,
             },
             output: {},
         },
@@ -393,6 +397,7 @@ export const MessagingRealtimeBroadcastNewMessageRequestSchema = Schema.object({
     version: Schema.integer.min(0),
     authorId: Schema.id<AccountId>(),
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     payload: MessageContentPayloadSchema,
     stream: MessageStreamSchema.nullable(),
 });

@@ -1,5 +1,6 @@
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -13,4 +14,5 @@ export type ShareNotification = SchemaType<typeof ShareNotificationSchema>;
 export const ShareNotificationSchema = Schema.object({
     accountIds: Schema.array(Schema.id<AccountId>()),
     content: MessageContentSchema,
+    createdTimeZone: TimeZoneSchema,
 });

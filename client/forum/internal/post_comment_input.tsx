@@ -26,7 +26,7 @@ import {JumpToMessageRangeOptions} from "~/client/messaging/use_jump_to_message_
 import {JumpToPostRangeOptions} from "~/client/messaging/use_jump_to_post_range.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -336,6 +336,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     parent: input.parent,
                     content: input.content,
                     fileIds: input.fileIds,
+                    createdTimeZone: getClientInfo().timeZone,
                 });
             }}
             fileAttachmentTarget={fileAttachmentTarget}

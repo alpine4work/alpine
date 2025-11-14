@@ -877,8 +877,7 @@ components:
                                 additionalProperties: false
                                 properties:
                                     completedTime:
-                                        type: string
-                                        format: date-time
+                                        $ref: "#/components/schemas/DateTime"
         GetMessageStreamPart:
             content:
                 application/json:
@@ -917,6 +916,8 @@ components:
                         properties:
                             isStream:
                                 type: boolean
+                            createdTimeZone:
+                                $ref: "#/components/schemas/TimeZone"
                             content:
                                 $ref: "#/components/schemas/Content"
         PutMessageStreamPart:
@@ -936,6 +937,11 @@ components:
             type: string
             minLength: 1
             maxLength: 50
+        DateTime:
+            type: string
+            format: date-time
+        TimeZone:
+            type: string
         AccountId:
             type: string
             pattern: ^[0-9abcdefghjkmnpqrstvwxyz]{25}[0-9abcdefghjkmnpqrstvw]$
@@ -1832,8 +1838,7 @@ components:
                                 - Admin
                                 - Member
                         addedTime:
-                            type: string
-                            format: date-time
+                            $ref: "#/components/schemas/DateTime"
                         inactive:
                             oneOf:
                                 - type: object
@@ -1844,8 +1849,7 @@ components:
                                       type:
                                           const: Removed
                                       removedTime:
-                                          type: string
-                                          format: date-time
+                                          $ref: "#/components/schemas/DateTime"
                                 - type: object
                                   required:
                                       - type
@@ -2083,8 +2087,7 @@ components:
                 author: &a62
                     $ref: "#/components/schemas/Account"
                 createdTime: &a63
-                    type: string
-                    format: date-time
+                    $ref: "#/components/schemas/DateTime"
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
         MessagePayload:

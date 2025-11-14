@@ -188,6 +188,7 @@ export const createTaskComment = defineRpc({
         parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+        createdTimeZone: TimeZoneSchema,
     },
     output: {
         index: Schema.integer,

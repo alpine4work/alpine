@@ -14,6 +14,7 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay_helpers.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
@@ -129,6 +130,7 @@ export function ContentEditorMobileCommentInputBottomBar({
 
         transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
+            createdTimeZone: getClientInfo().timeZone,
             initialCommentContent: content,
             initialCommentFileIds: files.map(file =>
                 file.type === "FileEntity" ? file.fileEntityId : file.file.id,

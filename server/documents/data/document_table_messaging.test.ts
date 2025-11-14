@@ -37,6 +37,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -232,7 +233,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         const [documentId] = decodeDocumentCommentRoomKey(roomKey);
         return {type: "Document", documentId};
     },
-    async createMessage(context, {roomKey, parent, content, fileIds, isStream}) {
+    async createMessage(context, {roomKey, parent, content, fileIds, isStream, createdTimeZone}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         const comment = await createDocumentComment(context, {
@@ -242,6 +243,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             content,
             fileIds,
             isStream,
+            createdTimeZone: createdTimeZone ?? defaultTimeZone,
         });
 
         return {

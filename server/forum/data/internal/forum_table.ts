@@ -1,11 +1,13 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessagePayloadSchema,
     MessageStreamPartPayloadSchema,
 } from "~/shared/messaging/message_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // Contains forum data that's not covered by our general realtime system. For
@@ -52,6 +54,7 @@ export const ForumTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         authorId: Schema.id<AccountId>(),
                         createdTime: Schema.date,
+                        createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
                         payload: MessagePayloadSchema,
                     }),
                     childSortRanges: [

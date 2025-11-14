@@ -31,6 +31,7 @@ import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_sche
 import {createMessageUpdatesBackfillResultSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -315,6 +316,7 @@ export const createPostComment = defineRpc({
         parent: MessageContentPayloadParentSchema.nullable(),
         content: MessageContentSchema,
         fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+        createdTimeZone: TimeZoneSchema,
     },
     output: {
         index: Schema.integer,

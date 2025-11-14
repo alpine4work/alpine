@@ -19373,6 +19373,7 @@ test("throws error for users that only have view access when trying to access ta
         parent: null,
         content: content1,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     const collection = await TestTaskCollection.create(creatorSession);
@@ -19477,6 +19478,7 @@ test("throws error for users that only have view access when trying to create ta
         parent: null,
         content: content1,
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     };
 
     const collection = await TestTaskCollection.create(creatorSession);
@@ -19997,6 +19999,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20016,6 +20019,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20035,6 +20039,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20099,6 +20104,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20118,6 +20124,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20137,6 +20144,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20178,6 +20186,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20197,6 +20206,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20216,6 +20226,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20257,6 +20268,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20276,6 +20288,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20295,6 +20308,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20336,6 +20350,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment0.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20355,6 +20370,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await assigneeSession.get(),
                     createdTime: comment1.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -20374,6 +20390,7 @@ test("returns null for users that only have view access when trying to get initi
                     version: 0,
                     author: await creatorSession.get(),
                     createdTime: comment2.createdTime,
+                    createdTimeZone: defaultTimeZone,
                     payload: {
                         type: "Content",
                         parent: null,
@@ -21146,6 +21163,7 @@ test("can only send share notifications when committing an update access policy 
                 updateAccessPolicyShareNotification: {
                     accountIds: [session2.account.id, session3.account.id],
                     content: createSimpleMessageContent("foobar1"),
+                    createdTimeZone: defaultTimeZone,
                 },
             },
         ),
@@ -21179,6 +21197,7 @@ test("can only send share notifications when committing an update access policy 
                 updateAccessPolicyShareNotification: {
                     accountIds: [session2.account.id, session3.account.id],
                     content: createSimpleMessageContent("foobar2"),
+                    createdTimeZone: defaultTimeZone,
                 },
             },
         ),
@@ -21219,6 +21238,7 @@ test("can only send share notifications when committing an update access policy 
             updateAccessPolicyShareNotification: {
                 accountIds: [session2.account.id, session3.account.id],
                 content: createSimpleMessageContent("foobar3"),
+                createdTimeZone: defaultTimeZone,
             },
         },
     );
@@ -21237,6 +21257,7 @@ test("can only send share notifications when committing an update access policy 
             notification: {
                 accountIds: [session2.account.id, session3.account.id],
                 content: createSimpleMessageContent("foobar3"),
+                createdTimeZone: defaultTimeZone,
             },
         },
     ]);

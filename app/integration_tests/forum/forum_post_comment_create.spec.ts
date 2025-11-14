@@ -8,6 +8,7 @@ import {createPost} from "~/server/forum/data/create_post.js";
 import {createPostComment} from "~/server/forum/data/post_messaging.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {context, services} = createTestServices();
@@ -60,6 +61,7 @@ test("can open and close post comments in channel", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -67,6 +69,7 @@ test("can open and close post comments in channel", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -74,6 +77,7 @@ test("can open and close post comments in channel", async ({
         parent: null,
         content: createSimpleMessageContent("Test post comment content 3"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -119,6 +123,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
         parent: null,
         content: createSimpleMessageContent("Test post comment content 1"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -126,6 +131,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
         parent: null,
         content: createSimpleMessageContent("Test post comment content 2"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -133,6 +139,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
         parent: null,
         content: createSimpleMessageContent("Test post comment content 3"),
         fileIds: [],
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
