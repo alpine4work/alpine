@@ -198,8 +198,6 @@ async function handleFetch(
                 route,
                 span,
             );
-
-            return response;
         } catch (error) {
             span.addException(error);
             response = createSimpleErrorResponse(error);

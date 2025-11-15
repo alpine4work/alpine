@@ -68,12 +68,14 @@ export async function fetchAppStaticFile(
     }
 
     // Add CORS headers to the response for trusted domains. Only origins that are in the trusted
-    // domains can access static files via CORS mode.
+    // domains can access static files via CORS mode. if there is no origin header, then this isn't a CORS request
     const origin = request.headers.get("Origin");
     const trustedOrigins = env.CORS_TRUSTED_ORIGINS ?? [];
 
-    // If there is no origin header, then this isn't a CORS request
-    if (origin && trustedOrigins.includes(origin)) {
+    if (origin && url.pathname.startsWith("/fonts/")) {
+        // We allow all origins to access font files via CORS mode.
+        headers.set("Access-Control-Allow-Origin", "*");
+    } else if (origin && trustedOrigins.includes(origin)) {
         headers.set("Access-Control-Allow-Origin", origin);
         headers.set("Vary", "Origin");
     }
