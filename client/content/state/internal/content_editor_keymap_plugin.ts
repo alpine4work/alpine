@@ -440,24 +440,147 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // Pressing alt+enter in a code block should split the code block at the
+        // selection and insert a paragraph. This is how you escape from the code block
+        // which otherwise traps "enter" key presses.
+        //
+        // The most useful version of this behavior is escaping the end of a code
+        // block. Imagine the following code block:
+        //
+        // ```
+        // 1 foo
+        // 2 bar|
+        // ```
+        //
+        // Pressing alt+enter should create a new paragraph below and move your
+        // selection there:
+        //
+        // ```
+        // 1 foo
+        // 2 bar
+        //
+        // |
+        // ```
+        //
+        // Similarly, if your selection is at the start of a code block:
+        //
+        // ```
+        // 1 |foo
+        // 2 bar
+        // ```
+        //
+        // Then alt+enter should create a paragraph above the code block and move
+        // selection there:
+        //
+        // ```
+        // |
+        //
+        // 1 foo
+        // 2 bar
+        // ```
+        //
+        // If your selection is in the middle of a code block then it splits the code
+        // block into two with a new paragraph in between where your selection is
+        // placed. So this:
+        //
+        // ```
+        // 1 foo
+        // 2 as|df
+        // 3 bar
+        // ```
+        //
+        // ...becomes this:
+        //
+        // ```
+        // 1 foo
+        // 2 as
+        //
+        // |
+        //
+        // 1 df
+        // 2 bar
+        // ```
+        //
+        // Small variation on that last example. If your selection is in the middle of
+        // a code block on an empty line then that empty code line will be deleted:
+        //
+        // ```
+        // 1 foo
+        // 2 |
+        // 3 bar
+        // ```
+        //
+        // alt+enter turns it into this:
+        //
+        // ```
+        // 1 foo
+        //
+        // |
+        //
+        // 1 bar
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            const fromNode = $from.node();
+
+            if (fromNode.type.name !== "codeBlockLine") return false;
+
+            const toNode = $to.node();
+
+            let from = $from.pos;
+            let to = $to.pos;
+
+            // If we're at the beginning of a `codeBlockLine` then we don't want to leave
+            // an empty `codeBlockLine` behind when we insert our paragraph.
+            if ($from.parentOffset === 0) {
+                from -= 1;
+
+                // If we're in the first code block line then we want our new paragraph to be
+                // placed completely above the `codeBlock`.
+                if ($from.index(-1) === 0) {
+                    from -= 1;
+                }
+            }
+
+            // If we're at the end of a `codeBlockLine` then we don't want to leave
+            // an empty `codeBlockLine` behind when we insert our paragraph.
+            if (toNode.type.name === "codeBlockLine" && $to.parentOffset === toNode.content.size) {
+                to += 1;
+
+                // If we're in the last code block line then we want our new paragraph to be
+                // placed completely below the `codeBlock`.
+                if ($to.index(-1) === $to.node(-1).childCount - 1) {
+                    to += 1;
+                }
+            }
+
+            const transaction = state.tr;
+
+            transaction.replace(
+                from,
+                to,
+                new Slice(Fragment.from(schema.nodes.paragraph.create()), 0, 0),
+            );
+
+            let $newFrom = transaction.doc.resolve(from);
+
+            // In case `from` mapped to a position still inside the code block, get the
+            // first position out of the code block (which should be our new paragraph).
+            if ($newFrom.parent.type.name === "codeBlockLine") {
+                $newFrom = transaction.doc.resolve($newFrom.after(-1));
+            }
+
+            transaction.setSelection(TextSelection.near($newFrom));
+
+            dispatch?.(transaction.scrollIntoView());
+            return true;
+        },
+
         // Pressing alt+enter creates a hard break (aka a new line). You can use
         // alt+enter to create a list item with multiple lines, for instance.
         (state, dispatch) => {
-            const {$from} = state.selection;
-            const fromNode = $from.node();
-            const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
-
-            if (!isSelectionInCodeBlockLine) {
-                dispatch?.(
-                    state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView(),
-                );
-                return true;
-            } else {
-                // In a code block, alt+enter always creates a new code block line. Unlike
-                // `Enter` which will stop creating newlines at the end of a code block and
-                // will convert to a paragraph.
-                return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
-            }
+            dispatch?.(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
+            return true;
         },
     );
 

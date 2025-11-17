@@ -1217,23 +1217,6 @@ test("pressing backspace in a code block will delete the code block and leave an
     expect(getDoc().toString()).toEqual("doc(paragraph, paragraph)");
 });
 
-test("pressing alt-enter in an empty code block will create a new line in the block", async () => {
-    render(<TestContentEditor />);
-
-    await simulateTyping("```");
-    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-    expect(getDoc().toString()).toEqual(
-        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine))",
-    );
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-    expect(getDoc().toString()).toEqual(
-        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine, codeBlockLine))",
-    );
-});
-
 test("pressing enter in a non-empty code block will create a new line in the block", async () => {
     render(<TestContentEditor />);
 
@@ -1656,8 +1639,8 @@ test("tab indents the selected lines, but not on empty lines", async () => {
 
     await simulateTyping("```");
     await simulateTyping("test 1");
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     await simulateTyping("test 2");
 
     expect(getDoc().toString()).toEqual(
@@ -1822,8 +1805,8 @@ test("shift-tab de-dents multiple lines inside a code block", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     await simulateTyping("test 1");
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
@@ -4387,13 +4370,13 @@ test("pressing enter will reuse current indentation level in code block", async 
 
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test1")))');
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  ")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("  ")))',
@@ -4404,36 +4387,6 @@ test("pressing enter will reuse current indentation level in code block", async 
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2")))',
-    );
-
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-
-    expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("    ")))',
-    );
-
-    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
-
-    expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      ")))',
-    );
-
-    await simulateTyping("test3");
-
-    expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      test3")))',
-    );
-
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
-
-    expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      test3"), codeBlockLine("      ")))',
-    );
-
-    await simulateTyping("test4");
-
-    expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      test3"), codeBlockLine("      test4")))',
     );
 });
 
@@ -5050,13 +5003,13 @@ test("enter in code block uses adjacent indentation level if there is no indenta
 
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test 1")))');
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine("  ")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine("  ")))',
@@ -5068,7 +5021,7 @@ test("enter in code block uses adjacent indentation level if there is no indenta
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine, codeBlockLine("  ")))',
@@ -9179,5 +9132,266 @@ describe("arrow down", () => {
             "doc(table(tableRow(tableCell(fileRowTable(file)), tableCell(fileRowTable(file)))), paragraph)",
         );
         expect(getSelection()).toEqual({type: "text", anchor: 15, head: 15});
+    });
+});
+
+describe("Alt+Enter in code block", () => {
+    test("pressing alt-enter in empty code block creates paragraph in place", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+
+        expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual("doc(paragraph)");
+        expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+    });
+
+    test("pressing alt-enter at beginning of single line splits with paragraph before", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("single line");
+
+        expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("single line")))');
+
+        // Position cursor at the beginning of the line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(paragraph, codeBlock(codeBlockLine("single line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+    });
+
+    test("pressing alt-enter in middle of single line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("single line");
+
+        expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("single line")))');
+
+        // Position cursor in the middle (after "single ")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(9))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("single ")), paragraph, codeBlock(codeBlockLine("line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 12, head: 12});
+    });
+
+    test("pressing alt-enter at end of single line creates paragraph after", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("console.log('hello');");
+
+        expect(getDoc().toString()).toEqual(
+            "doc(codeBlock(codeBlockLine(\"console.log('hello');\")))",
+        );
+
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            "doc(codeBlock(codeBlockLine(\"console.log('hello');\")), paragraph)",
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+    });
+
+    test("pressing alt-enter at beginning of first line in multi-line creates paragraph before", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+
+        // Position cursor at the beginning of the first line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(2))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(paragraph, codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+    });
+
+    test("pressing alt-enter in middle of first line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+
+        // Position cursor in the middle of the first line (after "first ")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first ")), paragraph, codeBlock(codeBlockLine("line"), codeBlockLine("second line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 11, head: 11});
+    });
+
+    test("pressing alt-enter at end of first line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+
+        // Position cursor at the end of the first line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line")), paragraph, codeBlock(codeBlockLine("second line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 15, head: 15});
+    });
+
+    test("pressing alt-enter at beginning of middle line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("third line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line"), codeBlockLine("third line")))',
+        );
+
+        // Position cursor at the beginning of the second line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line")), paragraph(break), codeBlock(codeBlockLine("second line"), codeBlockLine("third line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 16, head: 16});
+    });
+
+    test("pressing alt-enter in middle of middle line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("third line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line"), codeBlockLine("third line")))',
+        );
+
+        // Position cursor in the middle of the second line (after "second ")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second")), paragraph, codeBlock(codeBlockLine(" line"), codeBlockLine("third line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 23, head: 23});
+    });
+
+    test("pressing alt-enter at end of middle line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("third line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line"), codeBlockLine("third line")))',
+        );
+
+        // Position cursor at the end of the second line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(24))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second lin")), paragraph, codeBlock(codeBlockLine("e"), codeBlockLine("third line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 27, head: 27});
+    });
+
+    test("pressing alt-enter at beginning of last line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+
+        // Position cursor at the beginning of the second (last) line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line")), paragraph(break), codeBlock(codeBlockLine("second line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 16, head: 16});
+    });
+
+    test("pressing alt-enter in middle of last line in multi-line splits the code block", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("first line");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("second line");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second line")))',
+        );
+
+        // Position cursor in the middle of the second (last) line (after "second ")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(20))));
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("first line"), codeBlockLine("second")), paragraph, codeBlock(codeBlockLine(" line")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 23, head: 23});
+    });
+
+    test("pressing alt-enter at end of last line in multi-line creates paragraph after", async () => {
+        render(<TestContentEditor />);
+        await simulateTyping("```");
+        await simulateTyping("line 1");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("line 2");
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+        await simulateTyping("line 3");
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("line 1"), codeBlockLine("line 2"), codeBlockLine("line 3")))',
+        );
+
+        // Cursor should already be at the end
+        fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("line 1"), codeBlockLine("line 2"), codeBlockLine("line 3")), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 27, head: 27});
     });
 });
