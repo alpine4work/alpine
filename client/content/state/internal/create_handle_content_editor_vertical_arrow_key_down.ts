@@ -2,12 +2,17 @@ import {Node, ResolvedPos} from "prosemirror-model";
 import {NodeSelection, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {findElementVerticalNavigationPosition} from "~/client/content/state/find_element_vertical_navigation_position.js";
-import {isPosInContentTable} from "~/client/content/state/table/content_table_client_util.js";
+import {createParagraphAndMoveSelectionAfterContent} from "~/client/content/state/internal/create_paragraph_and_move_selection_after_content.js";
+import {
+    contentTableCellAround,
+    isPosInContentTable,
+} from "~/client/content/state/table/content_table_client_util.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     ContentInlineNodeTypeName,
     ContentNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -37,21 +42,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * 1. On any arrow up/down event, keep track of the x position we want to
  *    maintain.
  *
- * 2. When navigating between two ProseMirror nodes, find the next set of nodes
+ * 2. Check for paragraph creation at end of content. This handles both
+ *    file/divider node selection and textblock navigation when at the end
+ *    of the document or container.
+ *
+ * 3. When navigating between two ProseMirror nodes, find the next set of nodes
  *    based on `doc` tree order using `collectNextNodes()`. There may be more
  *    then one `nextNodes` if we're moving into a row-like node (e.g.
- *    `fileRow` or `tableRow`).
- *
- *    For example, if the next node is a `fileRow` then we'll add all the
- *    `file`s in that row to `nextNodes`.
- *
- * 3. If there's more than one `nextNode`, pick the node that's closest to our
- *    target x position.
- *
- *    For example, if you're navigating into a `fileRow` and your cursor is at
- *    the beginning of a line you'll move to the first `file` in the row and if
- *    your cursor is at the end of a line you'll move to the last `file` in the
- *    row.
+ *    `fileRow` or `tableRow`). If there's more than one `nextNode`, pick the
+ *    node that's closest to our target x position.
  *
  * 4. If the `nextNode` we picked is a text block, find the position in the
  *    text block that's closest to our x position. We call the function
@@ -112,13 +111,14 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
 
         // Keep track of x coordinate state while navigating vertically:
         const trackedTargetX = geometryTracker.threshold(view);
+        const movingDown = dir > 0;
 
         const $pos =
             selection instanceof NodeSelection
                 ? $from
                 : event.shiftKey
                 ? $head
-                : dir > 0
+                : movingDown
                 ? $to
                 : $from;
 
@@ -132,7 +132,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         // If we're in a text block and we're not at the end of the text block then let
         // the browser perform its default navigation. We want to handle all navigation
         // between nodes.
-        if (node.isTextblock && !view.endOfTextblock(dir > 0 ? "down" : "up")) {
+        if (node.isTextblock && !view.endOfTextblock(movingDown ? "down" : "up")) {
             return false;
         }
 
@@ -142,7 +142,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         if (
             event.altKey &&
             $pos.parent.inlineContent &&
-            $pos.parentOffset !== (dir > 0 ? $pos.parent.nodeSize - 2 : 0)
+            $pos.parentOffset !== (movingDown ? $pos.parent.nodeSize - 2 : 0)
         ) {
             view.dispatch(
                 view.state.tr
@@ -150,7 +150,8 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
                         TextSelection.near(
                             $pos.doc.resolve(
                                 $pos.pos +
-                                    ((dir > 0 ? $pos.parent.nodeSize - 2 : 0) - $pos.parentOffset),
+                                    ((movingDown ? $pos.parent.nodeSize - 2 : 0) -
+                                        $pos.parentOffset),
                             ),
                         ),
                     )
@@ -160,7 +161,134 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         }
 
         /* ========================================================================== *\
-         *                 2. Find closest node to target X position                  *
+         *                 2. Check for paragraph creation at end of content         *
+        \* ========================================================================== */
+
+        // Handle navigation when moving down
+        if (movingDown && node) {
+            let isLastLineInBlock = false;
+            let afterSelectedNodePos: number | null = null;
+
+            // Check if we're at the last child in any parent container
+            let hitNonLastChild = false;
+            for (let depth = $pos.depth - 1; depth > 0; depth--) {
+                const parentNode = $pos.node(depth);
+                const nodeIndex = $pos.index(depth);
+                const isLastChildOfParentNode = nodeIndex === parentNode.childCount - 1;
+
+                // If not last child, we're definitely not at the end
+                if (!isLastChildOfParentNode) {
+                    hitNonLastChild = true;
+                    break;
+                }
+
+                if (parentNode.type.name === "table") {
+                    // Skip table - it's handled separately below
+                    break;
+                }
+
+                if (parentNode.type.name === "tableCell") {
+                    // Continue checking parent containers
+                    continue;
+                }
+
+                if (parentNode.type.name === "codeBlock" || parentNode.type.name === "quoteBlock") {
+                    // We're at the last child of a codeBlock or quoteBlock
+                    isLastLineInBlock = true;
+                    afterSelectedNodePos = $pos.after(depth);
+                    break;
+                }
+
+                // For other containers, set position and continue
+                afterSelectedNodePos = $pos.after(depth);
+            }
+
+            // This is just a decomposition of selectedContentTableRect into only the
+            // parts we need without any extra potentially troublesome logic.
+            const $cell = contentTableCellAround($pos);
+
+            // Special check for file rows and dividers
+            if (
+                selection instanceof NodeSelection &&
+                (selection.node.type.name === "file" || selection.node.type.name === "divider")
+            ) {
+                const isAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
+                const fileRowEnd = $from.end($from.depth);
+
+                const isDivider = selection.node.type.name === "divider";
+                const isInLastFileRow = fileRowEnd + 1 === state.doc.content.size;
+
+                if (isAtEndOfDoc && (isInLastFileRow || isDivider)) {
+                    afterSelectedNodePos = state.doc.content.size;
+                }
+
+                // Also check if we're in a table cell with a file and table is at end of document
+                if ($cell) {
+                    const table = $cell.node(-1);
+                    const tablePos = $cell.start(-1);
+                    const afterTablePos = tablePos + table.nodeSize;
+                    if (afterTablePos >= state.doc.content.size) {
+                        afterSelectedNodePos = state.doc.content.size;
+                        isLastLineInBlock = true;
+                    }
+                }
+            }
+
+            if (
+                !isLastLineInBlock &&
+                !hitNonLastChild &&
+                (afterSelectedNodePos === null || $cell)
+            ) {
+                // If we didn't find any special container (codeBlock/quoteBlock) and we
+                // didn't hit a non-last-child then we're at the last line.
+                isLastLineInBlock = true;
+            }
+
+            if (!$cell) {
+                // If we're not in a table, only create paragraph for wrapped blocks
+                if (afterSelectedNodePos && afterSelectedNodePos >= state.doc.content.size) {
+                    return createParagraphAndMoveSelectionAfterContent(state, view.dispatch);
+                }
+            } else {
+                const table = $cell.node(-1);
+                const tablePos = $cell.start(-1);
+                const tableMap = ContentTableMap.get(table);
+                const rect = tableMap.findCell($cell.pos - tablePos);
+                const isLastRow = rect.bottom === tableMap.height;
+
+                if (isLastRow) {
+                    // Find the table cell by going up the hierarchy
+                    let tableCellDepth = $pos.depth;
+                    while (
+                        tableCellDepth > 0 &&
+                        $pos.node(tableCellDepth).type.name !== "tableCell"
+                    ) {
+                        tableCellDepth--;
+                    }
+
+                    if (tableCellDepth > 0) {
+                        const tableCell = $cell.nodeAfter;
+                        // Are we the last element in the cell?
+                        const isLastChildOfCell =
+                            tableCell && $pos.index(tableCellDepth) === tableCell.childCount - 1;
+
+                        if (isLastChildOfCell && isLastLineInBlock) {
+                            // We're in the last textblock of the last cell in the last row
+                            const afterTablePos = tablePos + table.nodeSize;
+                            if (afterTablePos >= state.doc.content.size) {
+                                return createParagraphAndMoveSelectionAfterContent(
+                                    state,
+                                    view.dispatch,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ========================================================================== *\
+         *                 3. Find closest node to target X position                  *
         \* ========================================================================== */
 
         const nextNodes: Array<{
@@ -302,7 +430,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         }
 
         /* ========================================================================== *\
-         *                  3. Set selection within the closest node                  *
+         *                  4. Set selection within the closest node                  *
         \* ========================================================================== */
 
         const {$pos: $nextPos, dom} = closestNextNode;
@@ -416,7 +544,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             }
 
             const navPosition = findElementVerticalNavigationPosition(
-                dir > 0 ? "top" : "bottom",
+                movingDown ? "top" : "bottom",
                 dom,
                 targetX,
             );
@@ -443,7 +571,7 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             // text node.
             else {
                 if ($navPos.parent.inlineContent && $navPos.parent.nodeSize > 2) {
-                    if (dir > 0 && $navPos.parentOffset === 0) {
+                    if (movingDown && $navPos.parentOffset === 0) {
                         newSelection = TextSelection.between(
                             selection.$anchor,
                             $navPos.doc.resolve($navPos.pos + 1),

@@ -8568,3 +8568,616 @@ test("tab adds a level of indentation when selecting multiple items when some ar
         ],
     });
 });
+
+describe("arrow down", () => {
+    test("pressing arrow down in the last row of a table with no content below creates a paragraph", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("a1")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("a2")]),
+                            ]),
+                        ]),
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("b1")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("b2")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the text in the last cell in the last row (after "b2")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(24))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+    });
+
+    test("pressing arrow down in the last row of a table with content below moves to the content", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("a1")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("a2")]),
+                            ]),
+                        ]),
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("b1")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("b2")]),
+                            ]),
+                        ]),
+                    ]),
+                    schema.node("paragraph", {}, [schema.text("after table")]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the text in the last cell in the last row (after "b2")
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(24))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("after table"))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should not create a new paragraph since there's already content after the table
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("after table"))',
+        );
+    });
+
+    test("pressing arrow down in the last line of a codeblock with no content below creates a paragraph", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("codeBlock", {}, [
+                        schema.node("codeBlockLine", {}, [schema.text("const a = 1;")]),
+                        schema.node("codeBlockLine", {}, [schema.text("const b = 2;")]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor in the middle of the last line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(19))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 19, head: 19});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+    });
+
+    test("pressing arrow down at the end of the last line of a codeblock with no content below creates a paragraph", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("codeBlock", {}, [
+                        schema.node("codeBlockLine", {}, [schema.text("const a = 1;")]),
+                        schema.node("codeBlockLine", {}, [schema.text("const b = 2;")]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the last line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(25))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 25, head: 25});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+    });
+
+    test("pressing arrow down in the last line of a codeblock with content below moves to the content", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("codeBlock", {}, [
+                        schema.node("codeBlockLine", {}, [schema.text("const a = 1;")]),
+                        schema.node("codeBlockLine", {}, [schema.text("const b = 2;")]),
+                    ]),
+                    schema.node("paragraph", {}, [schema.text("after code")]),
+                ])}
+            />,
+        );
+
+        // Position cursor in the middle of the last line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(19))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")), paragraph("after code"))',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 19, head: 19});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should not create a new paragraph since there's already content after the codeblock
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const a = 1;"), codeBlockLine("const b = 2;")), paragraph("after code"))',
+        );
+    });
+
+    test("pressing arrow down in a codeblock within a table cell creates a paragraph under the table", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("codeBlock", {}, [
+                                    schema.node("codeBlockLine", {}, [
+                                        schema.text("console.log('hello');"),
+                                    ]),
+                                    schema.node("codeBlockLine", {}, [schema.text("return true;")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor in the middle of the last line of the codeblock in the table cell
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(30))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("console.log(\'hello\');"), codeBlockLine("return true;"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a paragraph under the table, not in the cell
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("console.log(\'hello\');"), codeBlockLine("return true;"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+    });
+
+    test("pressing arrow down in a codeblock within a table cell with content below moves to the content in the cell", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("codeBlock", {}, [
+                                    schema.node("codeBlockLine", {}, [
+                                        schema.text("console.log('hello');"),
+                                    ]),
+                                    schema.node("codeBlockLine", {}, [schema.text("return true;")]),
+                                ]),
+                                schema.node("paragraph", {}, [schema.text("after code")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor in the middle of the last line of the codeblock in the table cell
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(30))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("console.log(\'hello\');"), codeBlockLine("return true;")), paragraph("after code")), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should NOT create a paragraph under the table (document structure should remain the same)
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("console.log(\'hello\');"), codeBlockLine("return true;")), paragraph("after code")), tableCell(paragraph("other cell")))))',
+        );
+
+        // Navigation behavior will depend on the specific implementation, but the key is that
+        // we don't create a new paragraph under the table when there's content after the code block
+    });
+
+    test("pressing arrow down in a quote block within a table cell with content below moves to the content in the cell", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("quoteBlock", {}, [
+                                    schema.node("paragraph", {}, [schema.text("This is a quote")]),
+                                ]),
+                                schema.node("paragraph", {}, [schema.text("after quote")]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the quote block paragraph
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(17))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("This is a quote")), paragraph("after quote")), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should NOT create a paragraph under the table (document structure should remain the same)
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("This is a quote")), paragraph("after quote")), tableCell(paragraph("other cell")))))',
+        );
+    });
+
+    test("pressing arrow down in a quote block within a table cell creates a paragraph under the table when it's the last element", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("quoteBlock", {}, [
+                                    schema.node("paragraph", {}, [schema.text("This is a quote")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the quote block paragraph
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(17))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("This is a quote"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a paragraph under the table since the quote is the last element
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("This is a quote"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+    });
+
+    test("pressing arrow down in codeblock selects file when file follows", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("codeBlock", {}, [
+                        schema.node("codeBlockLine", {}, [schema.text("const x = 1;")]),
+                    ]),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {filename: "test.txt", size: 100, uploadId: "123"}),
+                    ]),
+                    schema.node("paragraph", {}, [schema.text("after file")]),
+                ])}
+            />,
+        );
+
+        // Position cursor at end of the last line of the codeblock
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should select the file
+        expect(getSelection()).toEqual({type: "node", anchor: 17});
+    });
+
+    test("pressing arrow down creates paragraph at end of document when no content follows", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("codeBlock", {}, [
+                        schema.node("codeBlockLine", {}, [schema.text("const x = 1;")]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at end of the last line of the codeblock
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+
+        expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("const x = 1;")))');
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a new paragraph at the end
+        expect(getDoc().toString()).toEqual(
+            'doc(codeBlock(codeBlockLine("const x = 1;")), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 17, head: 17});
+    });
+
+    test("pressing arrow down in table code block creates paragraph then reuses it on subsequent navigation", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("codeBlock", {}, [
+                                    schema.node("codeBlockLine", {}, [schema.text("const x = 1;")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the code block in the table cell
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"))), tableCell(paragraph("other cell")))))',
+        );
+
+        // First down arrow - should create a paragraph under the table
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 37, head: 37}); // Position in the new paragraph
+
+        // Press up arrow to go back into the code block
+        fireEvent.keyDown(getTextbox(), arrowUpKeyboardEvent());
+
+        // Press down arrow again - should NOT create another paragraph, just move to existing one
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should still have only one paragraph after the table - this will fail with current logic
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 37, head: 37}); // Should be in the same paragraph
+    });
+
+    test("pressing arrow down in first line of multi-line quote block in table cell moves to second line", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("quoteBlock", {}, [
+                                    schema.node("paragraph", {}, [schema.text("First line")]),
+                                    schema.node("paragraph", {}, [schema.text("Second line")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the first paragraph in quote block
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("First line"), paragraph("Second line"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should NOT create a paragraph under the table, just move to second line
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("First line"), paragraph("Second line"))), tableCell(paragraph("other cell")))))',
+        );
+        // Should move to beginning of second paragraph in quote block
+        expect(getSelection()).toEqual({type: "text", anchor: 12, head: 12});
+    });
+
+    test("pressing arrow down in first line of multi-line code block in table cell moves to second line", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("codeBlock", {}, [
+                                    schema.node("codeBlockLine", {}, [schema.text("const x = 1;")]),
+                                    schema.node("codeBlockLine", {}, [schema.text("const y = 2;")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the first code block line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(13))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"), codeBlockLine("const y = 2;"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should NOT create a paragraph under the table, just move to second line
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"), codeBlockLine("const y = 2;"))), tableCell(paragraph("other cell")))))',
+        );
+        // Should move to beginning of second code block line
+        expect(getSelection()).toEqual({type: "text", anchor: 13, head: 13});
+    });
+
+    test("pressing arrow down in last line of multi-line quote block in table cell creates paragraph under table", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("quoteBlock", {}, [
+                                    schema.node("paragraph", {}, [schema.text("First line")]),
+                                    schema.node("paragraph", {}, [schema.text("Second line")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the second (last) paragraph in quote block
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(27))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("First line"), paragraph("Second line"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a paragraph under the table since we're on the last line
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(quoteBlock(paragraph("First line"), paragraph("Second line"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 48, head: 48});
+    });
+
+    test("pressing arrow down in last line of multi-line code block in table cell creates paragraph under table", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("codeBlock", {}, [
+                                    schema.node("codeBlockLine", {}, [schema.text("const x = 1;")]),
+                                    schema.node("codeBlockLine", {}, [schema.text("const y = 2;")]),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("paragraph", {}, [schema.text("other cell")]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor at the end of the second (last) code block line
+        dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(27))));
+
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"), codeBlockLine("const y = 2;"))), tableCell(paragraph("other cell")))))',
+        );
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a paragraph under the table since we're on the last line
+        expect(getDoc().toString()).toEqual(
+            'doc(table(tableRow(tableCell(codeBlock(codeBlockLine("const x = 1;"), codeBlockLine("const y = 2;"))), tableCell(paragraph("other cell")))), paragraph)',
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 51, head: 51});
+    });
+
+    test("pressing arrow down with file selected in table cell creates a paragraph under table", async () => {
+        render(
+            <TestContentEditor
+                initialContent={schema.node("doc", {}, [
+                    schema.node("table", {}, [
+                        schema.node("tableRow", {}, [
+                            schema.node("tableCell", {}, [
+                                schema.node("fileRowTable", {}, [
+                                    schema.node("file", {
+                                        fileId: generateChronologicalId<FileId>(),
+                                    }),
+                                ]),
+                            ]),
+                            schema.node("tableCell", {}, [
+                                schema.node("fileRowTable", {}, [
+                                    schema.node("file", {
+                                        fileId: generateChronologicalId<FileId>(),
+                                    }),
+                                ]),
+                            ]),
+                        ]),
+                    ]),
+                ])}
+            />,
+        );
+
+        // Position cursor to select the first file
+        dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(4))));
+
+        expect(getDoc().toString()).toEqual(
+            "doc(table(tableRow(tableCell(fileRowTable(file)), tableCell(fileRowTable(file)))))",
+        );
+        expect(getSelection()).toEqual({type: "node", anchor: 4});
+
+        fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+        // Should create a paragraph under the table, not select the next file
+        expect(getDoc().toString()).toEqual(
+            "doc(table(tableRow(tableCell(fileRowTable(file)), tableCell(fileRowTable(file)))), paragraph)",
+        );
+        expect(getSelection()).toEqual({type: "text", anchor: 15, head: 15});
+    });
+});

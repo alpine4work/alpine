@@ -40,7 +40,6 @@ import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/st
 import {addSharedContentEditorKeymapCommands} from "~/client/content/state/shared/add_shared_content_editor_keymap_commands.js";
 import {
     isInContentTable,
-    isSelectionInContentTable,
     selectedContentTableRect,
 } from "~/client/content/state/table/content_table_client_util.js";
 import {handleContentTableKeyDown} from "~/client/content/state/table/content_table_input.js";
@@ -1793,65 +1792,6 @@ export function buildContentEditorKeymapPlugin(
             // resume tab order.
             () => {
                 return true;
-            },
-        ),
-    );
-
-    keys.set(
-        "ArrowDown",
-        chainCommands(
-            // To escape certain nodes pressing down at the end of a document should create
-            // a new empty paragraph and move the cursor there. That way the user doesn't
-            // get stuck editing the element.
-            //
-            // For example, consider a `divider` element. If a `divider` is the last
-            // element in the document how would you write some text beneath it? Without
-            // this shortcut there's no keyboard accessible way to do so. With this
-            // shortcut if you hit the down arrow we create an empty paragraph where you
-            // can continue typing.
-            (state, dispatch) => {
-                const {selection, schema} = state;
-                const {$from} = selection;
-                const isSelectionAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
-
-                // 1. Check if the selection is the last object in the entire doc
-                if (!isSelectionAtEndOfDoc) {
-                    return false;
-                }
-
-                const parentNode = $from.node($from.depth - 1);
-                const currentNode = $from.node();
-
-                // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
-                //    `divider`, or a `file`
-                if (
-                    (currentNode.type.name === "codeBlockLine" &&
-                        parentNode.type.name === "codeBlock") ||
-                    (selection instanceof NodeSelection &&
-                        (selection.node.type.name === "divider" ||
-                            selection.node.type.name === "file")) ||
-                    isSelectionInContentTable(selection)
-                ) {
-                    const paragraphNode = schema.nodes.paragraph;
-                    if (!paragraphNode) {
-                        return false;
-                    }
-
-                    if (dispatch) {
-                        // `state.doc.content.size` is the last position in the document.
-                        const insertPosition = state.doc.content.size;
-                        const transaction = state.tr;
-                        transaction.insert(insertPosition, paragraphNode.create());
-                        transaction.setSelection(
-                            TextSelection.create(transaction.doc, insertPosition + 1),
-                        );
-                        dispatch(transaction);
-                    }
-
-                    return true;
-                }
-
-                return false;
             },
         ),
     );
