@@ -9,6 +9,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {buttonStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
 import {BorderRadius} from "~/shared/design/core/border_radius.js";
+import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -123,6 +124,7 @@ export function AvatarUploader({
                             left="0"
                             right="0"
                             bottom="0"
+                            color="grey-0-const"
                             backgroundColor="grey-100-const"
                             borderRadius={borderRadius}
                             style={{opacity: 0.8}}
@@ -130,7 +132,7 @@ export function AvatarUploader({
                             alignItems="center"
                             justifyContent="center"
                         >
-                            <SpinnerGap className={spinAnimationClassName} size={12} />
+                            <SpinnerGap className={spinAnimationClassName} size={spacing[4]} />
                         </Box>
                     )}
                 </Box>
