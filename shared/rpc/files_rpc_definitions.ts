@@ -9,6 +9,9 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const startUploadingFile = defineRpc({
     name: "startUploadingFile",
+    // Fails if the file already exists (when `fileId` is provided).
+    // Generates a new `fileId` otherwise.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>().nullable(),
@@ -23,6 +26,8 @@ export const startUploadingFile = defineRpc({
 
 export const finishUploadingAndStartProcessingFile = defineRpc({
     name: "finishUploadingAndStartProcessingFile",
+    // Fails if the file has already finished uploading.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -36,6 +41,7 @@ export const finishUploadingAndStartProcessingFile = defineRpc({
 
 export const getFileAsUploader = defineRpc({
     name: "getFileAsUploader",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -48,6 +54,7 @@ export const getFileAsUploader = defineRpc({
 
 export const getFileFromAttachment = defineRpc({
     name: "getFileFromAttachment",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -61,6 +68,7 @@ export const getFileFromAttachment = defineRpc({
 
 export const getFileWithoutSignedUrlAsUploader = defineRpc({
     name: "getFileWithoutSignedUrlAsUploader",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -72,6 +80,7 @@ export const getFileWithoutSignedUrlAsUploader = defineRpc({
 
 export const getFileWithoutSignedUrlFromAttachment = defineRpc({
     name: "getFileWithoutSignedUrlFromAttachment",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -84,6 +93,7 @@ export const getFileWithoutSignedUrlFromAttachment = defineRpc({
 
 export const getFileSignedUrlAsUploader = defineRpc({
     name: "getFileSignedUrlAsUploader",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -95,6 +105,7 @@ export const getFileSignedUrlAsUploader = defineRpc({
 
 export const getFileSignedUrlFromAttachment = defineRpc({
     name: "getFileSignedUrlFromAttachment",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -107,6 +118,7 @@ export const getFileSignedUrlFromAttachment = defineRpc({
 
 export const attachFileAsUploader = defineRpc({
     name: "attachFileAsUploader",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -120,6 +132,7 @@ export const attachFileAsUploader = defineRpc({
 
 export const attachFileFromAttachment = defineRpc({
     name: "attachFileFromAttachment",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
@@ -134,6 +147,7 @@ export const attachFileFromAttachment = defineRpc({
 
 export const getFileEntityIfPossible = defineRpc({
     name: "getFileEntityIfPossible",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileEntityId: FileEntityIdSchema,

@@ -91,6 +91,33 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             },
         });
 
+        // Perform environment variable substitution for any CLI options. That way:
+        //
+        // 1. We don't need to run in a shell
+        // 2. Long environment variables (e.g. RSA keys) aren't passed into the
+        //    program's arguments
+        //
+        // Prefer accessing environment variables through args! That way you can't
+        // access secrets via the `process.env` global from anywhere in the code.
+        for (const [key, value] of Object.entries(parsedOptions.values)) {
+            if (typeof value !== "string" || !value.startsWith("$")) continue;
+
+            const envKey = value.slice(1);
+            const envValue = process.env[envKey];
+
+            if (envValue === undefined)
+                throw new InternalError(quote`Env variable ${envKey} does not exist`);
+
+            // Don't allow access to the environment variable anywhere else in the program.
+            // Force key usage to be controlled here from the top of the program.
+            //
+            // Also secures against attacks where an attacker finds a way to inspect
+            // `process.env`.
+            delete process.env[envKey];
+
+            (parsedOptions.values as any)[key] = envValue;
+        }
+
         // If a Honeycomb API key is not provided in production then we get no logging
         // from our service.
         const honeycombApiKey: string | undefined = (parsedOptions.values as any).honeycombApiKey;
@@ -116,6 +143,9 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         const {shutdownManager, shutdown} = ShutdownManager.new({
             tracer,
             isClusterPrimary: cluster.isPrimary,
+            flushTracer: async () => {
+                await honeycombClient?.flushScheduledEventBatch();
+            },
         });
 
         // Perform a graceful shutdown when requested. Any code in our system can
@@ -181,7 +211,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                         }),
                     );
 
-                    worker.kill(typeof signal !== "string" ? "SIGINT" : signal);
+                    worker.kill(signal.type === "Signal" ? signal.signal : "SIGINT");
                 }
 
                 await exitPromise;

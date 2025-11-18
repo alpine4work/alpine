@@ -100,6 +100,7 @@ export function testFileProcessorContentTypes(
     const {shutdownManager, shutdown} = ShutdownManager.new({
         tracer: context.tracer.getRoot(),
         isClusterPrimary: true,
+        flushTracer: async () => {},
     });
 
     let r2Bucket: R2Bucket;

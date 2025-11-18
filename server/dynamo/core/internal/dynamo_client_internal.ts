@@ -7,8 +7,9 @@ import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InternalError, UnavailableError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -111,13 +112,39 @@ export class DynamoClientInternal {
 
         request = await this._signer.sign(request, span);
 
-        // We create our own spans for DynamoDB actions so don't use
-        // `fetchWithTracer()`.
-        // eslint-disable-next-line no-global-fetch
-        const response = await fetch(request).catch(error => {
-            // Classify network errors as the `Unavailable` status code.
-            throw new UnavailableError(error instanceof Error ? error.message : String(error));
-        });
+        let response;
+
+        const abortController = new AbortController();
+
+        // As of 2025-11-17 our p99 for error free requests is 85ms. We set a timeout
+        // of 500ms so that we fail fast if something has gone wrong. Clients will
+        // retry failed requests.
+        const abortTimeout = !this.isLocal()
+            ? createTimeout(() => {
+                  abortController.abort(new DeadlineExceededError("DynamoDB request timed out"));
+              }, 500)
+            : // Don't set a DynamoDB request timeout if we're using local DynamoDB. Poor CPU bound
+              // SQLite based local DynamoDB can take longer than 500ms in CI when the CPU is under
+              // heavy load.
+              null;
+
+        try {
+            // We create our own spans for DynamoDB actions so don't use
+            // `fetchWithTracer()`.
+            // eslint-disable-next-line no-global-fetch
+            response = await fetch(request, {signal: abortController.signal}).catch(error => {
+                // If the request was aborted, make sure we throw the reason passed into
+                // `AbortController`.
+                if (abortController.signal.aborted) {
+                    throw abortController.signal.reason;
+                }
+
+                // Classify network errors as the `Unavailable` status code.
+                throw new UnavailableError(error instanceof Error ? error.message : String(error));
+            });
+        } finally {
+            abortTimeout?.clear();
+        }
 
         const output: any = await response.json();
 

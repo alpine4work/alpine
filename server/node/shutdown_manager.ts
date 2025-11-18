@@ -31,6 +31,7 @@ export interface ShutdownManagerBase {
 export class ShutdownManager implements ShutdownManagerBase {
     private readonly _tracer: TracerRoot;
     private readonly _isClusterPrimary: boolean;
+    private readonly _flushTracer: () => Promise<void>;
     private _shutdownPromise: Promise<void> | null = null;
     private _ingressTrafficListeners = new Set<
         (reason: ShutdownReason, span: TracerSpan) => Promise<void>
@@ -41,20 +42,25 @@ export class ShutdownManager implements ShutdownManagerBase {
     private constructor({
         tracer,
         isClusterPrimary,
+        flushTracer,
     }: {
         tracer: TracerRoot;
         isClusterPrimary: boolean;
+        flushTracer: () => Promise<void>;
     }) {
         this._tracer = tracer;
         this._isClusterPrimary = isClusterPrimary;
+        this._flushTracer = flushTracer;
     }
 
     public static new({
         tracer,
         isClusterPrimary,
+        flushTracer,
     }: {
         tracer: TracerRoot;
         isClusterPrimary: boolean;
+        flushTracer: () => Promise<void>;
     }): {
         shutdownManager: ShutdownManager;
         shutdown: (
@@ -62,7 +68,7 @@ export class ShutdownManager implements ShutdownManagerBase {
             propagationContext: TracerSpanPropagationContext | null,
         ) => Promise<void>;
     } {
-        const shutdownManager = new ShutdownManager({tracer, isClusterPrimary});
+        const shutdownManager = new ShutdownManager({tracer, isClusterPrimary, flushTracer});
 
         return {
             shutdownManager,
@@ -108,7 +114,7 @@ export class ShutdownManager implements ShutdownManagerBase {
 
         if (!hasAddedExceptionToSpan && reason.type === "Error") {
             hasAddedExceptionToSpan = true;
-            span.addException(reason.error);
+            span.logException("Shutting down because of error", reason.error);
         }
 
         if (reason.type === "Error") {
@@ -125,135 +131,116 @@ export class ShutdownManager implements ShutdownManagerBase {
             console.log(`Shutdown started (pid: ${process.pid})`);
         }
 
-        if (
-            this._ingressTrafficListeners.size === 0 &&
-            this._listeners.size === 0 &&
-            this._waitUntilPromises.size === 0
-        ) {
-            // It's helpful to see service lifecycle events in production logs. All logging
-            // in response to user actions should go to Honeycomb.
-            if (process.env.NODE_ENV === "production") {
-                // eslint-disable-next-line no-console
-                console.log(`Shutdown finished (pid: ${process.pid})`);
-            }
+        const ingressTrafficShutdownPromise = runAllPromises(
+            Array.from(this._ingressTrafficListeners, listener => listener(reason, span)),
+        );
 
-            finishSpan();
-
-            // Don't actually exit the process in unit tests.
-            if (!import.meta.jest) {
-                process.exit(reason.type === "Error" ? 1 : 0);
-            }
-        } else {
-            const ingressTrafficShutdownPromise = runAllPromises(
-                Array.from(this._ingressTrafficListeners, listener => listener(reason, span)),
+        const shutdownPromise = ingressTrafficShutdownPromise
+            // If an ingress traffic shutdown listener failed, we still want to run our
+            // other shutdown listeners.
+            .catch(error => {
+                if (!hasAddedExceptionToSpan) {
+                    hasAddedExceptionToSpan = true;
+                    span.addException(error);
+                }
+            })
+            .then(() =>
+                runAllPromises(Array.from(this._listeners, listener => listener(reason, span))),
             );
 
-            const shutdownPromise = ingressTrafficShutdownPromise
-                // If an ingress traffic shutdown listener failed, we still want to run our
-                // other shutdown listeners.
-                .catch(error => {
-                    if (!hasAddedExceptionToSpan) {
-                        hasAddedExceptionToSpan = true;
-                        span.addException(error);
-                    }
-                })
-                .then(() =>
-                    runAllPromises(Array.from(this._listeners, listener => listener(reason, span))),
-                );
+        const waitUntilShutdownPromise = shutdownPromise
+            // If a shutdown listener failed, we still want to wait for our `waitUntil()`
+            // promises.
+            .catch(error => {
+                if (!hasAddedExceptionToSpan) {
+                    hasAddedExceptionToSpan = true;
+                    span.addException(error);
+                }
+            })
+            .then(async () => {
+                const errors: Array<unknown> = [];
 
-            const waitUntilShutdownPromise = shutdownPromise
-                // If a shutdown listener failed, we still want to wait for our `waitUntil()`
-                // promises.
-                .catch(error => {
-                    if (!hasAddedExceptionToSpan) {
-                        hasAddedExceptionToSpan = true;
-                        span.addException(error);
-                    }
-                })
-                .then(async () => {
-                    const errors: Array<unknown> = [];
-
-                    // Wait for all promises to resolve. If there's an error, don't throw it until
-                    // all promises have resolved.
-                    const wait = async () => {
-                        while (this._waitUntilPromises.size > 0) {
-                            try {
-                                await runAllPromises(this._waitUntilPromises);
-                            } catch (error) {
-                                errors.push(error);
-                            }
+                // Wait for all promises to resolve. If there's an error, don't throw it until
+                // all promises have resolved.
+                const wait = async () => {
+                    while (this._waitUntilPromises.size > 0) {
+                        try {
+                            await runAllPromises(this._waitUntilPromises);
+                        } catch (error) {
+                            errors.push(error);
                         }
-                    };
-
-                    const hasError = errors.length > 0;
-                    const error = hasError ? createAggregateError(errors) : null;
-
-                    await span.withSpan(
-                        "Waiting for remaining process promises",
-                        async childSpan => {
-                            await wait();
-                            if (hasError) childSpan.addException(error);
-                        },
-                    );
-
-                    if (!hasAddedExceptionToSpan && hasError) {
-                        hasAddedExceptionToSpan = true;
-                        span.addException(error);
                     }
+                };
 
-                    finishSpan();
+                const hasError = errors.length > 0;
+                const error = hasError ? createAggregateError(errors) : null;
 
-                    // After we finish the span, we need to wait for all `waitUntil()` promises
-                    // AGAIN since we need to send shutdown spans to our telemetry provider
-                    // (Honeycomb) and our code to do this passes the telemetry request promise
-                    // to `waitUntil()`.
+                await span.withSpan("Waiting for remaining process promises", async childSpan => {
                     await wait();
-
-                    if (hasError) throw error;
+                    if (hasError) childSpan.addException(error);
                 });
 
-            const fullShutdownPromise = runAllPromises([
-                ingressTrafficShutdownPromise,
-                shutdownPromise,
-                waitUntilShutdownPromise,
-            ]);
+                if (!hasAddedExceptionToSpan && hasError) {
+                    hasAddedExceptionToSpan = true;
+                    span.addException(error);
+                }
 
-            await fullShutdownPromise.then(
-                () => {
-                    // It's helpful to see service lifecycle events in production logs. All logging
-                    // in response to user actions should go to Honeycomb.
-                    if (process.env.NODE_ENV === "production") {
-                        // eslint-disable-next-line no-console
-                        console.log(`Shutdown finished (pid: ${process.pid})`);
-                    }
+                finishSpan();
 
-                    // Don't actually exit the process in unit tests.
-                    if (!import.meta.jest) {
-                        process.exit(reason.type === "Error" ? 1 : 0);
-                    }
-                },
-                error => {
-                    // It's helpful to see service lifecycle events in production logs. All logging
-                    // in response to user actions should go to Honeycomb.
-                    if (process.env.NODE_ENV === "production") {
-                        // eslint-disable-next-line no-console
-                        console.log(`Shutdown finished (pid: ${process.pid})`);
-                    }
+                // Immediately flush any pending tracer events instead of waiting after the
+                // `finishSpan()` call.
+                await this._flushTracer();
 
-                    // Don't actually exit the process in unit tests.
-                    if (import.meta.jest) {
-                        throw error;
-                    } else {
-                        // eslint-disable-next-line no-console
-                        console.error("Shutdown finished with exception:");
-                        // eslint-disable-next-line no-console
-                        console.error(error);
+                // After we finish the span, we need to wait for all `waitUntil()` promises
+                // AGAIN since we need to send shutdown spans to our telemetry provider
+                // (Honeycomb) and our code to do this passes the telemetry request promise
+                // to `waitUntil()`.
+                await wait();
 
-                        process.exit(1);
-                    }
-                },
-            );
-        }
+                if (hasError) throw error;
+            });
+
+        const fullShutdownPromise = runAllPromises([
+            ingressTrafficShutdownPromise,
+            shutdownPromise,
+            waitUntilShutdownPromise,
+        ]);
+
+        await fullShutdownPromise.then(
+            () => {
+                // It's helpful to see service lifecycle events in production logs. All logging
+                // in response to user actions should go to Honeycomb.
+                if (process.env.NODE_ENV === "production") {
+                    // eslint-disable-next-line no-console
+                    console.log(`Shutdown finished (pid: ${process.pid})`);
+                }
+
+                // Don't actually exit the process in unit tests.
+                if (!import.meta.jest) {
+                    process.exit(reason.type === "Error" ? 1 : 0);
+                }
+            },
+            error => {
+                // It's helpful to see service lifecycle events in production logs. All logging
+                // in response to user actions should go to Honeycomb.
+                if (process.env.NODE_ENV === "production") {
+                    // eslint-disable-next-line no-console
+                    console.log(`Shutdown finished (pid: ${process.pid})`);
+                }
+
+                // Don't actually exit the process in unit tests.
+                if (import.meta.jest) {
+                    throw error;
+                } else {
+                    // eslint-disable-next-line no-console
+                    console.error("Shutdown finished with exception:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+
+                    process.exit(1);
+                }
+            },
+        );
     }
 
     /**

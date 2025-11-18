@@ -56,6 +56,7 @@ const jpegTestFixturePath = joinPath(
 const {shutdownManager, shutdown} = ShutdownManager.new({
     tracer: testTracer,
     isClusterPrimary: true,
+    flushTracer: async () => {},
 });
 
 let r2Client: MiniflareR2Client;

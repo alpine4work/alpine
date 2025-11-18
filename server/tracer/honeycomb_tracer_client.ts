@@ -2,7 +2,7 @@ import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {wait} from "~/shared/helpers/async/wait.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -66,11 +66,21 @@ export class HoneycombTracerClient {
             };
 
             const promise = (async () => {
+                const timeoutPromiseResolver = createPromiseResolver();
+                const timeout = createTimeout(timeoutPromiseResolver.resolve, 500);
+
                 // We send events in a batch to Honeycomb twice a second. We want the
                 // delay to be long enough to include a meaningful amount of data but also
                 // short enough that it's tolerable to delay process shutdown by this duration.
                 // However, if flush() is called, we bypass the timeout.
-                await Promise.race([wait(500), flushPromiseResolver.promise]);
+                try {
+                    await Promise.race([
+                        timeoutPromiseResolver.promise,
+                        flushPromiseResolver.promise,
+                    ]);
+                } finally {
+                    timeout.clear();
+                }
 
                 // Clear so the next `sendEvent()` schedules a new event batch.
                 this._scheduledEventBatch = null;

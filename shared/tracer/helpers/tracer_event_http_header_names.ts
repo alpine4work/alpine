@@ -100,6 +100,8 @@ type TracerEventHttpHeaderNameMap = {
     "cyberworlds-durable-object-id-name": true;
     "cyberworlds-durable-object-if-initialized": true;
     "cyberworlds-space-id-hint": true;
+    "cyberworlds-route": true;
+    "cyberworlds-transient-error": true;
 };
 
 const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
@@ -176,6 +178,8 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cyberworlds-durable-object-id-name": true,
     "cyberworlds-durable-object-if-initialized": true,
     "cyberworlds-space-id-hint": true,
+    "cyberworlds-route": true,
+    "cyberworlds-transient-error": true,
 };
 
 /**

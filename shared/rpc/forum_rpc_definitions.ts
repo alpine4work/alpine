@@ -38,6 +38,9 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const createChannel = defineRpc({
     name: "createChannel",
+    // Fails if the channel already exists (when `channelId` is provided).
+    // Generates a new `channelId` otherwise.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         channelId: Schema.id<ChannelId>().optional(),
@@ -53,6 +56,7 @@ export const createChannel = defineRpc({
 
 export const updateChannelName = defineRpc({
     name: "updateChannelName",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         name: Schema.string,
@@ -66,6 +70,7 @@ export const updateChannelName = defineRpc({
 
 export const updateChannelDescription = defineRpc({
     name: "updateChannelDescription",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         description: MessageContentSchema,
@@ -79,6 +84,7 @@ export const updateChannelDescription = defineRpc({
 
 export const updateChannelNameAndDescription = defineRpc({
     name: "updateChannelNameAndDescription",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         name: Schema.string,
@@ -93,6 +99,8 @@ export const updateChannelNameAndDescription = defineRpc({
 
 export const updateChannelAccessPolicy = defineRpc({
     name: "updateChannelAccessPolicy",
+    // Sends `notification` twice if called twice.
+    isIdempotent: false,
     input: {
         channelId: Schema.id<ChannelId>(),
         accessPolicy: AccessPolicySchema,
@@ -107,6 +115,8 @@ export const updateChannelAccessPolicy = defineRpc({
 
 export const addAccountGrantsToChannelAccessPolicy = defineRpc({
     name: "addAccountGrantsToChannelAccessPolicy",
+    // Sends `notification` twice if called twice.
+    isIdempotent: false,
     input: {
         channelId: Schema.id<ChannelId>(),
         accountGrantById: Schema.map(
@@ -124,6 +134,7 @@ export const addAccountGrantsToChannelAccessPolicy = defineRpc({
 
 export const getChannelWithStrongReadConsistency = defineRpc({
     name: "getChannelWithStrongReadConsistency",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
     },
@@ -134,6 +145,7 @@ export const getChannelWithStrongReadConsistency = defineRpc({
 
 export const getChannelAndMetadata = defineRpc({
     name: "getChannelAndMetadata",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         postFilesLimit: Schema.integer,
@@ -146,6 +158,7 @@ export const getChannelAndMetadata = defineRpc({
 
 export const backfillChannelAndMetadata = defineRpc({
     name: "backfillChannelAndMetadata",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -159,6 +172,7 @@ export const backfillChannelAndMetadata = defineRpc({
 
 export const subscribeToChannel = defineRpc({
     name: "subscribeToChannel",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
     },
@@ -167,6 +181,7 @@ export const subscribeToChannel = defineRpc({
 
 export const unsubscribeFromChannel = defineRpc({
     name: "unsubscribeFromChannel",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
     },
@@ -175,6 +190,8 @@ export const unsubscribeFromChannel = defineRpc({
 
 export const sendChannelShareNotification = defineRpc({
     name: "sendChannelShareNotification",
+    // Sends `notification` twice if called twice.
+    isIdempotent: false,
     input: {
         channelId: Schema.id<ChannelId>(),
         notification: ShareNotificationSchema,
@@ -184,6 +201,7 @@ export const sendChannelShareNotification = defineRpc({
 
 export const getChannelPosts = defineRpc({
     name: "getChannelPosts",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         limit: Schema.integer,
@@ -196,6 +214,7 @@ export const getChannelPosts = defineRpc({
 
 export const backfillChannelPosts = defineRpc({
     name: "backfillChannelPosts",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -207,6 +226,7 @@ export const backfillChannelPosts = defineRpc({
 
 export const getPostWithStrongReadConsistency = defineRpc({
     name: "getPostWithStrongReadConsistency",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
     },
@@ -217,6 +237,8 @@ export const getPostWithStrongReadConsistency = defineRpc({
 
 export const createPost = defineRpc({
     name: "createPost",
+    // Creates two posts if called twice.
+    isIdempotent: false,
     input: {
         channelId: Schema.id<ChannelId>(),
         draftId: Schema.id<PostDraftId>().optional(),
@@ -234,6 +256,8 @@ export const createPost = defineRpc({
 
 export const updatePostContent = defineRpc({
     name: "updatePostContent",
+    // Fails if `contentVersion` isn't the current version.
+    isIdempotent: false,
     input: {
         postId: Schema.id<PostId>(),
         contentVersion: Schema.integer,
@@ -247,6 +271,7 @@ export const updatePostContent = defineRpc({
 
 export const getPostCommentAuthors = defineRpc({
     name: "getPostCommentAuthors",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
@@ -258,6 +283,7 @@ export const getPostCommentAuthors = defineRpc({
 
 export const getPostCommentsFromStart = defineRpc({
     name: "getPostCommentsFromStart",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
@@ -274,6 +300,7 @@ export const getPostCommentsFromStart = defineRpc({
 
 export const getPostCommentsFromEnd = defineRpc({
     name: "getPostCommentsFromEnd",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
@@ -290,6 +317,7 @@ export const getPostCommentsFromEnd = defineRpc({
 
 export const authorizePostAccess = defineRpc({
     name: "authorizePostAccess",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
     },
@@ -300,6 +328,7 @@ export const authorizePostAccess = defineRpc({
 
 export const authorizeChannelAccess = defineRpc({
     name: "authorizeChannelAccess",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         expectedAccessLevel: AccessLevelSchema,
@@ -311,6 +340,8 @@ export const authorizeChannelAccess = defineRpc({
 
 export const createPostComment = defineRpc({
     name: "createPostComment",
+    // Creates two comments if called twice.
+    isIdempotent: false,
     input: {
         postId: Schema.id<PostId>(),
         parent: MessageContentPayloadParentSchema.nullable(),
@@ -326,6 +357,8 @@ export const createPostComment = defineRpc({
 
 export const updatePostCommentContent = defineRpc({
     name: "updatePostCommentContent",
+    // Fails if `contentVersion` isn't the current version.
+    isIdempotent: false,
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
@@ -339,6 +372,8 @@ export const updatePostCommentContent = defineRpc({
 
 export const deletePostComment = defineRpc({
     name: "deletePostComment",
+    // Fails if the comment is already deleted.
+    isIdempotent: false,
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
@@ -350,6 +385,7 @@ export const deletePostComment = defineRpc({
 
 export const setPostCommentReaction = defineRpc({
     name: "setPostCommentReaction",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
@@ -364,6 +400,7 @@ export const setPostCommentReaction = defineRpc({
 
 export const deletePostCommentReaction = defineRpc({
     name: "deletePostCommentReaction",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
@@ -377,6 +414,7 @@ export const deletePostCommentReaction = defineRpc({
 
 export const backfillPostComments = defineRpc({
     name: "backfillPostComments",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -393,6 +431,7 @@ export const backfillPostComments = defineRpc({
 
 export const getPostCommentAtVersion = defineRpc({
     name: "getPostCommentAtVersion",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         commentIndex: Schema.integer,
@@ -405,6 +444,7 @@ export const getPostCommentAtVersion = defineRpc({
 
 export const getPostCommentReferences = defineRpc({
     name: "getPostCommentReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         postId: Schema.id<PostId>(),
@@ -417,6 +457,7 @@ export const getPostCommentReferences = defineRpc({
 
 export const createOrReplacePostDraft = defineRpc({
     name: "createOrReplacePostDraft",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         draftId: Schema.id<PostDraftId>(),
@@ -428,6 +469,7 @@ export const createOrReplacePostDraft = defineRpc({
 
 export const getPostRealtimeEvent = defineRpc({
     name: "getPostRealtimeEvent",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
@@ -439,6 +481,7 @@ export const getPostRealtimeEvent = defineRpc({
 
 export const getChannelRealtimeEvent = defineRpc({
     name: "getChannelRealtimeEvent",
+    isIdempotent: true,
     input: {
         channelId: Schema.id<ChannelId>(),
         eventTransaction: Schema.array(DynamoGeneralRealtimeEventStubSchema),
@@ -450,6 +493,7 @@ export const getChannelRealtimeEvent = defineRpc({
 
 export const setPostReaction = defineRpc({
     name: "setPostReaction",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
         reaction: ReactionOrGenericLikeSchema,
@@ -461,6 +505,7 @@ export const setPostReaction = defineRpc({
 
 export const deletePostReaction = defineRpc({
     name: "deletePostReaction",
+    isIdempotent: true,
     input: {
         postId: Schema.id<PostId>(),
     },

@@ -6,6 +6,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const getFeedEntries = defineRpc({
     name: "getFeedEntries",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         limit: Schema.integer,

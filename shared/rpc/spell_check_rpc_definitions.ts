@@ -11,6 +11,7 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const getSpellCheckIgnoredLints = defineRpc({
     name: "getSpellCheckIgnoredLints",
+    isIdempotent: true,
     input: {
         entityId: SpellCheckEntityIdSchema,
     },
@@ -23,6 +24,7 @@ export const getSpellCheckIgnoredLints = defineRpc({
 
 export const backfillSpellCheckIgnoredLints = defineRpc({
     name: "backfillSpellCheckIgnoredLints",
+    isIdempotent: true,
     input: {
         entityId: SpellCheckEntityIdSchema,
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -36,6 +38,8 @@ export const backfillSpellCheckIgnoredLints = defineRpc({
 
 export const createSpellCheckIgnoredLint = defineRpc({
     name: "createSpellCheckIgnoredLint",
+    // Throws an error if the line already exists.
+    isIdempotent: false,
     input: {
         entityId: SpellCheckEntityIdSchema,
         key: Schema.string,

@@ -5,7 +5,6 @@ import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 export const serviceTokenAgentOptions = {
     appServicePublicKey: {type: "string"},
@@ -125,22 +124,7 @@ export async function createServiceTokenAgent<
  * `admin/aws/internal/add_all_container_aws_resources.ts`.
  */
 export async function getServiceTokenAgentKeyFromOption(arg: string): Promise<string> {
-    if (arg.startsWith("$")) {
-        const envKey = arg.slice(1);
-        const envValue = process.env[envKey];
-
-        if (envValue === undefined)
-            throw new InternalError(quote`Env variable ${envKey} does not exist`);
-
-        // Don't allow access to the environment variable anywhere else in the program.
-        // Force key usage to be controlled here from the top of the program.
-        //
-        // Also secures against attacks where an attacker finds a way to inspect
-        // `process.env`.
-        delete process.env[envKey];
-
-        return envValue;
-    } else if (arg.startsWith("/")) {
+    if (arg.startsWith("/")) {
         return fs.readFile(arg, "utf8");
     } else {
         return arg;

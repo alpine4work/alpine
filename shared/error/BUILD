@@ -6,6 +6,7 @@ CORE_SRCS = [
     "error_code.ts",
     "error_display_message.ts",
     "is_system_error_code.ts",
+    "is_transient_error.ts",
     "types/error_display_message_type.ts",
 ]
 

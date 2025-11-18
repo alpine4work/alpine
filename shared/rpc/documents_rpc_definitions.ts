@@ -43,6 +43,7 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const authorizeDocumentAccess = defineRpc({
     name: "authorizeDocumentAccess",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         expectedAccessLevel: AccessLevelSchema,
@@ -57,6 +58,9 @@ export const authorizeDocumentAccess = defineRpc({
 
 export const createDocument = defineRpc({
     name: "createDocument",
+    // Fails if the document already exists (when `documentId` is provided).
+    // Generates a new `documentId` otherwise.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>().optional(),
@@ -70,6 +74,7 @@ export const createDocument = defineRpc({
 
 export const getDocument = defineRpc({
     name: "getDocument",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
     },
@@ -90,6 +95,7 @@ export const getDocument = defineRpc({
 // who only have view access.
 export const getDocumentContentForCollaborationServiceInitialization = defineRpc({
     name: "getDocumentContentForCollaborationServiceInitialization",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
     },
@@ -102,6 +108,7 @@ export const getDocumentContentForCollaborationServiceInitialization = defineRpc
 
 export const getDocumentPreviewIfExists = defineRpc({
     name: "getDocumentPreviewIfExists",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
     },
@@ -112,6 +119,7 @@ export const getDocumentPreviewIfExists = defineRpc({
 
 export const getDocumentContentSteps = defineRpc({
     name: "getDocumentContentSteps",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         startVersion: Schema.integer,
@@ -130,6 +138,8 @@ export const getDocumentContentSteps = defineRpc({
 
 export const updateDocumentContent = defineRpc({
     name: "updateDocumentContent",
+    // Applies the steps twice if called with the same `version` and `steps`.
+    isIdempotent: false,
     input: {
         documentId: Schema.id<DocumentId>(),
         version: Schema.integer,
@@ -164,6 +174,7 @@ export const updateDocumentContent = defineRpc({
 
 export const getDocumentContentReferences = defineRpc({
     name: "getDocumentContentReferences",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         referencedIds: DocumentContentReferencedIdsSchema,
@@ -176,6 +187,7 @@ export const getDocumentContentReferences = defineRpc({
 
 export const confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency = defineRpc({
     name: "confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
@@ -187,6 +199,7 @@ export const confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency = 
 
 export const getDocumentCommentThreadAndInitialCommentsIfExists = defineRpc({
     name: "getDocumentCommentThreadAndInitialCommentsIfExists",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -201,6 +214,7 @@ export const getDocumentCommentThreadAndInitialCommentsIfExists = defineRpc({
 
 export const getDocumentCommentsFromStart = defineRpc({
     name: "getDocumentCommentsFromStart",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -217,6 +231,7 @@ export const getDocumentCommentsFromStart = defineRpc({
 
 export const getDocumentCommentsFromEnd = defineRpc({
     name: "getDocumentCommentsFromEnd",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -233,6 +248,8 @@ export const getDocumentCommentsFromEnd = defineRpc({
 
 export const createDocumentComment = defineRpc({
     name: "createDocumentComment",
+    // Creates two comments if called twice.
+    isIdempotent: false,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -249,6 +266,8 @@ export const createDocumentComment = defineRpc({
 
 export const updateDocumentCommentContent = defineRpc({
     name: "updateDocumentCommentContent",
+    // Fails if `contentVersion` isn't the current version.
+    isIdempotent: false,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -263,6 +282,8 @@ export const updateDocumentCommentContent = defineRpc({
 
 export const deleteDocumentComment = defineRpc({
     name: "deleteDocumentComment",
+    // Fails if the comment is already deleted.
+    isIdempotent: false,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -275,6 +296,7 @@ export const deleteDocumentComment = defineRpc({
 
 export const setDocumentCommentReaction = defineRpc({
     name: "setDocumentCommentReaction",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -290,6 +312,7 @@ export const setDocumentCommentReaction = defineRpc({
 
 export const deleteDocumentCommentReaction = defineRpc({
     name: "deleteDocumentCommentReaction",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -304,6 +327,7 @@ export const deleteDocumentCommentReaction = defineRpc({
 
 export const backfillDocumentComments = defineRpc({
     name: "backfillDocumentComments",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -324,6 +348,7 @@ export const backfillDocumentComments = defineRpc({
 
 export const getDocumentCommentAtVersion = defineRpc({
     name: "getDocumentCommentAtVersion",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
@@ -337,6 +362,7 @@ export const getDocumentCommentAtVersion = defineRpc({
 
 export const getDocumentCommentReferences = defineRpc({
     name: "getDocumentCommentReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
@@ -349,6 +375,7 @@ export const getDocumentCommentReferences = defineRpc({
 
 export const getOptimisticDocumentCommentReferences = defineRpc({
     name: "getOptimisticDocumentCommentReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
@@ -365,6 +392,7 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
 
 export const getResolvedDocumentCommentThreadRanges = defineRpc({
     name: "getResolvedDocumentCommentThreadRanges",
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         commentThreadId: Schema.id<DocumentCommentThreadId>(),

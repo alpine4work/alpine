@@ -19,6 +19,7 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const getChatMessagesFromStart = defineRpc({
     name: "getChatMessagesFromStart",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         limit: Schema.integer,
@@ -34,6 +35,7 @@ export const getChatMessagesFromStart = defineRpc({
 
 export const getChatMessagesFromEnd = defineRpc({
     name: "getChatMessagesFromEnd",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         limit: Schema.integer,
@@ -49,6 +51,7 @@ export const getChatMessagesFromEnd = defineRpc({
 
 export const authorizeChatAccess = defineRpc({
     name: "authorizeChatAccess",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
     },
@@ -59,6 +62,8 @@ export const authorizeChatAccess = defineRpc({
 
 export const sendChatMessage = defineRpc({
     name: "sendChatMessage",
+    // We create two messages if sent twice.
+    isIdempotent: false,
     input: {
         chatId: Schema.id<ChatId>(),
         parent: MessageContentPayloadParentSchema.nullable(),
@@ -74,6 +79,8 @@ export const sendChatMessage = defineRpc({
 
 export const updateChatMessageContent = defineRpc({
     name: "updateChatMessageContent",
+    // Fails if `contentVersion` isn't the current version.
+    isIdempotent: false,
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
@@ -87,6 +94,8 @@ export const updateChatMessageContent = defineRpc({
 
 export const deleteChatMessage = defineRpc({
     name: "deleteChatMessage",
+    // Fails if the message is already deleted.
+    isIdempotent: false,
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
@@ -98,6 +107,7 @@ export const deleteChatMessage = defineRpc({
 
 export const setChatMessageReaction = defineRpc({
     name: "setChatMessageReaction",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
@@ -112,6 +122,7 @@ export const setChatMessageReaction = defineRpc({
 
 export const deleteChatMessageReaction = defineRpc({
     name: "deleteChatMessageReaction",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
@@ -125,6 +136,7 @@ export const deleteChatMessageReaction = defineRpc({
 
 export const backfillChatMessages = defineRpc({
     name: "backfillChatMessages",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -141,6 +153,7 @@ export const backfillChatMessages = defineRpc({
 
 export const getChatMessageAtVersion = defineRpc({
     name: "getChatMessageAtVersion",
+    isIdempotent: true,
     input: {
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
@@ -153,6 +166,7 @@ export const getChatMessageAtVersion = defineRpc({
 
 export const getChatMessageReferences = defineRpc({
     name: "getChatMessageReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         chatId: Schema.id<ChatId>(),

@@ -6,9 +6,10 @@ import {AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {isErrorCode} from "~/shared/error/error_code.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -46,26 +47,29 @@ export default async function handleRequest(
             </AppContextProvider>,
         );
 
+        const renderedAggregateError =
+            renderedErrors.length > 0 ? createAggregateError(renderedErrors) : null;
+
         // Report any React errors while rendering. The first error we saw while
         // rendering will go on our React server-side render span. If we rendered other
         // errors then we will add them as logs.
-        if (renderedErrors.length > 0) {
-            span.addException(renderedErrors[0]);
+        if (renderedAggregateError) {
+            span.addException(renderedAggregateError);
+        }
 
-            for (const renderedError of renderedErrors.slice(1)) {
-                span.logException("React server rendered error", renderedError);
+        let remixContextAggregateError: unknown = null;
+
+        if (remixContext.staticHandlerContext.errors) {
+            const errors = Object.values(remixContext.staticHandlerContext.errors);
+            if (errors.length > 0) {
+                remixContextAggregateError = createAggregateError(errors);
             }
         }
 
         // Manually override the status code if an error with our codebase's
         // `ErrorCode` was thrown.
-        responseStatusCode = remixContext.staticHandlerContext.errors
-            ? Object.values(remixContext.staticHandlerContext.errors).some(
-                  error =>
-                      typeof error.code === "number" &&
-                      isErrorCode(error.code) &&
-                      isSystemErrorCode(error.code),
-              )
+        responseStatusCode = remixContextAggregateError
+            ? isSystemError(remixContextAggregateError)
                 ? responseStatusCode >= 500 && responseStatusCode < 600
                     ? responseStatusCode
                     : 500
@@ -95,6 +99,11 @@ export default async function handleRequest(
             "link",
             `<${stylesUrl}>; rel=preload; as=style, <${resourceServiceUrl}/fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
         );
+
+        // `EdgeService` will check this header and retry if present.
+        if (remixContextAggregateError && isTransientError(remixContextAggregateError)) {
+            responseHeaders.set("cyberworlds-transient-error", "yes");
+        }
 
         const response = new Response("<!DOCTYPE html>" + markup, {
             status: responseStatusCode,

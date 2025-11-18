@@ -39,6 +39,12 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
+    // TODO(calebmer): This should be idempotent thanks to CRDTs! But I think
+    // `updateAccessPolicyShareNotification` might make this RPC non-idempotent
+    // since we'll send share notifications twice.
+    //
+    // Make sure this RPC is idempotent!
+    isIdempotent: false,
     input: {
         clientId: Schema.id<TaskRealtimeClientId>().nullable(),
         spaceId: Schema.id<SpaceId>(),
@@ -58,6 +64,8 @@ export const commitTaskActionTransaction = defineRpc({
 
 export const deleteTaskAndAllChildren = defineRpc({
     name: "deleteTaskAndAllChildren",
+    // TODO(calebmer): This should be able to be idempotent but I haven't tested.
+    isIdempotent: false,
     input: {
         clientId: Schema.id<TaskRealtimeClientId>(),
         taskId: Schema.id<TaskId>(),
@@ -71,6 +79,8 @@ export const deleteTaskAndAllChildren = defineRpc({
 
 export const duplicateTaskAndAllChildren = defineRpc({
     name: "duplicateTaskAndAllChildren",
+    // Duplicates the task twice if called twice.
+    isIdempotent: false,
     input: {
         taskId: Schema.id<TaskId>(),
         actionTime: HybridLogicalTimeSchema,
@@ -85,6 +95,7 @@ export const duplicateTaskAndAllChildren = defineRpc({
 
 export const updateTaskGridViewExpansionState = defineRpc({
     name: "updateTaskGridViewExpansionState",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         browserId: Schema.id<BrowserId>(),
@@ -97,6 +108,7 @@ export const updateTaskGridViewExpansionState = defineRpc({
 
 export const getTaskNotesContent = defineRpc({
     name: "getTaskNotesContent",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
     },
@@ -109,6 +121,8 @@ export const getTaskNotesContent = defineRpc({
 
 export const updateTaskNotesContent = defineRpc({
     name: "updateTaskNotesContent",
+    // Applies the steps twice if called with the same `version` and `steps`.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         taskId: Schema.id<TaskId>(),
@@ -120,6 +134,7 @@ export const updateTaskNotesContent = defineRpc({
 
 export const getTaskNotesContentReferences = defineRpc({
     name: "getTaskNotesContentReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         taskId: Schema.id<TaskId>(),
@@ -138,6 +153,7 @@ export const getTaskNotesContentReferences = defineRpc({
  */
 export const authorizeTaskAccess = defineRpc({
     name: "authorizeTaskAccess",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
     },
@@ -152,6 +168,7 @@ export const authorizeTaskAccess = defineRpc({
 
 export const getTaskCommentsFromStart = defineRpc({
     name: "getTaskCommentsFromStart",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         limit: Schema.integer,
@@ -167,6 +184,7 @@ export const getTaskCommentsFromStart = defineRpc({
 
 export const getTaskCommentsFromEnd = defineRpc({
     name: "getTaskCommentsFromEnd",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         limit: Schema.integer,
@@ -183,6 +201,8 @@ export const getTaskCommentsFromEnd = defineRpc({
 
 export const createTaskComment = defineRpc({
     name: "createTaskComment",
+    // Creates two comments if called twice.
+    isIdempotent: false,
     input: {
         taskId: Schema.id<TaskId>(),
         parent: MessageContentPayloadParentSchema.nullable(),
@@ -198,6 +218,8 @@ export const createTaskComment = defineRpc({
 
 export const updateTaskCommentContent = defineRpc({
     name: "updateTaskCommentContent",
+    // Fails if `contentVersion` isn't the current version.
+    isIdempotent: false,
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
@@ -211,6 +233,8 @@ export const updateTaskCommentContent = defineRpc({
 
 export const deleteTaskComment = defineRpc({
     name: "deleteTaskComment",
+    // Fails if the comment is already deleted.
+    isIdempotent: false,
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
@@ -222,6 +246,7 @@ export const deleteTaskComment = defineRpc({
 
 export const setTaskCommentReaction = defineRpc({
     name: "setTaskCommentReaction",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
@@ -236,6 +261,7 @@ export const setTaskCommentReaction = defineRpc({
 
 export const deleteTaskCommentReaction = defineRpc({
     name: "deleteTaskCommentReaction",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
@@ -249,6 +275,7 @@ export const deleteTaskCommentReaction = defineRpc({
 
 export const backfillTaskComments = defineRpc({
     name: "backfillTaskComments",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -265,6 +292,7 @@ export const backfillTaskComments = defineRpc({
 
 export const getTaskCommentAtVersion = defineRpc({
     name: "getTaskCommentAtVersion",
+    isIdempotent: true,
     input: {
         taskId: Schema.id<TaskId>(),
         commentIndex: Schema.integer,
@@ -277,6 +305,7 @@ export const getTaskCommentAtVersion = defineRpc({
 
 export const getTaskCommentReferences = defineRpc({
     name: "getTaskCommentReferences",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         taskId: Schema.id<TaskId>(),

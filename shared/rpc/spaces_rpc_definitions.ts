@@ -11,6 +11,7 @@ import {SpaceModel, SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
 export const expensivelyGetAllSpaceAccounts = defineRpc({
     name: "expensivelyGetAllSpaceAccounts",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -21,6 +22,8 @@ export const expensivelyGetAllSpaceAccounts = defineRpc({
 
 export const createAlphaSpaceAsAdmin = defineRpc({
     name: "createAlphaSpaceAsAdmin",
+    // Will create two spaces if called twice.
+    isIdempotent: false,
     input: {
         name: Schema.string,
         ownerAccountId: Schema.id<AccountId>(),
@@ -34,6 +37,8 @@ export const createAlphaSpaceAsAdmin = defineRpc({
 
 export const removeSpaceAccount = defineRpc({
     name: "removeSpaceAccount",
+    // Throws if account has already been removed from the space.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
@@ -45,6 +50,7 @@ export const removeSpaceAccount = defineRpc({
 
 export const getOurAccountSpaces = defineRpc({
     name: "getOurAccountSpaces",
+    isIdempotent: true,
     input: {},
     output: {
         spaces: Schema.array(
@@ -58,6 +64,7 @@ export const getOurAccountSpaces = defineRpc({
 
 export const updateSpaceAccountSettings = defineRpc({
     name: "updateSpaceAccountSettings",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         update: SpaceAccountSettingsSchema.partial(),
@@ -67,6 +74,7 @@ export const updateSpaceAccountSettings = defineRpc({
 
 export const updateSpaceName = defineRpc({
     name: "updateSpaceName",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         name: Schema.string,
@@ -78,6 +86,7 @@ export const updateSpaceName = defineRpc({
 
 export const updateSpaceAccountRole = defineRpc({
     name: "updateSpaceAccountRole",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
@@ -88,6 +97,9 @@ export const updateSpaceAccountRole = defineRpc({
 
 export const moveSpaceOwner = defineRpc({
     name: "moveSpaceOwner",
+    // Can only move owner as the space owner. Once you've moved ownership you
+    // can't move ownership again.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         newOwnerAccountId: Schema.id<AccountId>(),
@@ -100,6 +112,10 @@ export const moveSpaceOwner = defineRpc({
 
 export const inviteEmailAddressesToSpace = defineRpc({
     name: "inviteEmailAddressesToSpace",
+    // TODO(calebmer): Pretty sure this isn't idempotent but haven't confirmed. It
+    // probably either throws if inviting the same email address again or sends two
+    // emails.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         emailAddresses: Schema.array(Schema.string),
@@ -117,6 +133,8 @@ export const inviteEmailAddressesToSpace = defineRpc({
 
 export const rejectSpaceAccountInviteAsSpam = defineRpc({
     name: "rejectSpaceAccountInviteAsSpam",
+    // Throws an error if invite has already been accepted or rejected.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -127,6 +145,8 @@ export const rejectSpaceAccountInviteAsSpam = defineRpc({
 
 export const acceptSpaceAccountInvite = defineRpc({
     name: "acceptSpaceAccountInvite",
+    // Throws an error if invite has already been accepted or rejected.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -137,6 +157,7 @@ export const acceptSpaceAccountInvite = defineRpc({
 
 export const finishUploadingSpaceAvatar = defineRpc({
     name: "finishUploadingSpaceAvatar",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         avatarContent: Schema.bytes,
@@ -150,6 +171,8 @@ export const finishUploadingSpaceAvatar = defineRpc({
 
 export const createSpace = defineRpc({
     name: "createSpace",
+    // Creates two spaces if called twice.
+    isIdempotent: false,
     input: {
         name: Schema.string,
     },
@@ -160,6 +183,8 @@ export const createSpace = defineRpc({
 
 export const instantiateBotSpaceAccount = defineRpc({
     name: "instantiateBotSpaceAccount",
+    // Throws an error if bot has already been instantiated in the space.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         botId: Schema.id<BotId>(),

@@ -50,6 +50,7 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 const {shutdownManager, shutdown} = ShutdownManager.new({
     tracer: testTracer,
     isClusterPrimary: true,
+    flushTracer: async () => {},
 });
 
 let r2Client: MiniflareR2Client;

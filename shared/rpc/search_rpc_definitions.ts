@@ -18,6 +18,7 @@ import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_c
 
 export const searchByKeywords = defineRpc({
     name: "searchByKeywords",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
@@ -33,6 +34,7 @@ export const searchByKeywords = defineRpc({
 
 export const searchBySemantics = defineRpc({
     name: "searchBySemantics",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
@@ -48,6 +50,7 @@ export const searchBySemantics = defineRpc({
 
 export const searchByAffinity = defineRpc({
     name: "searchByAffinity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -60,6 +63,8 @@ export const searchByAffinity = defineRpc({
 
 export const markSearchAffinityEntityInteraction = defineRpc({
     name: "markSearchAffinityEntityInteraction",
+    // Will add affinity points twice if called twice.
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -70,6 +75,7 @@ export const markSearchAffinityEntityInteraction = defineRpc({
 
 export const clearSearchEntityAffinity = defineRpc({
     name: "clearSearchEntityAffinity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -79,6 +85,7 @@ export const clearSearchEntityAffinity = defineRpc({
 
 export const searchMentionByKeywords = defineRpc({
     name: "searchMentionByKeywords",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
@@ -96,6 +103,7 @@ export const searchMentionByKeywords = defineRpc({
 
 export const searchChannelsByKeywords = defineRpc({
     name: "searchChannelsByKeywords",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
@@ -114,6 +122,7 @@ export const searchChannelsByKeywords = defineRpc({
 
 export const searchChannelsByAffinity = defineRpc({
     name: "searchChannelsByAffinity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         limit: Schema.integer,
@@ -132,6 +141,7 @@ export const searchChannelsByAffinity = defineRpc({
 
 export const searchTaskCollectionsByKeywords = defineRpc({
     name: "searchTaskCollectionsByKeywords",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
@@ -150,6 +160,7 @@ export const searchTaskCollectionsByKeywords = defineRpc({
 
 export const searchTaskCollectionsByAffinity = defineRpc({
     name: "searchTaskCollectionsByAffinity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         limit: Schema.integer,
@@ -167,6 +178,7 @@ export const searchTaskCollectionsByAffinity = defineRpc({
 
 export const favoriteSearchEntity = defineRpc({
     name: "favoriteSearchEntity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -176,6 +188,7 @@ export const favoriteSearchEntity = defineRpc({
 
 export const unfavoriteSearchEntity = defineRpc({
     name: "unfavoriteSearchEntity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,
@@ -185,6 +198,7 @@ export const unfavoriteSearchEntity = defineRpc({
 
 export const moveSearchFavoriteEntity = defineRpc({
     name: "moveSearchFavoriteEntity",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         entityId: SearchAffinityEntityIdSchema,

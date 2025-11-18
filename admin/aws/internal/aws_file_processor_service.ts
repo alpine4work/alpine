@@ -374,10 +374,12 @@ export class AwsFileProcessorService extends Construct {
                 NODE_ENV: "production",
             },
             command: [
-                // Running using a shell so variables like `$HONEYCOMB_API_KEY` expand to the
-                // proper value.
-                "sh",
-                "-c",
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
+                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
+                // (e.g. `sh -c`) not our process.
+                //
+                // `runProcess()` implements env variable substitution which is why we can use
+                // env variable syntax like `$HONEYCOMB_API_KEY`.
                 `/var/www/server/files/processor/processor ${[
                     `--port=${port}`,
                     "--temporaryDirectoryPath=/var/www-data/files",
@@ -391,19 +393,15 @@ export class AwsFileProcessorService extends Construct {
                     `--cloudflareAccountId=${cloudflareAccountId}`,
                     `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
                     `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
-                    // Intentionally escape `$` here! Our key args accept either a file path
-                    // or the name of an environment variable. RSA keys are too long to be included
-                    // in a command line string and are hard to quote so we lookup the environment
-                    // variable within the program.
-                    "--appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY",
-                    "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
-                    "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
-                    "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                    "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
-                    "--apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY",
-                    "--resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY",
-                    "--servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
-                    "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
+                    "--appServicePublicKey=$APP_SERVICE_PUBLIC_KEY",
+                    "--edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
+                    "--taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY",
+                    "--jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY",
+                    "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                    "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
+                    "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+                    "--servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY",
+                    "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
                 ].join(" ")}`,
             ],
             healthCheck: {

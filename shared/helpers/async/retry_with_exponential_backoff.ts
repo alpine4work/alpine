@@ -52,7 +52,13 @@ export function isRetryError(error: unknown): error is CancelledError {
  */
 export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
-    {maxAttemptCount = defaultMaxRetryAttemptCount}: {maxAttemptCount?: number} = emptyObject,
+    {
+        maxAttemptCount = defaultMaxRetryAttemptCount,
+        initialAttemptNumber = 1,
+    }: {
+        maxAttemptCount?: number;
+        initialAttemptNumber?: number;
+    } = emptyObject,
 ): Promise<Value> {
     // Important that this retry symbol is local to this function call. That way
     // when you have nested `retryWithExponentialBackoff()`s we correctly retry the
@@ -121,5 +127,5 @@ export function retryWithExponentialBackoff<Value>(
         }
     };
 
-    return attempt(1);
+    return attempt(initialAttemptNumber);
 }

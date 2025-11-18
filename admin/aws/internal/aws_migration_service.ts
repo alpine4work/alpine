@@ -69,10 +69,12 @@ export class AwsMigrationService extends Construct {
                 NODE_ENV: "production",
             },
             command: [
-                // Running using a shell so variables like `$HONEYCOMB_API_KEY` expand to the
-                // proper value.
-                "sh",
-                "-c",
+                // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
+                // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
+                // (e.g. `sh -c`) not our process.
+                //
+                // `runProcess()` implements env variable substitution which is why we can use
+                // env variable syntax like `$HONEYCOMB_API_KEY`.
                 `/var/www/server/migration/migration ${[
                     "--edgeServiceUrl=https://alpine.inc",
                     "--resourceServiceUrl=https://resources.alpine.inc",

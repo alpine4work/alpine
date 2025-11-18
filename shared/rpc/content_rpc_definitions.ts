@@ -6,6 +6,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const getContentReferencesWithoutFiles = defineRpc({
     name: "getContentReferencesWithoutFiles",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         referencedIds: ContentReferencedIdsSchema,

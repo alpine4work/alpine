@@ -23,6 +23,7 @@ import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_
 
 export const getInboxWithStrongReadConsistency = defineRpc({
     name: "getInboxWithStrongReadConsistency",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -33,6 +34,7 @@ export const getInboxWithStrongReadConsistency = defineRpc({
 
 export const getInboxEntries = defineRpc({
     name: "getInboxEntries",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         filter: Schema.enum(["New", "Archive"]),
@@ -46,6 +48,7 @@ export const getInboxEntries = defineRpc({
 
 export const getInboxEntryWithStrongReadConsistency = defineRpc({
     name: "getInboxEntryWithStrongReadConsistency",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         key: InboxEntryKeySchema,
@@ -57,6 +60,7 @@ export const getInboxEntryWithStrongReadConsistency = defineRpc({
 
 export const backfillInboxEntries = defineRpc({
     name: "backfillInboxEntries",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         checkpoint: ServerSynchronizationCheckpointSchema,
@@ -69,6 +73,7 @@ export const backfillInboxEntries = defineRpc({
 
 export const archiveInboxEntry = defineRpc({
     name: "archiveInboxEntry",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         key: InboxEntryKeySchema,
@@ -78,6 +83,7 @@ export const archiveInboxEntry = defineRpc({
 
 export const unarchiveInboxEntry = defineRpc({
     name: "unarchiveInboxEntry",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         key: InboxEntryKeySchema,
@@ -87,6 +93,7 @@ export const unarchiveInboxEntry = defineRpc({
 
 export const archiveInboxChannelPostsEntryPost = defineRpc({
     name: "archiveInboxChannelPostsEntryPost",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         channelId: Schema.id<ChannelId>(),
@@ -98,6 +105,7 @@ export const archiveInboxChannelPostsEntryPost = defineRpc({
 
 export const unarchiveInboxChannelPostsEntryPost = defineRpc({
     name: "unarchiveInboxChannelPostsEntryPost",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         channelId: Schema.id<ChannelId>(),
@@ -109,6 +117,7 @@ export const unarchiveInboxChannelPostsEntryPost = defineRpc({
 
 export const archiveInboxDocumentNewCommentThreadsEntryCommentThread = defineRpc({
     name: "archiveInboxDocumentNewCommentThreadsEntryCommentThread",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
@@ -120,6 +129,7 @@ export const archiveInboxDocumentNewCommentThreadsEntryCommentThread = defineRpc
 
 export const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread = defineRpc({
     name: "unarchiveInboxDocumentNewCommentThreadsEntryCommentThread",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
@@ -131,6 +141,10 @@ export const unarchiveInboxDocumentNewCommentThreadsEntryCommentThread = defineR
 
 export const observeInbox = defineRpc({
     name: "observeInbox",
+    // Increments the inbox generation twice if called twice. (Arguably this
+    // behavior is fine and similar to incrementing an update lock version twice
+    // which we consider idempotent.)
+    isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),
     },
@@ -139,6 +153,7 @@ export const observeInbox = defineRpc({
 
 export const unsubscribeFromEmailNotificationWithUrl = defineRpc({
     name: "unsubscribeFromEmailNotificationWithUrl",
+    isIdempotent: true,
     input: {
         signedUrl: Schema.string,
     },
@@ -147,6 +162,7 @@ export const unsubscribeFromEmailNotificationWithUrl = defineRpc({
 
 export const unsubscribeFromDigestNotificationsEmail = defineRpc({
     name: "unsubscribeFromDigestNotificationsEmail",
+    isIdempotent: true,
     input: {
         accountId: Schema.id<AccountId>(),
         spaceId: Schema.id<SpaceId>(),
@@ -156,6 +172,7 @@ export const unsubscribeFromDigestNotificationsEmail = defineRpc({
 
 export const subscribeToDigestNotificationsEmail = defineRpc({
     name: "subscribeToDigestNotificationsEmail",
+    isIdempotent: true,
     input: {
         accountId: Schema.id<AccountId>(),
         spaceId: Schema.id<SpaceId>(),

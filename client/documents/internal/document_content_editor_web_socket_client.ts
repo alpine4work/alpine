@@ -21,7 +21,7 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {isTransientError} from "~/shared/error/is_transient_error_code.js";
+import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

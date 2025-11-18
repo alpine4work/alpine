@@ -2451,8 +2451,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/server/tasks/realtime/realtime --portBase=4000
@@ -2470,15 +2468,15 @@ Resources:
                               - " --fileProcessorLightJobQueueUrl="
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
                               - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=$TASK_REALTIME_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=$TOKEN_AGENT_SECRET"
                   Cpu: 2008
                   Environment:
                       - Name: BAZEL_BINDIR
@@ -3253,8 +3251,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/app/app_production --port=4000
@@ -3287,17 +3283,17 @@ Resources:
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
-                                --apnsCertificate=\\$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
+                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=$APP_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                                --apnsCertificate=$APNS_CERTIFICATE
+                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY"
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -3686,7 +3682,7 @@ Resources:
         Properties:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
-                  Value: "false"
+                  Value: "true"
                 - Key: access_logs.s3.enabled
                   Value: "true"
                 - Key: access_logs.s3.bucket
@@ -3741,13 +3737,13 @@ Resources:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /api/internal/healthcheck
             HealthCheckTimeoutSeconds: 3
-            HealthyThresholdCount: 3
+            HealthyThresholdCount: 2
             Name: cyberworlds-app-target-group
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
                 - Key: deregistration_delay.timeout_seconds
-                  Value: "10"
+                  Value: "5"
                 - Key: stickiness.enabled
                   Value: "true"
                 - Key: stickiness.type
@@ -4227,8 +4223,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/server/api/api --port=4000
@@ -4260,17 +4254,17 @@ Resources:
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$API_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
-                                --apnsCertificate=\\$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
+                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=$API_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                                --apnsCertificate=$APNS_CERTIFICATE
+                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY"
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -4659,7 +4653,7 @@ Resources:
         Properties:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
-                  Value: "false"
+                  Value: "true"
                 - Key: access_logs.s3.enabled
                   Value: "true"
                 - Key: access_logs.s3.bucket
@@ -4714,13 +4708,13 @@ Resources:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /healthcheck
             HealthCheckTimeoutSeconds: 3
-            HealthyThresholdCount: 3
+            HealthyThresholdCount: 2
             Name: cyberworlds-api-target-group
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
                 - Key: deregistration_delay.timeout_seconds
-                  Value: "10"
+                  Value: "5"
                 - Key: stickiness.enabled
                   Value: "false"
             TargetType: instance
@@ -5211,8 +5205,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/server/jobs/queue/queue --opensearchDomainEndpoint=
@@ -5253,18 +5245,18 @@ Resources:
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET
-                                --apnsCertificate=\\$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY
-                                --githubAppPrivateKey=\\$GITHUB_APP_PRIVATE_KEY"
+                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                                --apnsCertificate=$APNS_CERTIFICATE
+                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
+                                --githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY"
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -5869,8 +5861,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/server/migration/migration
@@ -7228,8 +7218,6 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - sh
-                      - -c
                       - Fn::Join:
                             - ""
                             - - /var/www/server/files/processor/processor --port=4000
@@ -7247,15 +7235,15 @@ Resources:
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
+                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                                --servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
+                                --tokenAgentSecret=$TOKEN_AGENT_SECRET"
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV

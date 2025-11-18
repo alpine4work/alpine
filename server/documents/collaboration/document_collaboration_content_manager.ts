@@ -26,6 +26,7 @@ import {
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
+    DataLossError,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -488,6 +489,11 @@ export class DocumentCollaborationContentManager {
                                         intentionallyUpdateAccessPolicy,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
+                                    }).catch(error => {
+                                        // Upgrade any error to a data loss error. If `updateDocumentContent()`
+                                        // throws we'll kill the process and throw away steps that weren't successfully
+                                        // persisted.
+                                        throw DataLossError.from(error);
                                     });
 
                                 // The document collaboration durable object should be the only process writing

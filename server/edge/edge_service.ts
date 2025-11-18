@@ -36,13 +36,20 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isTransientError} from "~/shared/error/is_transient_error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    RpcHttpBatchCallErrorOutputSchema,
+    RpcHttpCallOutputSchema,
+} from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -893,19 +900,67 @@ async function actuallyHandleFetch(
     const headers = new Headers(request.headers);
     addTracerPropagationContextHeader(headers, span);
 
-    const appServiceStartTime = span.clock.now();
+    let response;
 
-    // This forwards the request from `EdgeService` to `AppService` completely
-    // untouched. To `AppService` it will look like the request is coming from a
-    // web browser.
+    {
+        const appServiceStartTime = span.clock.now();
+
+        // This forwards the request from `EdgeService` to `AppService` completely
+        // untouched. To `AppService` it will look like the request is coming from a
+        // web browser.
+        //
+        // eslint-disable-next-line no-global-fetch
+        response = await fetch(request, {headers});
+
+        const appServiceEndTime = span.clock.now();
+
+        // Record how much time just the fetch to `AppService` took.
+        span.addData({edge: {appServiceDurationMs: appServiceEndTime - appServiceStartTime}});
+    }
+
+    // We retry some transient errors in `EdgeService`. Importantly, we want to
+    // retry AWS ALB 504 errors. Or if a DynamoDB request timed out. We retry RPC
+    // transient errors on the client (since retrying a batched RPC call in
+    // `EdgeService` is rough). However, Remix requests (either document loads
+    // directly from a browser or data requests on page navigation) we want to
+    // retry in `EdgeService`. Since we don't have client control over the web
+    // browser making the request!
+    if (!response.ok && (await shouldRetryRequest(request, url, response))) {
+        response = await retryWithExponentialBackoff(
+            async retry => {
+                const retriedResponse = await span.withSpan("Retry request", () =>
+                    // eslint-disable-next-line no-global-fetch
+                    fetch(request, {headers}),
+                );
+
+                // If the retried request also has a transient error, then try again!
+                if (
+                    !retriedResponse.ok &&
+                    (await shouldRetryRequest(request, url, retriedResponse))
+                ) {
+                    throw retry();
+                }
+
+                return retriedResponse;
+            },
+            {
+                maxAttemptCount: 5,
+                // We've already made one attempt. Start our retry loop at attempt #2.
+                initialAttemptNumber: 2,
+            },
+        );
+    }
+
+    // If AWS ALB returns a 504 it's usually because the request timed out. Convert
+    // ALB 504 HTML errors into a format our systems understand instead of the
+    // default `text/html` format from AWS ALB.
     //
-    // eslint-disable-next-line no-global-fetch
-    const response = await fetch(request, {headers});
-
-    const appServiceEndTime = span.clock.now();
-
-    // Record how much time just the fetch to `AppService` took.
-    span.addData({edge: {appServiceDurationMs: appServiceEndTime - appServiceStartTime}});
+    // See: https://repost.aws/knowledge-center/504-error-alb
+    if (response.status === 504) {
+        const error = new DeadlineExceededError("Load balancer timed out request");
+        span.addException(error);
+        response = create504Response(url, error);
+    }
 
     // Replace the `/*` route string with the route parsed by `AppService`. Given
     // the edge service span is usually the root span in our trace, having a more
@@ -930,21 +985,124 @@ async function actuallyHandleFetch(
     // `synchronized_system_clock.ts`.
     if (response.headers.get("content-type")?.includes("text/html")) {
         // `fetch()` responses are immutable so we need to clone to add a new header...
-        const newResponse = new Response(response.body, response);
+        response = new Response(response.body, response);
 
         const endTime = Date.now();
         const durationMs = endTime - startTime;
 
-        newResponse.headers.append(
+        response.headers.append(
             "server-timing",
             // eslint-disable-next-line string-quotes
             `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
         );
-
-        return newResponse;
     }
 
     return response;
+}
+
+function create504Response(url: URL, error: unknown) {
+    // Format as batch RPC endpoint error.
+    if (url.pathname === "/api/rpc/_batch" || url.pathname === "/api/rpc/_batchByActor") {
+        return new Response(
+            JSON.stringify(
+                RpcHttpBatchCallErrorOutputSchema.serialize({
+                    ok: false,
+                    error,
+                }),
+            ),
+            {
+                status: 504,
+                headers: {"content-type": "application/json"},
+            },
+        );
+    }
+
+    // Format as RPC endpoint error.
+    if (url.pathname.startsWith("/api/rpc/")) {
+        return new Response(
+            JSON.stringify(
+                RpcHttpCallOutputSchema.serialize({
+                    ok: false,
+                    error,
+                }),
+            ),
+            {
+                status: 504,
+                headers: {"content-type": "application/json"},
+            },
+        );
+    }
+
+    // Format as Remix data request error.
+    //
+    // Here's how Remix formats errors for `_data` requests:
+    // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L321-L331
+    //
+    // We patch `serializeError()` to use `ErrorSchema.serialize()` instead of the
+    // default logic:
+    // https://github.com/cyberworlds/cyberworlds/blob/bcdab36de85de291297addb4ec68d1c3664e6bae/admin/patches/%40remix-run__server-runtime%402.9.2.patch#L111-L117
+    //
+    // Setting the `x-remix-error` header is important since that's how Remix
+    // identifies, on the client, a formatted error response:
+    // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-react/data.ts#L15-L17
+    if (url.searchParams.has("_data")) {
+        return new Response(JSON.stringify(ErrorSchema.serialize(error)), {
+            status: 504,
+            headers: {"content-type": "application/json", "x-remix-error": "yes"},
+        });
+    }
+
+    return new Response("504 Gateway Timeout", {
+        status: 504,
+        headers: {"content-type": "text/plain"},
+    });
+}
+
+async function shouldRetryRequest(
+    request: Request,
+    url: URL,
+    response: Response,
+): Promise<boolean> {
+    // Response was successful, nothing to retry!
+    if (response.ok) return false;
+
+    // Only retry idempotent HTTP request methods.
+    if (request.method !== "GET") return false;
+
+    // Don't retry RPC requests. Our RPC clients handle RPC retries.
+    if (url.pathname.startsWith("/api/rpc/")) return false;
+
+    // Definitely retry AWS ALB 504 gateway timeout errors.
+    if (response.status === 504) return true;
+
+    // Check if this is an error response from a Remix data request by parsing the
+    // response body.
+    //
+    // Here's how Remix formats errors for `_data` requests:
+    // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L321-L331
+    //
+    // Remix's client error response checker function:
+    // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-react/data.ts#L15-L17
+    //
+    // TODO(calebmer): We should probably retry Remix data requests on the client
+    // (like we do for RPC calls) and only retry Remix document (`text/html`)
+    // requests in `EdgeService` since we don't have client control over...the web
+    // browser's URL input bar.
+    if (url.searchParams.has("_data") && response.headers.get("x-remix-error") != null) {
+        const clonedResponse = response.clone();
+
+        // We patch `serializeError()` to use `ErrorSchema.serialize()` instead of the
+        // default logic:
+        // https://github.com/cyberworlds/cyberworlds/blob/bcdab36de85de291297addb4ec68d1c3664e6bae/admin/patches/%40remix-run__server-runtime%402.9.2.patch#L111-L117
+        const error = ErrorSchema.deserialize(await clonedResponse.json());
+
+        return isTransientError(error);
+    }
+
+    // `entry.server.tsx` sets this header if the response contains a transient
+    // error. Will be set on `text/html` responses whose bodies we can't reasonably
+    // parse here.
+    return response.headers.get("cyberworlds-transient-error") === "yes";
 }
 
 // eslint-disable-next-line import/no-default-export

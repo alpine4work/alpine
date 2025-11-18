@@ -9,6 +9,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const getAccount = defineRpc({
     name: "getAccount",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
@@ -20,6 +21,7 @@ export const getAccount = defineRpc({
 
 export const getAccounts = defineRpc({
     name: "getAccounts",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountIds: Schema.set(Schema.id<AccountId>()),
@@ -31,6 +33,7 @@ export const getAccounts = defineRpc({
 
 export const getAccountsIfExist = defineRpc({
     name: "getAccountsIfExist",
+    isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountIds: Schema.set(Schema.id<AccountId>()),
@@ -42,6 +45,7 @@ export const getAccountsIfExist = defineRpc({
 
 export const updateOurAccountName = defineRpc({
     name: "updateOurAccountName",
+    isIdempotent: true,
     input: {
         name: LabelStringSchema,
     },
@@ -52,6 +56,7 @@ export const updateOurAccountName = defineRpc({
 
 export const updateOurLastOpenedSpaceId = defineRpc({
     name: "updateOurLastOpenedSpaceId",
+    isIdempotent: true,
     input: {
         lastOpenedSpaceId: Schema.id<SpaceId>(),
     },
@@ -60,6 +65,7 @@ export const updateOurLastOpenedSpaceId = defineRpc({
 
 export const updateOurAccountObservedTimeZone = defineRpc({
     name: "updateOurAccountObservedTimeZone",
+    isIdempotent: true,
     input: {
         timeZone: TimeZoneSchema,
     },
@@ -68,6 +74,7 @@ export const updateOurAccountObservedTimeZone = defineRpc({
 
 export const registerOurAccountAppleDeviceToken = defineRpc({
     name: "registerOurAccountAppleDeviceToken",
+    isIdempotent: true,
     input: {
         deviceToken: Schema.bytes.fixedLength(32),
     },
@@ -76,6 +83,7 @@ export const registerOurAccountAppleDeviceToken = defineRpc({
 
 export const getAccountByIdAsAdmin = defineRpc({
     name: "getAccountByIdAsAdmin",
+    isIdempotent: true,
     input: {
         accountId: Schema.id<AccountId>(),
     },
@@ -86,6 +94,7 @@ export const getAccountByIdAsAdmin = defineRpc({
 
 export const getAccountByEmailAddressAsAdmin = defineRpc({
     name: "getAccountByEmailAddressAsAdmin",
+    isIdempotent: true,
     input: {
         emailAddress: Schema.string,
     },
@@ -96,6 +105,7 @@ export const getAccountByEmailAddressAsAdmin = defineRpc({
 
 export const finishUploadingAccountAvatar = defineRpc({
     name: "finishUploadingAccountAvatar",
+    isIdempotent: true,
     input: {
         avatarContent: Schema.bytes,
         avatarId: Schema.id<AvatarId>(),
@@ -107,6 +117,7 @@ export const finishUploadingAccountAvatar = defineRpc({
 
 export const updateAccountReactionCharacter = defineRpc({
     name: "updateAccountReactionCharacter",
+    isIdempotent: true,
     input: {
         character: ReactionCharacterSchema,
     },

@@ -1,6 +1,7 @@
 import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {isTransientError} from "~/shared/error/is_transient_error.js";
 
 export function getAggregateErrorPriority(error: unknown): number {
     if (error instanceof AggregateError && error.errors.length > 0) {
@@ -8,6 +9,7 @@ export function getAggregateErrorPriority(error: unknown): number {
     }
 
     const isErrorBase = error instanceof ErrorBase;
+    const errorCode = isErrorBase ? error.code : ErrorCode.Unknown;
 
     let priority = 2;
 
@@ -18,13 +20,16 @@ export function getAggregateErrorPriority(error: unknown): number {
     }
     // Cancelled errors (e.g. from `AbortSignal`s) are lower priority than other
     // errors.
-    else if (isErrorBase && error.code === ErrorCode.Cancelled) {
+    else if (errorCode === ErrorCode.Cancelled) {
         priority = 1;
     }
 
-    // System errors are highest priority. If an error doesn't have a code then its
-    // code is `ErrorCode.Unknown` which is a system error.
-    if (!isErrorBase || isSystemErrorCode(error.code)) priority += 4;
+    // System errors are highest priority.
+    if (isSystemErrorCode(errorCode)) priority += 4;
+
+    // Transient errors are lower priority than all other errors. If there was one
+    // non-transient error, that should be the one we pick.
+    if (!isTransientError(errorCode)) priority += 5;
 
     return priority;
 }

@@ -4,6 +4,8 @@ import {Schema} from "~/shared/schema/schema.js";
 
 export const approveAlphaAccessRequest = defineRpc({
     name: "approveAlphaAccessRequest",
+    // Fails if the request is already approved or denied.
+    isIdempotent: false,
     input: {
         emailAddress: Schema.string,
     },
@@ -12,6 +14,8 @@ export const approveAlphaAccessRequest = defineRpc({
 
 export const denyAlphaAccessRequest = defineRpc({
     name: "denyAlphaAccessRequest",
+    // Fails if the request is already approved or denied.
+    isIdempotent: false,
     input: {
         emailAddress: Schema.string,
     },
@@ -20,6 +24,7 @@ export const denyAlphaAccessRequest = defineRpc({
 
 export const saveAlphaConfiguration = defineRpc({
     name: "saveAlphaConfiguration",
+    isIdempotent: true,
     input: {
         configuration: AlphaConfigurationSchema,
     },

@@ -256,10 +256,12 @@ export function createAwsAppOrApiService(
             NODE_ENV: "production",
         },
         command: [
-            // Running using a shell so variables like `$HONEYCOMB_API_KEY` expand to the
-            // proper value.
-            "sh",
-            "-c",
+            // NOTE(calebmer): We're not using a shell (e.g. `sh -c`) here because it
+            // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
+            // (e.g. `sh -c`) not our process.
+            //
+            // `runProcess()` implements env variable substitution which is why we can use
+            // env variable syntax like `$HONEYCOMB_API_KEY`.
             `${taskDefinitionOptions.containerCommandPath} ${[
                 `--port=${port}`,
                 "--edgeServiceUrl=https://alpine.inc",
@@ -280,21 +282,17 @@ export function createAwsAppOrApiService(
                 `--cloudflareAccountId=${cloudflareAccountId}`,
                 `--cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID`,
                 `--cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY`,
-                // Intentionally escape `$` here! Our key args accept either a file path
-                // or the name of an environment variable. RSA keys are too long to be included
-                // in a command line string and are hard to quote so we lookup the environment
-                // variable within the program.
-                "--appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY",
-                "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
-                "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
-                "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
-                "--fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
-                "--apiServicePublicKey=\\$API_SERVICE_PUBLIC_KEY",
-                "--resourceServicePublicKey=\\$RESOURCE_SERVICE_PUBLIC_KEY",
-                `--servicePrivateKey=\\$${secretKeyEnvironmentVariableName}`,
-                "--tokenAgentSecret=\\$TOKEN_AGENT_SECRET",
-                "--apnsCertificate=\\$APNS_CERTIFICATE",
-                "--apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY",
+                "--appServicePublicKey=$APP_SERVICE_PUBLIC_KEY",
+                "--edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
+                "--taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY",
+                "--jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY",
+                "--fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY",
+                "--apiServicePublicKey=$API_SERVICE_PUBLIC_KEY",
+                "--resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY",
+                `--servicePrivateKey=$${secretKeyEnvironmentVariableName}`,
+                "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
+                "--apnsCertificate=$APNS_CERTIFICATE",
+                "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
             ].join(" ")}`,
         ],
         healthCheck: {
@@ -352,15 +350,17 @@ export function createAwsAppOrApiService(
     // deploy we created `LoadBalancer2` alongside the original `LoadBalancer`,
     // updated our DNS record, waited for all requests to move to `LoadBalancer2`
     // then deleted `LoadBalancer`.
-    const loadBalancer = new AwsApplicationLoadBalancerFromCloudflare(
+    const {applicationLoadBalancer: loadBalancer} = new AwsApplicationLoadBalancerFromCloudflare(
         parentConstruct,
         loadBalancerOptions.logicalName ?? "LoadBalancer",
         {
             vpc,
             loadBalancerName: `cyberworlds-${serviceName.toLowerCase()}`,
             internetFacing: true,
+            deletionProtection: true,
         },
-    ).applicationLoadBalancer;
+    );
+
     loadBalancer.logAccessLogs(loggingService.loggingBucket, `${serviceName.toLowerCase()}Service`);
     loadBalancer.logConnectionLogs(
         loggingService.loggingBucket,
@@ -389,17 +389,17 @@ export function createAwsAppOrApiService(
         healthCheck: {
             path: loadBalancerOptions.healthCheckPath,
             // Speed up deployment by requiring fewer healthy checks. Should only take
-            // ~15 seconds to consider the service healthy.
+            // ~10 seconds to consider the service healthy.
             // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
             interval: Duration.seconds(5),
             timeout: Duration.seconds(3),
-            healthyThresholdCount: 3,
+            healthyThresholdCount: 2,
         },
-        // Break connections after 10 seconds when EC2 instances are being
-        // deregistered. Any long lived connections longer than 10 seconds will be
+        // Break connections after 5 seconds when EC2 instances are being
+        // deregistered. Any long lived connections longer than 5 seconds will be
         // aborted.
         // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html
-        deregistrationDelay: Duration.seconds(10),
+        deregistrationDelay: Duration.seconds(5),
         ...loadBalancerOptions.listenerTarget,
     });
 

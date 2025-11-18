@@ -53,6 +53,7 @@ const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_D
 const {shutdownManager, shutdown} = ShutdownManager.new({
     tracer: testTracer,
     isClusterPrimary: true,
+    flushTracer: async () => {},
 });
 
 let r2Bucket: R2Bucket;

@@ -4,7 +4,8 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {TaskNotesCollaborationEventStub} from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
 import {getContentReferencedIdsForSteps} from "~/shared/content/content_referenced_ids.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {DataLossError, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
@@ -212,6 +213,11 @@ export class TaskNotesCollaborationContentManager {
                                         taskId: this.taskId,
                                         version: oldVersion,
                                         steps: nextSteps,
+                                    }).catch(error => {
+                                        // Upgrade any error to a data loss error. If `updateDocumentContent()`
+                                        // throws we'll kill the process and throw away steps that weren't successfully
+                                        // persisted.
+                                        throw DataLossError.from(error);
                                     });
 
                                     this._persistedVersion = oldVersion + nextSteps.length;
@@ -224,7 +230,9 @@ export class TaskNotesCollaborationContentManager {
                                     // Upgrade the severity to internal since the client has already seen the update.
                                     //
                                     // The client will also attempt to reconnect on a system error.
-                                    const error = InternalError.from(unknownError);
+                                    const error = !isSystemError(unknownError)
+                                        ? InternalError.from(unknownError)
+                                        : unknownError;
 
                                     span.addException(error);
 
