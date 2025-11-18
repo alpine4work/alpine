@@ -75,6 +75,7 @@ export class AwsMigrationService extends Construct {
                 "-c",
                 `/var/www/server/migration/migration ${[
                     "--edgeServiceUrl=https://alpine.inc",
+                    "--resourceServiceUrl=https://resources.alpine.inc",
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,

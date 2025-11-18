@@ -5874,7 +5874,8 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/server/migration/migration
-                                --edgeServiceUrl=https://alpine.inc --jobQueueUrl=
+                                --edgeServiceUrl=https://alpine.inc
+                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
