@@ -12,7 +12,7 @@ import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {backfillInboxEntries} from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
-import {InboxEntriesIndex, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
+import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {
     updateInboxEntryAfterExecuteTransactionTestCheckpoint,
@@ -49,10 +49,8 @@ import {
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {encodeElenInteger} from "~/shared/helpers/number/elen_integer.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {
@@ -7503,130 +7501,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
-        });
-
-        test("can read old channel posts inbox entry format without `posts` property", async () => {
-            const space = await TestSpace.create(context);
-            const [session1, session2] = await space.createSessions(2);
-
-            const channel = await TestChannel.create(session1);
-            await channel.subscribe(session2);
-
-            const post1 = await channel.createPost(session1, "test1");
-            await ProcessContextModule.waitForTestTasks();
-
-            const post2 = await channel.createPost(session1, "test2");
-            await ProcessContextModule.waitForTestTasks();
-
-            const post3 = await channel.createPost(session1, "test3");
-            await ProcessContextModule.waitForTestTasks();
-
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-                spaceId: space.id,
-                key: {
-                    type: "ChannelPosts",
-                    channelId: channel.id,
-                    bucketGeneration: 0,
-                },
-            });
-
-            const dynamoClient = context.dynamo.getClientForTest();
-
-            const key = {
-                partitionKey: `Inbox#${space.id}#${session2.account.id}`,
-                sortKey: `a3#ChannelPostsEntry#${channel.id}#${encodeElenInteger(0)}`,
-            };
-
-            const item = await dynamoClient.getItemIfExists(context, {
-                tableName: InboxTable.getName(),
-                key,
-                expectsStrongReadConsistency: false,
-                debugItemType: {
-                    tableName: InboxTable.getName(),
-                    partitionType: "Inbox",
-                    sortRangeType: "ChannelPostsEntry",
-                },
-            });
-
-            expect(item).toEqual(
-                expect.objectContaining({
-                    isArchived: true,
-                    posts: [
-                        [
-                            post3.id,
-                            {
-                                isArchived: false,
-                                authorId: session1.account.id,
-                                createdTime: post3.createdTime.toISOString(),
-                            },
-                        ],
-                        [
-                            post2.id,
-                            {
-                                isArchived: false,
-                                authorId: session1.account.id,
-                                createdTime: post2.createdTime.toISOString(),
-                            },
-                        ],
-                        [
-                            post1.id,
-                            {
-                                isArchived: false,
-                                authorId: session1.account.id,
-                                createdTime: post1.createdTime.toISOString(),
-                            },
-                        ],
-                    ],
-                }),
-            );
-
-            assert(item);
-
-            // Item format before 2025-10-28 when we added `archivedPostIds`. We expect to
-            // migrate this item such that `archivedPostIds` is added and set to the same
-            // thing as `postIds`.
-            const itemWithLegacyFormat = {
-                partitionKey: assertExists(key.partitionKey),
-                sortKey: assertExists(key.sortKey),
-                isArchived: true,
-                loudNotificationCount: 0,
-                generation: 0,
-                enteredTime: assertExists(item.enteredTime),
-                postIds: [post3.id, post2.id, post1.id],
-                postAuthorIds: [session1.account.id],
-                latestPost: {
-                    postId: post3.id,
-                    authorId: session1.account.id,
-                    createdTime: post3.createdTime.toISOString(),
-                },
-                updateLockVersion: assertExists(item.updateLockVersion),
-                index1PartitionKey: assertExists(item.index1PartitionKey),
-                index1SortKey: assertExists(item.index1SortKey),
-            };
-
-            expect(itemWithLegacyFormat).not.toHaveProperty("posts");
-
-            await dynamoClient.putItem(context, {
-                tableName: InboxTable.getName(),
-                key,
-                item: itemWithLegacyFormat,
-                debugItemType: {
-                    tableName: InboxTable.getName(),
-                    partitionType: "Inbox",
-                    sortRangeType: "ChannelPostsEntry",
-                },
-            });
-
-            expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([
-                expectInboxChannelPostsEntryModel({
-                    isArchived: true,
-                    session: session2,
-                    channel,
-                    bucketGeneration: 0,
-                    posts: [post3, post2, post1],
-                    latestPost: {post: post3, contentTextSnippet: "test3"},
-                }),
-            ]);
         });
 
         test("archiving a channel posts entry with one post archives that one post as well", async () => {

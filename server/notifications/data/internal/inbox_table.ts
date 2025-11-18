@@ -37,7 +37,6 @@ import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -86,7 +85,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
-import {Schema, SchemaSerializedObjectValue, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
 
@@ -580,9 +579,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 authorId: Schema.id<AccountId>(),
                                 createdTime: Schema.date,
                             }),
-                        )
-                            .minSize(1)
-                            .default(getInboxChannelPostsEntryPostsDefault),
+                        ).minSize(1),
 
                         /**
                          * The `createdTime` of the last post to be added to this inbox entry. We don't
@@ -714,9 +711,7 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 authorId: Schema.id<AccountId>(),
                                 createdTime: Schema.date,
                             }),
-                        )
-                            .minSize(1)
-                            .default(getInboxDocumentNewCommentThreadsEntryCommentThreadsDefault),
+                        ).minSize(1),
 
                         /**
                          * The time the latest comment thread was added.
@@ -1557,209 +1552,4 @@ async function printNotificationPostContentSnippet(
         doc,
         references,
     });
-}
-
-/**
- * Convert from our legacy `ChannelPostsEntry` format (deprecated on 2025-11-10)
- * to our new `posts` map format. Before 2025-11-10 `ChannelPostsEntry` looked
- * like this:
- *
- * ```
- * {
- *     postIds: Set<PostId>,
- *     postAuthorIds: Set<AccountId>,
- *     latestPost: {
- *         postId: PostId,
- *         authorId: AccountId,
- *         createdTime: DateString,
- *     },
- * }
- * ```
- *
- * ...this format was converted to this:
- *
- * ```
- * {
- *     posts: Map<PostId, {authorId: AccountId; createdTime: Date}>,
- * }
- * ```
- *
- * In the new format we know the `authorId` and `createdTime` for each post. In
- * the old format we had all the author `AccountId`s but didn't know which post
- * they belonged to. And we only had the `createdTime` for the latest post.
- *
- * This function is best effort. For example, we use `latestPost.createdTime`
- * as the `createdTime` for all posts.
- */
-function getInboxChannelPostsEntryPostsDefault(item: SchemaSerializedObjectValue) {
-    assert(isReadonlyArray(item.postIds));
-    assert(isObject(item.latestPost));
-
-    assert(
-        item.latestPost.postId === null ||
-            item.latestPost.postId === undefined ||
-            (typeof item.latestPost.postId === "string" && isId<PostId>(item.latestPost.postId)),
-    );
-
-    assert(
-        typeof item.latestPost.authorId === "string" && isId<AccountId>(item.latestPost.authorId),
-    );
-
-    assert(
-        typeof item.latestPost.createdTime === "string" &&
-            isDateString(item.latestPost.createdTime),
-    );
-
-    const {
-        postId: latestPostId,
-        authorId: latestPostAuthorId,
-        createdTime: latestPostCreatedTimeString,
-    } = item.latestPost;
-
-    const latestPostCreatedTime = deserializeDateString(latestPostCreatedTimeString);
-
-    assert(isReadonlyArray(item.postAuthorIds));
-
-    const postAuthorIds = item.postAuthorIds.map(authorId => {
-        assert(typeof authorId === "string" && isId<AccountId>(authorId));
-        return authorId;
-    });
-
-    return new Map<PostId, {isArchived: boolean; authorId: AccountId; createdTime: Date}>(
-        item.postIds.map((postId, index) => {
-            assert(typeof postId === "string" && isId<PostId>(postId));
-
-            return [
-                postId,
-                {
-                    isArchived: false,
-
-                    // Totally wrong. In our old format `postAuthorIds` was a set in reverse
-                    // chronological order. There was no mapping between `postAuthorIds` and
-                    // `postIds`. We make up a totally arbitrary mapping here which could be
-                    // completely incorrect by looping through `postAuthorIds`.
-                    authorId:
-                        postId === latestPostId
-                            ? latestPostAuthorId
-                            : postAuthorIds[index % postAuthorIds.length]!,
-
-                    // Use the created time of the `latestPost` for all posts because we don't have
-                    // `createdTime`s for any other post in our legacy format.
-                    createdTime: latestPostCreatedTime,
-                },
-            ];
-        }),
-    );
-}
-
-/**
- * Convert from our legacy `DocumentNewCommentThreadsEntry` format
- * (deprecated on 2025-11-10) to our new `commentThreads` map format. Before
- * 2025-11-10 `DocumentNewCommentThreadsEntry` looked like this:
- *
- * ```
- * {
- *     commentThreadIds: Set<DocumentCommentThreadId>,
- *     commentThreadAuthorIds: Set<AccountId>,
- *     firstCommentThread: {
- *         commentThreadId: DocumentCommentThreadId,
- *         authorId: AccountId,
- *         createdTime: DateString,
- *     },
- * }
- * ```
- *
- * ...this format was converted to this:
- *
- * ```
- * {
- *     commentThreads: Map<
- *         DocumentCommentThreadId,
- *         {authorId: AccountId; createdTime: Date},
- *     >,
- * }
- * ```
- *
- * In the new format we know the `authorId` and `createdTime` for each comment
- * thread. In the old format we had all the author `AccountId`s but didn't know
- * which comment thread they belonged to. And we only had the `createdTime` for
- * the latest comment thread.
- *
- * This function is best effort. For example, we use
- * `firstCommentThread.createdTime` as the `createdTime` for all comment
- * threads.
- */
-function getInboxDocumentNewCommentThreadsEntryCommentThreadsDefault(
-    item: SchemaSerializedObjectValue,
-) {
-    assert(isReadonlyArray(item.commentThreadIds));
-    assert(isObject(item.firstComment));
-
-    assert(
-        item.firstComment.commentThreadId === null ||
-            item.firstComment.commentThreadId === undefined ||
-            (typeof item.firstComment.commentThreadId === "string" &&
-                isId<DocumentCommentThreadId>(item.firstComment.commentThreadId)),
-    );
-
-    assert(
-        typeof item.firstComment.authorId === "string" &&
-            isId<AccountId>(item.firstComment.authorId),
-    );
-
-    assert(
-        typeof item.firstComment.createdTime === "string" &&
-            isDateString(item.firstComment.createdTime),
-    );
-
-    const {
-        commentThreadId: firstCommentThreadId,
-        authorId: firstCommentThreadAuthorId,
-        createdTime: firstCommentThreadCreatedTimeString,
-    } = item.firstComment;
-
-    const firstCommentThreadCreatedTime = deserializeDateString(
-        firstCommentThreadCreatedTimeString,
-    );
-
-    assert(isReadonlyArray(item.commentThreadAuthorIds));
-
-    const commentThreadAuthorIds = item.commentThreadAuthorIds.map(authorId => {
-        assert(typeof authorId === "string" && isId<AccountId>(authorId));
-        return authorId;
-    });
-
-    return new Map<
-        DocumentCommentThreadId,
-        {isArchived: boolean; authorId: AccountId; createdTime: Date}
-    >(
-        item.commentThreadIds.map((commentThreadId, index) => {
-            assert(
-                typeof commentThreadId === "string" &&
-                    isId<DocumentCommentThreadId>(commentThreadId),
-            );
-
-            return [
-                commentThreadId,
-                {
-                    isArchived: false,
-
-                    // Totally wrong. In our old format `commentThreadAuthorIds` was a set in
-                    // reverse chronological order. There was no mapping between
-                    // `commentThreadAuthorIds` and `commentThreadIds`. We make up a totally
-                    // arbitrary mapping here which could be completely incorrect by looping through
-                    // `commentThreadAuthorIds`.
-                    authorId:
-                        commentThreadId === firstCommentThreadId
-                            ? firstCommentThreadAuthorId
-                            : commentThreadAuthorIds[index % commentThreadAuthorIds.length]!,
-
-                    // Use the created time of the `firstCommentThread` for all comment threads
-                    // because we don't have `createdTime`s for any other comment thread in our
-                    // legacy format.
-                    createdTime: firstCommentThreadCreatedTime,
-                },
-            ];
-        }),
-    );
 }

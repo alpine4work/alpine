@@ -8899,7 +8899,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 }
                                             }
                                         },
-                                        "optional": true
+                                        "optional": false
                                     },
                                     "lastAddedPostCreatedTime": {
                                         "valueSchema": {
@@ -9102,7 +9102,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 }
                                             }
                                         },
-                                        "optional": true
+                                        "optional": false
                                     },
                                     "latestCommentThreadCreatedTime": {
                                         "valueSchema": {
