@@ -1,6 +1,6 @@
 import {
-    deserializeChatIdForLoader,
     deserializeSpaceIdForLoader,
+    deserializeTaskIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {ChatGptDebugView} from "~/client/debug/chat_gpt/chat_gpt_debug_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -21,9 +21,9 @@ export function meta() {
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
-    const chatId = deserializeChatIdForLoader(params.chatId ?? null);
+    const taskId = deserializeTaskIdForLoader(params.taskId ?? null);
 
-    const items = await loadChatGptConversationItems(context, spaceId, `/chats/${chatId}`);
+    const items = await loadChatGptConversationItems(context, spaceId, `/tasks/${taskId}`);
 
     return jsonWithSchema(LoaderSchema, {items});
 }

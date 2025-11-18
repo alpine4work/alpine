@@ -1,5 +1,5 @@
 import {
-    deserializeChatIdForLoader,
+    deserializePostIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {ChatGptDebugView} from "~/client/debug/chat_gpt/chat_gpt_debug_view.js";
@@ -21,9 +21,9 @@ export function meta() {
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? null);
-    const chatId = deserializeChatIdForLoader(params.chatId ?? null);
+    const postId = deserializePostIdForLoader(params.postId ?? null);
 
-    const items = await loadChatGptConversationItems(context, spaceId, `/chats/${chatId}`);
+    const items = await loadChatGptConversationItems(context, spaceId, `/posts/${postId}`);
 
     return jsonWithSchema(LoaderSchema, {items});
 }
