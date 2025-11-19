@@ -52,6 +52,7 @@ ts_playwright_tests(
         "documents/document_share_desktop.spec.ts": ["webkit_mobile"],
         "forum/forum_post_range_message_parent_desktop.spec.ts": ["webkit_mobile"],
         "forum/search_entity_mentions_desktop.spec.ts": ["webkit_mobile"],
+        "inbox/inbox_channel_posts_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_collection_share_desktop.spec.ts": ["webkit_mobile"],
         "tasks/task_personal_view_desktop.spec.ts": ["webkit_mobile"],

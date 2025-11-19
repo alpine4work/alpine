@@ -11,7 +11,7 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
@@ -20,15 +20,14 @@ import {
 } from "~/shared/error/error.js";
 import {FeedEntryModel, FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
+import {createPostDynamoItemKey} from "~/shared/forum/create_post_dynamo_item_key.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
-import {decodeIdInto} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
@@ -1149,7 +1148,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
     }
 
     protected _getNodeOrderKeyByKeyIfExists(postId: PostId): DynamoIndexCursor | null {
-        const key = createDynamoItemKeyFromPostId(postId);
+        const key = createPostDynamoItemKey(postId);
         return this.query.getCursorByKeyIfExists(key);
     }
 
@@ -1174,7 +1173,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
      * Toggle the post's comment section as open or closed.
      */
     public togglePostComments(postId: PostId): PostQueryListVirtualizedTree {
-        const key = createDynamoItemKeyFromPostId(postId);
+        const key = createPostDynamoItemKey(postId);
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
             const {postCommentsState, postComments} = getPostListItemExtra(item);
@@ -1202,7 +1201,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         postId: PostId,
         update: (comments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PostQueryListVirtualizedTree {
-        const key = createDynamoItemKeyFromPostId(postId);
+        const key = createPostDynamoItemKey(postId);
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
             const {postCommentsState, postComments} = getPostListItemExtra(item);
@@ -1258,32 +1257,6 @@ export function getPostListItemExtra(
             postComments: initialPostModelCommentsCache.getOrSetDefault(post.model),
         }
     );
-}
-
-/**
- * Manually build a `DynamoItemKey` from a `PostId` using the same process the
- * server uses. The data within `DynamoItemKey`s is not secure by design,
- * they're trivial to reverse engineer by clients. Like we do here.
- */
-function createDynamoItemKeyFromPostId(postId: PostId): DynamoItemKey {
-    const totalByteCount =
-        1 + // Partition `id`
-        16 + // `PostId` byte length
-        3 + // Sort range `OrderKey`
-        1; // Sort range `id`
-
-    const bytes = new Uint8Array(totalByteCount);
-    let byteIndex = 0;
-
-    bytes[byteIndex++] = 1;
-    decodeIdInto(postId, bytes, byteIndex);
-    byteIndex += 16;
-    bytes[byteIndex++] = 37;
-    bytes[byteIndex++] = 1;
-    bytes[byteIndex++] = 0;
-    bytes[byteIndex++] = 0;
-
-    return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemKey;
 }
 
 /**

@@ -60,12 +60,12 @@ export function useStateWithOptimisticUpdates<Value>(
 
     return [
         state.value,
-        useCallback(update => dispatch({type: "Update", update}), []),
-        useCallback(
-            (promise, update) =>
-                dispatch({type: "OptimisticUpdate", promise, update: update as any}),
-            [],
-        ),
+        useCallback(update => {
+            dispatch({type: "Update", update});
+        }, []),
+        useCallback((promise, update) => {
+            dispatch({type: "OptimisticUpdate", promise, update: update as any});
+        }, []),
         state.valueWithoutOptimisticUpdates,
     ];
 }

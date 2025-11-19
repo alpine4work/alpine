@@ -64,6 +64,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {
+    InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModelSchema,
 } from "~/shared/notifications/inbox_model.js";
@@ -211,9 +212,15 @@ function DocumentNewCommentThreadsRouteInner2({
 
     const inboxContext = assertExists(useInboxContext());
     const originalInboxEntry = assertExists(inboxContext.entry);
-    assert(originalInboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel);
-    const inboxEntry =
-        originalInboxEntry as DynamoGeneralRealtimeItem<InboxDocumentNewCommentThreadsEntryModel>;
+
+    assert(
+        originalInboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel ||
+            originalInboxEntry.model instanceof InboxDocumentCommentThreadEntryModel,
+    );
+
+    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<
+        InboxDocumentNewCommentThreadsEntryModel | InboxDocumentCommentThreadEntryModel
+    >;
 
     const {
         checkpoint: initialCheckpoint,
@@ -421,10 +428,14 @@ function DocumentNewCommentThreadsRouteInner2({
     ] = useStateWithOptimisticUpdates<ReadonlySet<DocumentCommentThreadId>>(() => {
         const archivedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
-        for (const commentThreadId of commentThreadIds) {
-            if (!inboxEntry.model.commentThreadIds.has(commentThreadId)) {
-                archivedCommentThreadIds.add(commentThreadId);
+        if (inboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel) {
+            for (const commentThreadId of commentThreadIds) {
+                if (!inboxEntry.model.commentThreadIds.has(commentThreadId)) {
+                    archivedCommentThreadIds.add(commentThreadId);
+                }
             }
+        } else if (inboxEntry.model.isArchived) {
+            archivedCommentThreadIds.add(inboxEntry.model.commentThreadId);
         }
 
         return archivedCommentThreadIds;
@@ -432,12 +443,14 @@ function DocumentNewCommentThreadsRouteInner2({
 
     const expectedArchivedCommentThreadIds = useMemo<ReadonlySet<DocumentCommentThreadId>>(() => {
         return new Set(
-            filterIterable(
-                commentThreadIds,
-                commentThreadId => !inboxEntry.model.commentThreadIds.has(commentThreadId),
+            filterIterable(commentThreadIds, commentThreadId =>
+                inboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel
+                    ? !inboxEntry.model.commentThreadIds.has(commentThreadId)
+                    : commentThreadId === inboxEntry.model.commentThreadId &&
+                      inboxEntry.model.isArchived,
             ),
         );
-    }, [commentThreadIds, inboxEntry.model.commentThreadIds]);
+    }, [commentThreadIds, inboxEntry.model]);
 
     const waitForExpectedArchivedCommentThreadIds = useWaitForState(
         expectedArchivedCommentThreadIds,
@@ -508,6 +521,7 @@ function DocumentNewCommentThreadsRouteInner2({
             // all commentThreads in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
+                inboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel &&
                 inboxEntry.model.commentThreadIds.size === 1 &&
                 inboxEntry.model.commentThreadIds.has(commentThreadId)
             ) {

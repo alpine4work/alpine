@@ -12,6 +12,8 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+import {subscribeToArchiveInboxChannelPostsEntryPostOptimistically} from "~/client/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
+import {subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically} from "~/client/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
 import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
@@ -31,14 +33,22 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {createInboxDocumentCommentThreadEntryDynamoItemKey} from "~/shared/notifications/create_inbox_document_comment_thread_entry_dynamo_item_key.js";
+import {createInboxPostCommentsEntryDynamoItemKey} from "~/shared/notifications/create_inbox_post_comments_entry_dynamo_item_key.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    InboxChannelPostsEntryModel,
+    InboxDocumentCommentThreadEntryModel,
+    InboxDocumentNewCommentThreadsEntryModel,
+    InboxEntryModel,
+    InboxPostCommentsEntryModel,
+} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxBannerOutletContainer({
     initialEntry,
-    withoutRealtime,
+    parentEntry,
     navigation,
     maxWidth,
     sidebarRightWidth,
@@ -46,7 +56,7 @@ export function InboxBannerOutletContainer({
     children,
 }: {
     initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
-    withoutRealtime: boolean;
+    parentEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     navigation: InboxContextNavigation | null;
     maxWidth: Spacing | "full";
     sidebarRightWidth?: Spacing;
@@ -68,24 +78,25 @@ export function InboxBannerOutletContainer({
 
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
-    const entryKey = useMemo(() => initialEntry.model.getKey(), [initialEntry.model]);
+    const [entry, updateEntry, actuallyUpdateEntryOptimistically, entryWithoutOptimisticUpdates] =
+        useStateWithOptimisticUpdates<
+            DynamoGeneralRealtimeItem<InboxEntryModel> & {readonly isDeleted?: true}
+        >(parentEntry ?? initialEntry);
 
-    const [
-        entryFromState,
-        updateEntry,
-        actuallyUpdateEntryOptimistically,
-        entryWithoutOptimisticUpdates,
-    ] = useStateWithOptimisticUpdates(initialEntry);
-
-    let entry = entryFromState;
-
-    // If realtime is disabled then `entry` should always be the same as
-    // `initialEntry`. If realtime is enabled then we'll resume from the last
-    // `initialEntry` we saw.
-    if (withoutRealtime && entry !== initialEntry) {
-        entry = initialEntry;
-        updateEntry(() => initialEntry);
+    // If the parent provided a newer version of the entry we're rendering then use
+    // the parent's version.
+    if (
+        parentEntry &&
+        parentEntry.key === entryWithoutOptimisticUpdates.key &&
+        parentEntry.version > entryWithoutOptimisticUpdates.version
+    ) {
+        updateEntry(() => parentEntry);
     }
+
+    const entryWithoutOptimisticUpdatesKey = useMemo(
+        () => entryWithoutOptimisticUpdates.model.getKey(),
+        [entryWithoutOptimisticUpdates.model],
+    );
 
     const waitForEntryWithoutOptimisticUpdates = useWaitForState(entryWithoutOptimisticUpdates);
 
@@ -119,10 +130,6 @@ export function InboxBannerOutletContainer({
     const isInboxEntryTask = entry.model.type === "Task";
 
     useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
         return subscribeToArchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
                 if (entry.key !== event.entry.key) return entry;
@@ -139,10 +146,6 @@ export function InboxBannerOutletContainer({
     }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
     useEffect(() => {
-        // We need to watch for events here even if `withoutRealtime` is true because
-        // if this optimistic event removes the entry from our parent's inbox then we
-        // still want to apply the update locally here so the user can see the change.
-
         return subscribeToUnarchiveInboxEntryOptimistically(event => {
             updateEntryOptimistically(event.promise, entry => {
                 if (entry.key !== event.entry.key) return entry;
@@ -158,31 +161,136 @@ export function InboxBannerOutletContainer({
         });
     }, [updateEntryOptimistically, waitForEntryWithoutOptimisticUpdates]);
 
-    useDynamoGeneralRealtimeItemBase(
-        {item: entry, onUpdateItem: updateEntry},
-        {
-            isConnected: isConnected,
-            subscribeToEvents: useCallback(
-                subscriber => {
-                    // The parent component is responsible for keeping `entry` up-to-date in
-                    // realtime. If `withoutRealtime` is true then noop.
-                    if (withoutRealtime) return;
+    // If we're archiving the last post in a `ChannelPosts` inbox entry then we
+    // need to replace the `ChannelPosts` entry with an archived `PostComments`
+    // entry since the `ChannelPosts` entry will be deleted on the server!
+    useEffect(() => {
+        return subscribeToArchiveInboxChannelPostsEntryPostOptimistically(event => {
+            if (event.entryKey !== entry.key) return;
+            if (!(entry.model instanceof InboxChannelPostsEntryModel)) return;
+            if (entry.model.postIds.size !== 1) return;
+            if (!entry.model.postIds.has(event.postId)) return;
 
-                    return subscribeToEvents(event => subscriber(event.eventTransaction));
-                },
-                [subscribeToEvents, withoutRealtime],
+            const replaceItem = {
+                key: createInboxPostCommentsEntryDynamoItemKey(
+                    entry.model.spaceId,
+                    entry.model.accountId,
+                    event.postId,
+                ),
+                // Replace this item with the first item we see from the server with real data.
+                version: -1,
+                model: new InboxPostCommentsEntryModel({
+                    isArchived: true,
+                    loudNotificationCount: 0,
+                    spaceId: entry.model.spaceId,
+                    accountId: entry.model.accountId,
+                    postId: event.postId,
+                    channel: entry.model.channel,
+                    postAuthor: entry.model.latestPost.author,
+                    postCreatedTime: entry.model.latestPost.createdTime,
+                    postContentTextSnippet: entry.model.latestPost.contentTextSnippet,
+                    isForPostContentMention: false,
+                    latestComment: null,
+                    otherCommentAuthor: null,
+                }),
+            };
+
+            actuallyUpdateEntryOptimistically(
+                event.promise.then(() =>
+                    // Wait for the entry to be deleted in realtime before we fully replace
+                    // the entry for real.
+                    waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
+                ),
+                () => replaceItem,
+            );
+        });
+    }, [
+        actuallyUpdateEntryOptimistically,
+        entry,
+        updateEntry,
+        waitForEntryWithoutOptimisticUpdates,
+    ]);
+
+    // If we're archiving the last post in a `DocumentNewCommentThreads` inbox
+    // entry then we need to replace the `DocumentNewCommentThreads` entry with
+    // an archived `DocumentCommentThread` entry since the
+    // `DocumentNewCommentThreads` entry will be deleted on the server!
+    useEffect(() => {
+        return subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically(
+            event => {
+                if (event.entryKey !== entry.key) return;
+                if (!(entry.model instanceof InboxDocumentNewCommentThreadsEntryModel)) return;
+                if (entry.model.commentThreadIds.size !== 1) return;
+                if (!entry.model.commentThreadIds.has(event.commentThreadId)) return;
+
+                const replaceItem = {
+                    key: createInboxDocumentCommentThreadEntryDynamoItemKey(
+                        entry.model.spaceId,
+                        entry.model.accountId,
+                        entry.model.getDocumentId(),
+                        event.commentThreadId,
+                    ),
+                    // Replace this item with the first item we see from the server with real data.
+                    version: -1,
+                    model: new InboxDocumentCommentThreadEntryModel({
+                        isArchived: true,
+                        loudNotificationCount: 0,
+                        spaceId: entry.model.spaceId,
+                        accountId: entry.model.accountId,
+                        document: entry.model.document,
+                        commentThreadId: event.commentThreadId,
+                        firstCommentAuthor: entry.model.firstCommentThread.author,
+                        latestComment: {
+                            author: entry.model.firstCommentThread.author,
+                            createdTime: entry.model.firstCommentThread.createdTime,
+                            contentTextSnippet: entry.model.firstCommentThread.contentTextSnippet,
+                            isStickyMention: false,
+                        },
+                        otherCommentAuthor: null,
+                        isFromNewCommentThread: true,
+                    }),
+                };
+
+                actuallyUpdateEntryOptimistically(
+                    event.promise.then(() =>
+                        // Wait for the entry to be deleted in realtime before we fully replace
+                        // the entry for real.
+                        waitForEntryWithoutOptimisticUpdates(entry => entry.isDeleted ?? false),
+                    ),
+                    () => replaceItem,
+                );
+            },
+        );
+    }, [
+        actuallyUpdateEntryOptimistically,
+        entry,
+        updateEntry,
+        waitForEntryWithoutOptimisticUpdates,
+    ]);
+
+    const withoutReloadItem: boolean =
+        !!parentEntry && parentEntry.key === entryWithoutOptimisticUpdates.key;
+
+    useDynamoGeneralRealtimeItemBase(
+        {item: entryWithoutOptimisticUpdates, onUpdateItem: updateEntry},
+        {
+            isConnected,
+            subscribeToEvents: useCallback(
+                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
+                [subscribeToEvents],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
-                // The parent component is responsible for keeping `entry` up-to-date in
-                // realtime. If `withoutRealtime` is true then noop.
-                if (withoutRealtime) return;
+                // We don't need to reload the item if we were provided a `parentEntry`. Since
+                // the `parentEntry` is kept up-to-date in realtime. So we know we have the
+                // latest data.
+                if (withoutReloadItem) return;
 
                 const {entry} = await getInboxEntryWithStrongReadConsistency(context, {
                     spaceId: space.id,
-                    key: entryKey,
+                    key: entryWithoutOptimisticUpdatesKey,
                 });
                 return entry;
-            }, [context, entryKey, space.id, withoutRealtime]),
+            }, [context, entryWithoutOptimisticUpdatesKey, space.id, withoutReloadItem]),
         },
     );
 
@@ -379,6 +487,11 @@ export function InboxBannerOutletContainer({
                                     ref={doneButtonRef}
                                     variant={
                                         entry.model.isArchived ? "neutral-disabled" : "neutral"
+                                    }
+                                    data-testid={
+                                        entry.model.isArchived
+                                            ? "InboxBannerOutletContainerDoneButton:Archived"
+                                            : "InboxBannerOutletContainerDoneButton:NotArchived"
                                     }
                                     height="6"
                                     paddingX="2"

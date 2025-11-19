@@ -244,6 +244,7 @@ export function InboxView({
         >
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <Box
+                    data-testid="InboxViewEntries"
                     flexShrink="0"
                     width={inboxEntryWidth}
                     overflow="hidden"

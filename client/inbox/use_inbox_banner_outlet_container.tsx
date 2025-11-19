@@ -29,9 +29,7 @@ export function useInboxBannerOutletContainer<Children extends ReactNode>(
         <InboxBannerOutletContainer
             {...props}
             initialEntry={entry}
-            // Disable realtime if we have an entry from `useInboxContext()`. Our parent
-            // component is expected to keep the entry up-to-date in realtime.
-            withoutRealtime={!!inboxContext?.entry}
+            parentEntry={inboxContext?.entry ?? null}
             navigation={inboxContext?.navigation ?? null}
         >
             {children}

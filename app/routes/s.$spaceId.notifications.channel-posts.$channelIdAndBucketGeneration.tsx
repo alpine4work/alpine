@@ -160,19 +160,17 @@ export default function ChannelPostsRouteWrapper() {
 
     if (posts.length === 1) {
         const post = posts[0]!;
+        const postId = post.model.id;
 
         node = (
             <PostView
                 // Remount when navigating to a different post.
-                key={post.model.id}
+                key={postId}
                 initialCheckpoint={initialCheckpoint}
                 initialPost={post}
-                initialPostComments={
-                    initialCommentsByPostId.get(post.model.id)?.comments ?? emptyArray
-                }
+                initialPostComments={initialCommentsByPostId.get(postId)?.comments ?? emptyArray}
                 initialOtherReferencedPostComments={
-                    initialCommentsByPostId.get(post.model.id)?.otherReferencedComments ??
-                    emptyArray
+                    initialCommentsByPostId.get(postId)?.otherReferencedComments ?? emptyArray
                 }
                 initialScroll={null}
             />
