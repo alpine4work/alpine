@@ -75,22 +75,21 @@ export class AwsMigrationService extends Construct {
                 //
                 // `runProcess()` implements env variable substitution which is why we can use
                 // env variable syntax like `$HONEYCOMB_API_KEY`.
-                `/var/www/server/migration/migration ${[
-                    "--edgeServiceUrl=https://alpine.inc",
-                    "--resourceServiceUrl=https://resources.alpine.inc",
-                    `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
-                    `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
-                    `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
-                    `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
-                    "--honeycombApiKey=$HONEYCOMB_API_KEY",
-                    `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
-                    // When you execute the ECS `RunTask` action to start migration service, you
-                    // must provide these environment variables in `containerOverrides`. Each run of
-                    // the migration service may be for a different task.
-                    "--migration=$MIGRATION",
-                    "--segmentIndex=$SEGMENT_INDEX",
-                    "--totalSegmentCount=$TOTAL_SEGMENT_COUNT",
-                ].join(" ")}`,
+                "/var/www/server/migration/migration",
+                "--edgeServiceUrl=https://alpine.inc",
+                "--resourceServiceUrl=https://resources.alpine.inc",
+                `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
+                `--fileProcessorHeavyJobQueueUrl=${sqs.getFileProcessorHeavyJobQueueUrl()}`,
+                `--fileProcessorLightJobQueueUrl=${sqs.getFileProcessorLightJobQueueUrl()}`,
+                "--honeycombApiKey=$HONEYCOMB_API_KEY",
+                `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
+                // When you execute the ECS `RunTask` action to start migration service, you
+                // must provide these environment variables in `containerOverrides`. Each run of
+                // the migration service may be for a different task.
+                "--migration=$MIGRATION",
+                "--segmentIndex=$SEGMENT_INDEX",
+                "--totalSegmentCount=$TOTAL_SEGMENT_COUNT",
             ],
         });
 

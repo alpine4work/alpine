@@ -2451,32 +2451,42 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/server/tasks/realtime/realtime
+                      - --portBase=4000
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/tasks/realtime/realtime --portBase=4000
-                                --opensearchDomainEndpoint=
+                            - - --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --edgeServiceUrl=https://alpine.inc
-                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl="
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=$TASK_REALTIME_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=$TOKEN_AGENT_SECRET"
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$TASK_REALTIME_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2008
                   Environment:
                       - Name: BAZEL_BINDIR
@@ -3251,49 +3261,60 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/app/app_production
+                      - --port=4000
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --agentServiceUrl=https://agent-service.cyberworlds.workers.dev
+                      - --resourceServiceUrl=https://resources.alpine.inc
                       - Fn::Join:
                             - ""
-                            - - /var/www/app/app_production --port=4000
-                                --edgeServiceUrl=https://alpine.inc
-                                --agentServiceUrl=https://agent-service.cyberworlds.workers.dev
-                                --resourceServiceUrl=https://resources.alpine.inc
-                                --opensearchDomainEndpoint=
+                            - - --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --jobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --ecsCluster="
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
                               - Ref: EcsClusterFB9B21B5
-                              - "
-                                --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA
-                                --taskRealtimeServiceSecurityGroupId="
+                      - --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRealtimeServiceTaskDefinition81563AFA
+                      - Fn::Join:
+                            - ""
+                            - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
                                     - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
                                     - GroupId
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --cohereApiKey=$COHERE_API_KEY
-                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
-                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
-                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=$APP_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
-                                --apnsCertificate=$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY"
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - --cohereApiKey=$COHERE_API_KEY
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$APP_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                      - --apnsCertificate=$APNS_CERTIFICATE
+                      - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -4223,48 +4244,59 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/server/api/api
+                      - --port=4000
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/api/api --port=4000
-                                --edgeServiceUrl=https://alpine.inc
-                                --resourceServiceUrl=https://resources.alpine.inc
-                                --opensearchDomainEndpoint=
+                            - - --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --jobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --ecsCluster="
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
                               - Ref: EcsClusterFB9B21B5
-                              - "
-                                --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA
-                                --taskRealtimeServiceSecurityGroupId="
+                      - --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRealtimeServiceTaskDefinition81563AFA
+                      - Fn::Join:
+                            - ""
+                            - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
                                     - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
                                     - GroupId
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --cohereApiKey=$COHERE_API_KEY
-                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
-                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
-                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=$API_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
-                                --apnsCertificate=$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY"
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - --cohereApiKey=$COHERE_API_KEY
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$API_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                      - --apnsCertificate=$APNS_CERTIFICATE
+                      - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -5205,58 +5237,75 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/server/jobs/queue/queue
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/jobs/queue/queue --opensearchDomainEndpoint=
+                            - - --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --jobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --jobQueueArn="
+                      - Fn::Join:
+                            - ""
+                            - - --jobQueueArn=
                               - Fn::GetAtt:
                                     - SqsJobQueue62388F96
                                     - Arn
-                              - " --schedulerJobQueueRoleArn="
+                      - Fn::Join:
+                            - ""
+                            - - --schedulerJobQueueRoleArn=
                               - Fn::GetAtt:
                                     - JobQueueServiceSchedulerRoleEB4C6CF6
                                     - Arn
-                              - " --edgeServiceUrl=https://alpine.inc
-                                --resourceServiceUrl=https://resources.alpine.inc --ecsCluster="
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
+                      - Fn::Join:
+                            - ""
+                            - - --ecsCluster=
                               - Ref: EcsClusterFB9B21B5
-                              - "
-                                --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA
-                                --taskRealtimeServiceSecurityGroupId="
+                      - --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRealtimeServiceTaskDefinition81563AFA
+                      - Fn::Join:
+                            - ""
+                            - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
                                     - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
                                     - GroupId
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --cohereApiKey=$COHERE_API_KEY --githubAppId=$GITHUB_APP_ID
-                                --githubAppClientId=$GITHUB_APP_CLIENT_ID
-                                --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
-                                --githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID
-                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
-                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
-                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=$TOKEN_AGENT_SECRET
-                                --apnsCertificate=$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
-                                --githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY"
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - --cohereApiKey=$COHERE_API_KEY
+                      - --githubAppId=$GITHUB_APP_ID
+                      - --githubAppClientId=$GITHUB_APP_CLIENT_ID
+                      - --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
+                      - --githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$JOB_QUEUE_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
+                      - --apnsCertificate=$APNS_CERTIFICATE
+                      - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
+                      - --githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -5861,24 +5910,35 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/server/migration/migration
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/migration/migration
-                                --edgeServiceUrl=https://alpine.inc
-                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl=
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY --opensearchDomainEndpoint="
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - Fn::Join:
+                            - ""
+                            - - --opensearchDomainEndpoint=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974
                                     - DomainEndpoint
-                              - " --migration=$MIGRATION --segmentIndex=$SEGMENT_INDEX
-                                --totalSegmentCount=$TOTAL_SEGMENT_COUNT"
+                      - --migration=$MIGRATION
+                      - --segmentIndex=$SEGMENT_INDEX
+                      - --totalSegmentCount=$TOTAL_SEGMENT_COUNT
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -7218,32 +7278,40 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
+                      - /var/www/server/files/processor/processor
+                      - --port=4000
+                      - --temporaryDirectoryPath=/var/www-data/files
+                      - --edgeServiceUrl=https://alpine.inc
+                      - --resourceServiceUrl=https://resources.alpine.inc
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/files/processor/processor --port=4000
-                                --temporaryDirectoryPath=/var/www-data/files
-                                --edgeServiceUrl=https://alpine.inc
-                                --resourceServiceUrl=https://resources.alpine.inc --jobQueueUrl=
+                            - - --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --fileProcessorJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorJobQueueUrl=
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --fileProcessorHeavyJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorHeavyJobQueueUrl=
                               - Ref: SqsFileProcessorHeavyJobQueueA7996724
-                              - " --fileProcessorLightJobQueueUrl="
+                      - Fn::Join:
+                            - ""
+                            - - --fileProcessorLightJobQueueUrl=
                               - Ref: SqsFileProcessorLightJobQueueDC9222EF
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
-                                --cloudflareAccountId=d496846050bfc973d24617456c59242b
-                                --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
-                                --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
-                                --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
-                                --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
-                                --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
-                                --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
-                                --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
-                                --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
-                                --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
-                                --servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
-                                --tokenAgentSecret=$TOKEN_AGENT_SECRET"
+                      - --honeycombApiKey=$HONEYCOMB_API_KEY
+                      - --cloudflareAccountId=d496846050bfc973d24617456c59242b
+                      - --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
+                      - --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
+                      - --appServicePublicKey=$APP_SERVICE_PUBLIC_KEY
+                      - --edgeServiceFamilyPublicKey=$EDGE_SERVICE_FAMILY_PUBLIC_KEY
+                      - --taskRealtimeServicePublicKey=$TASK_REALTIME_SERVICE_PUBLIC_KEY
+                      - --jobQueueServicePublicKey=$JOB_QUEUE_SERVICE_PUBLIC_KEY
+                      - --fileProcessorServicePublicKey=$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
+                      - --apiServicePublicKey=$API_SERVICE_PUBLIC_KEY
+                      - --resourceServicePublicKey=$RESOURCE_SERVICE_PUBLIC_KEY
+                      - --servicePrivateKey=$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
+                      - --tokenAgentSecret=$TOKEN_AGENT_SECRET
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
