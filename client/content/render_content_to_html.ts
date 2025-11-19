@@ -409,6 +409,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
             mention: node => {
                 const mention: ContentMention = node.attrs.mention;
 
+                // When rendering account mentions, only allow them to be clicked
+                // if we're currently logged in.
+                const mentionIsInert = mention.type === "Account" && currentAccount === null;
+
                 const html = renderContentMentionToHtml(get, {
                     accountRegistry,
                     searchEntityRegistry,
@@ -417,7 +421,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     currentAccount,
                     references: content.references,
                     mention,
-                    isInert,
+                    isInert: isInert || mentionIsInert,
                     spacingScale,
                 });
 

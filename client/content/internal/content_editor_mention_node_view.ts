@@ -42,6 +42,10 @@ export function createContentEditorMentionNodeViewConstructor({
         const {references} = getContentEditorReferences(view.state);
         const spacingScale = getSpacingScaleWithoutListening();
 
+        // When rendering account mentions, only allow them to be clicked
+        // if we're currently logged in.
+        const isInert = mention.type === "Account" && currentAccount === null;
+
         const htmlStore = computeStore(get => {
             return renderContentMentionToHtml(get, {
                 accountRegistry,
@@ -51,14 +55,13 @@ export function createContentEditorMentionNodeViewConstructor({
                 currentAccount,
                 references,
                 mention,
-                isInert: false,
+                isInert,
                 spacingScale,
             });
         });
 
         let previousHtml = htmlStore.getSnapshot();
         const dom = previousHtml.generateNode();
-        assert(dom instanceof HTMLAnchorElement);
 
         // Whenever the content mention text changes, we want to update our mention
         // node with the right value.
@@ -68,79 +71,82 @@ export function createContentEditorMentionNodeViewConstructor({
             previousHtml = nextHtml;
         });
 
-        let isPointerDownAndOver = false;
+        if (!isInert) {
+            assert(dom instanceof HTMLAnchorElement);
+            let isPointerDownAndOver = false;
 
-        const maybeUpdateStyle = () => {
-            if (isPointerDownAndOver) {
-                dom.classList.add(contentStyles.mentionPressedClassName);
-            } else {
-                dom.classList.remove(contentStyles.mentionPressedClassName);
-            }
-        };
+            const maybeUpdateStyle = () => {
+                if (isPointerDownAndOver) {
+                    dom.classList.add(contentStyles.mentionPressedClassName);
+                } else {
+                    dom.classList.remove(contentStyles.mentionPressedClassName);
+                }
+            };
 
-        dom.addEventListener("click", event => {
-            // Must call prevent default here in addition to `pointerdown` to stop mobile
-            // WebKit from following a link after click.
-            event.preventDefault();
-        });
+            dom.addEventListener("click", event => {
+                // Must call prevent default here in addition to `pointerdown` to stop mobile
+                // WebKit from following a link after click.
+                event.preventDefault();
+            });
 
-        dom.addEventListener("pointerdown", event => {
-            isPointerDownAndOver =
-                event.button === 0 &&
-                (!isModifiedPointerEvent(event) ||
-                    isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
+            dom.addEventListener("pointerdown", event => {
+                isPointerDownAndOver =
+                    event.button === 0 &&
+                    (!isModifiedPointerEvent(event) ||
+                        isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
 
-            maybeUpdateStyle();
+                maybeUpdateStyle();
 
-            // This will be a navigation click if the pointer stays over our element. Don't
-            // select the editable text.
-            event.preventDefault();
+                // This will be a navigation click if the pointer stays over our element. Don't
+                // select the editable text.
+                event.preventDefault();
 
-            // If this is a shift click, select the mention.
-            if (event.shiftKey || event.altKey) {
-                view.focus();
-                view.dispatch(
-                    view.state.tr.setSelection(
-                        new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
-                    ),
-                );
-            }
-        });
+                // If this is a shift click, select the mention.
+                if (event.shiftKey || event.altKey) {
+                    view.focus();
+                    view.dispatch(
+                        view.state.tr.setSelection(
+                            new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
+                        ),
+                    );
+                }
+            });
 
-        dom.addEventListener("pointerup", event => {
-            const wasPointerDownAndOver = isPointerDownAndOver;
-            isPointerDownAndOver = false;
-            maybeUpdateStyle();
+            dom.addEventListener("pointerup", event => {
+                const wasPointerDownAndOver = isPointerDownAndOver;
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
 
-            // Only process pointer up events that started on our element.
-            if (!wasPointerDownAndOver) return;
+                // Only process pointer up events that started on our element.
+                if (!wasPointerDownAndOver) return;
 
-            if (event.shiftKey || event.altKey) {
-                // Do nothing. We selected the mention in `pointerdown`.
-            } else {
-                handleContentLinkClick(event, dom.href, onNavigate);
-            }
-        });
+                if (event.shiftKey || event.altKey) {
+                    // Do nothing. We selected the mention in `pointerdown`.
+                } else {
+                    handleContentLinkClick(event, dom.href, onNavigate);
+                }
+            });
 
-        dom.addEventListener("pointerleave", () => {
-            isPointerDownAndOver = false;
-            maybeUpdateStyle();
-        });
+            dom.addEventListener("pointerleave", () => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            });
 
-        dom.addEventListener("pointercancel", () => {
-            isPointerDownAndOver = false;
-            maybeUpdateStyle();
-        });
+            dom.addEventListener("pointercancel", () => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            });
 
-        dom.addEventListener("dragstart", () => {
-            isPointerDownAndOver = false;
-            maybeUpdateStyle();
-        });
+            dom.addEventListener("dragstart", () => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            });
 
-        addParentScrollWhenPointerDownAndOverListener(dom, () => {
-            isPointerDownAndOver = false;
-            maybeUpdateStyle();
-        });
+            addParentScrollWhenPointerDownAndOverListener(dom, () => {
+                isPointerDownAndOver = false;
+                maybeUpdateStyle();
+            });
+        }
 
         return {
             dom,
