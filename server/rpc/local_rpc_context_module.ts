@@ -2,6 +2,7 @@ import {ServerUnknownActionContextModules} from "~/server/context/server_action_
 import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
 import {RpcServerActionExtraContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
@@ -21,6 +22,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<
 > {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
+        callId: RpcCallId,
         input: Input,
     ): Promise<Output> {
         const implementation = allRpcImplementations.get(definition.name);
@@ -30,6 +32,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<
 
         const output = await implementation.executeWithoutSerialization(
             await this._context.actor.authenticate(),
+            callId,
             input,
         );
         return output as Output;

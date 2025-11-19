@@ -100,6 +100,10 @@ const ProcessFileLightJobDescriptionSchema = Schema.object({
     reason: Schema.string,
 });
 
+export type SendShareNotificationJobDescription = SchemaType<
+    typeof SendShareNotificationJobDescriptionSchema
+>;
+
 const SendShareNotificationJobDescriptionSchema = Schema.object({
     type: Schema.value("SendShareNotification"),
     jobId: Schema.id(),

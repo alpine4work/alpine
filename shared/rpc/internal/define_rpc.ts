@@ -4,6 +4,8 @@ import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {generateId} from "~/shared/id/id.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
@@ -83,14 +85,16 @@ export function defineRpc<
         context: Context<{rpc: RpcContextModuleBase}>,
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {
+        const callId = generateId<RpcCallId>();
+
         // Retry transient errors from idempotent RPCs.
         if (!isIdempotent) {
-            return context.rpc.execute(definition, input);
+            return context.rpc.execute(definition, callId, input);
         } else {
             return retryWithExponentialBackoff(
                 async retry => {
                     try {
-                        const output = await context.rpc.execute(definition, input);
+                        const output = await context.rpc.execute(definition, callId, input);
 
                         return output;
                     } catch (error) {

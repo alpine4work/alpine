@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {
     AddMarkStep,
@@ -51,6 +53,7 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
+    updateDocumentContentIdempotently,
     updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint,
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_actions.js";
@@ -59,6 +62,7 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
+import {SendShareNotificationJobDescription} from "~/server/jobs/core/job_description.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -95,6 +99,7 @@ import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    RpcCallId,
 } from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
@@ -110,7 +115,19 @@ import {
     intoAccountModelWithoutSpaceAndAvatar,
 } from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-const context = createTestContext();
+let sendShareNotificationJobs: Array<SendShareNotificationJobDescription> = [];
+
+afterEach(() => {
+    sendShareNotificationJobs = [];
+});
+
+const context = createTestContext({
+    processJob: async (context, job) => {
+        if (job.type === "SendShareNotification") {
+            sendShareNotificationJobs.push(job);
+        }
+    },
+});
 
 function textSlice(text: string, marks: ReadonlyArray<Mark> = []) {
     if (text.length === 0) return Slice.empty;
@@ -3293,7 +3310,6 @@ test("can’t add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            // eslint-disable-next-line string-quotes
             "Couldn’t apply step to content: No node at mark step's position",
         ),
     );
@@ -3320,7 +3336,6 @@ test("can’t add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            // eslint-disable-next-line string-quotes
             "Couldn’t apply step to content: No node at mark step's position",
         ),
     );
@@ -4373,7 +4388,6 @@ test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", 
         document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 0}),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            // eslint-disable-next-line string-quotes
             "Couldn’t apply step to content: No node at attribute step's position",
         ),
     );
@@ -17388,5 +17402,847 @@ describe("`getDocumentAccessPolicyForBotScope()`", () => {
                 documentId,
             ),
         ).rejects.toThrow("Document not found");
+    });
+});
+
+describe("idempotence", () => {
+    test("can’t idempotently update document by default in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+        };
+
+        expect(await document.getString()).toEqual("doc(title, paragraph)");
+
+        await updateDocumentContent(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+
+        await updateDocumentContent(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("aa"))');
+
+        await updateDocumentContent(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("aaa"))');
+    });
+
+    test("can’t idempotently update document by default in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+        };
+
+        expect(await document.getString()).toEqual("doc(title, paragraph)");
+
+        await runAllPromises([
+            updateDocumentContent(session.action(), input),
+            updateDocumentContent(session.action(), input),
+            updateDocumentContent(session.action(), input),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("aaa"))');
+    });
+
+    test("can idempotently update document in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+        };
+
+        expect(await document.getString()).toEqual("doc(title, paragraph)");
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+    });
+
+    test("can idempotently update document in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+        };
+
+        expect(await document.getString()).toEqual("doc(title, paragraph)");
+
+        await runAllPromises([
+            updateDocumentContentIdempotently(session.action(), input),
+            updateDocumentContentIdempotently(session.action(), input),
+            updateDocumentContentIdempotently(session.action(), input),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+    });
+
+    test("can idempotently update document with conflicting updates in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        await document.type(session, "a");
+        await document.type(session, "b");
+        await document.type(session, "c");
+        await document.type(session, "d");
+
+        const input = {
+            id: document.id,
+            version: 1,
+            steps: [new ReplaceStep(4, 4, textSlice("2"))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd"))');
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({newVersion: 5}),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd2"))');
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({newVersion: 5}),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd2"))');
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({newVersion: 5}),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd2"))');
+    });
+
+    test("can idempotently update document with conflicting updates in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const document = await TestDocument.create(session);
+
+        await document.type(session, "a");
+        await document.type(session, "b");
+        await document.type(session, "c");
+        await document.type(session, "d");
+
+        const input = {
+            id: document.id,
+            version: 1,
+            steps: [new ReplaceStep(4, 4, textSlice("2"))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd"))');
+
+        await runAllPromises([
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({newVersion: 5}),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({newVersion: 5}),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({newVersion: 5}),
+            ),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("abcd2"))');
+    });
+
+    test("can idempotently update document access policy in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1);
+
+        const newAccessPolicy: AccessPolicy = {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", newAccessPolicy)],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: newAccessPolicy,
+                notification: {
+                    accountIds: [session2.account.id],
+                    content: createSimpleMessageContent("Shared!"),
+                    createdTimeZone: defaultTimeZone,
+                },
+            },
+        };
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual({
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        expect(sendShareNotificationJobs).toEqual([]);
+
+        await updateDocumentContentIdempotently(session1.action(), input);
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual(newAccessPolicy);
+
+        expect(sendShareNotificationJobs).toEqual([
+            expect.objectContaining({
+                jobId: input.clientRequestToken,
+                actorAccountId: session1.account.id,
+            }),
+        ]);
+
+        await updateDocumentContentIdempotently(session1.action(), input);
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual(newAccessPolicy);
+
+        expect(sendShareNotificationJobs).toEqual([
+            expect.objectContaining({
+                jobId: input.clientRequestToken,
+                actorAccountId: session1.account.id,
+            }),
+        ]);
+
+        await updateDocumentContentIdempotently(session1.action(), input);
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual(newAccessPolicy);
+
+        expect(sendShareNotificationJobs).toEqual([
+            expect.objectContaining({
+                jobId: input.clientRequestToken,
+                actorAccountId: session1.account.id,
+            }),
+        ]);
+    });
+
+    test("can idempotently update document access policy in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {body: "test"});
+
+        const newAccessPolicy: AccessPolicy = {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 1}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        };
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new DocAttrStep("accessPolicy", newAccessPolicy)],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: newAccessPolicy,
+                notification: {
+                    accountIds: [session2.account.id],
+                    content: createSimpleMessageContent("Shared!"),
+                    createdTimeZone: defaultTimeZone,
+                },
+            },
+        };
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual({
+            accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: null,
+            urlGrant: null,
+        });
+
+        expect(sendShareNotificationJobs).toEqual([]);
+
+        await runAllPromises([
+            updateDocumentContentIdempotently(session1.action(), input),
+            updateDocumentContentIdempotently(session1.action(), input),
+            updateDocumentContentIdempotently(session1.action(), input),
+        ]);
+
+        expect((await document.get()).content.doc.attrs.accessPolicy).toEqual(newAccessPolicy);
+
+        expect(sendShareNotificationJobs.length).toBeGreaterThanOrEqual(1);
+
+        for (const job of sendShareNotificationJobs) {
+            expect(job).toEqual(
+                expect.objectContaining({
+                    jobId: input.clientRequestToken,
+                    actorAccountId: session1.account.id,
+                }),
+            );
+        }
+    });
+
+    test("can idempotently create document comments in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new AddMarkStep(3, 7, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Commented!"),
+                    initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
+                },
+            ],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).rejects.toThrow(NotFoundError);
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).resolves.toEqual(1);
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).resolves.toEqual(1);
+
+        await updateDocumentContentIdempotently(session.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).resolves.toEqual(1);
+    });
+
+    test("can idempotently create document comments in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new AddMarkStep(3, 7, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Commented!"),
+                    initialCommentFileIds: [],
+                    createdTimeZone: defaultTimeZone,
+                },
+            ],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).rejects.toThrow(NotFoundError);
+
+        await runAllPromises([
+            updateDocumentContentIdempotently(session.action(), input),
+            updateDocumentContentIdempotently(session.action(), input),
+            updateDocumentContentIdempotently(session.action(), input),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId,
+            }).then(({commentCount}) => commentCount),
+        ).resolves.toEqual(1);
+    });
+
+    test("can idempotently resolve document comment threads in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: 3, to: 7},
+            "Commented!",
+        );
+
+        const input = {
+            id: document.id,
+            version: 1,
+            steps: [
+                new RemoveAllMarksStep(
+                    schema.marks.comment.create({commentThreadId: commentThread.id}),
+                ),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            resolveCommentThreadIds: [commentThread.id],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 2,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: true,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 2,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: true,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 2,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: true,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+    });
+
+    test("can idempotently resolve document comment threads in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: 3, to: 7},
+            "Commented!",
+        );
+
+        const input = {
+            id: document.id,
+            version: 1,
+            steps: [
+                new RemoveAllMarksStep(
+                    schema.marks.comment.create({commentThreadId: commentThread.id}),
+                ),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            resolveCommentThreadIds: [commentThread.id],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+
+        await runAllPromises([
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 2,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: true,
+                        }),
+                    ],
+                }),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 2,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: true,
+                        }),
+                    ],
+                }),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 2,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: true,
+                        }),
+                    ],
+                }),
+            ),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+    });
+
+    test("can idempotently unresolve document comment threads in sequence", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: 3, to: 7},
+            "Commented!",
+        );
+
+        await commentThread.resolve(session);
+
+        const input = {
+            id: document.id,
+            version: 2,
+            steps: [
+                new AddMarkStep(
+                    3,
+                    7,
+                    schema.marks.comment.create({commentThreadId: commentThread.id}),
+                ),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            unresolveCommentThreadIds: [commentThread.id],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 3,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: false,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 3,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: false,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+
+        await expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+            expect.objectContaining({
+                newVersion: 3,
+                updatedCommentThreads: [
+                    expect.objectContaining({
+                        id: commentThread.id,
+                        isResolved: false,
+                    }),
+                ],
+            }),
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+    });
+
+    test("can idempotently unresolve document comment threads in parallel", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session, {body: "test"});
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {from: 3, to: 7},
+            "Commented!",
+        );
+
+        await commentThread.resolve(session);
+
+        const input = {
+            id: document.id,
+            version: 2,
+            steps: [
+                new AddMarkStep(
+                    3,
+                    7,
+                    schema.marks.comment.create({commentThreadId: commentThread.id}),
+                ),
+            ],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+            unresolveCommentThreadIds: [commentThread.id],
+        };
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("test"))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(true);
+
+        await runAllPromises([
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 3,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: false,
+                        }),
+                    ],
+                }),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 3,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: false,
+                        }),
+                    ],
+                }),
+            ),
+            // eslint-disable-next-line jest/valid-expect
+            expect(updateDocumentContentIdempotently(session.action(), input)).resolves.toEqual(
+                expect.objectContaining({
+                    newVersion: 3,
+                    updatedCommentThreads: [
+                        expect.objectContaining({
+                            id: commentThread.id,
+                            isResolved: false,
+                        }),
+                    ],
+                }),
+            ),
+        ]);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph(comment("test")))');
+
+        await expect(
+            getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }).then(({isResolved}) => isResolved),
+        ).resolves.toEqual(false);
+    });
+
+    test("can’t idempotently update document after losing access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1);
+        await document.access.grant(session1, session2);
+
+        const input = {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("a"))],
+            clientId: generateId<ContentEditorClientId>(),
+            clientRequestToken: generateId<RpcCallId>(),
+        };
+
+        expect(await document.getString()).toEqual("doc(title, paragraph)");
+
+        await updateDocumentContentIdempotently(session2.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+
+        await updateDocumentContentIdempotently(session2.action(), input);
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
+
+        await document.access.revoke(session1, session2);
+
+        await expect(updateDocumentContentIdempotently(session2.action(), input)).rejects.toThrow(
+            PermissionDeniedError,
+        );
+
+        expect(await document.getString()).toEqual('doc(title, paragraph("a"))');
     });
 });

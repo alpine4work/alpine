@@ -49,3 +49,4 @@ export type FileId = NominalChronologicalIdType<"File">;
 export type PostDraftId = NominalChronologicalIdType<"PostDraft">;
 export type BotId = NominalRandomIdType<"Bot">;
 export type BotWebhookEventId = NominalChronologicalIdType<"BotWebhookEvent">;
+export type RpcCallId = NominalRandomIdType<"RpcCall">;

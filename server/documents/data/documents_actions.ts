@@ -43,6 +43,7 @@ import {
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
@@ -140,7 +141,7 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
+import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -2400,6 +2401,7 @@ export async function updateDocumentContent(
         version: clientVersion,
         steps: clientSteps,
         clientId,
+        clientRequestToken,
         intentionallyUpdateAccessPolicy,
         createCommentThreads = [],
         resolveCommentThreadIds = [],
@@ -2410,6 +2412,7 @@ export async function updateDocumentContent(
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: ContentEditorClientId;
+        clientRequestToken?: Id;
         intentionallyUpdateAccessPolicy?: {
             accessPolicy: AccessPolicy;
             notification: ShareNotification | null;
@@ -2999,7 +3002,7 @@ export async function updateDocumentContent(
                             if (intentionallyUpdateAccessPolicy?.notification) {
                                 context.jobs.send({
                                     type: "SendShareNotification",
-                                    jobId: generateId(),
+                                    jobId: clientRequestToken ?? generateId(),
                                     spaceId: internalDocument.spaceId,
                                     actorAccountId: context.actor.getAccountId(),
                                     entityId: `Document:${documentId}`,
@@ -3327,7 +3330,9 @@ export async function updateDocumentContent(
 
         const execute = async () => {
             if (transaction.length > 0) {
-                await DynamoTableSchema.executeTransaction(context, transaction);
+                await DynamoTableSchema.executeTransaction(context, transaction, {
+                    clientRequestToken,
+                });
             }
 
             if (steps.length > 0) {
@@ -3407,6 +3412,69 @@ export async function updateDocumentContent(
         conflictingSteps,
         updatedCommentThreads,
     };
+}
+
+/**
+ * Same as `updateDocumentContent()` but idempotent. If you call this function multiple
+ * times with the same input then you'll get the same response.
+ */
+export async function updateDocumentContentIdempotently(
+    context: ServerSessionActionContext,
+    options: Parameters<typeof updateDocumentContent>[1] & {clientRequestToken: string},
+): Promise<{
+    newVersion: number;
+    updatedCommentThreads: ReadonlyArray<DocumentCommentThreadModel>;
+}> {
+    try {
+        const {newVersion, updatedCommentThreads} = await updateDocumentContent(
+            context.actor.authorizeSession(),
+            options,
+        );
+
+        return {newVersion, updatedCommentThreads};
+    } catch (error) {
+        if (!isDynamoIdempotentParameterMismatchError(error)) throw error;
+
+        const [documentItem, resolvedCommentThreadItems, unresolvedCommentThreadItems] =
+            await runAllPromises([
+                getDocumentItemForAuthorization(context, options.id, {
+                    consistency: "StrongWithinCache",
+                }),
+                runAllPromises(
+                    (options.resolveCommentThreadIds ?? []).map(commentThreadId =>
+                        getDocumentCommentThreadItem(context, {
+                            documentId: options.id,
+                            commentThreadId,
+                            shouldTryArchiveFirst: true,
+                            consistency: "StrongWithinCache",
+                        }),
+                    ),
+                ),
+                runAllPromises(
+                    (options.unresolveCommentThreadIds ?? []).map(commentThreadId =>
+                        getDocumentCommentThreadItem(context, {
+                            documentId: options.id,
+                            commentThreadId,
+                            shouldTryArchiveFirst: false,
+                            consistency: "StrongWithinCache",
+                        }),
+                    ),
+                ),
+            ]);
+
+        const updatedCommentThreads = await runAllPromises(
+            [...resolvedCommentThreadItems, ...unresolvedCommentThreadItems].map(
+                commentThreadItem =>
+                    createDocumentCommentThreadModelFromItem(
+                        context,
+                        documentItem.spaceId,
+                        commentThreadItem,
+                    ),
+            ),
+        );
+
+        return {newVersion: documentItem.version, updatedCommentThreads};
+    }
 }
 
 /**

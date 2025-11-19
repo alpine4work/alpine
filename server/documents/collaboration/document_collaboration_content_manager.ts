@@ -479,7 +479,7 @@ export class DocumentCollaborationContentManager {
                                 const intentionallyUpdateAccessPolicy =
                                     nextIntentionallyUpdateAccessPolicyRef.current ?? undefined;
 
-                                const {conflictingSteps, updatedCommentThreads} =
+                                const {newVersion, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
                                         documentId: this.id,
                                         version: oldVersion,
@@ -501,7 +501,7 @@ export class DocumentCollaborationContentManager {
                                 // things may start breaking in the durable object and on the client.
                                 //
                                 // We save steps anyway to preserve as much user data as we can.
-                                if (conflictingSteps.length > 0) {
+                                if (newVersion !== oldVersion + nextSteps.length) {
                                     throw new InternalError(
                                         "Some process updated document content other than the document’s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                                     );

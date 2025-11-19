@@ -1,5 +1,6 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**
@@ -15,6 +16,7 @@ export abstract class RpcContextModuleBase<Modules extends {} = {}>
 {
     public abstract execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
+        callId: RpcCallId,
         input: Input,
     ): Promise<Output>;
 

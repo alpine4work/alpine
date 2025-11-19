@@ -26,7 +26,7 @@ export async function action({request, context: loaderContext, span, params}: Lo
         const rpcImplementation = allRpcImplementations.get(call.name);
         if (!rpcImplementation) throw new NotFoundError("Could not find an implementation for RPC");
 
-        const output = await rpcImplementation.execute(context, call.input);
+        const output = await rpcImplementation.execute(context, call.id, call.input);
 
         return new Response(
             JSON.stringify(

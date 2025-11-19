@@ -4,6 +4,7 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,
@@ -37,12 +38,14 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
 
     public execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
+        callId: RpcCallId,
         input: Input,
     ): Promise<Output> {
         return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
             const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
             scheduleRpcCall({
+                id: callId,
                 name: definition.name,
                 input: definition.inputSchema.serialize(input),
                 outputPromiseResolver,
@@ -70,6 +73,7 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
 }
 
 type RpcCall = {
+    readonly id: RpcCallId;
     readonly name: string;
     readonly input: SchemaSerializedValue;
     readonly outputPromiseResolver: PromiseResolver<SchemaSerializedValue>;
@@ -131,6 +135,7 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                     otherCalls.length === 0
                         ? JSON.stringify(
                               RpcHttpCallInputSchema.serialize({
+                                  id: firstCall.id,
                                   name: firstCall.name,
                                   input: firstCall.input,
                               }),
@@ -138,6 +143,7 @@ async function executeRpcs(callBatch: ReadonlyArray<RpcCall>): Promise<void> {
                         : JSON.stringify(
                               RpcHttpBatchCallInputSchema.serialize({
                                   calls: callBatch.map(call => ({
+                                      id: call.id,
                                       name: call.name,
                                       input: call.input,
                                       tracerContext: call.span.getPropagationContext(),

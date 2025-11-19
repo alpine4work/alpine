@@ -8,6 +8,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {
     RpcDefinition,
     RpcDefinitionInputType,
@@ -23,11 +24,13 @@ export type RpcExecuteOptions = {
 export type RpcImplementation<Input, Output> = {
     execute(
         context: RpcServerActionContext,
+        callId: RpcCallId,
         input: SchemaSerializedValue,
         options?: RpcExecuteOptions,
     ): Promise<SchemaSerializedValue>;
     executeWithoutSerialization(
         context: RpcServerActionContext,
+        callId: RpcCallId,
         input: Input,
         options?: RpcExecuteOptions,
     ): Promise<Output>;
@@ -35,7 +38,11 @@ export type RpcImplementation<Input, Output> = {
 
 type RpcImplementationOptions<Input, Output> = {
     visibility: "Public" | ReadonlyArray<ActorServiceName>;
-    execute: (context: RpcServerActionContext, input: Input) => Promise<Output>;
+    execute: (
+        context: RpcServerActionContext,
+        input: Input,
+        options: {callId: RpcCallId},
+    ) => Promise<Output>;
 };
 
 /**
@@ -105,6 +112,7 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
 
             const executeWithoutSerialization = (
                 context: RpcServerActionContext,
+                callId: RpcCallId,
                 input: Input,
                 options?: RpcExecuteOptions,
             ): Promise<Output> => {
@@ -171,7 +179,7 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
                             );
                         }
 
-                        const output = (await implementation(context, input)) as Output;
+                        const output = (await implementation(context, input, {callId})) as Output;
                         finishSpan();
                         return output;
                     } catch (error) {
@@ -184,22 +192,23 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
 
             const execute = async (
                 context: RpcServerActionContext,
+                callId: RpcCallId,
                 serializedInput: SchemaSerializedValue,
                 options?: RpcExecuteOptions,
             ): Promise<SchemaSerializedValue> => {
                 const input = definition.inputSchema.deserialize(serializedInput);
-                const output = await executeWithoutSerialization(context, input, options);
+                const output = await executeWithoutSerialization(context, callId, input, options);
                 return definition.outputSchema.serialize(output);
             };
 
             return {
                 execute,
-                executeWithoutSerialization: (context, input, options) => {
+                executeWithoutSerialization: (context, callId, input, options) => {
                     // Make sure the input is well formed beyond complying with the TypeScript
                     // types without doing a full serialization/deserialization.
                     definition.inputSchema.validate?.(input);
 
-                    return executeWithoutSerialization(context, input, options);
+                    return executeWithoutSerialization(context, callId, input, options);
                 },
             };
         },

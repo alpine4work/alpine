@@ -5,6 +5,7 @@ import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
     createDocument,
+    getDocumentContent,
     getDocumentPreview,
     getDocumentWithOptionalComments,
     updateDocumentContent,
@@ -177,6 +178,11 @@ export class TestDocument {
 
     public get() {
         return getDocumentWithOptionalComments(this.space.systemAction(), this.id);
+    }
+
+    public async getString() {
+        const {content} = await getDocumentContent(this.space.systemAction(), this.id);
+        return content.toString();
     }
 
     public readonly access = new TestAccessPolicy({

@@ -61,6 +61,7 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
 
             const outputPromise = rpcImplementation.execute(
                 context,
+                call.id,
                 call.input,
                 call.tracerContext
                     ? {replaceTracerPropagationContext: call.tracerContext}

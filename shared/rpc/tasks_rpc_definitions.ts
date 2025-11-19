@@ -122,6 +122,8 @@ export const getTaskNotesContent = defineRpc({
 export const updateTaskNotesContent = defineRpc({
     name: "updateTaskNotesContent",
     // Applies the steps twice if called with the same `version` and `steps`.
+    //
+    // TODO(calebmer): Make this idempotent like `updateDocumentContent()`!
     isIdempotent: false,
     input: {
         spaceId: Schema.id<SpaceId>(),

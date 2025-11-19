@@ -2,6 +2,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
@@ -37,6 +38,7 @@ afterEach(() => {
 export class TestRpcContextModule extends RpcContextModuleBase {
     public override execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
+        callId: RpcCallId,
         input: Input,
     ): Promise<Output> {
         const executions = getOrSetDefaultMapValue(testRpcExecutions, definition, () => []);

@@ -20,7 +20,7 @@ import {
     getResolvedDocumentCommentThreadRanges,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
-    updateDocumentContent,
+    updateDocumentContentIdempotently,
 } from "~/server/documents/data/documents_actions.js";
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
@@ -105,21 +105,23 @@ export default implementRpcs(definitions, {
 
     updateDocumentContent: {
         visibility: ["DocumentCollaborationService"],
-        execute: async (context, input) => {
-            const {conflictingSteps, updatedCommentThreads} = await updateDocumentContent(
+        execute: async (context, input, {callId}) => {
+            const {newVersion, updatedCommentThreads} = await updateDocumentContentIdempotently(
                 context.actor.authorizeSession(),
                 {
                     id: input.documentId,
                     version: input.version,
                     steps: input.steps,
                     clientId: input.clientId,
+                    clientRequestToken: callId,
                     createCommentThreads: input.createCommentThreads,
                     intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 },
             );
-            return {conflictingSteps, updatedCommentThreads};
+
+            return {newVersion, updatedCommentThreads};
         },
     },
 

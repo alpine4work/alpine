@@ -138,8 +138,7 @@ export const getDocumentContentSteps = defineRpc({
 
 export const updateDocumentContent = defineRpc({
     name: "updateDocumentContent",
-    // Applies the steps twice if called with the same `version` and `steps`.
-    isIdempotent: false,
+    isIdempotent: true,
     input: {
         documentId: Schema.id<DocumentId>(),
         version: Schema.integer,
@@ -162,12 +161,7 @@ export const updateDocumentContent = defineRpc({
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
     },
     output: {
-        conflictingSteps: Schema.array(
-            Schema.object({
-                step: DocumentContentStepSchema,
-                clientId: Schema.id<ContentEditorClientId>(),
-            }),
-        ),
+        newVersion: Schema.integer,
         updatedCommentThreads: Schema.array(DocumentCommentThreadModel.schema()),
     },
 });

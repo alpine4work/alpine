@@ -12,6 +12,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchByActorCallInputSchema,
@@ -44,12 +45,14 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
 
     public execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
+        callId: RpcCallId,
         input: Input,
     ): Promise<Output> {
         return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
             const serializedInput = definition.inputSchema.serialize(input);
 
             const serializedOutput = await this._context.batch.execute(this._batcher, {
+                id: callId,
                 tokenPayload: context.actor.getTokenPayload(),
                 name: definition.name,
                 input: serializedInput,
@@ -66,6 +69,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
 }
 
 type RpcCall = {
+    readonly id: RpcCallId;
     readonly tokenPayload: TokenPayload;
     readonly name: string;
     readonly input: SchemaSerializedValue;
@@ -167,6 +171,7 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
                 headers["authorization"] = `bearer ${token}`;
 
                 body = RpcHttpCallInputSchema.serialize({
+                    id: firstCall.id,
                     name: firstCall.name,
                     input: firstCall.input,
                 });
@@ -183,6 +188,7 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
 
                 body = RpcHttpBatchCallInputSchema.serialize({
                     calls: callBatch.map(call => ({
+                        id: call.id,
                         name: call.name,
                         input: call.input,
                         tracerContext: call.span.getPropagationContext(),
@@ -205,6 +211,7 @@ export class WorkerRpcContextBatcher extends ContextBatcherBase<
                         }),
                     ),
                     calls: callBatch.map(call => ({
+                        id: call.id,
                         name: call.name,
                         input: call.input,
                         tracerContext: call.span.getPropagationContext(),
