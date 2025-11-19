@@ -260,7 +260,7 @@ export function createAwsAppOrApiService(
             // breaks ECS process termination. The `SIGTERM` signal is sent to the shell
             // (e.g. `sh -c`) not our process.
             //
-            // `runProcess()` implements env variable substitution which is why we can use
+            // `runService()` implements env variable substitution which is why we can use
             // env variable syntax like `$HONEYCOMB_API_KEY`.
             taskDefinitionOptions.containerCommandPath,
             `--port=${port}`,

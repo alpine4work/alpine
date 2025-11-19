@@ -91,6 +91,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             },
         });
 
+        const deleteEnvKeys = new Set<string>();
+
         // Perform environment variable substitution for any CLI options. That way:
         //
         // 1. We don't need to run in a shell
@@ -105,15 +107,10 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             const envKey = value.slice(1);
             const envValue = process.env[envKey];
 
+            deleteEnvKeys.add(envKey);
+
             if (envValue === undefined)
                 throw new InternalError(quote`Env variable ${envKey} does not exist`);
-
-            // Don't allow access to the environment variable anywhere else in the program.
-            // Force key usage to be controlled here from the top of the program.
-            //
-            // Also secures against attacks where an attacker finds a way to inspect
-            // `process.env`.
-            delete process.env[envKey];
 
             (parsedOptions.values as any)[key] = envValue;
         }
@@ -220,6 +217,19 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         }
 
         assert(serviceModuleResult);
+
+        // Don't allow access to the environment variable anywhere else in the program.
+        // Force key usage to be controlled here from the top of the program.
+        //
+        // Also secures against attacks where an attacker finds a way to inspect
+        // `process.env`.
+        //
+        // We only delete environment variables on workers. Don't delete on the cluster
+        // primary. Since the cluster primary passes `process.env` to worker children
+        // it spawns with `cluster.fork()`.
+        for (const envKey of deleteEnvKeys) {
+            delete process.env[envKey];
+        }
 
         process.on("message", untypedMessage => {
             const message = untypedMessage as ServiceClusterMessage;
