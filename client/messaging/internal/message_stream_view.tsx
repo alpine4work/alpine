@@ -8,9 +8,11 @@ import {
 import {MessageStreamViewItemList} from "~/client/messaging/internal/message_stream_view_item_list.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {
     MessageContentProsemirrorSchema,
@@ -80,15 +82,20 @@ export function MessageStreamView({
 
         const lastUpdatedTime = stream.lastPingTime ?? stream.createdTime;
 
+        // See comment [1] for guidance on using sycnhronized system clock on client.
+        //
+        // [1]: https://app.graphite.com/github/pr/cyberworlds/cyberworlds/784/ping-API-to-keep-durable-object-alive#comment-PRRC_kwDOH2ktg86XX_c_
+        const clock =
+            getSynchronizedSystemClock().getStateWithoutListening().value ??
+            unsynchronizedSystemClock;
+        const timeoutTime = lastUpdatedTime.getTime() + messageStreamTimeoutClientLimitMs;
+
         // We want to run the timeout logic 15 seconds after the last time the stream
         // was updated. So we calculate the absolute time of the last update plus 15 seconds,
         // and then we figure out how many milliseconds away we are from that time.
         // So if current time is timestep 45 and last updated time is 35, the timeout
         // will run in about 5 seconds (at timestep 50, which is 15 seconds after the last update).
-        const timeoutMs = differenceInMilliseconds(
-            new Date(),
-            lastUpdatedTime.getTime() + messageStreamTimeoutClientLimitMs,
-        );
+        const timeoutMs = differenceInMilliseconds(timeoutTime, clock.now());
         const {clear} = createTimeout(() => setHasResponseTimedOut(true), timeoutMs);
 
         return () => clear();

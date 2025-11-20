@@ -34,6 +34,7 @@ ts_project(
         "//client/shimmer",
         "//client/spaces",
         "//client/styles",
+        "//client/tracer",
         "//client/virtualized",
         "//shared/access",
         "//shared/agents",
