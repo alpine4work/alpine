@@ -91,12 +91,11 @@ const appDevPrivatePorts = parsePorts(env.APP_DEV_PRIVATE_PORTS);
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
 const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
-const edgeServiceUrl = `${env.EDGE_DEV_HOST}:${edgeDevPort}`;
+const edgeServiceUrl = `http://localhost:${edgeDevPort}`;
 
 const resourcesDevPort = parsePort(env.RESOURCES_DEV_PORT);
 const resourcesDevInspectorPort = parsePort(env.RESOURCES_DEV_INSPECTOR_PORT);
 const resourcesDevPrivatePorts = parsePorts(env.RESOURCES_DEV_PRIVATE_PORTS);
-const resourceServiceUrl = `${env.RESOURCES_DEV_HOST}:${resourcesDevPort}`;
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
@@ -181,6 +180,23 @@ const apnsCertificatePrivateKeyPath = joinPath(
     runfilesPath,
     "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
 );
+
+const externalHost = (() => {
+    for (const [name, nets] of Object.entries(networkInterfaces())) {
+        if (!nets) continue;
+        for (const networkInterface of nets) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+            const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
+            if (networkInterface.family === familyV4Value && !networkInterface.internal) {
+                if (name === "en0") {
+                    return networkInterface.address;
+                }
+            }
+        }
+    }
+    return null;
+})();
 
 /**
  * An artifact which our dev process manager keeps up-to-date. There are two
@@ -299,6 +315,12 @@ export type ArtifactServer =
       };
 
 function createArtifacts() {
+    const resourceServiceUrl = `http://${externalHost ?? "localhost"}:${resourcesDevPort}`;
+    const externalEdgeServiceUrl = `http://${externalHost ?? "localhost"}:${edgeDevPort}`;
+
+    // String with comma-delimited origins that resource service will allow CORS requests from.
+    const corsTrustedOrigins = `${edgeServiceUrl}, ${externalEdgeServiceUrl}`;
+
     const artifacts: ReadonlyArray<Artifact> = [
         // App assets are built with a file artifact then `//app:app_wrapper` runs a
         // lightweight `AppService` which serves Remix routes through a Vite dev
@@ -422,6 +444,7 @@ function createArtifacts() {
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "files")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${resourcesDevInspectorPort}`,
+                `--corsTrustedOrigins=${corsTrustedOrigins}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -699,23 +722,6 @@ const fastMainPromise = runAllPromises([fastSetupPromise, artifactsPromise]);
 const mainPromise = runAllPromises([fastMainPromise, slowSetupPromise]);
 
 void fastMainPromise.then(() => {
-    const externalHost = (() => {
-        for (const [name, nets] of Object.entries(networkInterfaces())) {
-            if (!nets) continue;
-            for (const networkInterface of nets) {
-                // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-                // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
-                const familyV4Value = typeof networkInterface.family === "string" ? "IPv4" : 4;
-                if (networkInterface.family === familyV4Value && !networkInterface.internal) {
-                    if (name === "en0") {
-                        return networkInterface.address;
-                    }
-                }
-            }
-        }
-        return null;
-    })();
-
     writeToCoordinatedStdout(`\
 
 

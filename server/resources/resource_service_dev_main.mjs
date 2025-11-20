@@ -43,6 +43,7 @@ async function main() {
             cloudflareR2LocalDataPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
+            corsTrustedOrigins,
         },
     } = parseArgs({
         options: {
@@ -63,6 +64,7 @@ async function main() {
             cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
+            corsTrustedOrigins: {type: "string"},
         },
     });
 
@@ -73,6 +75,7 @@ async function main() {
     if (!portString) throw new Error("Missing `port` arg");
     if (!appServiceUrl) throw new Error("Missing `appServiceUrl` arg");
     if (!edgeServiceUrl) throw new Error("Missing `edgeServiceUrl` arg");
+    if (!corsTrustedOrigins) throw new Error("Missing `corsTrustedOrigins` arg");
     if (!appServicePublicKeyPath) throw new Error("Missing `appServicePublicKey` arg");
     if (!edgeServiceFamilyPublicKeyPath)
         throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
@@ -123,10 +126,7 @@ async function main() {
     );
     const config = toml.parse(configString);
 
-    // "http://localhost:3000" is included even though it may duplicate the `edgeServiceUrl` in case
-    // the `edgeServiceUrl` is set to a local IP address for access over your local network, but you're
-    // also using localhost on your dev machine, in which case both need to be allowed.
-    const corsTrustedOrigins = [edgeServiceUrl, "http://localhost:3000"];
+    const corsTrustedOriginsArray = corsTrustedOrigins.split(",").map(origin => origin.trim());
 
     const miniflare = new Miniflare({
         name: config.name,
@@ -150,7 +150,7 @@ async function main() {
             TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_PROCESSOR_SERVICE_URL: fileProcessorServiceUrl,
             HONEYCOMB_API_KEY: honeycombApiKey,
-            CORS_TRUSTED_ORIGINS: corsTrustedOrigins,
+            CORS_TRUSTED_ORIGINS: corsTrustedOriginsArray,
         },
         globals: {
             __writeTracerEventToFileInDev: writeTracerEventToFileInDev,
