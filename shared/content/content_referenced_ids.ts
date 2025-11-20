@@ -3,6 +3,7 @@ import {Step} from "prosemirror-transform";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {FileEntityId, FileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
@@ -41,6 +42,15 @@ export const emptyContentReferencedIds: ContentReferencedIds = {
     fileIds: emptySet,
     fileEntityIds: emptySet,
 };
+
+export type MutableContentReferencedIds = {
+    readonly accountIds: Set<AccountId>;
+    readonly searchEntityIds: Set<SearchMentionEntityId>;
+    readonly fileIds: Set<FileId>;
+    readonly fileEntityIds: Set<FileEntityId>;
+};
+
+assertAssignableTypes<MutableContentReferencedIds, ContentReferencedIds>();
 
 /**
  * Is the provided `ContentReferencedIds` object empty?
@@ -115,11 +125,23 @@ export function collectContentReferencedIds(
     visit: (visitor: ProsemirrorVisitor) => void,
     extraVisitor: ProsemirrorVisitor = {},
 ): ContentReferencedIds {
-    const accountIds = new Set<AccountId>();
-    const searchEntityIds = new Set<SearchMentionEntityId>();
-    const fileIds = new Set<FileId>();
-    const fileEntityIds = new Set<FileEntityId>();
+    const referencedIds: MutableContentReferencedIds = {
+        accountIds: new Set(),
+        searchEntityIds: new Set(),
+        fileIds: new Set(),
+        fileEntityIds: new Set(),
+    };
 
+    collectContentReferencedIdsInto(referencedIds, visit, extraVisitor);
+
+    return referencedIds;
+}
+
+export function collectContentReferencedIdsInto(
+    {accountIds, searchEntityIds, fileIds, fileEntityIds}: MutableContentReferencedIds,
+    visit: (visitor: ProsemirrorVisitor) => void,
+    extraVisitor: ProsemirrorVisitor = {},
+) {
     visit({
         visitNode: node => {
             // Intentionally don't return boolean which cancels child visiting.
@@ -158,6 +180,4 @@ export function collectContentReferencedIds(
             extraVisitor.visitAttr?.(attr, value);
         },
     });
-
-    return {accountIds, searchEntityIds, fileIds, fileEntityIds};
 }

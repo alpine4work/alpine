@@ -8,11 +8,7 @@ import {
     MessagingRealtimeEventStub,
     MessagingRealtimeEventStubNewMessage,
 } from "~/server/messaging/realtime/messaging_realtime_event_stub.js";
-import {
-    emptyContentReferencedIds,
-    getContentReferencedIdsForNode,
-    isEmptyContentReferencedIds,
-} from "~/shared/content/content_referenced_ids.js";
+import {isEmptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -31,6 +27,7 @@ import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageReferencedIds,
     MessageReferences,
+    collectContentReferencedIdsForStreamPart,
     getMessageReferencedIds,
 } from "~/shared/messaging/message_references.js";
 import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/message_schema.js";
@@ -927,18 +924,13 @@ export class MessagingRealtimeConnection<
             MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
         >,
     ) {
-        const referencedIds =
-            request.part.payload.type === "Content"
-                ? getContentReferencedIdsForNode(request.part.payload.content)
-                : emptyContentReferencedIds;
-
         for (const connection of iterateAllConnections()) {
             connection._sendEvent(context, {
                 type: "PutMessageStreamPart",
                 index: request.index,
                 partIndex: request.partIndex,
                 part: request.part,
-                referencedIds,
+                referencedIds: collectContentReferencedIdsForStreamPart(request.part.payload),
             });
         }
     }

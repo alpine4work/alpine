@@ -1,6 +1,6 @@
 import {
     getContentFileReference,
-    getMessageContentReferencesForNodes,
+    getContentReferences,
 } from "~/server/content/get_content_references.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
@@ -10,8 +10,6 @@ import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -19,6 +17,7 @@ import {
     MessageContentPayloadModelFile,
     MessagePayloadModel,
 } from "~/shared/messaging/message_model.js";
+import {getMessageContentPayloadReferencedIds} from "~/shared/messaging/message_references.js";
 import {MessagePayload, MessageStream} from "~/shared/messaging/message_schema.js";
 
 /**
@@ -39,18 +38,11 @@ export async function createMessagePayloadModel(
         }
         case "Content": {
             const [references, files] = await runAllPromises([
-                getMessageContentReferencesForNodes(
+                getContentReferences(
                     context,
                     spaceId,
-                    stream === null
-                        ? [payload.content]
-                        : addToIterable(
-                              filterMapIterable(stream.parts, part => {
-                                  if (part.payload.type !== "Content") return;
-                                  return part.payload.content;
-                              }),
-                              payload.content,
-                          ),
+                    "AssertHasNoFiles",
+                    getMessageContentPayloadReferencedIds(payload, stream),
                 ),
                 runAllPromises(
                     mapIterable(payload.fileIds, fileId =>
