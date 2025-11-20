@@ -1,15 +1,11 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "helpers",
+    name = "messaging",
     visibility = ["//server:__subpackages__"],
     deps = [
-        "//:node_modules/date-fns",
-        "//server/content",
-        "//server/context",
-        "//shared/agents",
-        "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
+        "//shared/schema",
     ],
 )

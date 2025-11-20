@@ -469,3 +469,51 @@ export function completeApiMessageStream(
             throw exhaustive(roomPathObject);
     }
 }
+
+export function sendPing(
+    tracer: TracerBase,
+    apiClient: ApiClient,
+    roomPathObject: ApiMessageRoomPathObject,
+    messageIndex: number,
+) {
+    switch (roomPathObject.type) {
+        case "Chat": {
+            return apiClient.put(tracer, "/chats/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: roomPathObject.id, index: messageIndex},
+                },
+            });
+        }
+        case "DocumentCommentThread": {
+            return apiClient.put(
+                tracer,
+                "/documents/{id}/threads/{threadId}/messages/{index}/stream/ping",
+                {
+                    params: {
+                        path: {
+                            id: roomPathObject.id,
+                            threadId: roomPathObject.threadId,
+                            index: messageIndex,
+                        },
+                    },
+                },
+            );
+        }
+        case "Post": {
+            return apiClient.put(tracer, "/posts/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: roomPathObject.id, index: messageIndex},
+                },
+            });
+        }
+        case "Task": {
+            return apiClient.put(tracer, "/tasks/{id}/messages/{index}/stream/ping", {
+                params: {
+                    path: {id: roomPathObject.id, index: messageIndex},
+                },
+            });
+        }
+        default:
+            throw exhaustive(roomPathObject);
+    }
+}

@@ -1,13 +1,13 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {
+    MessageStreamAttributesSchema,
+    MessageStreamPartSchema,
+} from "~/server/messaging/message_stream_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    MessagePayloadSchema,
-    MessageStreamPartCreatedTimeSchema,
-    MessageStreamPartPayloadSchema,
-} from "~/shared/messaging/message_schema.js";
+import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -62,64 +62,14 @@ export const ForumTable = DynamoTableSchema.new({
                         {
                             name: "Stream",
                             sortKeyAttributes: {},
-                            attributes: Schema.object({
-                                // We duplicate `authorId` here to easily check if the bot is allowed to update
-                                // the stream.
-                                authorId: Schema.id<AccountId>(),
-
-                                /**
-                                 * When the stream was completed. If null then the stream hasn't been
-                                 * finished so we should expect more updates!
-                                 *
-                                 * If a stream hasn't completed for some period of time since creation (a
-                                 * couple hours) then we consider the stream to be completed whether or not
-                                 * it actually has been completed.
-                                 */
-                                completedTime: Schema.date.nullable(),
-
-                                /**
-                                 * The number of parts in the stream so far. A bot can only ever create
-                                 * new parts or update the last part in the stream.
-                                 */
-                                partCount: Schema.integer.min(0),
-
-                                /**
-                                 * The current `updateLockVersion` of the last part in the stream.
-                                 */
-                                lastPartUpdateLockVersion: Schema.integer.min(0).nullable(),
-
-                                /**
-                                 * The last `IndexSearchEntity` job that was sent for this stream. We send an
-                                 * `IndexSearchEntity` job once every 10 seconds.
-                                 */
-                                lastIndexSearchEntityJob: Schema.object({
-                                    sendTime: Schema.date,
-                                    delaySeconds: Schema.integer.min(0),
-                                }),
-
-                                /**
-                                 * The creation time of the last part of the stream. We allow clients to update
-                                 * stream parts as long as they're updating the last part of the stream or the
-                                 * next part. When they update a part, we don't want to have to fetch the part
-                                 * in order to maintain its creation time.
-                                 *
-                                 * Because we disallow clients from updating existing parts before the last part,
-                                 * we can safely store the creation time of the last part on the Stream's
-                                 * attributes and trust its accuracy. This will get set every time a new stream
-                                 * part is created.
-                                 */
-                                lastPartCreatedTime: Schema.date.nullable().default(null),
-                            }),
+                            attributes: MessageStreamAttributesSchema,
                         },
                         {
                             name: "StreamPart",
                             sortKeyAttributes: {
                                 partIndex: DynamoKeyAttributeSchema.integer,
                             },
-                            attributes: Schema.object({
-                                payload: MessageStreamPartPayloadSchema,
-                                createdTime: MessageStreamPartCreatedTimeSchema,
-                            }),
+                            attributes: MessageStreamPartSchema,
                         },
                     ],
                 },

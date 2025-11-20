@@ -35,6 +35,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/files/data",
         "//server/helpers",
+        "//server/messaging",
         "//server/messaging/helpers",
         "//server/notifications/core",
         "//server/search/data/table",

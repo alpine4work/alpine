@@ -3,12 +3,14 @@ import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {messageStreamTimeoutServerLimitMs} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -3435,6 +3437,387 @@ export function testMessagingApiImplementation(
                         }),
                     }),
                 });
+            });
+
+            test("can’t ping stream message without access", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession({role: "Admin"});
+
+                const bot1 = await TestBot.createAndInstantiate(session1);
+                const apiKey = await bot1.createApiKey(session1);
+
+                const {roomPath} = await createPrivateRoom(session1, bot1);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                // Create a stream message using a bot that has access
+                const bot2 = await TestBot.createAndInstantiate(session2);
+                const bot2ApiKey = await bot2.createApiKey(session2);
+                expect(
+                    await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                        {
+                            headers: {authorization: `bearer ${bot2ApiKey}`},
+                            body: {isStream: true, content: {elements: []}},
+                        },
+                    ),
+                ).toEqual({
+                    status: 403,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: {
+                        error: expect.objectContaining({
+                            stack: expect.stringContaining("PermissionDeniedError"),
+                        }),
+                    },
+                });
+            });
+
+            test("can’t ping stream that is already completed", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const completionResponse = await server.PUT(
+                    `${roomPath}/messages/${messageResponse.body.message.index}/stream/completion`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                );
+
+                expect(completionResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const pingResponse = await server.PUT(
+                    `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                );
+
+                expect(pingResponse).toEqual({
+                    status: 400,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        error: expect.objectContaining({
+                            message: "Can’t ping a message stream that has been completed.",
+                            stack: expect.stringContaining(
+                                "FailedPreconditionError: The stream has been completed",
+                            ),
+                        }),
+                    }),
+                });
+            });
+
+            test("can’t ping stale stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+
+                try {
+                    const pingResponse = await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                        {headers: {authorization: `bearer ${apiKey}`}},
+                    );
+
+                    expect(pingResponse).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: expect.objectContaining({
+                            error: expect.objectContaining({
+                                message: expect.stringMatching(
+                                    "Can’t ping a message stream that has timed out",
+                                ),
+                                stack: expect.stringContaining(
+                                    "FailedPreconditionError: The stream has timed out",
+                                ),
+                            }),
+                        }),
+                    });
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("can’t complete stale stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+
+                try {
+                    const completionResponse = await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/completion`,
+                        {headers: {authorization: `bearer ${apiKey}`}},
+                    );
+
+                    expect(completionResponse).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: expect.objectContaining({
+                            error: expect.objectContaining({
+                                message: expect.stringMatching(
+                                    "Can’t complete a message stream that has timed out",
+                                ),
+                                stack: expect.stringContaining(
+                                    "FailedPreconditionError: The stream has timed out",
+                                ),
+                            }),
+                        }),
+                    });
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("can’t put stream part into stale stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+
+                try {
+                    const putPartResponse = await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/parts/0`,
+                        {
+                            headers: {authorization: `bearer ${apiKey}`},
+                            body: {
+                                payload: {
+                                    type: "Content",
+                                    content: {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Test part 1"}],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    );
+
+                    expect(putPartResponse).toEqual({
+                        status: 400,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: expect.objectContaining({
+                            error: expect.objectContaining({
+                                message: expect.stringMatching(
+                                    "Can’t put message part for a message stream that has timed out",
+                                ),
+                                stack: expect.stringContaining(
+                                    "FailedPreconditionError: The stream has timed out",
+                                ),
+                            }),
+                        }),
+                    });
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("can ping active stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const pingResponse = await server.PUT(
+                    `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                );
+
+                expect(pingResponse).toEqual(expect.objectContaining({status: 200}));
+            });
+
+            test("can’t ping message that is not a stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const pingResponse = await server.PUT(
+                    `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                );
+
+                expect(pingResponse).toEqual({
+                    status: 400,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        error: expect.objectContaining({
+                            message: "Message isn’t a stream.",
+                            stack: expect.stringContaining(
+                                "FailedPreconditionError: Message isn’t a stream",
+                            ),
+                        }),
+                    }),
+                });
+            });
+
+            test("can’t ping message stream created by another bot", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+
+                const bot1 = await TestBot.createAndInstantiate(session1);
+                const apiKey = await bot1.createApiKey(session1);
+
+                const {roomPath, room} = await createPrivateRoom(session1, bot1);
+
+                // Create a stream message using a bot that has access
+                const bot2 = await TestBot.createAndInstantiate(session1);
+                const bot2ApiKey = await bot2.createApiKey(room.getBotScope());
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+                expect(
+                    await server.PUT(
+                        `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                        {
+                            headers: {authorization: `bearer ${bot2ApiKey}`},
+                            body: {isStream: true, content: {elements: []}},
+                        },
+                    ),
+                ).toEqual({
+                    status: 403,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: {
+                        error: expect.objectContaining({
+                            message: "Only the bot who created the stream can update it.",
+                            stack: expect.stringContaining("PermissionDeniedError"),
+                        }),
+                    },
+                });
+            });
+
+            test("increases previous ping time by 1 ms if current time is less than `lastPingTime`", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath} = await createPrivateRoom(session, bot);
+
+                const messageResponse = await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {isStream: true, content: {elements: []}},
+                });
+
+                expect(messageResponse).toEqual(expect.objectContaining({status: 200}));
+
+                const pingResponse = await server.PUT(
+                    `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                    {headers: {authorization: `bearer ${apiKey}`}},
+                );
+
+                expect(pingResponse).toEqual(expect.objectContaining({status: 200}));
+                const lastUpdatedTime = deserializeDateString(
+                    pingResponse.body.ping.lastUpdatedTime,
+                );
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                Date.now = () => originalTime - 2000;
+
+                try {
+                    expect(
+                        await server.PUT(
+                            `${roomPath}/messages/${messageResponse.body.message.index}/stream/ping`,
+                            {headers: {authorization: `bearer ${apiKey}`}},
+                        ),
+                    ).toEqual({
+                        status: 200,
+                        headers: expect.objectContaining({"content-type": "application/json"}),
+                        body: expect.objectContaining({
+                            ping: {
+                                lastUpdatedTime: serializeDateString(
+                                    new Date(lastUpdatedTime.getTime() + 1),
+                                ),
+                            },
+                        }),
+                    });
+                } finally {
+                    Date.now = originalDateNow;
+                }
             });
         });
     });

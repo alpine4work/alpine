@@ -183,6 +183,25 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamCompletion"
                 default:
                     $ref: "#/components/responses/Error"
+    /chats/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/ChatId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPing"
+                default:
+                    $ref: "#/components/responses/Error"
     /chats/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -327,6 +346,30 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentId"
+            - name: threadId
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/DocumentThreadId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPing"
                 default:
                     $ref: "#/components/responses/Error"
     /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
@@ -500,6 +543,25 @@ paths:
                     $ref: "#/components/responses/GetMessageStreamCompletion"
                 default:
                     $ref: "#/components/responses/Error"
+    /posts/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/PostId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPing"
+                default:
+                    $ref: "#/components/responses/Error"
     /posts/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -666,6 +728,25 @@ paths:
             responses:
                 "200":
                     $ref: "#/components/responses/GetMessageStreamCompletion"
+                default:
+                    $ref: "#/components/responses/Error"
+    /tasks/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/TaskId"
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetMessageStreamPing"
                 default:
                     $ref: "#/components/responses/Error"
     /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
@@ -877,6 +958,26 @@ components:
                                 additionalProperties: false
                                 properties:
                                     completedTime:
+                                        $ref: "#/components/schemas/DateTime"
+        GetMessageStreamPing:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - ping
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            ping:
+                                type: object
+                                required:
+                                    - lastUpdatedTime
+                                additionalProperties: false
+                                properties:
+                                    lastUpdatedTime:
                                         $ref: "#/components/schemas/DateTime"
         GetMessageStreamPart:
             content:

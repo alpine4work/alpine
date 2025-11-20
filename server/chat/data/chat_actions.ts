@@ -36,6 +36,13 @@ import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {
+    createCantCompleteStaleMessageStreamError,
+    createCantPingCompletedMessageStreamError,
+    createCantPingStaleMessageStreamError,
+    createCantWriteToStaleMessageStreamError,
+} from "~/server/messaging/helpers/create_message_stream_errors.js";
+import {hasMessageStreamTimedOutOnServer} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
@@ -858,12 +865,14 @@ function sendChatMessageForAccount(
                               partitionType: "Chat",
                               sortRangeType: "Messages#Stream",
                               chatId,
+                              createdTime,
                               messageIndex,
                               authorId,
                               completedTime: null,
                               partCount: 0,
                               lastPartUpdateLockVersion: null,
                               lastPartCreatedTime: null,
+                              lastPingTime: null,
                               lastIndexSearchEntityJob: {
                                   sendTime: createdTime,
                                   delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -1071,6 +1080,10 @@ export function putChatMessageStreamPart(
             });
         }
 
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantWriteToStaleMessageStreamError();
+        }
+
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
 
@@ -1116,6 +1129,7 @@ export function putChatMessageStreamPart(
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
+                    lastPingTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -1153,6 +1167,7 @@ export function putChatMessageStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
+                    lastPingTime: createdTime,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
@@ -1236,7 +1251,13 @@ export function completeChatMessageStream(
             return {spaceId, completedTime: item.completedTime};
         }
 
-        const completedTime = new Date();
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const completedTime = new Date(Date.now());
+
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantCompleteStaleMessageStreamError();
+        }
 
         await ChatTable.directlyUpdateItem(context, {
             ...item,
@@ -1244,6 +1265,85 @@ export function completeChatMessageStream(
         });
 
         return {spaceId, completedTime};
+    });
+}
+
+/**
+ * Pings a message stream and updates its `lastPingTime`.
+ *
+ * This function is idempotent. If the stream hasn't been pinged in a while this method
+ * will update its `lastPingTime`.
+ */
+export function pingChatMessageStream(
+    context: ServerBotActionContext,
+    {
+        chatId,
+        messageIndex,
+        consistency,
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    lastPingTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeChatAccess(context, chatId, {consistency}),
+
+            ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Messages#Stream",
+                    chatId,
+                    messageIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw createCantPingCompletedMessageStreamError();
+        }
+
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantPingStaleMessageStreamError();
+        }
+
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const currentTime = new Date(Date.now());
+
+        const lastPingTime =
+            item.lastPingTime && currentTime <= item.lastPingTime
+                ? // NOTE(ifitzsimmons): This makes sure lastPingTime is always at least 1ms ahead of
+                  // the previous ping time. This is important if we have two different instances
+                  // processing pings with different clock skews.
+                  new Date(item.lastPingTime.getTime() + 1)
+                : currentTime;
+
+        await ChatTable.directlyUpdateItem(context, {
+            ...item,
+            lastPingTime,
+        });
+
+        return {spaceId, lastPingTime};
     });
 }
 

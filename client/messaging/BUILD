@@ -36,6 +36,7 @@ ts_project(
         "//client/styles",
         "//client/virtualized",
         "//shared/access",
+        "//shared/agents",
         "//shared/content",
         "//shared/design:design_core",
         "//shared/error:error_core",

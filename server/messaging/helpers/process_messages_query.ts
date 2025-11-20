@@ -20,8 +20,10 @@ export type MessageQueryItem = {
 export type MessageQueryStreamItem = {
     readonly sortRangeType: "Messages#Stream";
     readonly messageIndex: number;
+    readonly createdTime: Date;
     readonly partCount: number;
     readonly completedTime: Date | null;
+    readonly lastPingTime: Date | null;
 };
 
 export type MessageQueryStreamPartItem = {
@@ -68,6 +70,8 @@ export async function* processMessagesQuery(
 
         let stream: {
             completedTime: Date | null;
+            lastPingTime: Date | null;
+            createdTime: Date;
             parts: Array<{payload: MessageStreamPartPayload; createdTime: Date; version: number}>;
         } | null = null;
 
@@ -96,6 +100,8 @@ export async function* processMessagesQuery(
 
             stream = {
                 completedTime: currentStreamItem.completedTime,
+                lastPingTime: currentStreamItem.lastPingTime,
+                createdTime: currentStreamItem.createdTime,
                 parts,
             };
         }

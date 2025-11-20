@@ -19,6 +19,7 @@ import {
     getTaskCommentsFromStart,
     getTaskCommentsSummaryItemIfExistsForTest,
     getTaskItemForTest,
+    pingTaskCommentStream,
     putTaskCommentStreamPart,
     setTaskCommentReaction,
     updateTaskCommentContent,
@@ -153,6 +154,9 @@ testMessagingImplementation<TaskId>(processContext, {
             index: comment.index,
             createdTime: comment.createdTime,
         };
+    },
+    async pingMessageStream(context, {roomKey: taskId, messageIndex}) {
+        return pingTaskCommentStream(context, {taskId, commentIndex: messageIndex});
     },
     async putMessageStreamPart(
         context,

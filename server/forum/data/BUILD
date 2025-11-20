@@ -43,6 +43,7 @@ ts_project(
         "//server/files/data",
         "//server/helpers",
         "//server/jobs/core",
+        "//server/messaging",
         "//server/messaging/helpers",
         "//server/notifications/core",
         "//server/search/data/table",

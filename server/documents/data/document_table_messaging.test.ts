@@ -17,6 +17,7 @@ import {
     getDocumentCommentsFromStart,
     getDocumentWithOptionalComments,
     getDocumentsTableForTest,
+    pingDocumentCommentStream,
     putDocumentCommentStreamPart,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
@@ -251,6 +252,14 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             index: comment.index,
             createdTime: comment.createdTime,
         };
+    },
+    async pingMessageStream(context, {roomKey, messageIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+        return pingDocumentCommentStream(context, {
+            documentId,
+            commentThreadId,
+            commentIndex: messageIndex,
+        });
     },
     async putMessageStreamPart(context, {roomKey, messageIndex: commentIndex, partIndex, payload}) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);

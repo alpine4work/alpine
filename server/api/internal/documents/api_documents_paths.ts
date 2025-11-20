@@ -11,6 +11,7 @@ import {
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
     getDocumentContent,
+    pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
@@ -26,6 +27,7 @@ import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPingMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 
@@ -184,7 +186,9 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             createdTime,
                             createdTimeZone,
                             payload,
-                            stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
+                            stream: requestBody.isStream
+                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                : null,
                         }),
                     },
                 ),
@@ -200,7 +204,9 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         createdTime,
                         createdTimeZone,
                         payload: payload,
-                        stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
+                        stream: requestBody.isStream
+                            ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                            : null,
                     }),
                 },
             };
@@ -244,6 +250,51 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 content: {
                     spaceId,
                     completion: {completedTime: serializeDateString(completedTime)},
+                },
+            };
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}/messages/{index}/stream/ping": {
+        put: async (context, {pathParameters}) => {
+            const {spaceId, lastPingTime} = await pingDocumentCommentStream(context, {
+                documentId: pathParameters.id,
+                commentThreadId: pathParameters.threadId,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            // NOTE(ifitzsimmons): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the might see an error message in place of the actual
+            // response from the Agent. On the client, we check to see if we've received a healthy
+            // ping OR a stream message within some time limit. If we get neither, we'll show
+            // a client-only error. Fortunately, if this happens, the user will see the full agent
+            // response when refreshing the page.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/documents/${pathParameters.id}/broadcast-ping-message-stream/${pathParameters.threadId}`,
+                    {
+                        serviceName: "DocumentCollaborationService",
+                        route: "/api/durable-objects/documents/:documentId/broadcast-ping-message-stream/:commentThreadId",
+                        body: MessagingRealtimeBroadcastPingMessageStreamRequestSchema.serialize({
+                            index: pathParameters.index,
+                            lastPingTime,
+                        }),
+                    },
+                ),
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    ping: {
+                        lastUpdatedTime: serializeDateString(lastPingTime),
+                    },
                 },
             };
         },

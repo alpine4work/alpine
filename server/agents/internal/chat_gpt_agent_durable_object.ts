@@ -32,19 +32,23 @@ import {
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
+import {startPingingApiMessageStream} from "~/server/agents/internal/messages/start_pinging_api_message_stream.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {defaultAgentErrorText} from "~/shared/agents/default_agent_error_text.js";
 import {
     ApiMessageRoomPathObject,
     getApiMentionPathIfExists,
     isApiMessageRoomPathObject,
+    parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
 import {
     ApiMessageResponse,
+    ApiMessageRoomPath,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -391,12 +395,17 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         },
     };
 
+    const interval = startPingingApiMessageStream(
+        tracer,
+        request.apiClient,
+        request.room,
+        messageIndex,
+    );
+
     try {
         await createChatGptAgentResponse(tracer, request, messageState);
     } catch (error) {
-        content.pushText(
-            "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at [support@alpine.inc](mailto:support@alpine.inc)",
-        );
+        content.pushText(defaultAgentErrorText);
         throw error;
     } finally {
         // @ts-expect-error: TypeScript is dumb and doesn't realize
@@ -409,6 +418,7 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         await updateMutex.waitForUnlock();
 
         await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+        interval.clear();
     }
 }
 
@@ -498,7 +508,9 @@ async function createChatGptAgentResponse(
         // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
         model: "gpt-5",
         // https://platform.openai.com/docs/guides/prompt-caching
-        prompt_cache_key: `${request.spaceId}:${request.event.roomPath}`,
+        prompt_cache_key: `${request.spaceId}:${getRoomPathForPromptCacheKey(
+            request.event.roomPath,
+        )}`,
         safety_identifier: request.event.authorId,
         tools: [
             chatGptReadLinkTool.get(),
@@ -818,5 +830,25 @@ async function callChatGptAgentFunction({
                 displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn’t a function name we recognize.`,
             });
         }
+    }
+}
+
+// NOTE(ifitzsimmons, 2025-11-14): The prompt cache key is too long for document comment
+// threads. Given that all of our IDs are unique, I think concatenating the full room path
+// to just the thread ID is safe.
+function getRoomPathForPromptCacheKey(roomPath: ApiMessageRoomPath): string {
+    const roomPathObject = parseApiMessageRoomPath(roomPath);
+
+    switch (roomPathObject.type) {
+        case "Chat":
+        case "Post":
+        case "Task":
+            return roomPath;
+        case "DocumentCommentThread":
+            // 3 Ids total for prompt_cache_key plus two characters which should be 81 characters
+            // and fit in the 99 character limit.
+            return `${roomPathObject.id}-${roomPathObject.threadId}`;
+        default:
+            throw exhaustive(roomPathObject);
     }
 }

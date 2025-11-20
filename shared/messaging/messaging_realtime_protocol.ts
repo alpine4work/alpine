@@ -277,6 +277,11 @@ export type MessagingRealtimeEvent<Message extends MessageModel> =
           readonly type: "CompleteMessageStream";
           readonly index: number;
           readonly completedTime: Date;
+      }
+    | {
+          readonly type: "PingMessageStream";
+          readonly index: number;
+          readonly lastPingTime: Date;
       };
 
 export function createMessagingRealtimeEventSchemas<Message extends MessageModel>(
@@ -361,6 +366,15 @@ export function createMessagingRealtimeEventSchemas<Message extends MessageModel
             index: Schema.integer.min(0),
             completedTime: Schema.date,
         }),
+
+        /**
+         * A message stream was pinged.
+         */
+        PingMessageStream: Schema.object({
+            type: Schema.value("PingMessageStream"),
+            index: Schema.integer.min(0),
+            lastPingTime: Schema.date,
+        }),
     };
 }
 
@@ -425,4 +439,12 @@ export type MessagingRealtimeBroadcastCompleteMessageStreamRequest = SchemaType<
 export const MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema = Schema.object({
     index: Schema.integer.min(0),
     completedTime: Schema.date,
+});
+
+export type MessagingRealtimeBroadcastPingMessageStreamRequest = SchemaType<
+    typeof MessagingRealtimeBroadcastPingMessageStreamRequestSchema
+>;
+export const MessagingRealtimeBroadcastPingMessageStreamRequestSchema = Schema.object({
+    index: Schema.integer.min(0),
+    lastPingTime: Schema.date,
 });

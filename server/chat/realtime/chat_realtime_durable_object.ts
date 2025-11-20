@@ -19,6 +19,7 @@ import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPingMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -28,6 +29,7 @@ type ChatRealtimeDurableObjectRoute =
     | "BroadcastNewMessage"
     | "BroadcastPutMessageStreamPart"
     | "BroadcastCompleteMessageStream"
+    | "BroadcastPingMessageStream"
     | "NotFound";
 
 class ChatRealtimeDurableObject {
@@ -122,6 +124,10 @@ class ChatRealtimeDurableObject {
             return [url.pathname, "BroadcastCompleteMessageStream"];
         }
 
+        if (url.pathname === "/broadcast-ping-message-stream") {
+            return [url.pathname, "BroadcastPingMessageStream"];
+        }
+
         return ["/*", "NotFound"];
     }
 
@@ -193,6 +199,25 @@ class ChatRealtimeDurableObject {
                     );
 
                 ChatRealtimeConnection.broadcastCompleteMessageStream(context, requestBody, () =>
+                    this._webSocketServer.iterateAllConnections(),
+                );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastPingMessageStream": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    MessagingRealtimeBroadcastPingMessageStreamRequestSchema.deserialize(
+                        await request.json(),
+                    );
+
+                ChatRealtimeConnection.broadcastPingMessageStream(context, requestBody, () =>
                     this._webSocketServer.iterateAllConnections(),
                 );
 

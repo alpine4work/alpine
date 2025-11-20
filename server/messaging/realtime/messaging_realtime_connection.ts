@@ -37,6 +37,7 @@ import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/me
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
+    MessagingRealtimeBroadcastPingMessageStreamRequest,
     MessagingRealtimeBroadcastPutMessageStreamPartRequest,
     MessagingRealtimeEvent,
     MessagingTypingState,
@@ -962,6 +963,26 @@ export class MessagingRealtimeConnection<
         }
     }
 
+    public static broadcastPingMessageStream<
+        RoomKey extends string,
+        Message extends MessageModel<RoomKey>,
+        BackfillMessagesExtra = null,
+    >(
+        context: WorkerActionContext,
+        request: MessagingRealtimeBroadcastPingMessageStreamRequest,
+        iterateAllConnections: () => Iterable<
+            MessagingRealtimeConnection<RoomKey, Message, BackfillMessagesExtra>
+        >,
+    ) {
+        for (const connection of iterateAllConnections()) {
+            connection._sendEvent(context, {
+                type: "PingMessageStream",
+                index: request.index,
+                lastPingTime: request.lastPingTime,
+            });
+        }
+    }
+
     public async transformEvent(
         context: WorkerSessionActionContext,
         eventStub: MessagingRealtimeEventStub,
@@ -1023,11 +1044,10 @@ export class MessagingRealtimeConnection<
                 };
             }
             case "CompleteMessageStream": {
-                return {
-                    type: "CompleteMessageStream",
-                    index: eventStub.index,
-                    completedTime: eventStub.completedTime,
-                };
+                return eventStub;
+            }
+            case "PingMessageStream": {
+                return eventStub;
             }
             default:
                 throw exhaustive(eventStub);

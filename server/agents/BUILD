@@ -34,6 +34,7 @@ ts_project(
         "//server/cloudflare/types",
         "//server/helpers",
         "//server/tracer",
+        "//shared/agents",
         "//shared/api",
         "//shared/context",
         "//shared/error",

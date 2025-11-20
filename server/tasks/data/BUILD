@@ -61,6 +61,7 @@ ts_project(
         "//server/feed",
         "//server/helpers",
         "//server/helpers/node",
+        "//server/messaging",
         "//server/messaging/helpers",
         "//server/opensearch",
         "//server/search/data/table",

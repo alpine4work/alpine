@@ -33,6 +33,7 @@ ts_project(
         "//server/feed",
         "//server/files/data",
         "//server/helpers",
+        "//server/messaging",
         "//server/messaging/helpers",
         "//server/notifications/core",
         "//server/search/data/table",

@@ -17,8 +17,10 @@ export type CommentQueryItem = {
 export type CommentQueryStreamItem = {
     readonly sortRangeType: "Comments#Stream";
     readonly commentIndex: number;
+    readonly createdTime: Date;
     readonly partCount: number;
     readonly completedTime: Date | null;
+    readonly lastPingTime: Date | null;
 };
 
 export type CommentQueryStreamPartItem = {
@@ -55,6 +57,8 @@ export async function* processCommentsQuery(
 
         let stream: {
             completedTime: Date | null;
+            lastPingTime: Date | null;
+            createdTime: Date;
             parts: Array<{version: number; payload: MessageStreamPartPayload; createdTime: Date}>;
         } | null = null;
 
@@ -83,6 +87,8 @@ export async function* processCommentsQuery(
 
             stream = {
                 completedTime: currentStreamItem.completedTime,
+                lastPingTime: currentStreamItem.lastPingTime,
+                createdTime: currentStreamItem.createdTime,
                 parts,
             };
         }

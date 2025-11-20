@@ -193,6 +193,23 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
 
+    /chats/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/ChatId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
     /chats/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -325,6 +342,27 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /documents/{id}/threads/{threadId}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
 
     /documents/{id}/threads/{threadId}/messages/{index}/stream/parts/{partIndex}:
         parameters:
@@ -481,6 +519,23 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
 
+    /posts/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/PostId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
+
     /posts/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
             - name: id
@@ -633,6 +688,23 @@ paths:
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetMessageStreamCompletion"}
+
+    /tasks/{id}/messages/{index}/stream/ping:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/TaskId"}
+            - name: index
+              in: path
+              required: true
+              schema:
+                  type: integer
+                  minimum: 0
+        put:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetMessageStreamPing"}
 
     /tasks/{id}/messages/{index}/stream/parts/{partIndex}:
         parameters:
@@ -827,6 +899,27 @@ components:
                                 additionalProperties: false
                                 properties:
                                     completedTime:
+                                        $ref: "#/components/schemas/DateTime"
+
+        # NOTE(ifitzsimmons, 2025-11-14): If a client tries pinging a stream after it's
+        # been completed, we don't throw an error. Instead, we return the completed time
+        # and the last stream ping time (without updating the last stream ping time).
+        GetMessageStreamPing:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, ping]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            ping:
+                                type: object
+                                required: [lastUpdatedTime]
+                                additionalProperties: false
+                                properties:
+                                    lastUpdatedTime:
                                         $ref: "#/components/schemas/DateTime"
 
         # TODO(calebmer, #public-api): We don't currently have

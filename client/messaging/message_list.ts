@@ -1139,4 +1139,39 @@ export class MessageList<Message extends MessageModel> {
             mutableCheckpoint: this._mutableCheckpoint,
         });
     }
+
+    public pingMessageStream(event: {index: number; lastPingTime: Date}) {
+        const iterator = this._messages.find(event.index);
+        if (!iterator.value) return this;
+
+        const message = iterator.value;
+        if (!message.stream) return this;
+
+        // Already completed! Don't complete again.
+        if (message.stream.completedTime) return this;
+
+        // Out-of-order ping events
+        if (
+            message.stream.lastPingTime &&
+            event.lastPingTime.getTime() <= message.stream.lastPingTime.getTime()
+        ) {
+            return this;
+        }
+
+        const newStream: MessageStream = {
+            ...message.stream,
+            lastPingTime: event.lastPingTime,
+        };
+
+        const messages = iterator.update(message.clone({stream: newStream}));
+
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages,
+            unloadedMessages: this._unloadedMessages,
+            optimisticMessages: this._optimisticMessages,
+            typingStateByConnectionId: this._typingStateByConnectionId,
+            mutableCheckpoint: this._mutableCheckpoint,
+        });
+    }
 }

@@ -17,6 +17,7 @@ import {
     getPostCommentPayloadsFromStart,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    pingPostCommentStream,
     putPostCommentStreamPart,
     setPostCommentReaction,
     updatePostCommentContent,
@@ -155,6 +156,9 @@ testMessagingImplementation<PostId>(context, {
             index: comment.index,
             createdTime: comment.createdTime,
         };
+    },
+    async pingMessageStream(context, {roomKey: postId, messageIndex}) {
+        return pingPostCommentStream(context, {postId, commentIndex: messageIndex});
     },
     async putMessageStreamPart(
         context,

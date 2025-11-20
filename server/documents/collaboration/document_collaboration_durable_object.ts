@@ -28,6 +28,7 @@ import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPingMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getDocumentContentForCollaborationServiceInitialization} from "~/shared/rpc/documents_rpc_definitions.js";
@@ -41,7 +42,8 @@ type DocumentCollaborationDurableObjectRoute =
     | "BroadcastSpellCheckRealtimeEventTransaction"
     | {type: "BroadcastNewMessage"; commentThreadId: DocumentCommentThreadId}
     | {type: "BroadcastPutMessageStreamPart"; commentThreadId: DocumentCommentThreadId}
-    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId};
+    | {type: "BroadcastCompleteMessageStream"; commentThreadId: DocumentCommentThreadId}
+    | {type: "BroadcastPingMessageStream"; commentThreadId: DocumentCommentThreadId};
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
@@ -259,6 +261,15 @@ class DocumentCollaborationDurableObject {
             }
         }
 
+        if (url.pathname.startsWith("/broadcast-ping-message-stream/")) {
+            const commentThreadId = url.pathname.slice(31);
+            if (isId<DocumentCommentThreadId>(commentThreadId)) {
+                return [
+                    "/broadcast-ping-message-stream/:commentThreadId",
+                    {type: "BroadcastPingMessageStream", commentThreadId},
+                ];
+            }
+        }
         if (url.pathname === "/broadcast-spell-check-realtime-event-transaction") {
             return [
                 "/broadcast-spell-check-realtime-event-transaction",
@@ -364,6 +375,28 @@ class DocumentCollaborationDurableObject {
                             );
 
                         DocumentCollaborationConnection.broadcastCompleteMessageStream(
+                            context,
+                            route.commentThreadId,
+                            requestBody,
+                            () => this._webSocketServer.iterateAllConnections(),
+                        );
+
+                        return new Response(null, {status: 200});
+                    }
+                    case "BroadcastPingMessageStream": {
+                        if (request.method !== "POST") {
+                            return new Response("405 Method Not Allowed", {
+                                status: 405,
+                                headers: {"content-type": "text/plain"},
+                            });
+                        }
+
+                        const requestBody =
+                            MessagingRealtimeBroadcastPingMessageStreamRequestSchema.deserialize(
+                                await request.json(),
+                            );
+
+                        DocumentCollaborationConnection.broadcastPingMessageStream(
                             context,
                             route.commentThreadId,
                             requestBody,

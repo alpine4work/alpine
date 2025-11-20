@@ -39,6 +39,13 @@ import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {
+    createCantCompleteStaleMessageStreamError,
+    createCantPingCompletedMessageStreamError,
+    createCantPingStaleMessageStreamError,
+    createCantWriteToStaleMessageStreamError,
+} from "~/server/messaging/helpers/create_message_stream_errors.js";
+import {hasMessageStreamTimedOutOnServer} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
@@ -47,6 +54,10 @@ import {
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
+import {
+    MessageStreamAttributesSchema,
+    MessageStreamPartSchema,
+} from "~/server/messaging/message_stream_schema.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
@@ -162,9 +173,7 @@ import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
     MessagePayloadSchema,
-    MessageStreamPartCreatedTimeSchema,
     MessageStreamPartPayload,
-    MessageStreamPartPayloadSchema,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
 import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -841,64 +850,14 @@ const TaskTable = DynamoTableSchema.new({
                         {
                             name: "Stream",
                             sortKeyAttributes: {},
-                            attributes: Schema.object({
-                                // We duplicate `authorId` here to easily check if the bot is allowed to update
-                                // the stream.
-                                authorId: Schema.id<AccountId>(),
-
-                                /**
-                                 * When the stream was completed. If null then the stream hasn't been
-                                 * finished so we should expect more updates!
-                                 *
-                                 * If a stream hasn't completed for some period of time since creation (a
-                                 * couple hours) then we consider the stream to be completed whether or not
-                                 * it actually has been completed.
-                                 */
-                                completedTime: Schema.date.nullable(),
-
-                                /**
-                                 * The number of parts in the stream so far. A bot can only ever create
-                                 * new parts or update the last part in the stream.
-                                 */
-                                partCount: Schema.integer.min(0),
-
-                                /**
-                                 * The current `updateLockVersion` of the last part in the stream.
-                                 */
-                                lastPartUpdateLockVersion: Schema.integer.min(0).nullable(),
-
-                                /**
-                                 * The last `IndexSearchEntity` job that was sent for this stream. We send an
-                                 * `IndexSearchEntity` job once every 10 seconds.
-                                 */
-                                lastIndexSearchEntityJob: Schema.object({
-                                    sendTime: Schema.date,
-                                    delaySeconds: Schema.integer.min(0),
-                                }),
-
-                                /**
-                                 * The creation time of the last part of the stream. We allow clients to update
-                                 * stream parts as long as they're updating the last part of the stream or the
-                                 * next part. When they update a part, we don't want to have to fetch the part
-                                 * in order to maintain its creation time.
-                                 *
-                                 * Because we disallow clients from updating existing parts before the last part,
-                                 * we can safely store the creation time of the last part on the Stream's
-                                 * attributes and trust its accuracy. This will get set every time a new stream
-                                 * part is created.
-                                 */
-                                lastPartCreatedTime: Schema.date.nullable().default(null),
-                            }),
+                            attributes: MessageStreamAttributesSchema,
                         },
                         {
                             name: "StreamPart",
                             sortKeyAttributes: {
                                 partIndex: DynamoKeyAttributeSchema.integer,
                             },
-                            attributes: Schema.object({
-                                payload: MessageStreamPartPayloadSchema,
-                                createdTime: MessageStreamPartCreatedTimeSchema,
-                            }),
+                            attributes: MessageStreamPartSchema,
                         },
                     ],
                 },
@@ -5753,8 +5712,11 @@ export async function createTaskComment(
             },
         );
 
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const createdTime = new Date(Date.now());
+
         const commentIndex = commentsSummaryItem?.nextCommentIndex ?? 0;
-        const createdTime = new Date();
         const authorId = context.actor.getPossiblyBotAccountId();
 
         if (isStream && context.actor.type !== "Bot") {
@@ -5827,10 +5789,12 @@ export async function createTaskComment(
                           taskId,
                           commentIndex,
                           authorId,
+                          createdTime,
                           completedTime: null,
                           partCount: 0,
                           lastPartUpdateLockVersion: null,
                           lastPartCreatedTime: null,
+                          lastPingTime: null,
                           lastIndexSearchEntityJob: {
                               sendTime: createdTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -5976,6 +5940,10 @@ export function putTaskCommentStreamPart(
             });
         }
 
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantWriteToStaleMessageStreamError();
+        }
+
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
 
@@ -6021,6 +5989,7 @@ export function putTaskCommentStreamPart(
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
+                    lastPingTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -6059,6 +6028,7 @@ export function putTaskCommentStreamPart(
                 TaskTable.transactionDirectlyUpdateItem({
                     ...item,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
+                    lastPingTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -6141,7 +6111,13 @@ export function completeTaskCommentStream(
             return {spaceId, completedTime: item.completedTime};
         }
 
-        const completedTime = new Date();
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantCompleteStaleMessageStreamError();
+        }
+
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const completedTime = new Date(Date.now());
 
         await TaskTable.directlyUpdateItem(context, {
             ...item,
@@ -6149,6 +6125,85 @@ export function completeTaskCommentStream(
         });
 
         return {spaceId, completedTime};
+    });
+}
+
+/**
+ * Pings a message stream and updates its `lastPingTime`.
+ *
+ * This function is idempotent. If the stream hasn't been pinged in a while this method
+ * will update its `lastPingTime`.
+ */
+export function pingTaskCommentStream(
+    context: ServerBotActionContext,
+    {
+        taskId,
+        commentIndex,
+        consistency,
+    }: {
+        taskId: TaskId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    lastPingTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
+
+            TaskTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Task",
+                    sortRangeType: "Comments#Stream",
+                    taskId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw createCantPingCompletedMessageStreamError();
+        }
+
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantPingStaleMessageStreamError();
+        }
+
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const currentTime = new Date(Date.now());
+
+        const lastPingTime =
+            item.lastPingTime && currentTime <= item.lastPingTime
+                ? // NOTE(ifitzsimmons): This makes sure lastPingTime is always at least 1ms ahead of
+                  // the previous ping time. This is important if we have two different instances
+                  // processing pings with different clock skews.
+                  new Date(item.lastPingTime.getTime() + 1)
+                : currentTime;
+
+        await TaskTable.directlyUpdateItem(context, {
+            ...item,
+            lastPingTime,
+        });
+
+        return {spaceId, lastPingTime};
     });
 }
 

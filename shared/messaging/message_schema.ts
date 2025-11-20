@@ -292,16 +292,12 @@ export const MessageStreamPartPayloadSchema = Schema.union({
     Reasoning: MessageStreamReasoningPartPayloadSchema,
 });
 
-// For stream parts created before we had the `createdTime` property, use a mock time
-// smaller than future times.
-export const MessageStreamPartCreatedTimeSchema = Schema.date.default(
-    new Date("2025-11-14T03:54:50.378Z"),
-);
-
 export type MessageStream = SchemaType<typeof MessageStreamSchema>;
 
 export const MessageStreamSchema = Schema.object({
+    createdTime: Schema.date,
     completedTime: Schema.date.nullable(),
+    lastPingTime: Schema.date.nullable(),
     parts: Schema.array(
         Schema.object({
             version: Schema.integer,

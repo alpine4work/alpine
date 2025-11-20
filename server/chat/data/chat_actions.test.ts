@@ -20,6 +20,7 @@ import {
     getOptimisticChatId,
     getOrCreateChatForAccounts,
     getSharedChatsForTest,
+    pingChatMessageStream,
     processSendShareNotificationJob,
     putChatMessageStreamPart,
     sendChatMessage,
@@ -4448,6 +4449,9 @@ testMessagingImplementation<ChatId>(context, {
     },
     async deleteMessage(context, {roomKey: chatId, messageIndex}) {
         return deleteChatMessage(context, {chatId, messageIndex});
+    },
+    async pingMessageStream(context, {roomKey: chatId, messageIndex}) {
+        return pingChatMessageStream(context, {chatId, messageIndex});
     },
     async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
         return await putChatMessageStreamPart(context, {

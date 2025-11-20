@@ -1743,12 +1743,29 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
+                                            },
+                                            "lastPingTime": {
+                                                "valueSchema": {
+                                                    "type": "Nullable",
+                                                    "schema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "referenceId": "c01d7415"
+                                                },
+                                                "optional": true
+                                            },
                                             "completedTime": {
                                                 "valueSchema": {
                                                     "type": "Nullable",
                                                     "schema": {
                                                         "type": "Date"
-                                                    }
+                                                    },
+                                                    "referenceId": "c9716753"
                                                 },
                                                 "optional": false
                                             },
@@ -1763,7 +1780,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "type": "Nullable",
                                                     "schema": {
                                                         "type": "Integer"
-                                                    }
+                                                    },
+                                                    "referenceId": "afc4daea"
                                                 },
                                                 "optional": false
                                             },
@@ -1783,7 +1801,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "optional": false
                                                         }
-                                                    }
+                                                    },
+                                                    "referenceId": "93e5088d"
                                                 },
                                                 "optional": false
                                             },
@@ -1792,7 +1811,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "type": "Nullable",
                                                     "schema": {
                                                         "type": "Date"
-                                                    }
+                                                    },
+                                                    "referenceId": "8d834d08"
                                                 },
                                                 "optional": true
                                             },
@@ -5372,12 +5392,23 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
+                                            },
+                                            "lastPingTime": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c01d7415"
+                                                },
+                                                "optional": true
+                                            },
                                             "completedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c9716753"
                                                 },
                                                 "optional": false
                                             },
@@ -5389,39 +5420,22 @@ export const dynamoGeneratedSchemaDescription: {
                                             },
                                             "lastPartUpdateLockVersion": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Integer"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "afc4daea"
                                                 },
                                                 "optional": false
                                             },
                                             "lastIndexSearchEntityJob": {
                                                 "valueSchema": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "sendTime": {
-                                                            "valueSchema": {
-                                                                "type": "Date"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "delaySeconds": {
-                                                            "valueSchema": {
-                                                                "type": "Integer"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "93e5088d"
                                                 },
                                                 "optional": false
                                             },
                                             "lastPartCreatedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "8d834d08"
                                                 },
                                                 "optional": true
                                             },
@@ -7197,12 +7211,23 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
+                                            },
+                                            "lastPingTime": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c01d7415"
+                                                },
+                                                "optional": true
+                                            },
                                             "completedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c9716753"
                                                 },
                                                 "optional": false
                                             },
@@ -7214,39 +7239,22 @@ export const dynamoGeneratedSchemaDescription: {
                                             },
                                             "lastPartUpdateLockVersion": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Integer"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "afc4daea"
                                                 },
                                                 "optional": false
                                             },
                                             "lastIndexSearchEntityJob": {
                                                 "valueSchema": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "sendTime": {
-                                                            "valueSchema": {
-                                                                "type": "Date"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "delaySeconds": {
-                                                            "valueSchema": {
-                                                                "type": "Integer"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "93e5088d"
                                                 },
                                                 "optional": false
                                             },
                                             "lastPartCreatedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "8d834d08"
                                                 },
                                                 "optional": true
                                             },
@@ -12599,12 +12607,23 @@ export const dynamoGeneratedSchemaDescription: {
                                                 },
                                                 "optional": false
                                             },
+                                            "createdTime": {
+                                                "valueSchema": {
+                                                    "type": "Date"
+                                                },
+                                                "optional": true
+                                            },
+                                            "lastPingTime": {
+                                                "valueSchema": {
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c01d7415"
+                                                },
+                                                "optional": true
+                                            },
                                             "completedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "c9716753"
                                                 },
                                                 "optional": false
                                             },
@@ -12616,39 +12635,22 @@ export const dynamoGeneratedSchemaDescription: {
                                             },
                                             "lastPartUpdateLockVersion": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Integer"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "afc4daea"
                                                 },
                                                 "optional": false
                                             },
                                             "lastIndexSearchEntityJob": {
                                                 "valueSchema": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "sendTime": {
-                                                            "valueSchema": {
-                                                                "type": "Date"
-                                                            },
-                                                            "optional": false
-                                                        },
-                                                        "delaySeconds": {
-                                                            "valueSchema": {
-                                                                "type": "Integer"
-                                                            },
-                                                            "optional": false
-                                                        }
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "93e5088d"
                                                 },
                                                 "optional": false
                                             },
                                             "lastPartCreatedTime": {
                                                 "valueSchema": {
-                                                    "type": "Nullable",
-                                                    "schema": {
-                                                        "type": "Date"
-                                                    }
+                                                    "type": "Reference",
+                                                    "reuseReferenceId": "8d834d08"
                                                 },
                                                 "optional": true
                                             },

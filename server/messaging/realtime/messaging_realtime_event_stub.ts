@@ -48,6 +48,11 @@ export type MessagingRealtimeEventStub =
           readonly type: "CompleteMessageStream";
           readonly index: number;
           readonly completedTime: Date;
+      }
+    | {
+          readonly type: "PingMessageStream";
+          readonly index: number;
+          readonly lastPingTime: Date;
       };
 
 export type MessagingRealtimeEventStubNewMessage = {

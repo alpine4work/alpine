@@ -13,6 +13,7 @@ import {
     getTaskCommentPayloadsFromEnd,
     getTaskCommentPayloadsFromStart,
     getTaskNotesContentWithCustomReferences,
+    pingTaskCommentStream,
     putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
@@ -30,6 +31,7 @@ import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
+    MessagingRealtimeBroadcastPingMessageStreamRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -249,7 +251,9 @@ export const apiTasksPaths: Pick<
                             createdTime,
                             createdTimeZone,
                             payload,
-                            stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
+                            stream: requestBody.isStream
+                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                : null,
                         }),
                     },
                 ),
@@ -265,7 +269,9 @@ export const apiTasksPaths: Pick<
                         createdTime,
                         createdTimeZone,
                         payload,
-                        stream: requestBody.isStream ? {completedTime: null, parts: []} : null,
+                        stream: requestBody.isStream
+                            ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                            : null,
                     }),
                 },
             };
@@ -308,6 +314,50 @@ export const apiTasksPaths: Pick<
                 content: {
                     spaceId,
                     completion: {completedTime: serializeDateString(completedTime)},
+                },
+            };
+        },
+    },
+
+    "/tasks/{id}/messages/{index}/stream/ping": {
+        put: async (context, {pathParameters}) => {
+            const {spaceId, lastPingTime} = await pingTaskCommentStream(context, {
+                taskId: pathParameters.id,
+                commentIndex: pathParameters.index,
+                consistency: "StrongWithinCache",
+            });
+
+            // NOTE(ifitzsimmons): If the process dies after committing to DynamoDB but before
+            // sending this realtime event the might see an error message in place of the actual
+            // response from the Agent. On the client, we check to see if we've received a healthy
+            // ping OR a stream message within some time limit. If we get neither, we'll show
+            // a client-only error. Fortunately, if this happens, the user will see the full agent
+            // response when refreshing the page.
+            //
+            // Should we send this broadcast event in a DynamoDB Streams listener that
+            // reacts to the update? We plan to move `NotificationEvent`,
+            // `IndexSearchEntity`, and other processing that needs to reliably run after
+            // an updates to DynamoDB Streams.
+            context.process.waitUntil(
+                context.edge.broadcastToDurableObject(
+                    `/api/durable-objects/task-notes/${pathParameters.id}/broadcast-ping-message-stream`,
+                    {
+                        serviceName: "TaskNotesCollaborationService",
+                        route: "/api/durable-objects/task-notes/:taskId/broadcast-ping-message-stream",
+                        body: MessagingRealtimeBroadcastPingMessageStreamRequestSchema.serialize({
+                            index: pathParameters.index,
+                            lastPingTime,
+                        }),
+                    },
+                ),
+            );
+
+            return {
+                content: {
+                    spaceId,
+                    ping: {
+                        lastUpdatedTime: serializeDateString(lastPingTime),
+                    },
                 },
             };
         },

@@ -26,6 +26,7 @@ import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_se
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
+import {messageStreamTimeoutServerLimitMs} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
 import {
     messagingBackfillSafetyWindowMinutes,
     messagingEventExpirationDays,
@@ -155,6 +156,17 @@ type DeleteMessageFunctionForTest<RoomKey extends string> = (
 ) => Promise<{
     deletedTime: Date;
 }>;
+
+/**
+ * Ping a message stream
+ */
+type PingMessageStreamFunctionForTest<RoomKey extends string> = (
+    context: TestBotActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+    },
+) => Promise<{spaceId: SpaceId; lastPingTime: Date; completedTime?: Date}>;
 
 /**
  * Put a stream part for a streaming message.
@@ -437,6 +449,11 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Put a stream part for a streaming message.
      */
+    pingMessageStream: PingMessageStreamFunctionForTest<RoomKey>;
+
+    /**
+     * Put a stream part for a streaming message.
+     */
     putMessageStreamPart: PutMessageStreamPartFunctionForTest<RoomKey>;
 
     /**
@@ -543,6 +560,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         getMessagePayloadsFromEnd,
         updateMessageContent,
         deleteMessage,
+        pingMessageStream,
         putMessageStreamPart,
         completeMessageStream,
         setMessageReaction,
@@ -12623,6 +12641,10 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                         currentTime += 11 * 1000;
 
+                        await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
@@ -12664,6 +12686,218 @@ export function testMessagingImplementation<RoomKey extends string>(
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
+            });
+
+            test("putting stream part after creation fails if `messageStreamTimeoutServerLimitMs` has passed", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalDateNow = Date.now;
+                const originalTime = Date.now();
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+
+                    await expect(
+                        putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        }),
+                    ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting stream part fails after `messageStreamTimeoutServerLimitMs` limit", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalDateNow = Date.now;
+                const originalTime = Date.now();
+
+                try {
+                    let currentTime = originalTime;
+                    Date.now = () => currentTime;
+
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+
+                    await expect(
+                        putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        }),
+                    ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting stream part update after `messageStreamTimeoutServerLimitMs` throws an exception", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalDateNow = Date.now;
+                const originalTime = Date.now();
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+
+                    await expect(
+                        putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 2"),
+                            },
+                        }),
+                    ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("can't complete stale stream", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalDateNow = Date.now;
+                const originalTime = Date.now();
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+
+                    await expect(
+                        completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }),
+                    ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
             });
         });
 

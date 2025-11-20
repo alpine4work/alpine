@@ -48,6 +48,13 @@ import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {
+    createCantCompleteStaleMessageStreamError,
+    createCantPingCompletedMessageStreamError,
+    createCantPingStaleMessageStreamError,
+    createCantWriteToStaleMessageStreamError,
+} from "~/server/messaging/helpers/create_message_stream_errors.js";
+import {hasMessageStreamTimedOutOnServer} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
 import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
@@ -4570,8 +4577,10 @@ export async function createDocumentComment(
         if (!commentThreadItem)
             throw createDocumentCommentThreadNotFoundError(documentId, commentThreadId);
 
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const createdTime = new Date(Date.now());
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
-        const createdTime = new Date();
         const authorId = context.actor.getPossiblyBotAccountId();
 
         if (isStream && context.actor.type !== "Bot") {
@@ -4637,10 +4646,12 @@ export async function createDocumentComment(
                           commentThreadId,
                           commentIndex,
                           authorId,
+                          createdTime,
                           completedTime: null,
                           partCount: 0,
                           lastPartUpdateLockVersion: null,
                           lastPartCreatedTime: null,
+                          lastPingTime: null,
                           lastIndexSearchEntityJob: {
                               sendTime: createdTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
@@ -4794,6 +4805,10 @@ export function putDocumentCommentStreamPart(
             });
         }
 
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantWriteToStaleMessageStreamError();
+        }
+
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
 
@@ -4840,6 +4855,7 @@ export function putDocumentCommentStreamPart(
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
+                    lastPingTime: createdTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -4878,6 +4894,7 @@ export function putDocumentCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 DocumentsTable.transactionDirectlyUpdateItem({
                     ...item,
+                    lastPingTime: createdTime,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
@@ -4965,7 +4982,13 @@ export function completeDocumentCommentStream(
             return {spaceId, completedTime: item.completedTime};
         }
 
-        const completedTime = new Date();
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantCompleteStaleMessageStreamError();
+        }
+
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const completedTime = new Date(Date.now());
 
         await DocumentsTable.directlyUpdateItem(context, {
             ...item,
@@ -4973,6 +4996,88 @@ export function completeDocumentCommentStream(
         });
 
         return {spaceId, completedTime};
+    });
+}
+
+/**
+ * Pings a comment stream and updates its `lastPingTime`.
+ *
+ * This function is idempotent. If the stream hasn't been pinged in a while this method
+ * will update its `lastPingTime`.
+ */
+export function pingDocumentCommentStream(
+    context: ServerBotActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        consistency,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    lastPingTime: Date;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const [{spaceId}, item] = await runAllPromises([
+            // Make sure the bot has access (and wasn't removed from the space).
+            authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+
+            DocumentsTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments#Stream",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                },
+                {consistency},
+            ),
+        ]);
+
+        if (!item) {
+            throw new FailedPreconditionError("Message isn’t a stream", {
+                displayMessage: errorDisplayMessage`Message isn’t a stream.`,
+            });
+        }
+
+        if (item.authorId !== context.actor.getBotAccountId()) {
+            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
+                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+            });
+        }
+
+        if (item.completedTime !== null) {
+            throw createCantPingCompletedMessageStreamError();
+        }
+
+        if (hasMessageStreamTimedOutOnServer(item)) {
+            throw createCantPingStaleMessageStreamError();
+        }
+
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const currentTime = new Date(Date.now());
+
+        const lastPingTime =
+            item.lastPingTime && currentTime <= item.lastPingTime
+                ? // NOTE(ifitzsimmons): This makes sure lastPingTime is always at least 1ms ahead of
+                  // the previous ping time. This is important if we have two different instances
+                  // processing pings with different clock skews.
+                  new Date(item.lastPingTime.getTime() + 1)
+                : currentTime;
+
+        await DocumentsTable.directlyUpdateItem(context, {
+            ...item,
+            lastPingTime,
+        });
+
+        return {spaceId, lastPingTime};
     });
 }
 
