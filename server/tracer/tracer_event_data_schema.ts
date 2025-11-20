@@ -426,6 +426,9 @@ const TracerEventDataSchema = {
                 totalPartCount: Schema.integer,
             },
         },
+        wrangler: {
+            attempt: Schema.integer,
+        },
     },
     github: {
         compareUrl: Schema.string,

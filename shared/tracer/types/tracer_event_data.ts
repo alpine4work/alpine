@@ -1324,6 +1324,15 @@ export type TracerEventData = {
                 readonly totalPartCount?: number;
             };
         };
+
+        /**
+         * Information related to our use of Cloudflare Wrangler for deploying
+         * Cloudflare Workers.
+         */
+        readonly wrangler?: {
+            /** The attempt number of a Cloudflare Wrangler deployment. */
+            readonly attempt?: number;
+        };
     };
 
     /**

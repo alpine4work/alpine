@@ -1,10 +1,72 @@
-import {spawn} from "child_process";
+import {ChildProcess, spawn} from "child_process";
 import {join as joinPath} from "path";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
+import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnknownError} from "~/shared/error/error.js";
+
+const maxCloudflareDeployAttempts = 3;
+const sleepBetweenAttemptsMs = 3000;
+
+/**
+ * Deploys a Cloudflare worker with retry logic for any errors.
+ * Retries up to 2 times with a sleep between attempts.
+ */
+async function deployCloudflareWorkerWithRetry(
+    context: Context<{tracer: TracerContextModule}>,
+    serviceName: string,
+    wranglerPath: string,
+    env: Record<string, string> & NodeJS.ProcessEnv,
+): Promise<void> {
+    let attempt = 1;
+
+    while (true) {
+        try {
+            await context.tracer.withSpan(`Deploy ${serviceName}`, async (context, span) => {
+                span.addData({
+                    cloudflare: {
+                        wrangler: {
+                            attempt,
+                        },
+                    },
+                });
+
+                const subprocess: ChildProcess = spawn(wranglerPath, ["deploy"], {
+                    cwd: joinPath(runfilesPath, "cyberworlds"),
+                    env,
+                    stdio: ["ignore", "inherit", "inherit"],
+                });
+
+                const {exitCode} = await waitForProcessExitWithAnyCode(subprocess);
+
+                if (exitCode !== 0) {
+                    throw new UnknownError(`Wrangler deployment failed with exit code ${exitCode}`);
+                }
+            });
+
+            // If we get here, the deployment succeeded
+            return;
+        } catch (error) {
+            if (attempt === maxCloudflareDeployAttempts) {
+                throw error;
+            } else {
+                // eslint-disable-next-line no-console
+                console.error(
+                    `Deploy ${serviceName} failed. Retrying in ${
+                        sleepBetweenAttemptsMs / 1000
+                    } seconds... (attempt ${attempt}/${maxCloudflareDeployAttempts})`,
+                    error,
+                );
+
+                await new Promise(resolve => setTimeout(resolve, sleepBetweenAttemptsMs));
+            }
+        }
+
+        attempt += 1;
+    }
+}
 
 /**
  * Deploy Cloudflare by running `bazel run //server/edge:wrangler -- deploy`.
@@ -23,57 +85,30 @@ export async function deployCloudflareWorkers(
         workersToken: string;
     },
 ) {
-    await context.tracer.withSpan("Deploy Edge Service", async () => {
-        const deployEdgeServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.sh"),
-            ["deploy"],
-            {
-                cwd: joinPath(runfilesPath, "cyberworlds"),
-                env: {
-                    ...getProcessEnvToPropagate(),
-                    CLOUDFLARE_ACCOUNT_ID: accountId,
-                    CLOUDFLARE_API_TOKEN: workersToken,
-                },
-                stdio: ["ignore", "inherit", "inherit"],
-            },
-        );
+    const env = {
+        ...getProcessEnvToPropagate(),
+        CLOUDFLARE_ACCOUNT_ID: accountId,
+        CLOUDFLARE_API_TOKEN: workersToken,
+    };
 
-        await waitForProcessExit(deployEdgeServiceSubprocess);
-    });
+    await deployCloudflareWorkerWithRetry(
+        context,
+        "Edge Service",
+        joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.sh"),
+        env,
+    );
 
-    await context.tracer.withSpan("Deploy Agent Service", async () => {
-        const deployAgentServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
-            ["deploy"],
-            {
-                cwd: joinPath(runfilesPath, "cyberworlds"),
-                env: {
-                    ...getProcessEnvToPropagate(),
-                    CLOUDFLARE_ACCOUNT_ID: accountId,
-                    CLOUDFLARE_API_TOKEN: workersToken,
-                },
-                stdio: ["ignore", "inherit", "inherit"],
-            },
-        );
+    await deployCloudflareWorkerWithRetry(
+        context,
+        "Agent Service",
+        joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
+        env,
+    );
 
-        await waitForProcessExit(deployAgentServiceSubprocess);
-    });
-
-    await context.tracer.withSpan("Deploy Resource Service", async () => {
-        const deployResourceServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.sh"),
-            ["deploy"],
-            {
-                cwd: joinPath(runfilesPath, "cyberworlds"),
-                env: {
-                    ...getProcessEnvToPropagate(),
-                    CLOUDFLARE_ACCOUNT_ID: accountId,
-                    CLOUDFLARE_API_TOKEN: workersToken,
-                },
-                stdio: ["ignore", "inherit", "inherit"],
-            },
-        );
-
-        await waitForProcessExit(deployResourceServiceSubprocess);
-    });
+    await deployCloudflareWorkerWithRetry(
+        context,
+        "Resource Service",
+        joinPath(runfilesPath, "cyberworlds/server/resources/wrangler.sh"),
+        env,
+    );
 }
