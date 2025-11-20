@@ -68,12 +68,9 @@ test("can archive single post in a channel posts entry with three posts", async 
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -102,12 +99,9 @@ test("can archive two posts in a channel posts entry with three posts", async ()
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -157,12 +151,9 @@ test("can archive three posts in a channel posts entry with three posts", async 
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -218,12 +209,9 @@ test("archiving single post is idempotent when all posts are unarchived", async 
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await runAllPromises([
@@ -266,12 +254,9 @@ test("archiving single post is idempotent when all but one posts are archived", 
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -380,12 +365,9 @@ test("can’t archive individual post which doesn’t exist in inbox entry", asy
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await observeInbox(session2.action(), {spaceId: space.id});
@@ -430,12 +412,9 @@ test("race condition: archiving post commits after post comment creates inbox en
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     const pause1Promise = updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
@@ -532,12 +511,9 @@ test("race condition: archiving post commits after post comment creates inbox en
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     const pause1Promise = updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(

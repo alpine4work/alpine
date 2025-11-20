@@ -126,19 +126,32 @@ export function updateInboxDocumentCommentThreadEntry(
                     commentThreadInNewCommentThreadsItem.newCommentThreadsEntry.bucketGeneration,
             };
 
-            // If we have a `DocumentCommentThreadInNewCommentThreadsEntry` item then
-            // there's definitely a corresponding `DocumentNewCommentThreadsEntry` item.
-            // First try loading the item with eventual consistency (cheap) and if that
-            // doesn't work try strong consistency.
-            const newCommentThreadsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
+            // Item might not exist if we're running this job multiple times since the
+            // inbox entry might have been deleted.
+            const newCommentThreadsItem = await InboxTable.getItemIfExists(
                 context,
                 newCommentThreadsItemKey,
             );
 
+            if (!newCommentThreadsItem) {
+                addAdditionalTransactionEntry(
+                    InboxTable.transactionDoesNotExistConditionCheck(newCommentThreadsItemKey),
+                );
+                return newItem;
+            }
+
             const commentThread = newCommentThreadsItem.commentThreads.get(commentThreadId);
 
             // Comment thread is already archived in `DocumentNewCommentThreadsEntry`.
-            if (!commentThread || commentThread.isArchived) return newItem;
+            if (!commentThread || commentThread.isArchived) {
+                addAdditionalTransactionEntry(
+                    InboxTable.transactionUpdateLockVersionConditionCheck(
+                        newCommentThreadsItemKey,
+                        newCommentThreadsItem.updateLockVersion,
+                    ),
+                );
+                return newItem;
+            }
 
             const commentThreads = new Map(newCommentThreadsItem.commentThreads);
             commentThreads.set(commentThreadId, {...commentThread, isArchived: true});

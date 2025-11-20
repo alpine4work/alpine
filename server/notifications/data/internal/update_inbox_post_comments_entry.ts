@@ -109,19 +109,29 @@ export function updateInboxPostCommentsEntry(
                 bucketGeneration: postInChannelPostsItem.channelPostsEntry.bucketGeneration,
             };
 
-            // If we have a `PostInChannelPostsEntry` item then there's definitely a
-            // corresponding `ChannelPostsEntry` item. First try loading the item with
-            // eventual consistency (cheap) and if that doesn't work try strong
-            // consistency.
-            const channelPostsItem = await InboxTable.getItemWithEventualThenStrongConsistency(
-                context,
-                channelPostsItemKey,
-            );
+            // Item might not exist if we're running this job multiple times since the
+            // inbox entry might have been deleted.
+            const channelPostsItem = await InboxTable.getItemIfExists(context, channelPostsItemKey);
+
+            if (!channelPostsItem) {
+                addAdditionalTransactionEntry(
+                    InboxTable.transactionDoesNotExistConditionCheck(channelPostsItemKey),
+                );
+                return newItem;
+            }
 
             const post = channelPostsItem.posts.get(postId);
 
             // Post is already archived in `ChannelPostsEntry`.
-            if (!post || post.isArchived) return newItem;
+            if (!post || post.isArchived) {
+                addAdditionalTransactionEntry(
+                    InboxTable.transactionUpdateLockVersionConditionCheck(
+                        channelPostsItemKey,
+                        channelPostsItem.updateLockVersion,
+                    ),
+                );
+                return newItem;
+            }
 
             const posts = new Map(channelPostsItem.posts);
             posts.set(postId, {...post, isArchived: true});

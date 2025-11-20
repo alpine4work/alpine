@@ -1933,6 +1933,23 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Creates a transaction entry that checks the provided item exists and checks
+     * the item has the version provided by `updateLockVersion`.
+     */
+    public transactionUpdateLockVersionConditionCheck<Key extends Types["ItemKey"]>(
+        itemKey: Key,
+        updateLockVersion: number | undefined,
+    ): DynamoTransactionEntry {
+        assert(
+            itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
+                itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
+            "Can’t access private realtime partition",
+        );
+
+        return this._table.transactionUpdateLockVersionConditionCheck(itemKey, updateLockVersion);
+    }
+
+    /**
      * Create an item in the database as part of a transaction. In a transaction
      * either all entries succeed or all entries fail.
      *

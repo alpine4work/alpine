@@ -111,17 +111,21 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                 // We've already added this post to the inbox entry.
                 if (oldItem?.posts.has(event.postId)) return "Noop";
 
-                const posts = new Map([
+                const posts = new Map(
                     [
-                        event.postId,
-                        {
-                            isArchived: false,
-                            authorId: event.authorId,
-                            createdTime: event.createdTime,
-                        },
-                    ],
-                    ...(oldItem?.posts ?? []),
-                ]);
+                        ...(oldItem?.posts ?? []),
+                        [
+                            event.postId,
+                            {
+                                isArchived: false,
+                                authorId: event.authorId,
+                                createdTime: event.createdTime,
+                            },
+                        ] as const,
+                        // Make sure the posts are in reverse chronological order no matter
+                        // what order the events are processed in.
+                    ].sort(([, a], [, b]) => b.createdTime.getTime() - a.createdTime.getTime()),
+                );
 
                 const postInChannelPostsItemKey: InboxPostInChannelPostsEntryItemKey = {
                     partitionType: "Inbox",

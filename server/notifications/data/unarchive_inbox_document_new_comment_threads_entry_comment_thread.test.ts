@@ -114,12 +114,9 @@ test("can unarchive comment thread in a new comment threads comment threads entr
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -203,12 +200,9 @@ test("can archive comment thread again after unarchiving", async () => {
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -273,12 +267,9 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
@@ -318,12 +309,9 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -396,12 +384,9 @@ test("can unarchive two comment threads in a new comment threads comment threads
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
     const commentThread4 = await document.createCommentThread(session1, range, "test4");
 
@@ -517,12 +502,9 @@ test("unarchiving single comment thread is idempotent", async () => {
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -648,12 +630,9 @@ test("can’t unarchive individual comment thread which doesn’t exist in inbox
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await observeInbox(session2.action(), {spaceId: space.id});

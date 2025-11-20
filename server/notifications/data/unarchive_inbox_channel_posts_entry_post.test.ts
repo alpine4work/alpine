@@ -114,12 +114,9 @@ test("can unarchive post in a channel posts entry with three posts", async () =>
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -201,12 +198,9 @@ test("can archive post again after unarchiving", async () => {
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -270,12 +264,9 @@ test("can’t unarchive post in a fully archived channel posts entry where indiv
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
@@ -316,12 +307,9 @@ test("can’t unarchive post in a fully archived channel posts entry where indiv
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -394,12 +382,9 @@ test("can unarchive two posts in a channel posts entry", async () => {
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
     const post4 = await channel.createPost(session1, "test4");
 
@@ -511,12 +496,9 @@ test("unarchiving single post is idempotent", async () => {
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(session2.action(), {
@@ -642,12 +624,9 @@ test("can’t unarchive individual post which doesn’t exist in inbox entry", a
     await channel.subscribe(session2);
 
     const post1 = await channel.createPost(session1, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const post2 = await channel.createPost(session1, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const post3 = await channel.createPost(session1, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await observeInbox(session2.action(), {spaceId: space.id});

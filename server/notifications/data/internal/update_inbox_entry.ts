@@ -129,7 +129,7 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
     let hasAttempted = false;
 
-    return context.dynamo.retryTransaction(async context => {
+    const result = await context.dynamo.retryTransaction(async context => {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
@@ -295,8 +295,6 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             clientRequestToken,
         });
 
-        await updateInboxEntryAfterExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
-
         if (result === "Noop") return null;
 
         return {
@@ -304,6 +302,10 @@ export async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             loudNotificationCountDifference,
         };
     });
+
+    await updateInboxEntryAfterExecuteTransactionTestCheckpoint.waitForTest(actorAccountId);
+
+    return result;
 }
 
 type ComputeUpdateInboxEntryResult =

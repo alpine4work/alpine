@@ -84,17 +84,21 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     // We've already added this comment thread to the inbox entry.
                     if (oldItem?.commentThreads.has(event.commentThreadId)) return "Noop";
 
-                    const commentThreads = new Map([
+                    const commentThreads = new Map(
                         [
-                            event.commentThreadId,
-                            {
-                                isArchived: false,
-                                authorId: event.authorId,
-                                createdTime: event.createdTime,
-                            },
-                        ],
-                        ...(oldItem?.commentThreads ?? []),
-                    ]);
+                            ...(oldItem?.commentThreads ?? []),
+                            [
+                                event.commentThreadId,
+                                {
+                                    isArchived: false,
+                                    authorId: event.authorId,
+                                    createdTime: event.createdTime,
+                                },
+                            ] as const,
+                            // Make sure the comment threads are in reverse chronological order no matter
+                            // what order the events are processed in.
+                        ].sort(([, a], [, b]) => b.createdTime.getTime() - a.createdTime.getTime()),
+                    );
 
                     const documentCommentThreadInNewCommentThreadsItemKey: InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey =
                         {

@@ -71,12 +71,9 @@ test("can archive single comment thread in a new comment threads entry with thre
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -104,12 +101,9 @@ test("can archive two comment threads in a new comment threads entry with three 
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -166,12 +160,9 @@ test("can archive three comment threads in a new comment threads entry with thre
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -239,12 +230,9 @@ test("archiving single comment thread is idempotent when all comment threads are
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await runAllPromises([
@@ -286,12 +274,9 @@ test("archiving single comment thread is idempotent when all but one comment thr
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
@@ -412,12 +397,9 @@ test("can’t archive individual comment thread which doesn’t exist in inbox e
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     await observeInbox(session2.action(), {spaceId: space.id});
@@ -460,12 +442,9 @@ test("race condition: archiving comment thread commits after comment thread comm
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     const pause1Promise = updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
@@ -563,12 +542,9 @@ test("race condition: archiving comment thread commits after comment thread comm
     const {range} = await document.type(session2, "target");
 
     const commentThread1 = await document.createCommentThread(session1, range, "test1");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread2 = await document.createCommentThread(session1, range, "test2");
-    await ProcessContextModule.waitForTestTasks();
-
     const commentThread3 = await document.createCommentThread(session1, range, "test3");
+
     await ProcessContextModule.waitForTestTasks();
 
     const pause1Promise = updateInboxEntryBeforeExecuteTransactionTestCheckpoint.pauseForTest(
