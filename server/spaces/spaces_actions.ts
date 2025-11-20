@@ -794,9 +794,16 @@ class SpaceAccountsCache {
                 dataPromise,
                 next: null,
                 timeout: createTimeout(
-                    this._runInvalidateTimeout.bind(this, spaceId),
+                    this._clearEntry.bind(this, spaceId),
                     spaceAccountsCacheEntryInvalidatedMs,
                 ),
+            });
+
+            // Clear the cache if `dataPromise` rejects so we try loading the data again.
+            dataPromise.catch(() => {
+                const entry = this._entryBySpaceId.get(spaceId);
+                if (entry?.dataPromise !== dataPromise) return;
+                this._clearEntry(spaceId);
             });
 
             return dataPromise;
@@ -808,9 +815,11 @@ class SpaceAccountsCache {
             entry.next !== null &&
             entry.readTime + spaceAccountsCacheEntryRevalidateMs < currentTime
         ) {
+            const dataPromise = this._getData(context, spaceId, {isBlocking: false});
+
             entry.next = {
                 readTime: currentTime,
-                dataPromise: this._getData(context, spaceId, {isBlocking: false}),
+                dataPromise,
             };
 
             // Make sure our context lives as long as `dataPromise`. Errors are already
@@ -819,43 +828,66 @@ class SpaceAccountsCache {
 
             // Once our background promise has finished, update the cache entry to use the
             // new data.
-            void entry.next.dataPromise.finally(() => {
-                const currentEntry = this._entryBySpaceId.get(spaceId);
-                if (entry !== currentEntry) return;
+            //
+            // If there was an error then we need to clear the cache.
+            void entry.next.dataPromise.then(
+                () => {
+                    const entry = this._entryBySpaceId.get(spaceId);
 
-                assert(entry.next);
+                    // Our `dataPromise` may have been moved from `entry.next.dataPromise` by the
+                    // time this code runs if `_clearEntry()` was called (e.g. when
+                    // `entry.dataPromise` rejects).
+                    if (entry?.next?.dataPromise !== dataPromise) return;
 
-                entry.timeout.clear();
+                    assert(entry.next);
 
-                this._entryBySpaceId.set(spaceId, {
-                    ...entry.next,
-                    next: null,
-                    timeout: createTimeout(
-                        this._runInvalidateTimeout.bind(this, spaceId),
+                    entry.timeout.clear();
+
+                    entry.readTime = entry.next.readTime;
+                    entry.dataPromise = entry.next.dataPromise;
+
+                    entry.timeout = createTimeout(
+                        this._clearEntry.bind(this, spaceId),
                         spaceAccountsCacheEntryInvalidatedMs - (Date.now() - entry.next.readTime),
-                    ),
-                });
-            });
+                    );
+
+                    entry.next = null;
+                },
+                () => {
+                    const entry = this._entryBySpaceId.get(spaceId);
+
+                    // Make sure we're not the active `dataPromise`. We may have been upgraded to
+                    // the active `dataPromise` if there was an error.
+                    if (entry?.dataPromise === dataPromise) {
+                        this._clearEntry(spaceId);
+                    } else if (entry?.next?.dataPromise === dataPromise) {
+                        entry.next = null;
+                    }
+                },
+            );
         }
 
         return entry.dataPromise;
     }
 
-    private _runInvalidateTimeout(spaceId: SpaceId) {
+    private _clearEntry(spaceId: SpaceId) {
         const entry = this._entryBySpaceId.get(spaceId);
         if (!entry) return;
+
+        entry.timeout.clear();
 
         if (entry.next === null) {
             this._entryBySpaceId.delete(spaceId);
         } else {
-            this._entryBySpaceId.set(spaceId, {
-                ...entry.next,
-                next: null,
-                timeout: createTimeout(
-                    this._runInvalidateTimeout.bind(this, spaceId),
-                    spaceAccountsCacheEntryInvalidatedMs - (Date.now() - entry.next.readTime),
-                ),
-            });
+            entry.readTime = entry.next.readTime;
+            entry.dataPromise = entry.next.dataPromise;
+
+            entry.timeout = createTimeout(
+                this._clearEntry.bind(this, spaceId),
+                spaceAccountsCacheEntryInvalidatedMs - (Date.now() - entry.next.readTime),
+            );
+
+            entry.next = null;
         }
     }
 
