@@ -35,6 +35,7 @@ type TracerEventHttpHeaderNameMap = {
     prefer: true;
     trailer: true;
     "transfer-encoding": true;
+    upgrade: true;
     via: true;
     warning: true;
     "x-requested-with": true;
@@ -124,6 +125,7 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     prefer: true,
     trailer: true,
     "transfer-encoding": true,
+    upgrade: true,
     via: true,
     warning: true,
     "x-requested-with": true,

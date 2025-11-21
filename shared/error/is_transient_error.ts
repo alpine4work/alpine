@@ -26,7 +26,7 @@ import {ErrorCode} from "~/shared/error/error_code.js";
  * acts as a hint to speed up failure cases when we know a retry will
  * definitively not change anything.
  */
-function isTransientErrorCode(code: ErrorCode): boolean {
+function isTransientErrorCode(code: ErrorCode, hasDisplayMessage: boolean): boolean {
     switch (code) {
         // Errors where the input to the operation is invalid so the operation can't
         // complete. No change to the underlying data will resolve this error. The
@@ -85,14 +85,20 @@ function isTransientErrorCode(code: ErrorCode): boolean {
         case ErrorCode.DataLoss:
             return false;
 
+        // Transient errors we always retry even if there is a `displayMessage`. For
+        // example, we throw `UnavailableError` when a WebSocket disconnects with a
+        // `displayMessage` saying we lost contact with our servers. We should always
+        // retry that `UnavailableError`.
+        case ErrorCode.DeadlineExceeded:
+        case ErrorCode.Unavailable:
+            return true;
+
         // Common transient errors. Typically some resource is overloaded and a retry
         // will find its way to new resources.
         case ErrorCode.Cancelled:
         case ErrorCode.Aborted:
-        case ErrorCode.DeadlineExceeded:
         case ErrorCode.ResourceExhausted:
-        case ErrorCode.Unavailable:
-            return true;
+            return !hasDisplayMessage;
 
         // `UnknownError` is used for unclassified third party errors. We try to
         // classify as many errors as we can from a third party with better error codes
@@ -101,7 +107,7 @@ function isTransientErrorCode(code: ErrorCode): boolean {
         // third party we should have classified it. Any remaining errors are hopefully
         // then transient failures.
         case ErrorCode.Unknown:
-            return true;
+            return !hasDisplayMessage;
 
         // Generic error code we use when our code is doing something unexpected.
         // Commonly thrown by `assert()`s. We should basically never see this error
@@ -110,7 +116,7 @@ function isTransientErrorCode(code: ErrorCode): boolean {
         // transient. If the error is expected, it should use a different error code
         // that's more descriptive!
         case ErrorCode.Internal:
-            return true;
+            return !hasDisplayMessage;
 
         default: {
             // We inline the implementation of `exhaustive()` here because core error files
@@ -130,14 +136,15 @@ function isTransientErrorCode(code: ErrorCode): boolean {
  * the error code. Otherwise we default to `ErrorCode.Unknown` which is
  * classified as a transient error.
  *
- * If the error has a `displayMessage` then it's NOT a transient error. Errors
- * with `displayMessage`s are intended to be shown to the user. Don't retry
- * these errors, instead show the error to the user immediately.
+ * For some transient error codes, a `displayMessage` makes the error NOT a
+ * transient error. Errors with `displayMessage`s are intended to be shown to
+ * the user. Don't retry these errors, instead show the error to the user
+ * immediately.
  */
 export function isTransientError(error: unknown): boolean {
     if (!(error instanceof ErrorBase)) {
-        return isTransientErrorCode(ErrorCode.Unknown);
+        return isTransientErrorCode(ErrorCode.Unknown, false);
     } else {
-        return isTransientErrorCode(error.code) && !error.displayMessage;
+        return isTransientErrorCode(error.code, !!error.displayMessage);
     }
 }
