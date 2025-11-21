@@ -2102,6 +2102,339 @@ test("streams strike inline formatting correctly", async () => {
     ]);
 });
 
+test("does not apply strikethrough with single tilde", async () => {
+    const message = new AgentMessageStream({
+        spaceId,
+        getTargetPathIfExists: async () => null,
+    });
+
+    message.pushText("The quick");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" ~brown");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ~brown",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" fox jumps");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ~brown fox jumps",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" over the~");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ~brown fox jumps over the~",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" lazy dog.");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "The quick ~brown fox jumps over the~ lazy dog.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
+test("does not apply strikethrough to statistics with tilde", async () => {
+    const message = new AgentMessageStream({
+        spaceId,
+        getTargetPathIfExists: async () => null,
+    });
+
+    message.pushText("Did you know that");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Did you know that",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" ~30%");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Did you know that ~30%",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" of statistics");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Did you know that ~30% of statistics",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" are made up?");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Did you know that ~30% of statistics are made up?",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
+test("does not apply strikethrough with multiple single tildes", async () => {
+    const message = new AgentMessageStream({
+        spaceId,
+        getTargetPathIfExists: async () => null,
+    });
+
+    message.pushText("Values range from");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Values range from",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" ~100");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Values range from ~100",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" to ~500");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Values range from ~100 to ~500",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+
+    message.pushText(" units.");
+
+    expect(await message.update()).toEqual([
+        {
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Values range from ~100 to ~500 units.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    ]);
+});
+
 test("streams inline code formatting correctly", async () => {
     const message = new AgentMessageStream({
         spaceId,

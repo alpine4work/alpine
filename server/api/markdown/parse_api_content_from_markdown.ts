@@ -116,7 +116,7 @@ export function parseMarkdownTree(
         allowLabelWithoutClose: options?.allowLabelWithoutClose,
 
         extensions: [
-            gfmStrikethrough(),
+            gfmStrikethrough({singleTilde: false}),
             gfmTable(),
             gfmTaskListItem(),
             math(),
