@@ -13,6 +13,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 type ContentEditorSpellCheckerPluginState = {
@@ -31,10 +32,7 @@ const contentEditorSpellCheckerPluginKey = new PluginKey<ContentEditorSpellCheck
 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/2qvqf4ff4bp38m29vmdrfyjcq8
 
 export function contentEditorSpellCheckerPlugin() {
-    const decorationElementByLintKeyByTextblockNode = new WeakMap<
-        Node,
-        WeakMap<ContentSpellCheckLintKey, HTMLElement>
-    >();
+    const decorationElementByLintKey = new WeakMap<ContentSpellCheckLintKey, HTMLElement>();
 
     return new Plugin<ContentEditorSpellCheckerPluginState>({
         key: contentEditorSpellCheckerPluginKey,
@@ -184,10 +182,13 @@ export function contentEditorSpellCheckerPlugin() {
                     contentEditorSpellCheckerPluginKey.getState(state)!;
                 if (lints.length === 0) return DecorationSet.empty;
 
-                const lintsByTextblock = new Map<
+                // The same node reference can appear in multiple positions in a ProseMirror
+                // document. For example, when pasting content into a table selection we repeat
+                // that content across all table cells.
+                const lintsByPosByTextblockNode = new DefaultMap<
                     Node,
-                    {textblockPos: number; lints: Array<ContentSpellCheckLint>}
-                >();
+                    DefaultMap<number, Array<ContentSpellCheckLint>>
+                >(() => new DefaultMap(() => []));
 
                 for (const lint of lints) {
                     // Skip the hidden lint...
@@ -208,106 +209,110 @@ export function contentEditorSpellCheckerPlugin() {
                     // TODO(#spell-check): Don't render lints in code blocks
                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/b1zgg6kj6r95te8n97ngbmkg6m
 
-                    getOrSetDefaultMapValue(lintsByTextblock, textblockNode, () => ({
-                        textblockPos: $from.start(textblockDepth),
-                        lints: [],
-                    })).lints.push(lint);
+                    const textblockPos = $from.start(textblockDepth);
+
+                    lintsByPosByTextblockNode
+                        .getOrSetDefault(textblockNode)
+                        .getOrSetDefault(textblockPos)
+                        .push(lint);
                 }
 
                 const decorations: Array<Decoration> = [];
 
-                for (const [textblockNode, {textblockPos, lints}] of lintsByTextblock) {
-                    const decorationElementByKey = getOrSetDefaultMapValue(
-                        decorationElementByLintKeyByTextblockNode,
-                        textblockNode,
-                        () => new WeakMap(),
-                    );
+                for (const [textblockNode, lintsByPos] of lintsByPosByTextblockNode) {
+                    for (const [textblockPos, textblockLints] of lintsByPos) {
+                        for (let i = 0; i < textblockLints.length; i++) {
+                            const lint = textblockLints[i]!;
 
-                    for (let i = 0; i < lints.length; i++) {
-                        const lint = lints[i]!;
+                            decorations.push(
+                                Decoration.widget(textblockPos + textblockNode.nodeSize - 2, view =>
+                                    getOrSetDefaultMapValue(
+                                        decorationElementByLintKey,
+                                        lint.key,
+                                        () => {
+                                            const {node: textblockElement} =
+                                                view.domAtPos(textblockPos);
+                                            const fromDom = view.domAtPos(lint.from);
+                                            const toDom = view.domAtPos(lint.to);
 
-                        decorations.push(
-                            Decoration.widget(textblockPos + textblockNode.nodeSize - 2, view =>
-                                getOrSetDefaultMapValue(decorationElementByKey, lint.key, () => {
-                                    const {node: textblockElement} = view.domAtPos(textblockPos);
-                                    const fromDom = view.domAtPos(lint.from);
-                                    const toDom = view.domAtPos(lint.to);
+                                            assert(textblockElement instanceof HTMLElement);
 
-                                    assert(textblockElement instanceof HTMLElement);
+                                            // In development environments, make sure our textblock element has
+                                            // `position: relative` otherwise our `position: absolute` spellcheck lints
+                                            // won't be positioned properly.
+                                            if (process.env.NODE_ENV === "development") {
+                                                assert(
+                                                    getComputedStyle(textblockElement).position ===
+                                                        "relative",
+                                                    "Textblock element must have `position: relative` so spell check lints are positioned properly",
+                                                );
+                                            }
 
-                                    // In development environments, make sure our textblock element has
-                                    // `position: relative` otherwise our `position: absolute` spellcheck lints
-                                    // won't be positioned properly.
-                                    if (process.env.NODE_ENV === "development") {
-                                        assert(
-                                            getComputedStyle(textblockElement).position ===
-                                                "relative",
-                                            "Textblock element must have `position: relative` so spell check lints are positioned properly",
-                                        );
-                                    }
+                                            // TODO(#spell-check): `fileFloat` needs to update positions I think. Maybe use a
+                                            // `ResizeObserver` to generically handle changes?
+                                            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/fxdw9nnf37gs76cf63c39gjym8
 
-                                    // TODO(#spell-check): `fileFloat` needs to update positions I think. Maybe use a
-                                    // `ResizeObserver` to generically handle changes?
-                                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/fxdw9nnf37gs76cf63c39gjym8
+                                            const textblockRect =
+                                                textblockElement.getBoundingClientRect();
 
-                                    const textblockRect = textblockElement.getBoundingClientRect();
+                                            const range = document.createRange();
+                                            range.setStart(fromDom.node, fromDom.offset);
+                                            range.setEnd(toDom.node, toDom.offset);
 
-                                    const range = document.createRange();
-                                    range.setStart(fromDom.node, fromDom.offset);
-                                    range.setEnd(toDom.node, toDom.offset);
+                                            // TODO(#spell-check)
+                                            // Positions when a mention has text BEFORE it are not right
+                                            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/a2rt03qqb7ncn7ca7d456aqfb0
+                                            const rangeRects = range.getClientRects();
 
-                                    // TODO(#spell-check)
-                                    // Positions when a mention has text BEFORE it are not right
-                                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/a2rt03qqb7ncn7ca7d456aqfb0
-                                    const rangeRects = range.getClientRects();
+                                            const element = document.createElement("span");
+                                            element.className = contentStyles.spellCheckClassName;
 
-                                    const element = document.createElement("span");
-                                    element.className = contentStyles.spellCheckClassName;
+                                            for (const rangeRect of rangeRects) {
+                                                const rectElement = document.createElement("span");
+                                                element.appendChild(rectElement);
 
-                                    for (const rangeRect of rangeRects) {
-                                        const rectElement = document.createElement("span");
-                                        element.appendChild(rectElement);
+                                                switch (lint.category) {
+                                                    case "grammar":
+                                                        rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckGrammarSquiggleClassName}`;
+                                                        break;
+                                                    case "spelling":
+                                                        rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckSpellingSquiggleClassName}`;
+                                                        break;
+                                                    case "formatting":
+                                                        rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckFormattingSquiggleClassName}`;
+                                                        break;
+                                                    default:
+                                                        throw exhaustive(lint.category);
+                                                }
 
-                                        switch (lint.category) {
-                                            case "grammar":
-                                                rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckGrammarSquiggleClassName}`;
-                                                break;
-                                            case "spelling":
-                                                rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckSpellingSquiggleClassName}`;
-                                                break;
-                                            case "formatting":
-                                                rectElement.className = `${contentStyles.spellCheckSquiggleClassName} ${contentStyles.spellCheckFormattingSquiggleClassName}`;
-                                                break;
-                                            default:
-                                                throw exhaustive(lint.category);
-                                        }
+                                                rectElement.style.width = `${rangeRect.width}px`;
+                                                rectElement.style.left = `${
+                                                    rangeRect.left - textblockRect.left
+                                                }px`;
 
-                                        rectElement.style.width = `${rangeRect.width}px`;
-                                        rectElement.style.left = `${
-                                            rangeRect.left - textblockRect.left
-                                        }px`;
+                                                // Perfectly align the squiggle inside the selection box. First we position
+                                                // based on the text box (which is different from how Chrome renders
+                                                // selections) then adjust so the bottom of our squiggle is up against the
+                                                // bottom of the selection highlight in Chrome.
+                                                const top = rangeRect.bottom - textblockRect.top;
+                                                rectElement.style.top = `calc(${top}px + ${contentStyles.inlineBackgroundPadding.bottom} - ${contentStyles.spellCheckSquiggleHeightRem}rem)`;
+                                            }
 
-                                        // Perfectly align the squiggle inside the selection box. First we position
-                                        // based on the text box (which is different from how Chrome renders
-                                        // selections) then adjust so the bottom of our squiggle is up against the
-                                        // bottom of the selection highlight in Chrome.
-                                        const top = rangeRect.bottom - textblockRect.top;
-                                        rectElement.style.top = `calc(${top}px + ${contentStyles.inlineBackgroundPadding.bottom} - ${contentStyles.spellCheckSquiggleHeightRem}rem)`;
-                                    }
+                                            // Expando property ProseMirror checks (we added this property in a
+                                            // `prosemirror-view` patch). This element is absolutely positioned so
+                                            // ProseMirror has a bad time if it tries to use the element to figure out
+                                            // pixel position assuming it's a `display: inline` element that's not
+                                            // absolutely positioned.
+                                            //
+                                            // @ts-expect-error
+                                            element.pmIgnoreForCoords = true;
 
-                                    // Expando property ProseMirror checks (we added this property in a
-                                    // `prosemirror-view` patch). This element is absolutely positioned so
-                                    // ProseMirror has a bad time if it tries to use the element to figure out
-                                    // pixel position assuming it's a `display: inline` element that's not
-                                    // absolutely positioned.
-                                    //
-                                    // @ts-expect-error
-                                    element.pmIgnoreForCoords = true;
-
-                                    return element;
-                                }),
-                            ),
-                        );
+                                            return element;
+                                        },
+                                    ),
+                                ),
+                            );
+                        }
                     }
                 }
 

@@ -194,7 +194,11 @@ export function createSpellCheckContent({
         return (promises, doc, offset) => {
             const actualPromise = promise.then(lints =>
                 lints.map(lint => ({
-                    key: lint.key,
+                    // This key is used for caching lints in the spell checker plugin.
+                    // Even though the lint itself has a key from the spell checker engine,
+                    // we need a unique key per position in the document. We intentionally
+                    // do not use the lint's original key here to avoid collisions.
+                    key: generateContentSpellCheckLintKey(),
                     from: offset + lint.from,
                     to: offset + lint.to,
                     kind: lint.kind,
