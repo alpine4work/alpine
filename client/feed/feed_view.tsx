@@ -195,6 +195,13 @@ export function FeedView({
                                 maxWidth={contentStyles.contentMaxWidth}
                                 style={{flex: postViewFlex}}
                             />
+                            {sideBarRightSize && (
+                                <Box
+                                    width="full"
+                                    maxWidth={sideBarRightSize.maxWidth}
+                                    style={{flex: sideBarRightSize.flex}}
+                                />
+                            )}
                         </Box>
                     )
                 }
