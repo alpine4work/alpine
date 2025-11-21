@@ -1,7 +1,7 @@
 /* eslint-disable no-useless-concat, string-quotes */
 
 /**
- * NOTE(imjoshin, 2025-11-14): Updated regex!
+ * NOTE(imjoshin, 2025-11-14): Updated regex! We also added support for '[]' in query params.
  * NOTE(calebmer, 2023-01-24): This file is adapted from the Android open
  * source code which linkifies URLs in user text:
  * https://github.com/aosp-mirror/platform_frameworks_base/blob/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/util/Patterns.java#L112-L450
@@ -254,7 +254,7 @@ function createUrlRegExp({global}: {global: boolean} = {global: true}): RegExp {
     const pathAndQuery =
         "[/\\?](?:(?:[" +
         labelChar +
-        ";/\\?:@&=#~" + // plus optional query params
+        ";/\\?:@&=#~\\[\\]" + // plus optional query params
         "\\.\\+!\\*'\\(\\),_\\$-])|(?:%[a-fA-F0-9]{2}))*";
 
     /**

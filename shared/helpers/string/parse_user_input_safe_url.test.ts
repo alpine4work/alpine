@@ -111,5 +111,11 @@ describe("parseUserInputSafeUrl", () => {
             const input = "a.b.c.d.e.f.example.com";
             expect(parseUserInputSafeUrl(input)).toBe("https://a.b.c.d.e.f.example.com");
         });
+
+        test("should handle URLs with square brackets in query parameters", () => {
+            const input =
+                "https://ui.honeycomb.io/cyberworlds/environments/production/datasets/tracer/result/6vifEXX7RLx/trace/dH2qWE7E42h?fields[]=s_name&fields[]=s_serviceName&span=q9knsdy5068b6wvdc6mrbzhz3m&zoom=q9knsdy5068b6wvdc6mrbzhz3m";
+            expect(parseUserInputSafeUrl(input)).toBe(input);
+        });
     });
 });
