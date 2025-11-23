@@ -1,12 +1,7 @@
 import {Memo, useCallback, useMemo, useRef, useState} from "react";
-import {
-    getCurrentReactDispatcherIfExists,
-    reactDispatchersSeenDuringRender,
-} from "~/client/web/helpers/lifecycle/internal/react_current_dispatcher.js";
+import {throwIfRendering} from "~/client/web/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MemoObject} from "~/client/web/helpers/types/memo_object.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Allows you to define event handlers that can read the latest props/state but
@@ -51,17 +46,8 @@ export function useEvent<Args extends Array<unknown>>(
         eventRef.current = event;
     });
 
-    {
-        const dispatcher = getCurrentReactDispatcherIfExists();
-        assert(dispatcher !== null);
-        reactDispatchersSeenDuringRender.add(dispatcher);
-    }
-
     return useCallback((...args: Args) => {
-        if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
-            throw new InternalError("Can not call event callback during React render");
-        }
-
+        throwIfRendering();
         return eventRef.current?.(...args);
     }, []);
 }
@@ -106,21 +92,12 @@ export function useEvents<Events extends {[key: string]: (...args: Array<any>) =
         eventsRef.current = events;
     });
 
-    {
-        const dispatcher = getCurrentReactDispatcherIfExists();
-        assert(dispatcher !== null);
-        reactDispatchersSeenDuringRender.add(dispatcher);
-    }
-
     return useMemo(() => {
         const eventsMemo: any = {};
 
         for (const eventKey of eventKeys) {
             eventsMemo[eventKey] = (...args: Array<any>) => {
-                if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
-                    throw new InternalError("Can not call event callback during React render");
-                }
-
+                throwIfRendering();
                 return eventsRef.current[eventKey]!(...args);
             };
         }

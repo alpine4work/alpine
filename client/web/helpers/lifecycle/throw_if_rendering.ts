@@ -1,20 +1,24 @@
-import {
-    getCurrentReactDispatcherIfExists,
-    reactDispatchersSeenDuringRender,
-} from "~/client/web/helpers/lifecycle/internal/react_current_dispatcher.js";
+import React from "react";
 import {InternalError} from "~/shared/error/error.js";
 
+const ReactSharedInternals = (React as any)
+    .__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
 /**
- * Throws an error if react is currently rendering.
+ * Throws an error if React is currently rendering.
  */
 export function throwIfRendering() {
-    // TODO(calebmer): `reactDispatchersSeenDuringRender` is populated by
-    // `useEvent()` hooks. If there are no `useEvent()` hooks on the page we won't
-    // know what the render React dispatchers are.
-    //
-    // Maybe we should populate `reactDispatchersSeenDuringRender` from the root
-    // component in our app? Or a context provider?
-    if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
-        throw new InternalError("Can’t call this function while React is rendering");
+    // React hasn't initialized shared internals:
+    // https://github.com/facebook/react/blob/fd524fe02a86c3e92a207d90da970941320f337f/packages/react/src/ReactHooks.js#L25
+    if (!ReactSharedInternals.H) return;
+
+    // If the implementation of `useRef` and `useState` is the same then we assume
+    // the implementation is `throwInvalidHookError` which means React isn't
+    // rendering:
+    // https://github.com/facebook/react/blob/fd524fe02a86c3e92a207d90da970941320f337f/packages/react-reconciler/src/ReactFiberHooks.js#L3876-L3877
+    if (ReactSharedInternals.H.useRef === ReactSharedInternals.H.useState) {
+        return;
     }
+
+    throw new InternalError("Can’t call this function while React is rendering");
 }

@@ -1,0 +1,89 @@
+diff --git a/index.d.ts b/index.d.ts
+index c8933b3cf95add397367f5dc7151267bc86c36b9..1f23eb187bb5750e33c19ae74685071201d9d421 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -66,6 +66,8 @@ type VoidOrUndefinedOnly = void | { [UNDEFINED_VOID_ONLY]: never };
+ export = React;
+ export as namespace React;
+ 
++export declare const MEMO: unique symbol;
++
+ declare namespace React {
+     //
+     // React Elements
+@@ -1662,6 +1664,12 @@ declare namespace React {
+         current: T;
+     }
+ 
++    /**
++     * A value that has been memoized by `useMemo()` or `useCallback()` and so is safe to use as an
++     * effect dependency. `null & {}` is `never` so we leave null as-is.
++     */
++    type Memo<T> = T extends null | undefined ? T : T & {[MEMO]: never};
++
+     // This will technically work if you give a Consumer<T> or Provider<T> but it's deprecated and warns
+     /**
+      * Accepts a context object (the value returned from `React.createContext`) and returns the current
+@@ -1677,7 +1685,7 @@ declare namespace React {
+      * @version 16.8.0
+      * @see {@link https://react.dev/reference/react/useState}
+      */
+-    function useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>];
++    function useState<S>(initialState: S | (() => S)): [S, Memo<Dispatch<SetStateAction<S>>>];
+     // convenience overload when first argument is omitted
+     /**
+      * Returns a stateful value, and a function to update it.
+@@ -1685,7 +1693,7 @@ declare namespace React {
+      * @version 16.8.0
+      * @see {@link https://react.dev/reference/react/useState}
+      */
+-    function useState<S = undefined>(): [S | undefined, Dispatch<SetStateAction<S | undefined>>];
++    function useState<S = undefined>(): [S | undefined, Memo<Dispatch<SetStateAction<S | undefined>>>];
+     /**
+      * An alternative to `useState`.
+      *
+@@ -1699,7 +1707,7 @@ declare namespace React {
+     function useReducer<S, A extends AnyActionArg>(
+         reducer: (prevState: S, ...args: A) => S,
+         initialState: S,
+-    ): [S, ActionDispatch<A>];
++    ): [S, Memo<ActionDispatch<A>>];
+     /**
+      * An alternative to `useState`.
+      *
+@@ -1714,7 +1722,7 @@ declare namespace React {
+         reducer: (prevState: S, ...args: A) => S,
+         initialArg: I,
+         init: (i: I) => S,
+-    ): [S, ActionDispatch<A>];
++    ): [S, Memo<ActionDispatch<A>>];
+     /**
+      * `useRef` returns a mutable ref object whose `.current` property is initialized to the passed argument
+      * (`initialValue`). The returned object will persist for the full lifetime of the component.
+@@ -1779,7 +1787,7 @@ declare namespace React {
+      * @version 19.2.0
+      */
+     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+-    export function useEffectEvent<T extends Function>(callback: T): T;
++    export function useEffectEvent<T extends Function>(callback: T): Memo<T>;
+     // NOTE: this does not accept strings, but this will have to be fixed by removing strings from type Ref<T>
+     /**
+      * `useImperativeHandle` customizes the instance value that is exposed to parent components when using
+@@ -1801,7 +1809,7 @@ declare namespace React {
+     // A specific function type would not trigger implicit any.
+     // See https://github.com/DefinitelyTyped/DefinitelyTyped/issues/52873#issuecomment-845806435 for a comparison between `Function` and more specific types.
+     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+-    function useCallback<T extends Function>(callback: T, deps: DependencyList): T;
++    function useCallback<T extends Function>(callback: T, deps: DependencyList): Memo<T>;
+     /**
+      * `useMemo` will only recompute the memoized value when one of the `deps` has changed.
+      *
+@@ -1809,7 +1817,7 @@ declare namespace React {
+      * @see {@link https://react.dev/reference/react/useMemo}
+      */
+     // allow undefined, but don't make it optional as that is very likely a mistake
+-    function useMemo<T>(factory: () => T, deps: DependencyList): T;
++    function useMemo<T>(factory: () => T, deps: DependencyList): Memo<T>;
+     /**
+      * `useDebugValue` can be used to display a label for custom hooks in React DevTools.
+      *

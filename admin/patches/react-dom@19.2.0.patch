@@ -1,0 +1,234 @@
+diff --git a/cjs/react-dom-client.development.js b/cjs/react-dom-client.development.js
+index d005d8b99c428f58cdf62f50027fb855443f98ba..a86157b60c876a17c3e52d1d59dd0a3870db879b 100644
+--- a/cjs/react-dom-client.development.js
++++ b/cjs/react-dom-client.development.js
+@@ -13249,7 +13249,9 @@
+               (lastEffect = runWithFiberInDEV(
+                 finishedWork,
+                 callCreateInDEV,
+-                updateQueue
++                updateQueue,
++                flags,
++                finishedWork
+               )),
+               (flags & Insertion) !== NoFlags &&
+                 (isRunningInsertionEffect = !1),
+@@ -25983,10 +25985,48 @@
+           callComponentWillUnmount
+         ),
+       callCreate = {
+-        react_stack_bottom_frame: function (effect) {
++        react_stack_bottom_frame: function (effect, flags, finishedWork) {
+           var create = effect.create;
+           effect = effect.inst;
+-          create = create();
++          // NOTE(calebmer): We want access to our component's DOM during
++          // insertion effects. React doesn't provide a way in the public API for
++          // us to do this.
++          //
++          // - `ref`s aren't initialized until the layout effect phase
++          // - Element's are "headless" and not added to `document` until the
++          //   insertion phase finishes so we can't call
++          //   `document.getElementById()`
++          //
++          // We want the ability to manually mutate the DOM ourselves for
++          // integrating with third-party libraries like ProseMirror. If we mutate
++          // the DOM in a layout effect we get [layout thrashing][1] on UIs which
++          // render many ProseMirror editors. Like a task grid view.
++          //
++          // The sequence happens like this:
++          //
++          // 1. Task 1 has ProseMirror add its editor to the DOM in a layout effect
++          // 2. Task 1 has some other component that reads from the DOM in a
++          //    layout effect or ref (e.g. `useLifecycleRef()`, refs run during
++          //    the React layout phase). This could be a `<Tooltip>` or
++          //    `<VirtualizedScrollView>` or anything really. It's by design that
++          //    you can read from the DOM in a layout effect or ref. Anyway, this
++          //    read forces a browser layout.
++          // 3. Task 2 has ProseMirror add its editor to the DOM in a layout effect
++          // 4. Task 2 has some other component that reads from the DOM which
++          //    forces another browser layout.
++          // 5. So on for all remaining tasks...
++          //
++          // Given layout thrashing is expensive we want to batch our mutations
++          // with React's DOM mutations then only let layout effects read from the
++          // DOM (and avoid mutating the DOM). But that means we need access to
++          // the DOM from an insertion effect which is why we have this patch.
++          //
++          // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
++          if ((flags & Insertion) !== NoFlags) {
++            create = create(finishedWork.child !== null && finishedWork.child.sibling === null ? finishedWork.child.stateNode : null);
++          } else {
++            create = create();
++          }
+           return (effect.destroy = create);
+         }
+       },
+diff --git a/cjs/react-dom-client.production.js b/cjs/react-dom-client.production.js
+index 8e717888d7deebe53477923465165bd96f0be940..4ad93c30694b067b90888964d38c91f9e176394a 100644
+--- a/cjs/react-dom-client.production.js
++++ b/cjs/react-dom-client.production.js
+@@ -8580,7 +8580,45 @@ function commitHookEffectListMount(flags, finishedWork) {
+           lastEffect = void 0;
+           var create = updateQueue.create,
+             inst = updateQueue.inst;
+-          lastEffect = create();
++          // NOTE(calebmer): We want access to our component's DOM during
++          // insertion effects. React doesn't provide a way in the public API for
++          // us to do this.
++          //
++          // - `ref`s aren't initialized until the layout effect phase
++          // - Element's are "headless" and not added to `document` until the
++          //   insertion phase finishes so we can't call
++          //   `document.getElementById()`
++          //
++          // We want the ability to manually mutate the DOM ourselves for
++          // integrating with third-party libraries like ProseMirror. If we mutate
++          // the DOM in a layout effect we get [layout thrashing][1] on UIs which
++          // render many ProseMirror editors. Like a task grid view.
++          //
++          // The sequence happens like this:
++          //
++          // 1. Task 1 has ProseMirror add its editor to the DOM in a layout effect
++          // 2. Task 1 has some other component that reads from the DOM in a
++          //    layout effect or ref (e.g. `useLifecycleRef()`, refs run during
++          //    the React layout phase). This could be a `<Tooltip>` or
++          //    `<VirtualizedScrollView>` or anything really. It's by design that
++          //    you can read from the DOM in a layout effect or ref. Anyway, this
++          //    read forces a browser layout.
++          // 3. Task 2 has ProseMirror add its editor to the DOM in a layout effect
++          // 4. Task 2 has some other component that reads from the DOM which
++          //    forces another browser layout.
++          // 5. So on for all remaining tasks...
++          //
++          // Given layout thrashing is expensive we want to batch our mutations
++          // with React's DOM mutations then only let layout effects read from the
++          // DOM (and avoid mutating the DOM). But that means we need access to
++          // the DOM from an insertion effect which is why we have this patch.
++          //
++          // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
++          if ((flags & 2) !== 0) {
++            lastEffect = create(finishedWork.child !== null && finishedWork.child.sibling === null ? finishedWork.child.stateNode : null);
++          } else {
++            lastEffect = create();
++          }
+           inst.destroy = lastEffect;
+         }
+         updateQueue = updateQueue.next;
+diff --git a/cjs/react-dom-profiling.development.js b/cjs/react-dom-profiling.development.js
+index b1782a27833e2a9078794cd0765cedee4d0189b2..d740c75c1f1e1462288c70e0f20c1b444c37b9d8 100644
+--- a/cjs/react-dom-profiling.development.js
++++ b/cjs/react-dom-profiling.development.js
+@@ -13257,7 +13257,9 @@
+               (lastEffect = runWithFiberInDEV(
+                 finishedWork,
+                 callCreateInDEV,
+-                updateQueue
++                updateQueue,
++                flags,
++                finishedWork
+               )),
+               (flags & Insertion) !== NoFlags &&
+                 (isRunningInsertionEffect = !1),
+@@ -26035,10 +26037,48 @@
+           callComponentWillUnmount
+         ),
+       callCreate = {
+-        react_stack_bottom_frame: function (effect) {
++        react_stack_bottom_frame: function (effect, flags, finishedWork) {
+           var create = effect.create;
+           effect = effect.inst;
+-          create = create();
++          // NOTE(calebmer): We want access to our component's DOM during
++          // insertion effects. React doesn't provide a way in the public API for
++          // us to do this.
++          //
++          // - `ref`s aren't initialized until the layout effect phase
++          // - Element's are "headless" and not added to `document` until the
++          //   insertion phase finishes so we can't call
++          //   `document.getElementById()`
++          //
++          // We want the ability to manually mutate the DOM ourselves for
++          // integrating with third-party libraries like ProseMirror. If we mutate
++          // the DOM in a layout effect we get [layout thrashing][1] on UIs which
++          // render many ProseMirror editors. Like a task grid view.
++          //
++          // The sequence happens like this:
++          //
++          // 1. Task 1 has ProseMirror add its editor to the DOM in a layout effect
++          // 2. Task 1 has some other component that reads from the DOM in a
++          //    layout effect or ref (e.g. `useLifecycleRef()`, refs run during
++          //    the React layout phase). This could be a `<Tooltip>` or
++          //    `<VirtualizedScrollView>` or anything really. It's by design that
++          //    you can read from the DOM in a layout effect or ref. Anyway, this
++          //    read forces a browser layout.
++          // 3. Task 2 has ProseMirror add its editor to the DOM in a layout effect
++          // 4. Task 2 has some other component that reads from the DOM which
++          //    forces another browser layout.
++          // 5. So on for all remaining tasks...
++          //
++          // Given layout thrashing is expensive we want to batch our mutations
++          // with React's DOM mutations then only let layout effects read from the
++          // DOM (and avoid mutating the DOM). But that means we need access to
++          // the DOM from an insertion effect which is why we have this patch.
++          //
++          // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
++          if ((flags & Insertion) !== NoFlags) {
++            create = create(finishedWork.child !== null && finishedWork.child.sibling === null ? finishedWork.child.stateNode : null);
++          } else {
++            create = create();
++          }
+           return (effect.destroy = create);
+         }
+       },
+diff --git a/cjs/react-dom-profiling.profiling.js b/cjs/react-dom-profiling.profiling.js
+index 34a4945e4e190552f3943db0f7b14787372e6eae..ddbe4e2d01f39e72a8f4d00a242776375e2ce7bc 100644
+--- a/cjs/react-dom-profiling.profiling.js
++++ b/cjs/react-dom-profiling.profiling.js
+@@ -9177,7 +9177,45 @@ function commitHookEffectListMount(flags, finishedWork) {
+           lastEffect = void 0;
+           var create = updateQueue.create,
+             inst = updateQueue.inst;
+-          lastEffect = create();
++          // NOTE(calebmer): We want access to our component's DOM during
++          // insertion effects. React doesn't provide a way in the public API for
++          // us to do this.
++          //
++          // - `ref`s aren't initialized until the layout effect phase
++          // - Element's are "headless" and not added to `document` until the
++          //   insertion phase finishes so we can't call
++          //   `document.getElementById()`
++          //
++          // We want the ability to manually mutate the DOM ourselves for
++          // integrating with third-party libraries like ProseMirror. If we mutate
++          // the DOM in a layout effect we get [layout thrashing][1] on UIs which
++          // render many ProseMirror editors. Like a task grid view.
++          //
++          // The sequence happens like this:
++          //
++          // 1. Task 1 has ProseMirror add its editor to the DOM in a layout effect
++          // 2. Task 1 has some other component that reads from the DOM in a
++          //    layout effect or ref (e.g. `useLifecycleRef()`, refs run during
++          //    the React layout phase). This could be a `<Tooltip>` or
++          //    `<VirtualizedScrollView>` or anything really. It's by design that
++          //    you can read from the DOM in a layout effect or ref. Anyway, this
++          //    read forces a browser layout.
++          // 3. Task 2 has ProseMirror add its editor to the DOM in a layout effect
++          // 4. Task 2 has some other component that reads from the DOM which
++          //    forces another browser layout.
++          // 5. So on for all remaining tasks...
++          //
++          // Given layout thrashing is expensive we want to batch our mutations
++          // with React's DOM mutations then only let layout effects read from the
++          // DOM (and avoid mutating the DOM). But that means we need access to
++          // the DOM from an insertion effect which is why we have this patch.
++          //
++          // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
++          if ((flags & 2) !== 0) {
++            lastEffect = create(finishedWork.child !== null && finishedWork.child.sibling === null ? finishedWork.child.stateNode : null);
++          } else {
++            lastEffect = create();
++          }
+           inst.destroy = lastEffect;
+         }
+         updateQueue = updateQueue.next;

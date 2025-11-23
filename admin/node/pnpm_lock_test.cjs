@@ -124,6 +124,9 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // to v5.9.2.
     ["ignore", ["5.3.1", "7.0.5"]],
 
+    // NOTE(calebmer, 2025-09-20): Duplicate packages after React to version 19.
+    ["dom-accessibility-api", ["0.5.14", "0.6.3"]],
+
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
     // duplicate packages could be an issue and we tried to fix some easy
@@ -146,7 +149,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["buffer", ["4.9.2", "5.6.0", "5.7.1", "6.0.3"]],
     ["cacache", ["15.3.0", "17.1.4"]],
     ["camelcase", ["5.3.1", "6.3.0"]],
-    ["chalk", ["3.0.0", "4.1.2", "5.6.2"]],
+    ["chalk", ["4.1.2", "5.6.2"]],
     ["chownr", ["1.1.4", "2.0.0"]],
     ["cliui", ["7.0.4", "8.0.1"]],
     ["color-convert", ["0.5.3", "2.0.1"]],

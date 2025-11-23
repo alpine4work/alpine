@@ -59,7 +59,7 @@ export function useElementWithRef<T>(
     element: (ReactElement & {ref?: LegacyRef<T>}) | undefined,
     ref: Ref<T>,
 ): ReactElement | undefined {
-    const elementRef = element?.ref ?? null;
+    const elementRef = element?.props?.ref ?? null;
 
     assert(typeof elementRef !== "string", "Legacy React string refs are not supported");
 
