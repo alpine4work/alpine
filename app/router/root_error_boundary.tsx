@@ -1,11 +1,11 @@
 import {useMemo} from "react";
 import {isRouteErrorResponse, useRouteError} from "react-router";
 import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
-import {Box} from "~/client/design/box.js";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
-import {useStableValue} from "~/client/helpers/use_stable_value.js";
-import {useRouteErrorTitle} from "~/client/spaces/route_metadata.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {Box} from "~/client/web/design/box.js";
+import {ErrorBodyRenderer} from "~/client/web/design/error_body_renderer.js";
+import {useStableValue} from "~/client/web/helpers/use_stable_value.js";
+import {useRouteErrorTitle} from "~/client/web/spaces/route_metadata.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {quote} from "~/shared/helpers/string/quote.js";

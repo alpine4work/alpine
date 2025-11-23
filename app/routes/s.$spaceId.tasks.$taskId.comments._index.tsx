@@ -5,20 +5,20 @@ import {
     deserializeSpaceIdForLoader,
     deserializeTaskIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {Box} from "~/client/design/box.js";
-import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {Box} from "~/client/web/design/box.js";
+import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {NavigationBarContent} from "~/client/web/navigation/navigation_bar_content.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {metaTitleSeparator} from "~/client/web/remix/use_update_meta_title.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {TaskCommentsView} from "~/client/web/tasks/task_comments_view.js";
+import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

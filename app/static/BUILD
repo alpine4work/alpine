@@ -143,7 +143,7 @@ ts_project(
         "//:node_modules/react-dom",
         "//:node_modules/sharp",
         "//:node_modules/wawoff2",
-        "//client/icons",
+        "//client/web/icons",
         "//server/helpers/node",
         "//shared/helpers",
     ],

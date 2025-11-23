@@ -1,20 +1,20 @@
 import {useId, useRef, useState} from "react";
-import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {TextInputWithoutLabel} from "~/client/design/text_input.js";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {ColorScheme} from "~/client/helpers/color_scheme.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
+import {ColorScheme} from "~/client/web/helpers/color_scheme.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
-} from "~/client/messaging/inline_editor_toolbar.js";
-import {SpaceAvatarWithThemeOverride} from "~/client/spaces/space_avatar_with_theme_avatar_override.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
-import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+} from "~/client/web/messaging/inline_editor_toolbar.js";
+import {SpaceAvatarWithThemeOverride} from "~/client/web/spaces/space_avatar_with_theme_avatar_override.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

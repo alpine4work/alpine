@@ -12,11 +12,11 @@ async function main() {
     // Can only import icons after installing the `$RefreshReg$` global.
     const [{ChatBrandIcon}, {DocumentBrandIcon}, {PostBrandIcon}, {TaskBrandIcon}, {LogoWordmark}] =
         await runAllPromises([
-            import("~/client/icons/brand/chat_brand_icon.js"),
-            import("~/client/icons/brand/document_brand_icon.js"),
-            import("~/client/icons/brand/post_brand_icon.js"),
-            import("~/client/icons/brand/task_brand_icon.js"),
-            import("~/client/icons/brand/logo_wordmark.js"),
+            import("~/client/web/icons/brand/chat_brand_icon.js"),
+            import("~/client/web/icons/brand/document_brand_icon.js"),
+            import("~/client/web/icons/brand/post_brand_icon.js"),
+            import("~/client/web/icons/brand/task_brand_icon.js"),
+            import("~/client/web/icons/brand/logo_wordmark.js"),
         ]);
 
     await runAllPromises([

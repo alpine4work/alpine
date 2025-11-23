@@ -2,19 +2,22 @@ import {compareAsc, compareDesc} from "date-fns";
 import {CaretDown} from "phosphor-react";
 import {useMemo, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel, useAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
-import {MenuButton} from "~/client/design/menu_button.js";
-import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useStore} from "~/client/helpers/use_store.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRevalidator} from "~/client/remix/use_revalidator.js";
-import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
-import {SettingsInvitePeopleModal} from "~/client/settings/settings_invite_people_modal.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
+import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
+import {
+    useAccountModel,
+    useAccountRegistry,
+} from "~/client/web/accounts/account_registry_context.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {useStore} from "~/client/web/helpers/use_store.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
+import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {SettingsInvitePeopleModal} from "~/client/web/settings/settings_invite_people_modal.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_actions.js";

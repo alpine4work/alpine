@@ -1,20 +1,20 @@
 import {useId, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {AvatarUploader} from "~/client/avatar/avatar_uploader.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {TextInputWithoutLabel} from "~/client/design/text_input.js";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
+import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
-} from "~/client/messaging/inline_editor_toolbar.js";
-import {ReactionCharacterSelector} from "~/client/reactions/reaction_character_selector.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {sprinkles} from "~/client/styles/styles.js";
+} from "~/client/web/messaging/inline_editor_toolbar.js";
+import {ReactionCharacterSelector} from "~/client/web/reactions/reaction_character_selector.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

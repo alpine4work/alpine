@@ -1,3 +1,3 @@
-declare module "~/client/styles/styles.css?url" {
-    export {default} from "~/client/styles/styles.css";
+declare module "~/client/web/styles/styles.css?url" {
+    export {default} from "~/client/web/styles/styles.css";
 }

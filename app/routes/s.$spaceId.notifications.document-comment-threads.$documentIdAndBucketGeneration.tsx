@@ -1,46 +1,46 @@
 import {CaretLeft, CaretRight} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {useReporter} from "~/client/design/reporter.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
+import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {useReporter} from "~/client/web/design/reporter.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
-} from "~/client/documents/document_comment_thread_list_view.js";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
-import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
-import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+} from "~/client/web/documents/document_comment_thread_list_view.js";
+import {useDocumentContentEditorWebSocket} from "~/client/web/documents/use_document_content_editor_web_socket.js";
+import {useEvent, useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useWaitForState} from "~/client/web/helpers/use_wait_for_state.js";
 import {
     archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
     subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
-} from "~/client/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
-import {useInboxContext} from "~/client/inbox/inbox_context.js";
-import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+} from "~/client/web/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
+import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {
     getInitialAppRenderPlatform,
     getPlatformWithoutListening,
     usePlatform,
-} from "~/client/remix/platform_context.js";
+} from "~/client/web/remix/platform_context.js";
 import {
     getInitialAppRenderSpacingScale,
     getSpacingScaleWithoutListening,
-} from "~/client/remix/spacing_scale_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
-import {messageViewMinHeightPx} from "~/client/styles/messaging_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
-import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
+} from "~/client/web/remix/spacing_scale_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/web/styles/document_shared_styles.js";
+import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
+import {getVirtualizationWindowHeight} from "~/client/web/virtualized/virtualized_scroll_view_state.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/get_inbox_document_new_comment_threads_entry_comment_threads.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

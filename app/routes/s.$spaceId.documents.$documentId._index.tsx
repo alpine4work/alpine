@@ -4,18 +4,18 @@ import {
     deserializeDocumentIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {useAppContext} from "~/client/context/app_context.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {
     DocumentContentEditor,
     DocumentContentEditorInitialScroll,
-} from "~/client/documents/document_content_editor.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/search/mark_search_affinity_low_intent_update_entity_interaction.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+} from "~/client/web/documents/document_content_editor.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
+import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/web/search/mark_search_affinity_low_intent_update_entity_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,

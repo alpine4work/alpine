@@ -9,24 +9,24 @@ import {
     deserializeAccountIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
-import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
-import {Box} from "~/client/design/box.js";
-import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {ChatAccountPicker} from "~/client/web/chat/chat_account_picker.js";
+import {NewChatMessagingView} from "~/client/web/chat/new_chat_messaging_view.js";
+import {Box} from "~/client/web/design/box.js";
+import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
+import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
-} from "~/client/helpers/use_resize_observer.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {MessagingViewRef} from "~/client/messaging/messaging_view.js";
-import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
+} from "~/client/web/helpers/use_resize_observer.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
+import {NavigationBarContent} from "~/client/web/navigation/navigation_bar_content.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

@@ -1,9 +1,9 @@
 import {animate} from "motion";
 import prettyMs from "pretty-ms";
 import {useEffect, useRef, useState} from "react";
-import {Box} from "~/client/design/box.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {navigationBarStyles} from "~/client/styles/styles.js";
+import {Box} from "~/client/web/design/box.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {navigationBarStyles} from "~/client/web/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";

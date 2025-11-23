@@ -1,15 +1,15 @@
 import {ArrowClockwise} from "phosphor-react";
 import {useMemo, useState} from "react";
-import {BlobsArt} from "~/client/blobs/blobs_art.js";
-import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
-import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page.js";
-import {TextInput} from "~/client/design/text_input.js";
-import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {BlobsArt} from "~/client/web/blobs/blobs_art.js";
+import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
+import {ColorSchemeToggleButton} from "~/client/web/design/playground/color_scheme_toggle_button.js";
+import {DesignPlaygroundTooltipPage} from "~/client/web/design/playground/design_playground_tooltip_page.js";
+import {TextInput} from "~/client/web/design/text_input.js";
+import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {generateId} from "~/shared/id/id.js";
 

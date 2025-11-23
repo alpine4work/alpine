@@ -21,8 +21,8 @@ import {
 } from "react-router";
 import {UNSAFE_FetchersContext as FetchersContext} from "react-router-dom";
 import {getLocationNativeMobileTab} from "~/app/router/native_mobile_router.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {assert} from "~/shared/helpers/control/assert.js";

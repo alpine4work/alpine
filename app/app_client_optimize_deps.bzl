@@ -95,7 +95,7 @@ def _app_client_optimize_deps_aspect_impl(target, ctx):
         # Otherwise, only include accumulated client dependencies.
         client_transitive_optimize_deps = transitive_optimize_deps if (
             target.label.repo_name == "" and
-            target.label.package.startswith("client/")
+            target.label.package.startswith("client/web/")
         ) else depset(
             transitive = client_transitive_optimize_deps,
         ),

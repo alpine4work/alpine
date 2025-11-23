@@ -1,0 +1,34 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "documents",
+    visibility = [
+        "//app:__subpackages__",
+        "//client:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@types/scheduler",
+        "//:node_modules/motion",
+        "//:node_modules/murmurhash",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-state",
+        "//:node_modules/prosemirror-transform",
+        "//:node_modules/scheduler",
+        "//client/web/blobs",
+        "//client/web/content",
+        "//client/web/dev",
+        "//client/web/helpers",
+        "//client/web/messaging",
+        "//client/web/navigation",
+        "//client/web/remix",
+        "//client/web/search/core",
+        "//client/web/styles",
+        "//client/web/virtualized",
+        "//client/web/web_socket",
+        "//shared/design",
+        "//shared/documents",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/prosemirror",
+    ],
+)

@@ -2,9 +2,9 @@ import {createClientRoutes, loadRouteModuleWithBlockingLinks} from "@remix-run/r
 import jsonStableStringify from "json-stable-stringify";
 import {DataRouteObject, LazyRouteFunction} from "react-router";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
-import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {processLoaderResult} from "~/client/remix/process_loader_result.js";
-import {SpaceRouteErrorBoundary} from "~/client/spaces/layout/space_route_error_boundary.js";
+import {createLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
+import {processLoaderResult} from "~/client/web/remix/process_loader_result.js";
+import {SpaceRouteErrorBoundary} from "~/client/web/spaces/layout/space_route_error_boundary.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {
     ErrorBase,

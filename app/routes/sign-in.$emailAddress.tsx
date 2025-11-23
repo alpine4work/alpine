@@ -4,21 +4,21 @@ import {LinkDescriptor} from "@remix-run/server-runtime";
 import {ArrowLeft} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
-import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
-import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
-import {IconButton} from "~/client/design/icon_button.js";
+import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
+import {ErrorInlineAlert} from "~/client/web/design/error_inline_alert.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
 import {
     navigationBarHeight,
     navigationBarMobileGap,
-} from "~/client/design/navigation_bar_helpers.js";
-import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
-import {Spacer} from "~/client/design/spacer.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
+} from "~/client/web/design/navigation_bar_helpers.js";
+import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_after_navigation_animation.js";
+import {Spacer} from "~/client/web/design/spacer.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useFetcherWithSchema} from "~/client/web/remix/use_fetcher_with_schema.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,

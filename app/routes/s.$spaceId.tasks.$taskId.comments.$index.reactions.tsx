@@ -4,9 +4,9 @@ import {
     deserializeTaskIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {getMessageReactionsForSearchParam} from "~/app/helpers/get_message_reactions_for_search_param.js";
-import {ReactionsView} from "~/client/reactions/reactions_view.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {ReactionsView} from "~/client/web/reactions/reactions_view.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";

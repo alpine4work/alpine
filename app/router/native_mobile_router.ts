@@ -16,12 +16,12 @@ import {
 import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "react-router";
 import {RouteObject} from "react-router-dom";
 import {createStaticRouter} from "react-router-dom/server.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_element.js";
 import {
     NativeMobileBridge,
     NativeMobileTab,
     isNativeMobileTab,
-} from "~/client/remix/native_mobile_bridge.js";
+} from "~/client/web/remix/native_mobile_bridge.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

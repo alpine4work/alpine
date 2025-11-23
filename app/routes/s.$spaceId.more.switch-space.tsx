@@ -1,5 +1,5 @@
 import SwitchSpaceRoute from "~/app/routes/switch-space.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 
 export {meta, loader} from "~/app/routes/switch-space.js";
 

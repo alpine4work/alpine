@@ -4,22 +4,22 @@ import {
     deserializeDocumentIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {Box} from "~/client/design/box.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {documentCommentThreadCountAgainstLimit} from "~/client/styles/document_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {Box} from "~/client/web/design/box.js";
+import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {DocumentCommentThreadListView} from "~/client/web/documents/document_comment_thread_list_view.js";
+import {useDocumentContentEditorWebSocket} from "~/client/web/documents/use_document_content_editor_web_socket.js";
+import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {getInitialAppRenderPlatform, usePlatform} from "~/client/web/remix/platform_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/web/styles/document_shared_styles.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_actions.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

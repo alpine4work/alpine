@@ -18,58 +18,61 @@ import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_load
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {useAccountRegistryForSpaceId} from "~/client/accounts/account_registry_context.js";
-import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
-import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
-import {contentFileEntityRenderers} from "~/client/content/file_entity/content_file_entity_renderers.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
-import {RootOverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
-import {useIsBehindMobileFullScreenModal} from "~/client/design/use_is_behind_mobile_full_screen_modal.js";
-import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
+import {useAccountRegistryForSpaceId} from "~/client/web/accounts/account_registry_context.js";
+import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {ContentFileViewerModal} from "~/client/web/content/content_file_viewer_modal.js";
+import {contentFileEntityRenderers} from "~/client/web/content/file_entity/content_file_entity_renderers.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {ContextMenuContextProvider} from "~/client/web/design/context_menu.js";
+import {RootOverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/web/design/subscribe_to_mobile_keyboard_frame_change.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/web/design/use_is_behind_mobile_full_screen_modal.js";
+import {useTextInputVisibilityMaintainer} from "~/client/web/design/use_text_input_visibility_maintainer.js";
 import {
     attachDevConsoleForAccountInProduction,
     useDevConsoleTool,
-} from "~/client/dev/dev_console.js";
-import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
-import {isNodeBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
+} from "~/client/web/dev/dev_console.js";
+import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
+import {disableMobileWebKitDefaultScroll} from "~/client/web/helpers/disable_mobile_web_kit_default_scroll.js";
+import {isNodeBlockLevel} from "~/client/web/helpers/elements/is_node_block_level.js";
 import {
     isTextInputElement,
     textInputTypes,
-} from "~/client/helpers/elements/is_text_input_element.js";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
-import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {SearchModal} from "~/client/search/search_modal.js";
+} from "~/client/web/helpers/elements/is_text_input_element.js";
+import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
+import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
+import {
+    PeekStackContextProvider,
+    PeekStackContextProviderRef,
+} from "~/client/web/peek/peek_stack.js";
+import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
+import {SearchModal} from "~/client/web/search/search_modal.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
     globalLoadingIndicatorChipHeight,
-} from "~/client/spaces/global_loading_indicator_context_provider.js";
-import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
-import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
+} from "~/client/web/spaces/global_loading_indicator_context_provider.js";
+import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
+import {SpaceLayoutNativeMobileInboxController} from "~/client/web/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {
     SpaceLayoutSideBar,
     SpaceLayoutSideBarContentBlockWidthContextProvider,
-} from "~/client/spaces/layout/space_layout_side_bar.js";
-import {SpaceLayoutWebMobileTabBar} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {SpaceContextProvider} from "~/client/spaces/space_context_provider.js";
-import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
-import {sprinkles} from "~/client/styles/styles.js";
+} from "~/client/web/spaces/layout/space_layout_side_bar.js";
+import {SpaceLayoutWebMobileTabBar} from "~/client/web/spaces/layout/space_layout_web_mobile_tab_bar.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {SpaceContextProvider} from "~/client/web/spaces/space_context_provider.js";
+import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
-} from "~/client/tasks/core/task_realtime_client_context_provider.js";
+} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {getOwnAccount} from "~/server/accounts/accounts_actions.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";

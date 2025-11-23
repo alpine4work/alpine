@@ -8,31 +8,31 @@ import {
     deserializeTaskIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderPlatform} from "~/client/remix/platform_context.js";
-import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
-import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {getInitialAppRenderPlatform} from "~/client/web/remix/platform_context.js";
+import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/web/remix/use_update_meta_title.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {taskDetailViewCommentSidebarWidth} from "~/client/web/styles/tasks_shared_styles.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/web/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
-} from "~/client/tasks/core/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
-import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/tasks/core/task_query_normalized_filters_initial_fields_model.js";
-import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/tasks/core/task_realtime_client.js";
-import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
-import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskDetailAndCommentsView} from "~/client/tasks/task_detail_and_comments_view.js";
+} from "~/client/web/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
+import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/core/task_query_normalized_filters_initial_fields_model.js";
+import {unknownTaskQueryFromServerRetentionPeriodMs} from "~/client/web/tasks/core/task_realtime_client.js";
+import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/web/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskDetailAndCommentsView} from "~/client/web/tasks/task_detail_and_comments_view.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

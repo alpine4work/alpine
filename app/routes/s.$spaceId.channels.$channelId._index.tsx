@@ -5,17 +5,17 @@ import {
     deserializeChannelIdForLoader,
     deserializeSpaceIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {Box} from "~/client/design/box.js";
-import {ChannelView} from "~/client/forum/channel_view.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
+import {Box} from "~/client/web/design/box.js";
+import {ChannelView} from "~/client/web/forum/channel_view.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
-} from "~/client/styles/forum_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
+} from "~/client/web/styles/forum_shared_styles.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/web/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";

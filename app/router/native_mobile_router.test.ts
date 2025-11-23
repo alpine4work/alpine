@@ -2,13 +2,13 @@
 // initialized.
 //
 // eslint-disable-next-line import/no-duplicates
-import "~/client/remix/register_native_mobile_bridge_for_test.js";
+import "~/client/web/remix/register_native_mobile_bridge_for_test.js";
 
 import {Action, Location, To} from "@remix-run/router";
 import {createPath} from "react-router";
 import {NativeMobileMemoryHistory} from "~/app/router/native_mobile_router.js";
 // eslint-disable-next-line import/no-duplicates
-import {NativeMobileBridgeForTest} from "~/client/remix/register_native_mobile_bridge_for_test.js";
+import {NativeMobileBridgeForTest} from "~/client/web/remix/register_native_mobile_bridge_for_test.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 beforeEach(() => {

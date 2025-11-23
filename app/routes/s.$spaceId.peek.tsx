@@ -2,17 +2,17 @@ import {Outlet} from "@remix-run/react";
 import {useContext, useMemo} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
-import {usePromise} from "~/client/helpers/use_promise.js";
-import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
-import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
-import {usePeekContext} from "~/client/remix/peek_context.js";
-import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {AppContextProvider, useAppContext} from "~/client/web/context/app_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {usePromise} from "~/client/web/helpers/use_promise.js";
+import {PeekErrorBoundary} from "~/client/web/peek/peek_error_boundary.js";
+import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
+import {usePeekContext} from "~/client/web/remix/peek_context.js";
+import {NavigationContextProvider} from "~/client/web/remix/use_navigate.js";
 import {
     GlobalLoadingIndicatorChip,
     GlobalLoadingIndicatorContextProvider,
-} from "~/client/spaces/global_loading_indicator_context_provider.js";
+} from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

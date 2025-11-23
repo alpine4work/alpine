@@ -1,4 +1,4 @@
-import stylesUrl from "~/client/styles/styles.css?url";
+import stylesUrl from "~/client/web/styles/styles.css?url";
 
 export {stylesUrl};
 

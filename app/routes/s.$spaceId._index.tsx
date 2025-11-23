@@ -1,12 +1,15 @@
 import {ShouldRevalidateFunction} from "react-router";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
-import {FeedView} from "~/client/feed/feed_view.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {feedEntryHeight, postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
+import {FeedView} from "~/client/web/feed/feed_view.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {
+    feedEntryHeight,
+    postContentViewMinHeightPx,
+} from "~/client/web/styles/forum_shared_styles.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/web/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {getAndUpdateFeedEntries} from "~/server/feed/feed_actions.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

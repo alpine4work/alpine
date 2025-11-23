@@ -293,8 +293,8 @@ export async function run({
             // didn't change. That way only the CSS file will emit a change event which can
             // be hot reloaded.
             watchFilesForActualChanges: [
-                joinPath(rootPath, "client/styles/core/styles_core.js"),
-                joinPath(rootPath, "client/styles/other/styles_other.js"),
+                joinPath(rootPath, "client/web/styles/core/styles_core.js"),
+                joinPath(rootPath, "client/web/styles/other/styles_other.js"),
             ],
         });
 

@@ -21,7 +21,7 @@ import {
 } from "~/app/router/app_client_routes.js";
 import {AppRouterProvider} from "~/app/router/app_router_provider.js";
 import {createNativeMobileRouterWithoutInitialization} from "~/app/router/native_mobile_router.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";

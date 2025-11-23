@@ -9,4 +9,4 @@ import {bar} from "~/admin/eslint/test/other/internal/eslint_rule_no_internal_im
 
 // Error
 // eslint-disable-next-line no-internal-imports
-import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {ContentEditorDomParser} from "~/client/web/content/internal/content_editor_dom_parser.js";

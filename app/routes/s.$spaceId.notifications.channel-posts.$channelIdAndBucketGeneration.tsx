@@ -1,28 +1,28 @@
 import {ReactElement, useCallback, useEffect, useMemo} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {useReporter} from "~/client/design/reporter.js";
-import {PostBasicList} from "~/client/forum/post_list.js";
-import {PostListView} from "~/client/forum/post_list_view.js";
-import {PostView} from "~/client/forum/post_view.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
-import {useWaitForState} from "~/client/helpers/use_wait_for_state.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {useReporter} from "~/client/web/design/reporter.js";
+import {PostBasicList} from "~/client/web/forum/post_list.js";
+import {PostListView} from "~/client/web/forum/post_list_view.js";
+import {PostView} from "~/client/web/forum/post_view.js";
+import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
+import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useWaitForState} from "~/client/web/helpers/use_wait_for_state.js";
 import {
     archiveInboxChannelPostsEntryPostOptimistically,
     subscribeToArchiveInboxChannelPostsEntryPostOptimistically,
-} from "~/client/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
-import {useInboxContext} from "~/client/inbox/inbox_context.js";
-import {InboxContextNavigation} from "~/client/inbox/inbox_context_types.js";
-import {useInboxBannerOutletContainer} from "~/client/inbox/use_inbox_banner_outlet_container.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
-import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
+} from "~/client/web/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
+import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
+import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
+import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
+import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {contentStyles} from "~/client/web/styles/styles.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {getInboxChannelPostsEntryPosts} from "~/server/notifications/data/get_inbox_channel_posts_entry_posts.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

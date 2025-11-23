@@ -1,13 +1,13 @@
 import {useCallback, useEffect, useState} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
-import {useAppContext} from "~/client/context/app_context.js";
-import {Switch} from "~/client/design/switch.js";
-import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
+import {Switch} from "~/client/web/design/switch.js";
+import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {
     useMyAccountWebSocket,
     useSpaceContextAndRequireSpaceAccess,
-} from "~/client/spaces/space_context.js";
+} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";

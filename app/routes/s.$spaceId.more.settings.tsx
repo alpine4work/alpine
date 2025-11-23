@@ -1,12 +1,12 @@
 import {Bell, User, Users} from "phosphor-react";
-import {Box} from "~/client/design/box.js";
-import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
-import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
-import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
+import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
+import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_view.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function meta() {

@@ -2,23 +2,23 @@ import {Outlet, useLocation, useNavigation} from "@remix-run/react";
 import {Bell, IconContext, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
-import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {useScrollbar} from "~/client/design/scrollbar.js";
-import {Spacer} from "~/client/design/spacer.js";
-import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
-import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
+import {Box} from "~/client/web/design/box.js";
+import {FocusRing} from "~/client/web/design/focus_ring.js";
+import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
+import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
+import {useScrollbar} from "~/client/web/design/scrollbar.js";
+import {Spacer} from "~/client/web/design/spacer.js";
+import {BuildingsIcon} from "~/client/web/icons/buildings_icon.js";
+import {SpaceRouteScrollView} from "~/client/web/navigation/space_route_scroll_view.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
     spaceSettingsDesktopSidebarWidth,
     spaceSettingsMaxDesktopContentWidth,
-} from "~/client/styles/space_settings_shared_styles.js";
-import {colorSchemeVars} from "~/client/styles/styles.js";
+} from "~/client/web/styles/space_settings_shared_styles.js";
+import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";

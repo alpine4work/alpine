@@ -1,8 +1,8 @@
 import {useEffect, useState} from "react";
 import {ShouldRevalidateFunction, useSearchParams} from "react-router-dom";
-import {PostCreator} from "~/client/forum/post_creator.js";
-import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {PostCreator} from "~/client/web/forum/post_creator.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";

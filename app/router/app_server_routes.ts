@@ -1,6 +1,6 @@
 import {ServerBuild} from "@remix-run/server-runtime";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
-import {SpaceRouteErrorBoundary} from "~/client/spaces/layout/space_route_error_boundary.js";
+import {SpaceRouteErrorBoundary} from "~/client/web/spaces/layout/space_route_error_boundary.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 /**

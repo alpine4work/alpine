@@ -537,7 +537,7 @@ module.exports = {
             },
         },
         {
-            files: ["client/styles/internal/**/*"],
+            files: ["client/web/styles/internal/**/*"],
             rules: {
                 "no-restricted-imports": [
                     "error",
@@ -546,11 +546,11 @@ module.exports = {
                         paths: [
                             ...baseNoRestrictedImports.paths,
                             {
-                                name: "~/client/styles/internal/styles.js",
+                                name: "~/client/web/styles/internal/styles.js",
                                 message: "Can’t import style bundle from `.css.ts` file",
                             },
                             {
-                                name: "~/client/styles/styles.js",
+                                name: "~/client/web/styles/styles.js",
                                 message: "Can’t import style bundle from `.css.ts` file",
                             },
                         ],
@@ -559,7 +559,7 @@ module.exports = {
             },
         },
         {
-            files: ["client/styles/**/*.css.ts"],
+            files: ["client/web/styles/**/*.css.ts"],
             rules: {
                 // `.css.ts` files need to use quotes in strings a lot for CSS selectors and we
                 // don't really create UI strings in CSS files.

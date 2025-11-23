@@ -4,7 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "eslint",
     deps = [
-        "//client/content",
+        "//client/web/content",
         "//shared/helpers",
         "//shared/id",
     ],
@@ -23,4 +23,3 @@ copy_to_bin(
     srcs = ["eslint_test.cjs"],
     visibility = ["//visibility:public"],
 )
-

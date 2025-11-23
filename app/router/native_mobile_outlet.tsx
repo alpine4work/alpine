@@ -18,11 +18,11 @@ import {
     UNSAFE_RouteContext as RouteContext,
     renderMatches,
 } from "react-router";
-import {Box} from "~/client/design/box.js";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
-import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
-import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
+import {Box} from "~/client/web/design/box.js";
+import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
+import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
+import {GlobalLoadingIndicatorChip} from "~/client/web/spaces/global_loading_indicator_context_provider.js";
+import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
