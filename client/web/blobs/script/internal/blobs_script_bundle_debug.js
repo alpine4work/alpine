@@ -1962,7 +1962,7 @@ function assert(condition, message) {
     }
 }
 
-// client/blobs/helpers/blobs_settings.js
+// client/web/blobs/helpers/blobs_settings.js
 var maxPossibleCanvasSize = 1e4;
 function getBlobsCanvasSize() {
     assert(typeof window !== "undefined");
@@ -1982,7 +1982,7 @@ function getBlobsCanvasScale() {
 }
 var blobsContentWidthPx = 1200;
 
-// client/blobs/helpers/draw_blobs_factory.js
+// client/web/blobs/helpers/draw_blobs_factory.js
 var import_color10 = __toESM(require_color());
 
 // node_modules/.aspect_rules_js/d3-color@3.1.0/node_modules/d3-color/src/define.js
@@ -2960,7 +2960,7 @@ function invLerp(a, b, n) {
     return (n - a) / (b - a);
 }
 
-// client/blobs/helpers/blobs_css_gradient.js
+// client/web/blobs/helpers/blobs_css_gradient.js
 function generateEasedGradient(from, to, easingFunction, stops = 6) {
     const interpolate = hcl_default(from, to);
     return createArrayWithLength(stops, index => {
@@ -2972,10 +2972,10 @@ function formatCssLinearGradient(sideOrCorner, stops) {
     return `linear-gradient(${sideOrCorner}, ${stops.join(",")})`;
 }
 
-// client/helpers/gl/glsl.js
+// client/web/helpers/gl/glsl.js
 var glsl = String.raw;
 
-// client/blobs/helpers/blobs_shader_frag.js
+// client/web/blobs/helpers/blobs_shader_frag.js
 var blobFactoryShaderFragSource = glsl`#version 300 es
 
 #define MAX_BLOBS 32
@@ -3138,7 +3138,7 @@ void main() {
 }
 `;
 
-// client/blobs/helpers/blobs_shader_vert.js
+// client/web/blobs/helpers/blobs_shader_vert.js
 var blobFactoryShaderVertSource = glsl`#version 300 es
 
 // an attribute is an input (in) to a vertex shader.
@@ -3166,7 +3166,7 @@ void main() {
 }
 `;
 
-// client/blobs/helpers/blobs_types.js
+// client/web/blobs/helpers/blobs_types.js
 var BlobFactoryDrawOutsideFlag = 1;
 var BlobFactoryDrawInsideFlag = 2;
 function blobFactoryModeFromSettings({shouldDrawInside, shouldDrawOutside}) {
@@ -3180,7 +3180,7 @@ function blobFactoryModeFromSettings({shouldDrawInside, shouldDrawOutside}) {
     return mode;
 }
 
-// client/helpers/gl/gl_types.js
+// client/web/helpers/gl/gl_types.js
 function glEnum(name) {
     return WebGL2RenderingContext[name];
 }
@@ -3283,7 +3283,7 @@ var GlTextureWrap;
     GlTextureWrap2["MirroredRepeat"] = "MIRRORED_REPEAT";
 })(GlTextureWrap || (GlTextureWrap = {}));
 
-// client/helpers/gl/gl_uniform.js
+// client/web/helpers/gl/gl_uniform.js
 var GlUniform = class {
     constructor(gl, name, location, initialValue) {
         this.gl = gl;
@@ -3329,7 +3329,7 @@ var GlUniformColor = class extends GlUniform {
     }
 };
 
-// client/helpers/gl/gl_vertex_array.js
+// client/web/helpers/gl/gl_vertex_array.js
 var GlVertexArray = class {
     constructor(gl, vertexArray, buffer) {
         this.gl = gl;
@@ -3361,7 +3361,7 @@ function assertExists(value, message) {
     return value;
 }
 
-// client/helpers/gl/gl_program.js
+// client/web/helpers/gl/gl_program.js
 var GlProgram = class {
     constructor(_gl, vertexShader, fragmentShader) {
         this.vertexShader = vertexShader;
@@ -3434,7 +3434,7 @@ var GlProgram = class {
     }
 };
 
-// client/helpers/gl/gl_shader.js
+// client/web/helpers/gl/gl_shader.js
 var GlShader = class {
     constructor(_gl, type, source) {
         this.type = type;
@@ -3453,7 +3453,7 @@ var GlShader = class {
     }
 };
 
-// client/helpers/gl/gl_texture_2d.js
+// client/web/helpers/gl/gl_texture_2d.js
 var GlTexture2d = class {
     constructor(gl, textureUnit, format, level) {
         this.gl = gl;
@@ -3523,7 +3523,7 @@ function getOwnProperty(obj, key) {
     return obj[key];
 }
 
-// client/helpers/gl/gl.js
+// client/web/helpers/gl/gl.js
 var Gl = class {
     constructor(canvas) {
         this.canvas = canvas;
@@ -4078,7 +4078,7 @@ var Vector2 = class _Vector2 {
     }
 };
 
-// client/blobs/helpers/draw_blobs_factory.js
+// client/web/blobs/helpers/draw_blobs_factory.js
 if (typeof window !== "undefined" && !window.__blobs) {
     const factory = new Lazy(() => {
         const canvas = document.createElement("canvas");
@@ -4411,7 +4411,7 @@ var StableRandom = class {
     }
 };
 
-// client/blobs/helpers/generate_blobs_for_content.js
+// client/web/blobs/helpers/generate_blobs_for_content.js
 function generateBlobsForContent({
     contentWidthPx,
     screenWidthPx,
@@ -4468,7 +4468,7 @@ function generateBlobsForContent({
     return blobs;
 }
 
-// client/blobs/script/internal/blobs_script.js
+// client/web/blobs/script/internal/blobs_script.js
 function drawBlobs(blobCanvasId, settings, scale) {
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
     const actuallyDrawBlobs = colorScheme => {
