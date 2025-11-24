@@ -1089,7 +1089,6 @@ export function ContentView<Content extends ContentWithReferences>({
                         element,
                         {
                             spaceId: assertExists(spaceContext).space.id,
-                            node,
                             fileEntityId: fileId,
                             fileEntityResult,
                             fileEntityRenderers,
@@ -1116,7 +1115,6 @@ export function ContentView<Content extends ContentWithReferences>({
                             element,
                             {
                                 spaceId: assertExists(spaceContext).space.id,
-                                node,
                                 file: actualFileStore.getSnapshot(),
                                 attachmentTarget: assertExists(fileAttachmentTarget),
                                 isInert,

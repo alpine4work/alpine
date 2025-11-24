@@ -306,7 +306,6 @@ export function MessageViewFiles({
                     cleanups.push(
                         addContentFileEntityPreviewBehavior(() => context, fileElement, {
                             spaceId: space.id,
-                            node: nodeByFileId.getOrSetDefault(file.fileEntityId),
                             fileEntityId: file.fileEntityId,
                             fileEntityResult: file.fileEntityResult,
                             fileEntityRenderers,
@@ -318,7 +317,6 @@ export function MessageViewFiles({
                     cleanups.push(
                         addContentFilePreviewBehavior(() => context, fileElement, {
                             spaceId: space.id,
-                            node: nodeByFileId.getOrSetDefault(fileData.id),
                             file: fileData,
                             attachmentTarget,
                             rootNavigate,
@@ -341,7 +339,6 @@ export function MessageViewFiles({
         fileRows,
         isInitialAppRender,
         navigate,
-        nodeByFileId,
         reporter,
         rootNavigate,
         space.id,

@@ -1,4 +1,5 @@
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
+import {addContentFileContentViewEntityPreviewBehavior} from "~/client/web/content/file_entity/internal/add_content_file_content_view_entity_preview_behavior.js";
 import {
     addContentFileChannelEntityPreviewBehavior,
     renderContentFileChannelEntityPreview,
@@ -16,5 +17,7 @@ export const contentFileEntityRenderers: ContentFileEntityRenderers = {
     },
     addPreviewBehaviorByType: {
         Channel: addContentFileChannelEntityPreviewBehavior,
+        Document: addContentFileContentViewEntityPreviewBehavior,
+        Post: addContentFileContentViewEntityPreviewBehavior,
     },
 };

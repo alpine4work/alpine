@@ -169,7 +169,6 @@ export function ContentFileEntityPreview({
             assertExists(containerElement.firstElementChild) as HTMLElement,
             {
                 spaceId: space.id,
-                node,
                 fileEntityId,
                 fileEntityResult,
                 fileEntityRenderers,

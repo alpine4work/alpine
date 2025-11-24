@@ -133,7 +133,6 @@ export function ContentFilePreview({
             assertExists(containerElement.firstElementChild) as HTMLElement,
             {
                 spaceId: space.id,
-                node,
                 file,
                 attachmentTarget,
                 rootNavigate,

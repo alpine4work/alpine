@@ -1465,7 +1465,6 @@ export function addContentFilePreviewBehavior(
     element: HTMLElement,
     {
         spaceId,
-        node,
         file,
         attachmentTarget,
         isInert = false,
@@ -1478,7 +1477,6 @@ export function addContentFilePreviewBehavior(
         onOpenViewer,
     }: {
         spaceId: SpaceId;
-        node: Node;
         file: FileModelRegistryData | undefined;
         attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
@@ -1523,9 +1521,11 @@ export function addContentFilePreviewBehavior(
         onDragStart: dataTransfer => {
             if (!file) return;
 
+            const schema = ContentBaseProsemirrorSchemaWithFiles.get();
+
             const clipboardSerializer =
                 ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-                    node.type.schema,
+                    schema,
                     () => spaceId,
                     () => ({
                         ...emptyContentReferences,
@@ -1538,6 +1538,8 @@ export function addContentFilePreviewBehavior(
                     }),
                     () => attachmentTarget,
                 );
+
+            const node = schema.node("file", {fileId: file.id});
 
             const serializedNode = clipboardSerializer.serializeNode(node);
             assert(serializedNode instanceof HTMLElement);
@@ -1579,6 +1581,8 @@ export function addContentFilePreviewBehavior(
     });
 
     const openViewer = () => {
+        if (isInert) return;
+
         if (onOpenViewer) {
             const result = onOpenViewer();
             if (result?.preventDefault) return;
@@ -1628,7 +1632,7 @@ export function addContentFilePreviewBehavior(
     const fileContentTypeNoun = getFileContentTypeNoun(file?.contentType);
 
     const handleContextMenu = (event: MouseEvent) => {
-        if (!navigator.clipboard) return;
+        if (!navigator.clipboard || isInert) return;
 
         addContextMenuActions(event, [
             [
@@ -1726,7 +1730,11 @@ export function addContentFilePreviewBehavior(
         onPress: () => {preventDefault: boolean} | void;
         cleanup: () => void;
     } | null = null;
-    if (file?.preview?.type === "Image" && typeof file.preview.videoDuration === "number") {
+    if (
+        !isInert &&
+        file?.preview?.type === "Image" &&
+        typeof file.preview.videoDuration === "number"
+    ) {
         const containerElement = element.getElementsByClassName(
             contentFileVideoPlayerStyles.containerClassName,
         )[0];
@@ -1744,7 +1752,12 @@ export function addContentFilePreviewBehavior(
         onPress: () => {preventDefault: boolean} | void;
         cleanup: () => void;
     } | null = null;
-    if (file?.preview?.type === "Audio" && !file.preview.isProcessing && file.preview.ok) {
+    if (
+        !isInert &&
+        file?.preview?.type === "Audio" &&
+        !file.preview.isProcessing &&
+        file.preview.ok
+    ) {
         const containerElement = element.getElementsByClassName(
             contentFileAudioPlayerStyles.containerClassName,
         )[0];

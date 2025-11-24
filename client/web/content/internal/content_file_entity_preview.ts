@@ -4,6 +4,7 @@ import {Node} from "prosemirror-model";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
+import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/web/content/internal/content_base_schema_with_files.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/web/content/internal/content_editor_dom_clipboard_serializer.js";
 import {renderContentFileErrorPreview} from "~/client/web/content/internal/content_file_error_preview.js";
 import {
@@ -209,7 +210,6 @@ export function addContentFileEntityPreviewBehavior(
     element: HTMLElement,
     {
         spaceId,
-        node,
         fileEntityId,
         fileEntityResult,
         fileEntityRenderers,
@@ -222,7 +222,6 @@ export function addContentFileEntityPreviewBehavior(
         onDrag,
     }: {
         spaceId: SpaceId;
-        node: Node;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
         fileEntityRenderers: ContentFileEntityRenderers | null;
@@ -248,15 +247,19 @@ export function addContentFileEntityPreviewBehavior(
             );
         },
         onDragStart: dataTransfer => {
+            const schema = ContentBaseProsemirrorSchemaWithFiles.get();
+
             const clipboardSerializer =
                 ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-                    node.type.schema,
+                    schema,
                     () => spaceId,
                     () => emptyContentReferences,
                     () => {
                         throw new UnimplementedError("Shouldn’t need file attachment target");
                     },
                 );
+
+            const node = schema.node("file", {fileId: fileEntityId});
 
             const serializedNode = clipboardSerializer.serializeNode(node);
             assert(serializedNode instanceof HTMLElement);
@@ -330,6 +333,7 @@ export function addContentFileEntityPreviewBehavior(
             element,
             {
                 fileEntity,
+                fileEntityRenderers,
                 spaceId,
                 getReporter,
                 isInert,

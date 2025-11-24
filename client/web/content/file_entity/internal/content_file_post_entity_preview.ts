@@ -215,6 +215,14 @@ export function renderContentFilePostEntityPreview(
             currentDate,
             fileEntityRenderers,
             suppressHydrationWarning,
+            // Include `data-file` attributes on files so
+            // `addContentFileDocumentEntityPreviewBehavior()` can figure out what file is
+            // being rendered for a given `fileClassName` HTML element.
+            //
+            // TODO(calebmer): We could also set `withPosAttribute: true` and use the
+            // `data-pos` attribute to lookup the file ProseMirror node in the content like
+            // `<ContentView>` does.
+            withFileIdAttribute: true,
         });
 
         contentHtml.appendChild(contentFragmentHtml);

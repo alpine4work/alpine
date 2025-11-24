@@ -317,7 +317,6 @@ export function createContentEditorFileNodeViewConstructor({
                     if (isFileEntity) {
                         cleanupBehavior = addContentFileEntityPreviewBehavior(getContext, dom, {
                             spaceId,
-                            node,
                             fileEntityId: fileId,
                             fileEntityResult,
                             fileEntityRenderers: getFileEntityRenderers(),
@@ -331,7 +330,6 @@ export function createContentEditorFileNodeViewConstructor({
                     } else {
                         cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {
                             spaceId,
-                            node,
                             file,
                             attachmentTarget: getAttachmentTarget(),
                             rootNavigate,

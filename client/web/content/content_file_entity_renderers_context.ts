@@ -63,6 +63,7 @@ export type ContentFileEntityRenderers = {
                     spaceId: SpaceId;
                     getReporter: () => Reporter;
                     isInert: boolean;
+                    fileEntityRenderers: ContentFileEntityRenderers | null;
                 },
             ) => () => void
         >

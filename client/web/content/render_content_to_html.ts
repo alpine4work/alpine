@@ -169,6 +169,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileEntityRenderers,
         withPosAttribute,
         posAttributeOffset,
+        withFileIdAttribute,
         isInert = false,
         placeholder,
         decorations,
@@ -192,6 +193,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
         posAttributeOffset?: number;
+        withFileIdAttribute?: boolean;
         isInert?: boolean;
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
@@ -543,6 +545,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         suppressHydrationWarning,
                     });
 
+                    if (withFileIdAttribute) {
+                        html.setAttribute("data-file", fileId);
+                    }
+
                     return {html};
                 } else {
                     const html = renderContentFilePreview({
@@ -556,6 +562,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         spacingScale,
                         isInitialAppRender,
                     });
+
+                    if (withFileIdAttribute) {
+                        html.setAttribute("data-file", fileId !== null ? fileId : "null");
+                    }
 
                     return {html};
                 }
