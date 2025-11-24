@@ -29,7 +29,7 @@ export function useJumpToPostRange({
     viewRef,
     scrollToIndexForPost,
 }: {
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     scrollToIndexForPost: (postId: PostId) => number | null;
 }): {
     jumpState: JumpToPostRangeState | null;

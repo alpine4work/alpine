@@ -26,14 +26,23 @@ export function TaskPriorityInputListBox({
     selectedKey,
 }: {
     comboBoxState: ComboBoxState<TaskPriorityInputItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
     listBoxProps: AriaListBoxOptions<TaskPriorityInputItem>;
     selectedKey: TaskPriorityInputItem["key"];
 }) {
     const platform = usePlatform();
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
+    const {listBoxProps} = useListBox(
+        {
+            ..._listBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            scrollRef,
+        },
+        comboBoxState,
+        listBoxRef,
+    );
 
     return (
         <div
@@ -93,7 +102,7 @@ function TaskPriorityInputListBoxOption({
     item: Node<TaskPriorityInputItem>;
     selectedKey: TaskPriorityInputItem["key"];
 }) {
-    const optionRef = useRef(null);
+    const optionRef = useRef<HTMLLIElement>(null);
     const {optionProps, isFocused, isPressed, isHovered} = useOption(
         {
             key: item.key,
@@ -107,6 +116,8 @@ function TaskPriorityInputListBoxOption({
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

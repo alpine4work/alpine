@@ -303,7 +303,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const inputContentRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
-    const viewRef: RefObject<EditorView> = useMemo(
+    const viewRef: RefObject<EditorView | null> = useMemo(
         () => ({
             get current() {
                 return editorRef.current?._getInternalView() ?? null;

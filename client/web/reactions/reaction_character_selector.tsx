@@ -286,7 +286,7 @@ function ReactionCharacterSelectorCarouselItem({
     isPending,
     onPress,
 }: {
-    itemRef: RefObject<HTMLDivElement> | undefined;
+    itemRef: RefObject<HTMLDivElement | null> | undefined;
     character: ReactionCharacter;
     isActive: boolean;
     isPending: boolean;

@@ -716,7 +716,7 @@ function DocumentCommentThreadListView(
 
     const inputRefByCommentThreadId = useConstant(
         () =>
-            new LazyMap<DocumentCommentThreadId, RefObject<MessageInputRef>>(() => ({
+            new LazyMap<DocumentCommentThreadId, RefObject<MessageInputRef | null>>(() => ({
                 current: null,
             })),
     );

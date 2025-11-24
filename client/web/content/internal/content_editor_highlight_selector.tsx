@@ -206,7 +206,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[0] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 0}
                 onFocus={() => setLastFocusedIndex(0)}
             />
@@ -216,7 +218,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[1] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 1}
                 onFocus={() => setLastFocusedIndex(1)}
             />
@@ -226,7 +230,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[2] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 2}
                 onFocus={() => setLastFocusedIndex(2)}
             />
@@ -236,7 +242,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[3] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 3}
                 onFocus={() => setLastFocusedIndex(3)}
             />
@@ -247,7 +255,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[4] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 4}
                 onFocus={() => setLastFocusedIndex(4)}
             />
@@ -258,7 +268,9 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 onSelectHighlightColor={selectHighlightColor}
                 mark={mark}
                 isFocusable={isFocusable}
-                buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[5] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 5}
                 onFocus={() => setLastFocusedIndex(5)}
             />

@@ -118,9 +118,10 @@ export function ContentEditorMentionFloater({
 }: {
     state: EditorState;
     viewRef: RefObject<
-        EditorView & {
-            insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
-        }
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
     >;
     range: {from: number; to: number};
     searchQuery: string;
@@ -871,7 +872,7 @@ function ContentEditorMentionFloaterItemBase({
     children,
     onPress,
 }: {
-    menuRef: RefObject<HTMLDivElement>;
+    menuRef: RefObject<HTMLDivElement | null>;
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
@@ -976,7 +977,7 @@ function ContentEditorMentionFloaterAccountItem({
     accountData,
     onPress,
 }: {
-    menuRef: RefObject<HTMLDivElement>;
+    menuRef: RefObject<HTMLDivElement | null>;
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
@@ -1013,7 +1014,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     entity,
     onPress,
 }: {
-    menuRef: RefObject<HTMLDivElement>;
+    menuRef: RefObject<HTMLDivElement | null>;
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;
@@ -1103,7 +1104,7 @@ function ContentEditorMentionFloaterInsertItem({
     action,
     onPress,
 }: {
-    menuRef: RefObject<HTMLDivElement>;
+    menuRef: RefObject<HTMLDivElement | null>;
     isFirst: boolean;
     isLast: boolean;
     isSelected: boolean;

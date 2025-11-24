@@ -147,7 +147,7 @@ export function useGetCurrentCoveredHeight(): Memo<() => number> {
 export function useScrollToAvoidBottomBarsAndMobileKeyboard<
     ScrollableRef extends HTMLElement | {getElement: () => HTMLElement},
 >(
-    scrollableRef: RefObject<ScrollableRef>,
+    scrollableRef: RefObject<ScrollableRef | null>,
     {
         getAnchorPosition,
         isDisabled = false,

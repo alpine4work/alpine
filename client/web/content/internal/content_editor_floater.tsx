@@ -57,9 +57,10 @@ export function ContentEditorFloater({
     state: EditorState & {schema: ContentProsemirrorSchema};
     accessLevel: AccessLevel;
     viewRef: RefObject<
-        EditorView & {
-            insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
-        }
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
     >;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;

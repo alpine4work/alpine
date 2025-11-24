@@ -1649,7 +1649,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     onJumpToMessageRange,
     onJumpToPostRange,
 }: {
-    parentMessageRef: RefObject<HTMLDivElement>;
+    parentMessageRef: RefObject<HTMLDivElement | null>;
     messageNoun: string;
     parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
     onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;

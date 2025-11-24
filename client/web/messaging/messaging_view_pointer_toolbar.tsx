@@ -70,7 +70,7 @@ export function MessagingViewPointerToolbar<
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
 }: {
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     messageNoun: string;
     getMessagesByRoomKey: Memo<(roomKey: string) => MessageList<Message> | null>;
     getPostByRoomKey?: Memo<(roomKey: string) => PostModel | null> | null;
@@ -430,6 +430,8 @@ const MessagingViewPointerToolbarButton = forwardRef(function MessagingViewPoint
     const [isPending, setIsPending] = useState(false);
 
     const {pressProps, isPressed: isPressedFromState} = usePress({
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         ref: localRef,
         preventFocusOnPress: true,
         onPress: () => {

@@ -23,7 +23,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
     isQuiet: boolean;
     isPending: boolean;
 }) {
-    const optionRef = useRef(null);
+    const optionRef = useRef<HTMLLIElement>(null);
     const {optionProps, isFocused, isPressed, isHovered} = useOption(
         {
             key: item.key,
@@ -37,6 +37,8 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

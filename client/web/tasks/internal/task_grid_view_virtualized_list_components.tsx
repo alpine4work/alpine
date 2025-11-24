@@ -532,7 +532,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
     hasNextGridView: boolean;
-    mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
+    mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement | null>;
 }) {
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();

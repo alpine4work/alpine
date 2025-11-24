@@ -63,7 +63,7 @@ export function ContentEditorFileToolbarController({
     onMobileCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView>;
+    viewRef: RefObject<EditorView | null>;
     isFocused: boolean;
     accessLevel: AccessLevel;
     floaterState: ContentEditorFloaterState;
@@ -160,7 +160,7 @@ function ContentEditorFileToolbar({
     onMobileCommentInputOpen,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView>;
+    viewRef: RefObject<EditorView | null>;
     accessLevel: AccessLevel;
     isVisible: boolean;
     selection: NodeSelection;
@@ -575,6 +575,8 @@ function ContentEditorFileToolbarButton({
     const localRef = useRef<HTMLDivElement>(null);
 
     const {pressProps, isPressed} = usePress({
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         ref: localRef,
         preventFocusOnPress: true,
         onPress,

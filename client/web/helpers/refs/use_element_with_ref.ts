@@ -59,7 +59,7 @@ export function useElementWithRef<T>(
     element: (ReactElement & {ref?: LegacyRef<T>}) | undefined,
     ref: Ref<T>,
 ): ReactElement | undefined {
-    const elementRef = element?.props?.ref ?? null;
+    const elementRef = (element as any)?.props?.ref ?? null;
 
     assert(typeof elementRef !== "string", "Legacy React string refs are not supported");
 
@@ -67,6 +67,6 @@ export function useElementWithRef<T>(
 
     return useMemo(() => {
         if (!element) return undefined;
-        return cloneElement(element, {ref: mergedRef});
+        return cloneElement(element as any, {ref: mergedRef});
     }, [element, mergedRef]);
 }

@@ -183,6 +183,8 @@ function ContentEditorLinkInputClearButton({
                 }
             },
         },
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         buttonRef,
     );
 
@@ -246,6 +248,8 @@ function ContentEditorLinkInputSaveButton({
                 }
             },
         },
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         buttonRef,
     );
     const {hoverProps, isHovered} = useHover({});

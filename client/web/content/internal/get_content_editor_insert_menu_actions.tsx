@@ -64,9 +64,10 @@ export function getContentEditorInsertMenuActions({
 }: {
     schema: ProsemirrorSchema;
     viewRef: RefObject<
-        EditorView & {
-            insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
-        }
+        | (EditorView & {
+              insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+          })
+        | null
     >;
     getSelection?: () => Selection;
     alwaysDeleteSelection?: boolean;

@@ -21,7 +21,12 @@ export function TaskQueryPriorityFilterOperationEditor({
     const platform = usePlatform();
 
     const buttonRef = useRef<HTMLButtonElement>(null);
-    const {buttonProps, isPressed} = useButton({}, buttonRef);
+    const {buttonProps, isPressed} = useButton(
+        {},
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
+        buttonRef,
+    );
     const {hoverProps, isHovered} = useHover({});
 
     const priorities = [

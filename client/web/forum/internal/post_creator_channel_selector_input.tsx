@@ -454,8 +454,14 @@ function PostCreatorChannelSelectorInput(
     const {inputProps, listBoxProps, buttonProps} = useComboBox(
         {
             ...comboBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             inputRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             popoverRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             listBoxRef,
             "aria-label": "Channel",
         },
@@ -625,7 +631,7 @@ function PostCreatorChannelSelectorListBox({
 }: {
     width: "48" | "full";
     comboBoxState: ComboBoxState<PostCreatorChannelSelectorItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
     listBoxProps: AriaListBoxOptions<PostCreatorChannelSelectorItem>;
     selectedKey: string | null;
     areItemsLoading: boolean;
@@ -633,7 +639,16 @@ function PostCreatorChannelSelectorListBox({
     const platform = usePlatform();
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
+    const {listBoxProps} = useListBox(
+        {
+            ..._listBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            scrollRef,
+        },
+        comboBoxState,
+        listBoxRef,
+    );
 
     return (
         <div
@@ -716,7 +731,7 @@ function PostCreatorChannelSelectorListBoxOption({
     item: Node<PostCreatorChannelSelectorItem>;
     selectedKey: string | null;
 }) {
-    const optionRef = useRef(null);
+    const optionRef = useRef<HTMLLIElement>(null);
     const {optionProps, isFocused, isPressed, isHovered} = useOption(
         {
             key: item.key,
@@ -730,6 +745,8 @@ function PostCreatorChannelSelectorListBoxOption({
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

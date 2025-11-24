@@ -44,6 +44,8 @@ export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
                 }
             },
         },
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         buttonRef,
     );
 

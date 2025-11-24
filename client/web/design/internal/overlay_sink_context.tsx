@@ -85,7 +85,7 @@ export const overlaySinkContextForTest = import.meta.jest
     : null;
 
 export function renderOverlayPortal(
-    ref: RefObject<HTMLDivElement>,
+    ref: RefObject<HTMLDivElement | null>,
     zIndex: Sprinkles["zIndex"] = "50",
 ) {
     return (

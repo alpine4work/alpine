@@ -49,7 +49,7 @@ export function DocumentCommentInput({
 }: {
     isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     commentThread: DocumentCommentThreadModel;
     comments: MessageList<DocumentCommentModel>;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;

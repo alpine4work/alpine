@@ -39,7 +39,7 @@ export function useJumpToMessageRange<RoomKey extends string>({
     tryLoadingMoreData,
     scrollToIndexForMessageIndex,
 }: {
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     tryLoadingMoreData: (
         renderedRange: {startIndex: number; endIndex: number} | null,
     ) => {isLoading: false} | {isLoading: true; promise: Promise<void>};

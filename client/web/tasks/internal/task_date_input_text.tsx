@@ -103,7 +103,13 @@ export function TaskDateInputText({
     }
 
     const ref = useRef<HTMLDivElement>(null);
-    const {fieldProps} = useDateField(datePickerProps, state, ref);
+    const {fieldProps} = useDateField(
+        datePickerProps,
+        state,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
+        ref,
+    );
 
     const areAllSegmentsPlaceholders = !isEditing && !date;
 
@@ -374,7 +380,7 @@ export function TaskDateInputText({
                     case "Escape": {
                         event.preventDefault();
                         event.stopPropagation();
-                        event.target.blur();
+                        (event.target as HTMLElement).blur();
                         break;
                     }
                     // When I (@calebmer) worked at Airtable Cmd+; was the shortcut for setting a
@@ -432,7 +438,13 @@ function TaskDateInputTextSegment({
 }) {
     const {isAppleDevice} = useClientInfo();
     const ref = useRef<HTMLDivElement>(null);
-    const {segmentProps} = useDateSegment(segment, state, ref);
+    const {segmentProps} = useDateSegment(
+        segment,
+        state,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
+        ref,
+    );
     const [isFocused, setIsFocused] = useState(false);
 
     const {pressProps: backdropPressProps} = usePress({

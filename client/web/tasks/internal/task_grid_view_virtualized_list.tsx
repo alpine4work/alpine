@@ -172,7 +172,7 @@ export type TaskGridViewVirtualizedListProps = {
      * easier to shift indexes around if we have other items in the virtualized
      * scroll view above the grid view.
      */
-    viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
 
     /**
      * The client store of task data.
@@ -746,7 +746,7 @@ export function useTaskGridViewVirtualizedList(
  * face of the keyboard opening/closing.
  */
 export function useTaskGridViewVirtualizedListScrollToAvoidBottomBarsAndMobileKeyboard(
-    viewRef: RefObject<TaskGridViewVirtualizedListViewRef>,
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>,
     getAnchorPositionFromProps?: Memo<
         (oldVisibleRect: {top: number; bottom: number}) => {top: number; height: number} | null
     >,
@@ -3086,7 +3086,7 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
  * view is animating then the "Due soon" section header should move.
  */
 export function useTaskGridViewVirtualizedListItemAnimation(
-    viewRef: RefObject<TaskGridViewVirtualizedListViewRef>,
+    viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>,
     previousGridViewAnimations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>,
     itemIndex: number | null,
 ) {

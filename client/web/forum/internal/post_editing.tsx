@@ -191,9 +191,9 @@ export function usePostEditing({
 } {
     const reporter = useReporter();
 
-    const [state, dispatch] = useReducer<
-        (state: PostEditingState, action: PostEditingAction) => PostEditingState
-    >(reduce, {isEditing: false});
+    const [state, dispatch] = useReducer<PostEditingState, [PostEditingAction]>(reduce, {
+        isEditing: false,
+    });
 
     const onUpdatePostContent = useEvent(onUpdatePostContentFromProps);
 

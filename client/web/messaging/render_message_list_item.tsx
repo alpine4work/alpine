@@ -244,10 +244,10 @@ export function renderMessageListItem<
                             </>,
                         );
 
-                        return cloneElement(node, {
+                        return cloneElement(node as any, {
                             ref,
                             style: {
-                                ...node.props.style,
+                                ...(node as any).props.style,
                                 minHeight: messageViewMinHeightPx,
                                 zIndex,
                                 ...(shouldRenderWithRelativePositioning

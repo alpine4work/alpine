@@ -195,8 +195,14 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
     const {inputProps, listBoxProps} = useComboBox(
         {
             "aria-label": "Language",
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             inputRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             popoverRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             listBoxRef,
             autoFocus: false,
             shouldFocusWrap: false,
@@ -303,12 +309,18 @@ function ContentEditorCodeBlockLanguagePickerListBox({
     listBoxProps: _listBoxProps,
 }: {
     listState: Memo<ListState<ContentCodeBlockLanguage>>;
-    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
     listBoxProps: AriaListBoxOptions<ContentCodeBlockLanguage>;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox(
-        {..._listBoxProps, autoFocus: false, scrollRef},
+        {
+            ..._listBoxProps,
+            autoFocus: false,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            scrollRef,
+        },
         listState,
         listBoxRef,
     );
@@ -364,7 +376,7 @@ function ContentEditorCodeBlockLanguagePickerListBoxOption({
     listState: Memo<ListState<ContentCodeBlockLanguage>>;
     item: Node<ContentCodeBlockLanguage>;
 }) {
-    const optionRef = useRef(null);
+    const optionRef = useRef<HTMLLIElement>(null);
     const {optionProps, isFocused, isPressed, isSelected, isHovered} = useOption(
         {
             key: item.key,
@@ -378,6 +390,8 @@ function ContentEditorCodeBlockLanguagePickerListBoxOption({
             disallowsDifferentPressOrigin: true,
         },
         listState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

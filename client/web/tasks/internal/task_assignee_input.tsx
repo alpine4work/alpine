@@ -503,8 +503,14 @@ function TaskAssigneeInput(
     const {inputProps, listBoxProps} = useComboBox(
         {
             ...comboBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             inputRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             popoverRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             listBoxRef,
             "aria-label": ariaLabel,
             "aria-labelledby": ariaLabelledBy,
@@ -561,7 +567,7 @@ function TaskAssigneeInput(
                 if (event.key === "Escape") {
                     event.preventDefault();
                     event.stopPropagation();
-                    event.target.blur();
+                    (event.target as HTMLElement).blur();
                     return;
                 }
             }}

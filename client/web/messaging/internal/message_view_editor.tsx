@@ -27,21 +27,19 @@ export type MessageViewEditorRef = {
 const MessageViewEditorForwardRef = forwardRef(MessageViewEditor) as typeof MessageViewEditor;
 export {MessageViewEditorForwardRef as MessageViewEditor};
 
-function MessageViewEditor<RoomKey extends string>(
-    {
-        messageStartOfSentenceNoun,
-        isLastMessage,
-        shouldMergeWithPreviousMessage,
-        messageEditing,
-    }: {
-        ref?: Ref<MessageViewEditorRef>;
-        messageStartOfSentenceNoun: string;
-        isLastMessage: boolean;
-        shouldMergeWithPreviousMessage: boolean;
-        messageEditing: MessageEditing<RoomKey>;
-    },
-    ref: Ref<MessageViewEditorRef>,
-) {
+function MessageViewEditor<RoomKey extends string>({
+    ref,
+    messageStartOfSentenceNoun,
+    isLastMessage,
+    shouldMergeWithPreviousMessage,
+    messageEditing,
+}: {
+    ref?: Ref<MessageViewEditorRef>;
+    messageStartOfSentenceNoun: string;
+    isLastMessage: boolean;
+    shouldMergeWithPreviousMessage: boolean;
+    messageEditing: MessageEditing<RoomKey>;
+}) {
     assert(messageEditing.state.isEditing);
     const {state} = messageEditing;
 

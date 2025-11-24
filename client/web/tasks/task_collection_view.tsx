@@ -1009,7 +1009,7 @@ function TaskCollectionViewMobileNavigationBarTitle({
     shouldInitiallyFocusEditableCollectionName: boolean;
     createCollection: (name: string) => Promise<void>;
     affinityManager: TaskClientStoreSearchAffinityManager;
-    desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef>;
+    desktopNameRef: RefObject<TaskCollectionViewDesktopHeaderNameRef | null>;
 }) {
     const platform = usePlatform();
 

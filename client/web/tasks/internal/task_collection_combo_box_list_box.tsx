@@ -33,7 +33,7 @@ export function TaskCollectionComboBoxListBox({
     shouldHideNoResultsIcon,
 }: {
     comboBoxState: ComboBoxState<TaskCollectionComboBoxItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
     listBoxProps: AriaListBoxOptions<TaskCollectionComboBoxItem>;
     pendingKey?: TaskCollectionComboBoxItem["key"] | null;
     autoFocus?: boolean;
@@ -44,6 +44,8 @@ export function TaskCollectionComboBoxListBox({
         {
             ...originalListBoxProps,
             autoFocus: autoFocus ?? originalListBoxProps.autoFocus,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             scrollRef,
         },
         comboBoxState,
@@ -211,6 +213,8 @@ function TaskCollectionComboBoxListBoxOption({
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

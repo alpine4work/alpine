@@ -2,6 +2,7 @@ import {setInteractionModality} from "@react-aria/interactions";
 import {CaretRight, ChatCircleDots, Link as LinkIcon, Lock} from "phosphor-react";
 import {
     Memo,
+    ReactElement,
     ReactNode,
     Ref,
     RefObject,
@@ -1121,9 +1122,9 @@ function TaskDetailViewMain(
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
-        statusButtonRef: RefObject<HTMLElement>;
-        titleInputRef: RefObject<TaskDetailTitleInputRef>;
-        titleInputElementRef: RefObject<HTMLDivElement>;
+        statusButtonRef: RefObject<HTMLElement | null>;
+        titleInputRef: RefObject<TaskDetailTitleInputRef | null>;
+        titleInputElementRef: RefObject<HTMLDivElement | null>;
         priorityInputRef: Ref<HTMLDivElement>;
         isPriorityInputVisible: boolean;
         setPriorityInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
@@ -1693,7 +1694,7 @@ function TaskDetailViewParentBreadcrumbs({
 
     const nodeStore = useMemo(() => {
         return computeStore(get => {
-            const parentNodes: Array<ReactNode> = [];
+            const parentNodes: Array<ReactElement> = [];
 
             let loopTask = task;
             while (loopTask !== null) {
@@ -1839,7 +1840,7 @@ function TaskDetailViewStatusButton({
     taskSubscription: TaskClientTaskSubscription | null;
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
     isReadOnly: boolean;
-    elementRef: RefObject<HTMLElement>;
+    elementRef: RefObject<HTMLElement | null>;
     contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
     commitActionTransaction: Memo<
         (getActions: (taskId: TaskId) => ReadonlyArray<TaskActionModel>) => void

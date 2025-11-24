@@ -21,7 +21,12 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
     const menuButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
-    const {buttonProps, isPressed} = useButton({}, buttonRef);
+    const {buttonProps, isPressed} = useButton(
+        {},
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
+        buttonRef,
+    );
 
     const settingsAction = {
         icon: <Gear />,

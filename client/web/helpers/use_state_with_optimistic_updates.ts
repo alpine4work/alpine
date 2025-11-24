@@ -49,11 +49,9 @@ export function useStateWithOptimisticUpdates<Value>(
     valueWithoutOptimisticUpdates: Value,
 ] {
     const [state, dispatch] = useReducer<
-        (
-            state: StateWithOptimisticUpdates<Value>,
-            action: ActionForStateWithOptimisticUpdates<Value>,
-        ) => StateWithOptimisticUpdates<Value>,
-        MaybeThunk<Value>
+        StateWithOptimisticUpdates<Value>,
+        MaybeThunk<Value>,
+        [ActionForStateWithOptimisticUpdates<Value>]
     >(reduceStateWithOptimisticUpdates, initialValue, getInitialStateWithOptimisticUpdates);
 
     useStateWithOptimisticUpdatesMonitor(state, dispatch);

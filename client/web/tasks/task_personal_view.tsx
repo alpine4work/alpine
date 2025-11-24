@@ -1924,10 +1924,10 @@ export function TaskPersonalView({
 }
 
 function useTaskGridViewVirtualizedListViewRef(
-    viewRef: RefObject<VirtualizedScrollViewRef>,
+    viewRef: RefObject<VirtualizedScrollViewRef | null>,
     previousItemCount: number,
     getItemCount: Memo<() => number>,
-): RefObject<TaskGridViewVirtualizedListViewRef> {
+): RefObject<TaskGridViewVirtualizedListViewRef | null> {
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
     const getPreviousItemCount = useEvent(() => previousItemCount);

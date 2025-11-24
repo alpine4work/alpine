@@ -44,7 +44,7 @@ function TaskRowCollectionsCellOverlay(
         query: TaskClientQuery | null;
         task: TaskModel | null;
         focusPreviousCell: () => void;
-        cellRef: RefObject<HTMLDivElement>;
+        cellRef: RefObject<HTMLDivElement | null>;
         onClose: () => void;
         commitActionTransaction: Memo<
             (getActions: (taskId: TaskId) => Array<TaskActionModel>) => void

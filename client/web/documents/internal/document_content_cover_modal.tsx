@@ -173,7 +173,7 @@ export function DocumentContentCoverModal({
     editorState,
     onClose,
 }: {
-    editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences>>;
+    editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences> | null>;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     onClose: () => void;
 }) {

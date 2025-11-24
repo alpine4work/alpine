@@ -963,7 +963,7 @@ function PostListView(
 
     const inputRefByPostId = useConstant(
         () =>
-            new LazyMap<PostId, RefObject<MessageInputRef>>(() => ({
+            new LazyMap<PostId, RefObject<MessageInputRef | null>>(() => ({
                 current: null,
             })),
     );

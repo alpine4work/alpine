@@ -1,4 +1,4 @@
-import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
+import {DetailedHTMLProps, HTMLAttributes, JSX, Ref, createElement, forwardRef} from "react";
 import {Sprinkles, sprinkles} from "~/client/web/styles/styles.js";
 
 export type BoxProps = Sprinkles &

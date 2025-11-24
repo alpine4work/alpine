@@ -400,9 +400,17 @@ export function ChatAccountPicker({
     const {labelProps, inputProps, buttonProps, listBoxProps} = useComboBox(
         {
             ...comboBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             inputRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             buttonRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             popoverRef,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
             listBoxRef,
             onKeyDown: event => {
                 assert(event.currentTarget instanceof HTMLInputElement);
@@ -848,11 +856,20 @@ function ChatAccountPickerListBox({
     listBoxProps: _listBoxProps,
 }: {
     comboBoxState: ComboBoxState<ChatAccountPickerItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
+    listBoxRef: RefObject<HTMLUListElement | null>;
     listBoxProps: AriaListBoxOptions<ChatAccountPickerItem>;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
+    const {listBoxProps} = useListBox(
+        {
+            ..._listBoxProps,
+            // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+            // the ref correctly but the type is wrong after upgrading to React v19.
+            scrollRef,
+        },
+        comboBoxState,
+        listBoxRef,
+    );
 
     return (
         <div
@@ -926,6 +943,8 @@ function ChatAccountPickerListBoxOption({
             disallowsDifferentPressOrigin: true,
         },
         comboBoxState,
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         optionRef,
     );
 

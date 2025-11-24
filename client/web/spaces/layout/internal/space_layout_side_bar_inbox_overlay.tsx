@@ -129,7 +129,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
 }: {
     filter: "New" | "Archive";
     withoutAnimation: boolean;
-    entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef>;
+    entriesRef: RefObject<SpaceLayoutTopBarInboxOverlayEntriesRef | null>;
     onClose: () => void;
 }) {
     const rootNavigate = useRootNavigate();

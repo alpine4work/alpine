@@ -10,17 +10,20 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * You can also call the function with a single string like `quote("foo")` to
  * wrap the string in quotes and escape any quotes within the string.
  */
-export function quote(string: string | number): string;
+export function quote(string: string | number | bigint): string;
 export function quote(
     templateStrings: TemplateStringsArray,
-    ...values: Array<string | number | boolean | null | undefined>
+    ...values: Array<string | number | bigint | boolean | null | undefined>
 ): string;
 export function quote(
-    templateStrings: TemplateStringsArray | string | number,
-    ...values: Array<string | number | boolean | null | undefined>
+    templateStrings: TemplateStringsArray | string | number | bigint,
+    ...values: Array<string | number | bigint | boolean | null | undefined>
 ): string {
     if (typeof templateStrings === "number") {
         return JSON.stringify(templateStrings);
+    }
+    if (typeof templateStrings === "bigint") {
+        return String(templateStrings);
     }
     if (typeof templateStrings === "string") {
         let quotedString = JSON.stringify(templateStrings);
@@ -38,7 +41,10 @@ export function quote(
         if (i !== 0) {
             const value = values[i - 1];
 
-            let quotedString = JSON.stringify(value === undefined ? null : value);
+            let quotedString =
+                typeof value === "bigint"
+                    ? String(value)
+                    : JSON.stringify(value === undefined ? null : value);
 
             // Quote a string with backticks instead of straight quotes. We'd rather use
             // backticks than curl quotes (given our lint rule disallows the use of

@@ -86,7 +86,7 @@ export function PostCommentInput(props: {
     inputRef?: Ref<MessageInputRef>;
     header: Memo<PostListHeader> | undefined;
     post: PostModel;
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     proceduresRef: Ref<PostRealtimeProcedures>;
     postComments: MessageList<PostCommentModel>;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;

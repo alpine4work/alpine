@@ -180,14 +180,14 @@ function TaskQueryViewCustomizationMobileSectionFilters({
 }: {
     store: TaskClientStore;
     queryReferencesForUrlGrant: TaskQueryReferencesForUrlGrantFilterEditor | null;
-    addFilterMenuRef: RefObject<OverlayTriggerButtonRef>;
+    addFilterMenuRef: RefObject<OverlayTriggerButtonRef | null>;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
     onFiltersChange: (
         filters: ReadonlyArray<TaskQueryFilter>,
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
-    firstCollectionsFilterOperationValueTriggerButtonRef: RefObject<OverlayTriggerButtonRef>;
+    firstCollectionsFilterOperationValueTriggerButtonRef: RefObject<OverlayTriggerButtonRef | null>;
 }) {
     let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
 
@@ -294,7 +294,7 @@ function TaskQueryViewCustomizationMobileSectionSorts({
     onSortsChange,
     defaultOrderSentence,
 }: {
-    addSortMenuRef: RefObject<OverlayTriggerButtonRef>;
+    addSortMenuRef: RefObject<OverlayTriggerButtonRef | null>;
     sorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     defaultOrderSentence: string;

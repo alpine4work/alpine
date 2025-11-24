@@ -217,10 +217,8 @@ export function useMessageEditing<RoomKey extends string>({
     const reporter = useReporter();
 
     const [state, dispatch] = useReducer<
-        (
-            state: MessageEditingState<RoomKey>,
-            action: MessageEditingAction<RoomKey>,
-        ) => MessageEditingState<RoomKey>
+        MessageEditingState<RoomKey>,
+        [MessageEditingAction<RoomKey>]
     >(reduce, {isEditing: false});
 
     const onUpdateMessageContent = useEvent(onUpdateMessageContentFromProps);

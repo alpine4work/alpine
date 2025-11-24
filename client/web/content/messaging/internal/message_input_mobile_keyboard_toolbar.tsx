@@ -50,7 +50,7 @@ export function MessageInputMobileKeyboardToolbar({
     inputContainerRef,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
-    viewRef: RefObject<EditorView>;
+    viewRef: RefObject<EditorView | null>;
     isVisible: boolean;
     onLinkModalOpen: (linkModalState: ContentEditorMobileLinkModalState) => void;
     inputContainerRef: RefObject<HTMLDivElement | null>;
@@ -391,7 +391,7 @@ function MessageInputMobileKeyboardToolbarButton({
     );
 }
 
-function fromCommand(viewRef: RefObject<EditorView>, command: Command): () => void {
+function fromCommand(viewRef: RefObject<EditorView | null>, command: Command): () => void {
     return () => {
         const view = assertExists(viewRef.current);
         command(view.state, view.dispatch, view);

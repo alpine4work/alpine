@@ -573,7 +573,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="None"
                 color={null}
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[0] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[0] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 0}
                 onFocus={() => setLastFocusedIndex(0)}
             />
@@ -581,7 +583,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Red"
                 color="red"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[1] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[1] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 1}
                 onFocus={() => setLastFocusedIndex(1)}
             />
@@ -589,7 +593,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Orange"
                 color="orange"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[2] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[2] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 2}
                 onFocus={() => setLastFocusedIndex(2)}
             />
@@ -597,7 +603,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Yellow"
                 color="yellow"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[3] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[3] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 3}
                 onFocus={() => setLastFocusedIndex(3)}
             />
@@ -605,7 +613,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Green"
                 color="green"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[4] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[4] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 4}
                 onFocus={() => setLastFocusedIndex(4)}
             />
@@ -613,7 +623,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Blue"
                 color="blue"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[5] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[5] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 5}
                 onFocus={() => setLastFocusedIndex(5)}
             />
@@ -621,7 +633,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Purple"
                 color="purple"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[6] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[6] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 6}
                 onFocus={() => setLastFocusedIndex(6)}
             />
@@ -629,7 +643,9 @@ function TaskCollectionViewDesktopHeaderColorSelector({
                 description="Pink"
                 color="pink"
                 onColorSelect={onColorSelect}
-                buttonRef={useCallback(ref => (buttonRefs.current[7] = ref), [])}
+                buttonRef={useCallback(ref => {
+                    buttonRefs.current[7] = ref;
+                }, [])}
                 wasLastFocused={lastFocusedIndex === 7}
                 onFocus={() => setLastFocusedIndex(7)}
             />

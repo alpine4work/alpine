@@ -13,7 +13,7 @@
         "@remix-run/node": "2.9.2",
         "@remix-run/react": "2.9.2",
         "isbot": "^3.6.12",
-        "react": "18.2.0",
-        "react-dom": "18.2.0"
+        "react": "19.2.0",
+        "react-dom": "19.2.0"
     }
 }

@@ -639,7 +639,7 @@ function ContentEditorPointerToolbarOverlay({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
-    toolbarRef: RefObject<HTMLDivElement>;
+    toolbarRef: RefObject<HTMLDivElement | null>;
     selectionFrom: number;
     selectionTo: number;
     animation: "FadingIn" | "FadingOut" | null;
@@ -1096,6 +1096,8 @@ function ContentEditorPointerToolbarButton({
     const localRef = useRef<HTMLDivElement>(null);
 
     const {pressProps, isPressed} = usePress({
+        // @ts-expect-error: NOTE(calebmer, #react-v19-upgrade): `react-aria` handles
+        // the ref correctly but the type is wrong after upgrading to React v19.
         ref: localRef,
         preventFocusOnPress: true,
         onPress,

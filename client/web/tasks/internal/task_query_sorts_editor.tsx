@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
 import {CaretDown, DotsSixVertical, X} from "phosphor-react";
-import {Fragment, Key, ReactNode, useMemo} from "react";
+import {Fragment, ReactNode, useMemo} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -133,7 +133,7 @@ export function TaskQuerySortsEditor({
 function TaskQuerySortsEditorDragPortals({
     sortsWithId,
 }: {
-    sortsWithId: ReadonlyArray<{id: Key; sort: TaskQuerySort}>;
+    sortsWithId: ReadonlyArray<{id: number; sort: TaskQuerySort}>;
 }) {
     const {active, activatorEvent} = useDndContext();
 
@@ -179,7 +179,7 @@ function TaskQuerySortsEditorRow({
     onSortChange,
     onSortDelete,
 }: {
-    id: Key;
+    id: number;
     sort: TaskQuerySort;
     isDragOverlay: boolean;
     onSortChange: (sort: TaskQuerySort) => void;
@@ -343,7 +343,7 @@ function TaskQuerySortsEditorRowBase({
     isDragOverlay,
     children,
 }: {
-    id: Key;
+    id: number;
     name: string;
     onDelete: () => void;
     isDragOverlay: boolean;

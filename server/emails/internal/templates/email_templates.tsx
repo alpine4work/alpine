@@ -1,10 +1,12 @@
-import {render, toPlainText} from "@react-email/render";
+import {toPlainText} from "@react-email/render";
 import {decode as decodeHtmlEntities} from "html-entities";
 import {ComponentProps} from "react";
+import {renderToReadableStream} from "react-dom/server";
 import {NotificationDigestEmailTemplate} from "~/server/emails/internal/templates/notification_digest_email_template.js";
 import {SignInEmailTemplate} from "~/server/emails/internal/templates/sign_in_email_template.js";
 import {SpaceInviteEmailTemplate} from "~/server/emails/internal/templates/space_invite_email_template.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
 
 // To preserve types, we must explicitly set keys and their respective templates / names.
 // If we use maps or other iterables, we'll lose prop type validation.
@@ -68,9 +70,32 @@ export function getTitleFromHtml(html: string): string {
 
 function createEmailTemplate<T>(Component: React.ComponentType<T>, templateName: string) {
     return async (props: ComponentProps<typeof Component>): Promise<RenderedEmail> => {
-        const html = await render(<Component {...(props as any)} />);
+        let renderError: {hasError: boolean; error: unknown} | null = null;
+
+        let html = await waitForReadableStreamString(
+            await renderToReadableStream(<Component {...(props as any)} />, {
+                progressiveChunkSize: Number.POSITIVE_INFINITY,
+                onError: error => {
+                    renderError = {hasError: true, error};
+                },
+            }),
+        );
+
+        if (renderError) {
+            // @ts-expect-error: TypeScript doesn't realize `renderError` can be assigned
+            // in the `await`.
+            throw renderError.error;
+        }
+
+        const doctype =
+            // eslint-disable-next-line string-quotes
+            '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">';
+
+        html = `${doctype}${html.replace(/<!DOCTYPE.*?>/, "")}`;
+
         const title = getTitleFromHtml(html);
         const plainText = toPlainText(html);
+
         return {
             templateName,
             html,

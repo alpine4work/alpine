@@ -76,14 +76,14 @@ export function TaskGridViewMobileKeyboardToolbar({
     focusDueDateInput,
     scrollToAnchorPosition,
 }: {
-    portalRef: RefObject<HTMLDivElement>;
+    portalRef: RefObject<HTMLDivElement | null>;
     maxGridExpandableTaskDepth: number;
     task: TaskModel | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
     withoutAssigneeField: boolean;
     isQueryManuallySorted: boolean;
     isFirstTaskInQuery: boolean;
-    titleInputRef: RefObject<TaskRowTitleInputRef>;
+    titleInputRef: RefObject<TaskRowTitleInputRef | null>;
     nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
     unnestTaskIfNestedRow: (titleSelection: Selection) => void;
     focusAssigneeInput: () => void;

@@ -18,8 +18,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     messages,
     getItemKey,
 }: {
-    viewRef: RefObject<VirtualizedScrollViewRef>;
-    inputRef: RefObject<MessageInputRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
+    inputRef: RefObject<MessageInputRef | null>;
     isInputStickyPositioned: boolean;
     messages: MessageList<Message> | null;
     getItemKey: Memo<(item: MessageListItem<Message>) => Key>;

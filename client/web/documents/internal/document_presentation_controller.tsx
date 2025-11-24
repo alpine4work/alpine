@@ -94,8 +94,8 @@ function DocumentPresentationController(
         accessLevel,
         fileAttachmentTarget,
     }: {
-        editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences>>;
-        editorContainerRef: RefObject<HTMLDivElement>;
+        editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences> | null>;
+        editorContainerRef: RefObject<HTMLDivElement | null>;
         editorState: ContentEditorState<DocumentContentWithReferences>;
         accessLevel: AccessLevel;
         fileAttachmentTarget: Memo<FileAttachmentTarget>;
@@ -377,7 +377,7 @@ function DocumentPresentationInstructionalConfirmationModal({
     onPresent,
     onClose,
 }: {
-    editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences>>;
+    editorRef: RefObject<ContentEditorRef<DocumentContentWithReferences> | null>;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     onPresent: () => MaybePromise<void>;

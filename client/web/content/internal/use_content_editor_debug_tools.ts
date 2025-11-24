@@ -11,7 +11,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  * environments which developers can use to understand the internal state
  * of the content editor and simulate concurrent document editing.
  */
-export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
+export function useContentEditorDebugTools(viewRef: RefObject<EditorView | null>) {
     useDevConsoleTool(
         "contentEditor",
         useCallback(() => {

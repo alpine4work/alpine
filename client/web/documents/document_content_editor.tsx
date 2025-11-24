@@ -2352,7 +2352,7 @@ function DocumentContentEditorSidebar({
     onClose,
     openCommentThread,
 }: {
-    pinnedCommentInputRef: RefObject<MessageInputRef>;
+    pinnedCommentInputRef: RefObject<MessageInputRef | null>;
     documentId: DocumentId;
     content: DocumentContentWithReferences;
     platform: Platform;

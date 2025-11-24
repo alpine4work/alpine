@@ -14,7 +14,7 @@ export function useInboxDeletedItemAnimationState({
     itemCount,
     itemsDeletedByLastChangeForAnimation,
 }: {
-    viewRef: RefObject<VirtualizedScrollViewRef>;
+    viewRef: RefObject<VirtualizedScrollViewRef | null>;
     itemCount: number;
     itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         index: number;

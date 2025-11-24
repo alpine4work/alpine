@@ -6,7 +6,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function getContentEditorScrollAnchorPosition<Content extends ContentWithReferences>(
-    editorRef: RefObject<ContentEditorRef<Content>>,
+    editorRef: RefObject<ContentEditorRef<Content> | null>,
 ) {
     const editor = assertExists(editorRef.current);
 

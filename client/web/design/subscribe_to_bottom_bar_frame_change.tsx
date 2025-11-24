@@ -102,7 +102,7 @@ export function useSubscribeToBottomBarFrameChange(): Memo<
  * `subscribeToMobilBottomBarFrameChange()`.
  */
 export function useRegisterBottomBarFrame<Element extends HTMLElement>(
-    elementRef: RefObject<Element>,
+    elementRef: RefObject<Element | null>,
     {
         isDisabled = false,
         withMobileKeyboardToolbar = false,

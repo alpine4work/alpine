@@ -405,7 +405,7 @@ function TaskRowView(
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusTaskTitleSelection: (gridKey: TaskGridViewTaskKey, selection: Selection) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
-        mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
+        mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement | null>;
         scrollToAnchorPosition: () => void;
         commitActionTransaction: (
             getActions: () => Iterable<TaskActionModel>,
