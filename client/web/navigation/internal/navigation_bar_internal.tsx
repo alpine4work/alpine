@@ -107,6 +107,12 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLength(
 // `NavigationBarConstants.swift`.
 const navigationBarRevealOrHideAnimationDurationMs = 200;
 
+// Overlays sit at a zIndex of 50. If we're at the top of the screen we want to,
+// we want overlays to appear on top of the navigation bar. If we're scrolling,
+// we want the navigation bar to appear on top of the overlays.
+const navigationBarZIndexAtTop = "40";
+const navigationBarZIndexWhileScrolling = "60";
+
 // Make sure if `scrollbarVisibleAfterScrollDurationMs` changes,
 // `navigationBarTransitionDebounceScrollTimeoutMs` also changes. We don't assign
 // the scrollbar duration directly to the navigation bar duration because we
@@ -318,6 +324,7 @@ export function NavigationBar({
             };
 
             const initialize = (element: HTMLElement) => {
+                navigationBarContainerElement ??= assertExists(navigationBarContainerRef.current);
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
@@ -420,6 +427,9 @@ export function NavigationBar({
                 navigationBarBackgroundElement.style.display = isNavigationBarBackgroundVisible
                     ? "block"
                     : "none";
+
+                navigationBarContainerElement.style.zIndex =
+                    scrollOffset > 0 ? navigationBarZIndexWhileScrolling : navigationBarZIndexAtTop;
             };
 
             const onResize = (element: HTMLElement) => {
@@ -501,6 +511,9 @@ export function NavigationBar({
                 if (navigationBarContentCoverRef.current) {
                     navigationBarContentCoverRef.current.style.transform = `translateY(${-scrollTop}px)`;
                 }
+
+                navigationBarContainerElement.style.zIndex =
+                    scrollOffset > 0 ? navigationBarZIndexWhileScrolling : navigationBarZIndexAtTop;
 
                 // - Edge case 1: If our scroll content resized and scrolled down at the same
                 //   time (and scrolled the same amount we resized) then we don't want our
@@ -996,6 +1009,9 @@ export function NavigationBar({
                 // Don't let the cover consume pointer events. Only the navigation bar should
                 // get pointer events.
                 pointerEvents: "none",
+                // Start with the highest z-index so our navigation bar is above all scroll
+                // content. The z-index is updated on scroll in `onScroll`.
+                zIndex: navigationBarZIndexAtTop,
             }}
         >
             <div
