@@ -213,8 +213,12 @@ async function handleFetch(
         // If there is no origin header, then this isn't a CORS request
         if (origin && trustedOrigins.includes(origin)) {
             responseHeaders.set("Access-Control-Allow-Origin", origin);
-            responseHeaders.set("Vary", "Origin");
         }
+
+        // Ensure if the origin changes, the browser will re-fetch the resource.
+        // Important particularly if a request previously had no origin (no-cors) and now has one (cors)
+        // as the browser will otherwise use a cached no-cors request for a cors request to the same resource.
+        responseHeaders.set("Vary", "Origin");
 
         switch (route.type) {
             case "AccountAvatar":

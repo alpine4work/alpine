@@ -77,12 +77,16 @@ export async function fetchAppStaticFile(
         headers.set("Access-Control-Allow-Origin", "*");
     } else if (origin && trustedOrigins.includes(origin)) {
         headers.set("Access-Control-Allow-Origin", origin);
-        headers.set("Vary", "Origin");
     }
 
     // This header will allow no-cors requests from outside the same site as the request origin.
     // Useful for embedding static files in emails.
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+
+    // Ensure if the origin changes, the browser will re-fetch the resource.
+    // Important particularly if a request previously had no origin (no-cors) and now has one (cors)
+    // as the browser will otherwise use a cached no-cors request for a cors request to the same resource.
+    headers.set("Vary", "Origin");
 
     const response = new Response(object.body, {headers});
 
