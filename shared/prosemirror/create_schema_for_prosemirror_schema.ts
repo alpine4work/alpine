@@ -282,6 +282,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
                 if (!node.type.validContent(node.content)) {
                     // TODO(imjoshin): Remove this after debugging
                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/09wr65pbx6f9hjsr1ypmy7ywcg
+                    // eslint-disable-next-line no-console
                     console.log(
                         quote`Invalid content for node ${node.type.name}`,
                         node.content.toString(),
@@ -299,6 +300,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
                 if (!node.type.validContent(node.content)) {
                     // TODO(imjoshin): Remove this after debugging
                     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/09wr65pbx6f9hjsr1ypmy7ywcg
+                    // eslint-disable-next-line no-console
                     console.log(
                         quote`Invalid content for node ${node.type.name}`,
                         node.content.toString(),
