@@ -4,6 +4,8 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -1767,4 +1769,152 @@ test("will send a notification when sharing with account", async ({
     await expect(page2.getByText("Test shared a document with you")).toBeVisible();
 
     await browserContext1.close();
+});
+
+test("anonymous users can see document with url grant but only public mentions", async ({page}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const session = await space.createSession();
+
+    // Create various entities with different access levels
+    const privateDocument = await TestDocument.create(session, {
+        title: "Super secret document shhh",
+    });
+
+    const publicDocument = await TestDocument.create(session, {title: "Public document"});
+    await publicDocument.access.grantUrl(session, "View");
+
+    const privateTask = await TestTask.create(session, {title: "Super secret task shhh"});
+    const privateTaskCollection = await TestTaskCollection.create(session, {
+        name: "Super secret collection shhh",
+    });
+    await privateTask.addCollection(session, privateTaskCollection);
+
+    const publicTaskCollection = await TestTaskCollection.create(session, {
+        name: "Public task collection",
+    });
+    await publicTaskCollection.access.grantUrl(session, "View");
+
+    const publicTask = await TestTask.create(session, {title: "Public task"});
+    await publicTask.addCollection(session, publicTaskCollection);
+
+    const mentionAccount = await space.createSession({name: "John Doe"});
+
+    const document = await TestDocument.create(session, {title: "Test Document with Mentions"});
+
+    await document.type(session, "This document contains mentions: ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionAccount.account.id,
+                isShort: false,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `Document:${publicDocument.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `Document:${privateDocument.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `TaskCollection:${publicTaskCollection.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `TaskCollection:${privateTaskCollection.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `Task:${publicTask.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ", ");
+
+    await document.type(
+        session,
+        DocumentContentProsemirrorSchema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "SearchEntity",
+                entityId: `Task:${privateTask.id}`,
+            }),
+        }),
+    );
+
+    await document.type(session, ".");
+
+    // Enable publish sharing with URL grant
+    await document.access.grantUrl(session, "View");
+
+    // Don't log in
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    // Wait for the document to load for anonymous user
+    await expect(page.getByRole("heading", {name: "Test Document with Mentions"})).toBeVisible();
+
+    const mentions = page.getByTestId("ContentMentionText");
+
+    const accountMention = mentions.filter({hasText: "John Doe"});
+
+    const documentMention = mentions.filter({hasText: "Public document"});
+    const privateDocumentMention = mentions.filter({hasText: "Private document"});
+
+    const collectionMention = mentions.filter({hasText: "Public task collection"});
+    const privateCollectionMention = mentions.filter({hasText: "Private task collection"});
+
+    const taskMention = mentions.filter({hasText: "Public task", hasNotText: "collection"});
+    const privateTaskMention = mentions.filter({hasText: "Private task", hasNotText: "collection"});
+
+    await expect(accountMention).toBeVisible();
+    await expect(documentMention).toBeVisible();
+    await expect(privateDocumentMention).toBeVisible();
+    await expect(collectionMention).toBeVisible();
+    await expect(privateCollectionMention).toBeVisible();
+    await expect(taskMention).toBeVisible();
+    await expect(privateTaskMention).toBeVisible();
 });

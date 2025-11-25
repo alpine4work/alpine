@@ -140,7 +140,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
         options?: {consistency?: DynamoCacheReadConsistency},
@@ -159,7 +159,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public async getTaskWithoutDependencies(
-        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
         options?: {consistency?: DynamoCacheReadConsistency},
@@ -184,7 +184,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public abstract getCollectionIfPossible(
-        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         options?: {consistency?: DynamoCacheReadConsistency},
@@ -200,7 +200,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
      * it needs is already loaded.
      */
     public async getCollection(
-        this: TaskContextModuleBase & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         options?: {consistency?: DynamoCacheReadConsistency},

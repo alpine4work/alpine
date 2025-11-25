@@ -48,6 +48,14 @@ export const SearchEntityIndexDefaultGrantTypeIntegerMapping = createEnumInteger
     Space: 1,
 });
 
+export type SearchEntityIndexUrlGrantType = IntegerMappingStringType<
+    typeof SearchEntityIndexUrlGrantTypeIntegerMapping
+>;
+
+export const SearchEntityIndexUrlGrantTypeIntegerMapping = createEnumIntegerMapping({
+    View: 1,
+});
+
 export type SearchEntityIndexAccessPolicy = OpensearchIndexTypeType<
     typeof SearchEntityIndexAccessPolicyType
 >;
@@ -85,6 +93,18 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
                     ),
             })
             .nullable(),
+        urlGrantLevel: new OpensearchIndexByteType({isFilterable: true})
+            .nullable()
+            .transform<SearchEntityIndexUrlGrantType | null>({
+                serialize: type =>
+                    type ? SearchEntityIndexUrlGrantTypeIntegerMapping.into(type) : null,
+                deserialize: type =>
+                    type
+                        ? SearchEntityIndexUrlGrantTypeIntegerMapping.from(
+                              SearchEntityIndexUrlGrantTypeIntegerMapping.assert(type),
+                          )
+                        : null,
+            }),
     },
 });
 
@@ -107,6 +127,19 @@ const SearchEntityIndexAccessPolicyStoredType = OpensearchIndexObjectType.new({
                     ),
             })
             .nullable()
+            .store(),
+        urlGrantLevel: new OpensearchIndexByteType({isFilterable: true})
+            .nullable()
+            .transform<SearchEntityIndexUrlGrantType | null>({
+                serialize: type =>
+                    type ? SearchEntityIndexUrlGrantTypeIntegerMapping.into(type) : null,
+                deserialize: type =>
+                    type
+                        ? SearchEntityIndexUrlGrantTypeIntegerMapping.from(
+                              SearchEntityIndexUrlGrantTypeIntegerMapping.assert(type),
+                          )
+                        : null,
+            })
             .store(),
     },
 });

@@ -2304,10 +2304,14 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
                     defaultGrantType: null,
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task1.createdTime[0]),
                 title: "Test Task 1",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: null,
                 embeddingChunks: [],
                 media: {
@@ -2330,10 +2334,17 @@ describe("getSearchEntity", () => {
             dependencyIds: new Set([`TaskCollection:${publicCollection.id}:Authorization`]),
             entity: {
                 id: `Task:${task2.id}`,
-                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                    urlGrantLevel: null,
+                },
                 createdTime: new Date(task2.createdTime[0]),
                 title: "Test Task 2",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: taskNotes,
                 embeddingChunks: [
                     {
@@ -2394,8 +2405,9 @@ describe("getSearchEntity", () => {
                 entity: {
                     id: `TaskCollection:${privateCollection.id}`,
                     accessPolicy: {
-                        accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
+                        accountGrantAccountIds: new Set([session1.account.id, session2.account.id]),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: new Date(privateCollection.createdTime[0]),
                     title: "Private Test Task Collection",
@@ -2418,7 +2430,11 @@ describe("getSearchEntity", () => {
                 dependencyIds: new Set(),
                 entity: {
                     id: `TaskCollection:${publicCollection.id}`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: new Date(publicCollection.createdTime[0]),
                     title: "Public Test Task Collection",
                     titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
@@ -2486,6 +2502,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
                     defaultGrantType: null,
+                    urlGrantLevel: null,
                 },
                 createdTime: comment1.createdTime,
                 title: null,
@@ -2517,7 +2534,11 @@ describe("getSearchEntity", () => {
             ]),
             entity: {
                 id: `TaskComment:${task2.id}-0`,
-                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                accessPolicy: {
+                    accountGrantAccountIds: new Set(),
+                    defaultGrantType: "Space",
+                    urlGrantLevel: null,
+                },
                 createdTime: comment2.createdTime,
                 title: null,
                 titleVersion: null,
@@ -2567,6 +2588,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set(),
                     defaultGrantType: "Space",
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task.createdTime[0]),
                 title: null,
@@ -2612,6 +2634,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set(),
                     defaultGrantType: "Space",
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(collection.createdTime[0]),
                 title: null,
@@ -2659,6 +2682,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set(),
                     defaultGrantType: null,
+                    urlGrantLevel: null,
                 },
                 createdTime: null,
                 title: null,
@@ -2708,10 +2732,14 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set(),
                     defaultGrantType: "Space",
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task.createdTime[0]),
                 title: "Test Task",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: "Lorem ipsum dolor sit amet",
                 embeddingChunks: expect.any(Array),
                 media: {
@@ -2744,10 +2772,14 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set([session1.account.id]),
                     defaultGrantType: null,
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task.createdTime[0]),
                 title: "Test Task",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: "Lorem ipsum dolor sit amet",
                 embeddingChunks: expect.any(Array),
                 media: {
@@ -2791,10 +2823,14 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set(),
                     defaultGrantType: "Space",
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task.createdTime[0]),
                 title: "Test Task",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: "Lorem ipsum dolor sit amet",
                 embeddingChunks: expect.any(Array),
                 media: {
@@ -2824,10 +2860,14 @@ describe("getSearchEntity", () => {
                 accessPolicy: {
                     accountGrantAccountIds: new Set([session1.account.id]),
                     defaultGrantType: null,
+                    urlGrantLevel: null,
                 },
                 createdTime: new Date(task.createdTime[0]),
                 title: "Test Task",
-                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                titleVersion: {
+                    type: "TaskTitle",
+                    snapshot: expect.any(Uint8Array),
+                },
                 body: "Lorem ipsum dolor sit amet",
                 embeddingChunks: expect.any(Array),
                 media: {

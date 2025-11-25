@@ -165,7 +165,7 @@ export type SearchEntityEmbeddingChunk = {
 // the OpenSearch index. So we continue to maintain `accessPolicy`s and some
 // other metadata for deleted entities so they can be searched.
 const searchDeletedMessageEntity: Omit<SearchEntity, "id"> = {
-    accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
+    accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null, urlGrantLevel: null},
     createdTime: null,
     title: null,
     titleVersion: null,
@@ -836,7 +836,11 @@ function getSearchEntityIndexAccessPolicy(
         accountGrantAccountIds = new Set();
     }
 
-    return {accountGrantAccountIds, defaultGrantType};
+    return {
+        accountGrantAccountIds,
+        defaultGrantType,
+        urlGrantLevel: accessPolicy.urlGrant?.level ?? null,
+    };
 }
 
 export function isSearchEntityIndexAccessPolicySubset(
@@ -1177,6 +1181,7 @@ async function getAccountSearchEntity(
         accessPolicy: {
             accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
+            urlGrantLevel: null,
         },
 
         createdTime: account.initialData.space.addedTime,
@@ -1597,6 +1602,7 @@ async function getChatSearchEntity(
             accessPolicy: {
                 accountGrantAccountIds: emptySet,
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             createdTime,
             title: null,
@@ -1634,6 +1640,7 @@ async function getChatSearchEntity(
         accessPolicy: {
             accountGrantAccountIds: new Set(accountIds),
             defaultGrantType: null,
+            urlGrantLevel: null,
         },
 
         createdTime,
@@ -1693,6 +1700,7 @@ async function getChatMessageSearchEntity(
     const accessPolicy: SearchEntityIndexAccessPolicy = {
         accountGrantAccountIds: new Set(chatAccountIds),
         defaultGrantType: null,
+        urlGrantLevel: null,
     };
 
     const contentReferences = await getSearchContentReferences(
@@ -1810,6 +1818,7 @@ function getTaskSearchEntityAccessPolicy({
     return {
         accountGrantAccountIds,
         defaultGrantType,
+        urlGrantLevel: null,
     };
 }
 

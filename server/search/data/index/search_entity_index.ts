@@ -8,7 +8,6 @@ import {
     printContentSingleLineTextSnippetForServer,
 } from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {
-    ServerAccountActionContext,
     ServerAccountActionContextModules,
     ServerActionContext,
     ServerActionContextModules,
@@ -88,10 +87,12 @@ import {
 import {
     authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
     getAccount,
     getAccountIfExists,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountSettings,
+    isAccountMemberOfSpaceWithoutAuthorization,
     isBotSpaceAccount,
 } from "~/server/spaces/spaces_actions.js";
 import {
@@ -103,6 +104,7 @@ import {
     AccessPolicy,
     AccessPolicyAccountGrantWithoutGeneration,
     AccessPolicyDefaultGrantWithoutGeneration,
+    AccessPolicyUrlGrant,
 } from "~/shared/access/access_policy.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
@@ -363,6 +365,7 @@ assertEqualTypes<
         lastUpdatedTime: Date;
         "accessPolicy.accountGrantAccountIds": AccountId;
         "accessPolicy.defaultGrantType": SearchEntityIndexDefaultGrantType;
+        "accessPolicy.urlGrantLevel": AccessPolicyUrlGrant["level"];
         lastReadStartTime: Date;
         hasEmbeddingChunks: boolean;
         title: string;
@@ -2152,6 +2155,7 @@ type SearchEntityIndexDoc = {
         readonly media?: ReadonlyArray<SearchEntityMedia>;
         readonly "accessPolicy.accountGrantAccountIds"?: ReadonlyArray<AccountId>;
         readonly "accessPolicy.defaultGrantType"?: ReadonlyArray<"Space">;
+        readonly "accessPolicy.urlGrantLevel"?: ReadonlyArray<AccessPolicyUrlGrant["level"]>;
     };
 };
 
@@ -2187,6 +2191,7 @@ const SearchEntityBatcher = new ContextBatcher<
                         "media",
                         "accessPolicy.accountGrantAccountIds",
                         "accessPolicy.defaultGrantType",
+                        "accessPolicy.urlGrantLevel",
                     ],
                 },
             );
@@ -2208,7 +2213,7 @@ export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
  * DynamoDB for most things but we load tasks from `TaskRealtimeService`.
  */
 async function fallbackGetSearchEntityBaseIfPossible(
-    context: ServerAccountActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen: ReadonlySet<SearchEntityId>,
@@ -2331,7 +2336,7 @@ async function fallbackGetSearchEntityBaseIfPossible(
 }
 
 async function fallbackGetSearchContentReferences(
-    context: ServerAccountActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     originEntityId: SearchEntityId,
     content: Node,
@@ -2398,13 +2403,11 @@ async function fallbackGetSearchContentReferences(
  * ready.
  */
 async function getSearchEntityBaseIfPossible(
-    context: ServerAccountActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
     seen: ReadonlySet<SearchEntityId> = emptySet,
 ): Promise<SearchEntityModelBaseResult | null> {
-    await authorizeSpaceAccess(context, spaceId);
-
     const doc = await SearchEntityCache.get(context, `${spaceId}:${entityId}`, () => {
         return context.batch.execute(SearchEntityBatcher, {spaceId, entityId});
     });
@@ -2452,19 +2455,55 @@ async function getSearchEntityBaseIfPossible(
         );
     }
 
+    const accessPolicy: {
+        accountGrantById: Map<AccountId, AccessPolicyAccountGrantWithoutGeneration>;
+        defaultGrant: AccessPolicyDefaultGrantWithoutGeneration | null;
+        urlGrant: AccessPolicyUrlGrant | null;
+    } = {
+        accountGrantById: new Map(),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+
+    if (doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space") {
+        accessPolicy.defaultGrant = {level: "View"};
+    }
+
+    if (doc.fields["accessPolicy.accountGrantAccountIds"]) {
+        for (const accountId of doc.fields["accessPolicy.accountGrantAccountIds"]) {
+            accessPolicy.accountGrantById.set(accountId, {level: "View"});
+        }
+    }
+
+    if (doc.fields["accessPolicy.urlGrantLevel"]?.[0] === "View") {
+        accessPolicy.urlGrant = {level: "View"};
+    }
+
     switch (context.actor.type) {
-        // Optimization: For session actors don't construct a full access policy and
-        // run `evaluateAccessPolicy()`. We can simply check whether the account is in
-        // `accountGrantAccountIds` (or the entity is shared with the space).
+        // Optimization: For session actors don't run `evaluateAccessPolicy()`.
+        // We can simply check whether the account is in `accountGrantAccountIds`
+        // (or the entity is shared with the space).
         case "Session":
         case "ImpersonatedAccount": {
-            const isAccessAuthorized =
-                doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
-                doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
-                    context.actor.getAccountId(),
-                );
+            if (accessPolicy.urlGrant?.level === "View") {
+                break;
+            }
 
-            if (!isAccessAuthorized) return {isPrivate: true};
+            const isAccountMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
+                context,
+                spaceId,
+                context.actor.getAccountId(),
+            );
+
+            const isAccessAuthorized =
+                isAccountMemberOfSpace &&
+                (accessPolicy.defaultGrant?.level === "View" ||
+                    accessPolicy.accountGrantById.get(context.actor.getAccountId())?.level ===
+                        "View");
+
+            if (!isAccessAuthorized) {
+                return {isPrivate: true};
+            }
 
             break;
         }
@@ -2472,26 +2511,6 @@ async function getSearchEntityBaseIfPossible(
         // For bot actors, run `evaluateAccessPolicy()`. In order to view a search
         // entity all accounts in the bot's scope must have view access to the entity.
         case "Bot": {
-            const accessPolicy: {
-                accountGrantById: Map<AccountId, AccessPolicyAccountGrantWithoutGeneration>;
-                defaultGrant: AccessPolicyDefaultGrantWithoutGeneration | null;
-                urlGrant: null;
-            } = {
-                accountGrantById: new Map(),
-                defaultGrant: null,
-                urlGrant: null,
-            };
-
-            if (doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space") {
-                accessPolicy.defaultGrant = {level: "View"};
-            }
-
-            if (doc.fields["accessPolicy.accountGrantAccountIds"]) {
-                for (const accountId of doc.fields["accessPolicy.accountGrantAccountIds"]) {
-                    accessPolicy.accountGrantById.set(accountId, {level: "View"});
-                }
-            }
-
             const isAccessAuthorized = await evaluateAccessPolicy(
                 // Reading from OpenSearch is inherently eventually consistent. OpenSearch data
                 // can be stale by up to two minutes. Don't bother requiring DynamoDB reads to
@@ -2502,7 +2521,29 @@ async function getSearchEntityBaseIfPossible(
                 "View",
             );
 
-            if (!isAccessAuthorized) return {isPrivate: true};
+            if (!isAccessAuthorized) {
+                return {isPrivate: true};
+            }
+
+            break;
+        }
+        case "Anonymous": {
+            // Optimization: For anonymous actors don't run `evaluateAccessPolicy()`.
+            // We can simply check whether urlGrant is set.
+            const isAccessAuthorized = accessPolicy.urlGrant?.level === "View";
+
+            if (!isAccessAuthorized) {
+                return {isPrivate: true};
+            }
+
+            break;
+        }
+        case "System": {
+            const isAccessAuthorized = await authorizeSpaceAccessIfPossible(context, spaceId);
+
+            if (!isAccessAuthorized.ok) {
+                return {isPrivate: true};
+            }
 
             break;
         }
@@ -2534,7 +2575,7 @@ async function getSearchEntityBaseIfPossible(
  * `SearchEntityRegistry`.
  */
 export async function getSearchEntityIfPossible(
-    context: ServerAccountActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
 ): Promise<
@@ -2612,7 +2653,7 @@ export async function getSearchAffinityEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchMentionEntityIfPossible(
-    context: ServerAccountActionContext,
+    context: ServerActionContext,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
     seen?: ReadonlySet<SearchEntityId>,

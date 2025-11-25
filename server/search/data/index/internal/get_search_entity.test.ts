@@ -36,7 +36,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 dependencyIds: new Set(),
                 entity: {
                     id: `Account:${session.account.id}`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: (await session.get()).initialData.space.addedTime,
                     title: "Caleb Meredith",
                     titleVersion: {type: "Integer", version: 0},
@@ -82,7 +86,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 dependencyIds: new Set(),
                 entity: {
                     id: `Document:${document.id}`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: document.createdTime,
                     title: "Lorem Ipsum",
                     titleVersion: {type: "Integer", version: 55},
@@ -138,7 +146,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 dependencyIds: new Set([`Document:${document.id}:Authorization`]),
                 entity: {
                     id: `DocumentComment:${document.id}-${commentThread.id}-0`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: expect.any(Date),
                     title: null,
                     titleVersion: null,
@@ -178,7 +190,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 dependencyIds: new Set([]),
                 entity: {
                     id: `Channel:${channel.id}`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: channel.createdTime,
                     title: "Test Channel",
                     titleVersion: {type: "Integer", version: 0},
@@ -223,7 +239,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 ]),
                 entity: {
                     id: `Post:${post.id}`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: post.createdTime,
                     title: "in Test Channel: Test post content",
                     titleVersion: {type: "Integers", versions: [0, 0]},
@@ -268,7 +288,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 dependencyIds: new Set([`Channel:${channel.id}:Authorization`]),
                 entity: {
                     id: `PostComment:${post.id}-0`,
-                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: "Space",
+                        urlGrantLevel: null,
+                    },
                     createdTime: comment.createdTime,
                     title: null,
                     titleVersion: null,
@@ -309,6 +333,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {
                         accountGrantAccountIds: new Set(),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: expect.any(Date),
                     title: null,
@@ -336,6 +361,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {
                         accountGrantAccountIds: new Set(),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: expect.any(Date),
                     title: null,
@@ -371,6 +397,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {
                         accountGrantAccountIds: new Set(),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: expect.any(Date),
                     title: null,
@@ -408,6 +435,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                             ),
                         ),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: expect.any(Date),
                     title: "Caleb Meredith, Josh Meredith, and Shawn Meredith",
@@ -458,6 +486,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                             [session1.account.id, session2.account.id].sort(defaultCompareStrings),
                         ),
                         defaultGrantType: null,
+                        urlGrantLevel: null,
                     },
                     createdTime: message.createdTime,
                     title: null,
@@ -509,10 +538,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -522,10 +553,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -535,10 +568,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -548,10 +583,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -561,10 +598,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -574,10 +613,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -587,10 +628,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -600,10 +643,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -613,10 +658,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -626,10 +673,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id, account3Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -639,10 +688,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id, account3Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id, account3Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -652,10 +703,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id, account3Id, account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -665,10 +718,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -678,10 +733,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account3Id, account4Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -691,10 +748,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id, account3Id, account4Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account3Id, account4Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -704,10 +763,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account3Id, account4Id, account3Id, account4Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -717,10 +778,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -730,10 +793,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -743,10 +808,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -756,10 +823,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -769,10 +838,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -782,10 +853,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -795,10 +868,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account3Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -808,10 +883,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -821,10 +898,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -834,10 +913,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -847,10 +928,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -860,10 +943,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -873,10 +958,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -886,10 +973,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: null,
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account3Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(false);
@@ -899,10 +988,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -912,10 +1003,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -925,10 +1018,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -938,10 +1033,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -951,10 +1048,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);
@@ -964,10 +1063,12 @@ test("can check if one access policy is a subset of another", () => {
             {
                 accountGrantAccountIds: new Set([account3Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
             {
                 accountGrantAccountIds: new Set([account1Id, account2Id]),
                 defaultGrantType: "Space",
+                urlGrantLevel: null,
             },
         ),
     ).toEqual(true);

@@ -311,6 +311,10 @@ export function renderContentMentionToHtml(
     textHtml.setAttribute("class", contentStyles.mentionTextClassName);
     textHtml.appendChild(new HtmlTextGenerator(text));
 
+    if (process.env.NODE_ENV !== "production") {
+        textHtml.setAttribute("data-testid", "ContentMentionText");
+    }
+
     // Add a little more right padding to current account mentions so the
     // background color extends further to the right and looks nice. We have to use
     // no-break space so that Chrome text selection highlight is contiguous across

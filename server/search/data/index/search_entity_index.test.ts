@@ -1877,9 +1877,8 @@ test("get search entities only sees entities the account has access to", async (
         ).sort(defaultCompareStrings);
     };
 
-    await expect(getSearchEntityIds(otherSession.action(), space)).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    // Doesn't throw, but returns nothing.
+    expect(await getSearchEntityIds(otherSession.action(), space)).toEqual([]);
 
     expect(await getSearchEntityIds(otherSession.action(), otherSpace)).toEqual(
         [`Document:${otherDocument.id}`].sort(defaultCompareStrings),
@@ -4646,9 +4645,54 @@ test("make sure cross space reads don’t work", async () => {
     expect(
         await getSearchEntityIfPossible(session2.action(), space2.id, `Channel:${channel.id}`),
     ).toBeNull();
-    await expect(
-        getSearchEntityIfPossible(session2.action(), space1.id, `Channel:${channel.id}`),
-    ).rejects.toThrow(PermissionDeniedError);
+    expect(
+        await getSearchEntityIfPossible(session2.action(), space1.id, `Channel:${channel.id}`),
+    ).toEqual({isPrivate: true});
+});
+
+test("cannot read entities with no urlGrant as anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+
+    expect(
+        await getSearchEntityIfPossible(
+            context.anonymousAction(),
+            space.id,
+            `Document:${document.id}`,
+        ),
+    ).toEqual({isPrivate: true});
+});
+
+test("allow reading entities with urlGrant = View as session actor in another space", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+
+    const document = await TestDocument.create(session1);
+    await document.access.grantUrl(session1, "View");
+
+    expect(
+        await getSearchEntityIfPossible(session2.action(), space1.id, `Document:${document.id}`),
+    ).not.toBeNull();
+});
+
+test("allow reading entities with urlGrant = View as anonymous actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+    await document.access.grantUrl(session, "View");
+
+    expect(
+        await getSearchEntityIfPossible(
+            context.anonymousAction(),
+            space.id,
+            `Document:${document.id}`,
+        ),
+    ).not.toBeNull();
 });
 
 test("reading search entities is batched and cached", async () => {

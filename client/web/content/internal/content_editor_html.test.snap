@@ -2864,7 +2864,9 @@ exports[`account long mention 1`] = `
           </span>
            
         </span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           Sara Smith
         </span>
       </span>
@@ -2931,7 +2933,9 @@ exports[`account short mention 1`] = `
           </span>
            
         </span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           Sara
         </span>
       </span>
@@ -7044,7 +7048,9 @@ exports[`private search entity mention 1`] = `
           </span>
            
         </span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           Private document
         </span>
       </span>
@@ -7249,7 +7255,9 @@ exports[`search entity mention 1`] = `
           </span>
            
         </span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           foobar
         </span>
       </span>
@@ -9110,7 +9118,9 @@ exports[`unknown account mention 1`] = `
       href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
     >
       <span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           Unknown
         </span>
       </span>
@@ -9169,7 +9179,9 @@ exports[`unknown search entity mention 1`] = `
           </span>
            
         </span>
-        <span>
+        <span
+          data-testid="ContentMentionText"
+        >
           Unknown document
         </span>
       </span>

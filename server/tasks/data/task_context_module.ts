@@ -1,5 +1,4 @@
 import {
-    ServerAccountActionContextModules,
     ServerActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -230,17 +229,22 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getTaskWithoutDependenciesIfPossible(
-        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const [host, token] = await runAllPromises([
-            this.router.getStickyAccountHost(
-                this._context,
-                spaceId,
-                this._context.actor.getPossiblyBotAccountId(),
-            ),
+            this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
+                ? this.router.getStickyAccountHost(
+                      this._context,
+                      spaceId,
+                      this._context.actor.getPossiblyBotAccountId(),
+                  )
+                : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
+                  // to simplify code.
+                  this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
@@ -274,17 +278,22 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     public override async getCollectionIfPossible(
-        this: TaskContextModule & ContextModuleBase<ServerAccountActionContextModules>,
+        this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const [host, token] = await runAllPromises([
-            this.router.getStickyAccountHost(
-                this._context,
-                spaceId,
-                this._context.actor.getPossiblyBotAccountId(),
-            ),
+            this._context.actor.type !== "Anonymous" && this._context.actor.type !== "System"
+                ? this.router.getStickyAccountHost(
+                      this._context,
+                      spaceId,
+                      this._context.actor.getPossiblyBotAccountId(),
+                  )
+                : // TODO(calebmer): Probably better to send anonymous actors to a sticky host as
+                  // well based on `BrowserId`. Maybe we should always use `BrowserId` actually
+                  // to simplify code.
+                  this.router.getRandomHost(this._context, spaceId),
             this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                 "TaskRealtimeService",
                 this._context.actor.getTokenPayload(),
