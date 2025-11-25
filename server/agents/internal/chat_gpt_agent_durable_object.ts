@@ -71,6 +71,7 @@ import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -508,9 +509,7 @@ async function createChatGptAgentResponse(
         // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
         model: "gpt-5",
         // https://platform.openai.com/docs/guides/prompt-caching
-        prompt_cache_key: `${request.spaceId}:${getRoomPathForPromptCacheKey(
-            request.event.roomPath,
-        )}`,
+        prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.roomPath),
         safety_identifier: request.event.authorId,
         tools: [
             chatGptReadLinkTool.get(),
@@ -833,21 +832,21 @@ async function callChatGptAgentFunction({
     }
 }
 
-// NOTE(ifitzsimmons, 2025-11-14): The prompt cache key is too long for document comment
-// threads. Given that all of our IDs are unique, I think concatenating the full room path
-// to just the thread ID is safe.
-function getRoomPathForPromptCacheKey(roomPath: ApiMessageRoomPath): string {
+// NOTE(ifitzsimmons, 2025-11-14): The maximum length of a prompt_cache_key is 64 characters. Our
+// IDs are 26 characters long, so we can't fit more than two IDs in a prompt_cache_key.
+// Document comment threads are uniquely identified by their DocumentId x ThreadId combination,
+// so we can drop the Space ID.
+function getRoomPathForPromptCacheKey(spaceId: SpaceId, roomPath: ApiMessageRoomPath): string {
     const roomPathObject = parseApiMessageRoomPath(roomPath);
 
     switch (roomPathObject.type) {
         case "Chat":
         case "Post":
         case "Task":
-            return roomPath;
+            return `${spaceId}:${roomPath}`;
         case "DocumentCommentThread":
-            // 3 Ids total for prompt_cache_key plus two characters which should be 81 characters
-            // and fit in the 99 character limit.
-            return `${roomPathObject.id}-${roomPathObject.threadId}`;
+            // "thread/" (7 characters) + ID * 2 (52 characters + "-" (1 character)) = 60 characters
+            return `thread/${roomPathObject.id}-${roomPathObject.threadId}`;
         default:
             throw exhaustive(roomPathObject);
     }
