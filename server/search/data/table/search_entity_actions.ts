@@ -7,6 +7,7 @@ import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_c
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {
     ActorContextModule,
@@ -1901,6 +1902,49 @@ export async function favoriteSearchEntity(
         accountId,
         entityId,
     });
+}
+
+/**
+ * Returns transaction entries to add search entity affinity points to a new entity.
+ *
+ * Dangerous because it does not check:
+ *
+ * 1. That the actor is allowed to add affinity for the provided `AccountId`
+ * 2. That the actor has access to the provided `SpaceId`
+ * 3. That there is an existing affinity entry for the provided `entityId`
+ *
+ * Use this function when you want to give an entity some initial affinity
+ * points without favoriting it, making it show up in the suggested list.
+ */
+export function dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries(
+    context: DynamoContext,
+    {
+        spaceId,
+        accountId,
+        entityId,
+        points,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        entityId: SearchAffinityEntityId;
+        points: number;
+    },
+): Array<DynamoTransactionEntry> {
+    const currentTime = Date.now();
+
+    const newEntry = assignSearchAffinityEntityDerivedAttributes({
+        partitionType: "Account",
+        sortRangeType: "SearchEntityAffinity",
+        spaceId,
+        accountId,
+        entityId,
+        points,
+        erosion: 0,
+        lastUpdatedTime: currentTime,
+        favoriteOrderKey: null, // Not favoriting, just adding affinity
+    });
+
+    return [SearchEntityTable.transactionDirectlyUpdateItem(newEntry)];
 }
 
 /**

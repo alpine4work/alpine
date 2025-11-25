@@ -249,6 +249,7 @@ export type SearchInjectionContextModule = InstanceType<typeof SearchInjectionCo
 export const SearchInjectionContextModule = createInjectionContextModule<SearchInjection>({
     getSearchMentionEntityIfPossible: true,
     dangerouslyFavoriteSearchEntityWithoutAuthorization: true,
+    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries: true,
 });
 
 export type SearchInjection = {
@@ -266,6 +267,16 @@ export type SearchInjection = {
             entityId: SearchAffinityEntityId;
         },
     ): Promise<unknown>;
+
+    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries(
+        context: DynamoContext,
+        options: {
+            spaceId: SpaceId;
+            accountId: AccountId;
+            entityId: SearchAffinityEntityId;
+            points: number;
+        },
+    ): Array<DynamoTransactionEntry>;
 };
 
 export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionContextModule>;

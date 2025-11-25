@@ -1,7 +1,7 @@
 import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {internalDangerouslyCreateWelcomeChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_welcome_channel_transaction_entries.js";
+import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";
 import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {getCreateSpaceTransactionEntries} from "~/server/spaces/internal/get_create_space_transaction_entries.js";
@@ -83,6 +83,7 @@ async function actuallyCreateSpace(
     const welcomeChannelId = givenWelcomeChannelId ?? generateId<ChannelId>();
 
     const spaceItem = await context.dynamo.retryTransaction(async context => {
+        // Add the account to the space
         const {currentTime, transactionEntries: addSpaceAccountTransactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
                 space: {type: "New", id: spaceId},
@@ -90,14 +91,7 @@ async function actuallyCreateSpace(
                 role: "Owner",
             });
 
-        const createWelcomeChannelTransactionEntries =
-            internalDangerouslyCreateWelcomeChannelTransactionEntries(context, {
-                ownerAccountId,
-                spaceId,
-                welcomeChannelId,
-                createdTime: currentTime,
-            });
-
+        // Create the space
         const {newItem: spaceItem, transactionEntries: createSpaceTransactionEntries} =
             getCreateSpaceTransactionEntries({
                 spaceId,
@@ -105,10 +99,32 @@ async function actuallyCreateSpace(
                 createdTime: currentTime,
             });
 
+        // Create the welcome channel
+        const createWelcomeChannelTransactionEntries =
+            internalDangerouslyCreateChannelTransactionEntries(context, {
+                ownerAccountId,
+                spaceId,
+                channelId: welcomeChannelId,
+                channelName: "Welcome",
+                createdTime: currentTime,
+            });
+
+        const addWelcomeChannelAffinityTransactionEntries =
+            context.searchInjection.dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries(
+                {
+                    spaceId,
+                    accountId: ownerAccountId,
+                    entityId: `Channel:${welcomeChannelId}`,
+                    points: 5,
+                },
+            );
+
+        // Fire off the transactions
         await DynamoTableSchema.executeTransaction(context, [
             ...createSpaceTransactionEntries,
             ...addSpaceAccountTransactionEntries,
             ...createWelcomeChannelTransactionEntries,
+            ...addWelcomeChannelAffinityTransactionEntries,
         ]);
 
         return spaceItem;

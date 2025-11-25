@@ -9,6 +9,7 @@ ts_project(
     name = "create_space",
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/search/data/index",
         "//server/spaces/test_helpers",
         "//shared/spaces/test_helpers",
     ],

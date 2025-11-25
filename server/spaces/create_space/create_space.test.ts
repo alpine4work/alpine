@@ -1,6 +1,7 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensively_get_channels_in_space_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {
     createSpace,
     createSpaceForAccountAsAdmin,
@@ -13,9 +14,23 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 
+const dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries =
+    import.meta.jest.fn();
+
 const context = createTestContext({
     forumInjection,
     spacesInjection,
+    searchInjection: {
+        ...searchInjection,
+        dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries,
+    },
+});
+
+beforeEach(() => {
+    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mockClear();
+    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mockReturnValue(
+        [],
+    );
 });
 
 describe("createSpaceForAccountAsAdmin()", () => {
@@ -93,6 +108,35 @@ describe("createSpaceForAccountAsAdmin()", () => {
             expect(welcomeChannel).toBeDefined();
             expect(welcomeChannel?.name).toBe("Welcome");
             expect(welcomeChannel?.spaceId).toBe(space.id);
+        });
+
+        test("assigns affinity points to Welcome channel for user", async () => {
+            // Testing search in this package would be a bit of work, instead
+            // lets just verify that the function to add affinity points is called
+            // NOTE: this function only creates the transaction entries, it doesn't actually
+            // execute them, so we aren't _truly_ testing search integration here.
+            const existingSpace = await TestSpace.create(context);
+            const session = await existingSpace.createSession({hasInternalAccess: true});
+
+            const space = await createSpaceForAccountAsAdmin(session.action(), {
+                name: "Test Space",
+                ownerAccountId: session.account.id,
+            });
+
+            const channels = await expensivelyGetChannelsInSpaceForTest(session.action(), space.id);
+            const welcomeChannel = channels?.find(channel => channel.name === "Welcome");
+
+            // get the second argument of the first call
+            const affinityCall =
+                dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mock
+                    .calls[0][1];
+
+            expect(affinityCall).toEqual({
+                spaceId: space.id,
+                accountId: session.account.id,
+                entityId: `Channel:${welcomeChannel!.id}`,
+                points: 5,
+            });
         });
     });
 

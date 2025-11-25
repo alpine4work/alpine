@@ -640,6 +640,7 @@ export function createTestContext(
     // injected this rather ugly function name.
     searchInjection = {
         dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
+        dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries: () => [],
         ...searchInjection,
     };
 

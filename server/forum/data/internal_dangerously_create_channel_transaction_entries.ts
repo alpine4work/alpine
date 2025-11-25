@@ -4,20 +4,22 @@ import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 /**
- * Dangerous since we create a channel item for `welcomeChannelId` without checking whether a
+ * Dangerous since we create a channel item for `channelId` without checking whether a
  * channel with that `ChannelId` already exists!
  */
-export function internalDangerouslyCreateWelcomeChannelTransactionEntries(
+export function internalDangerouslyCreateChannelTransactionEntries(
     context: ServerActionContext,
     {
         ownerAccountId,
         spaceId,
-        welcomeChannelId,
+        channelId,
+        channelName,
         createdTime,
     }: {
         ownerAccountId: AccountId;
         spaceId: SpaceId;
-        welcomeChannelId: ChannelId;
+        channelId: ChannelId;
+        channelName: string;
         createdTime: Date;
     },
 ) {
@@ -28,11 +30,11 @@ export function internalDangerouslyCreateWelcomeChannelTransactionEntries(
             {
                 partitionType: "Channel",
                 sortRangeType: "Attributes",
-                channelId: welcomeChannelId,
+                channelId,
                 spaceId,
                 createdTime,
                 creatorId: ownerAccountId,
-                name: "Welcome",
+                name: channelName,
                 description: emptyMessageContent,
                 accessPolicy: {
                     accountGrantById: new Map([[ownerAccountId, {level: "Manage", generation: 0}]]),
@@ -51,7 +53,7 @@ export function internalDangerouslyCreateWelcomeChannelTransactionEntries(
                         spaceId,
                         update: {
                             type: "Channel",
-                            channelId: welcomeChannelId,
+                            channelId,
                             // Nothing depends on this entity when it's created. Don't bother trying to
                             // reindex dependencies.
                             updatedTraits: {type: "None"},
