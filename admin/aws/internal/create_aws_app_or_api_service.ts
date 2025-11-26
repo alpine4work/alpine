@@ -372,6 +372,9 @@ export function createAwsAppOrApiService(
     const listener = loadBalancer.addListener("Listener", {
         protocol: ApplicationProtocol.HTTPS,
         port: 443,
+        // We only allow requests from Cloudflare IPs. This defaults to true and when
+        // true it updates the security group to allow connections from 0.0.0.0/0.
+        open: false,
         certificates: [
             new Certificate(parentConstruct, "Certificate", {
                 domainName: loadBalancerOptions.domainName,

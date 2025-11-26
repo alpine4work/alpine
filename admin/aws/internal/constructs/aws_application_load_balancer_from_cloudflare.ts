@@ -28,23 +28,24 @@ export class AwsApplicationLoadBalancerFromCloudflare extends Construct {
         options: AwsApplicationLoadBalancerFromCloudflareOptions,
     ) {
         super(parentConstruct, id);
-        const defaultSecurityGroup = new SecurityGroup(this, "DefaultSecurityGroup", {
+
+        const securityGroup = new SecurityGroup(this, "SecurityGroup", {
             vpc: options.vpc,
             description: "Only allow from Cloudflare IPs",
             allowAllOutbound: true,
         });
 
         for (const cidr of cloudflareIpV4s) {
-            defaultSecurityGroup.addIngressRule(Peer.ipv4(cidr), Port.tcp(443), "HTTPS allowlist");
+            securityGroup.addIngressRule(Peer.ipv4(cidr), Port.tcp(443), "HTTPS allowlist");
         }
 
         for (const cidr of cloudflareIpV6s) {
-            defaultSecurityGroup.addIngressRule(Peer.ipv6(cidr), Port.tcp(443), "HTTPS allowlist");
+            securityGroup.addIngressRule(Peer.ipv6(cidr), Port.tcp(443), "HTTPS allowlist");
         }
 
         this._applicationLoadBalancer = new ApplicationLoadBalancer(this, "Alb", {
             ...options,
-            securityGroup: defaultSecurityGroup,
+            securityGroup,
         });
     }
 

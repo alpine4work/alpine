@@ -2802,10 +2802,10 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C6040000175A9A5:
+    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000527063C8:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C60:4000
+            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -2814,12 +2814,12 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - AppServiceLoadBalancer2DefaultSecurityGroup770CF998
+                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
                     - GroupId
             ToPort: 4000
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackAppServiceLoadBalancer2DefaultSecurityGroup60BE4C60:4000
+                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
     AppServiceAutoScalingGroupInstanceRoleA46BECD2:
         Type: AWS::IAM::Role
         Properties:
@@ -3570,7 +3570,7 @@ Resources:
             - AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Service/Service
-    AppServiceLoadBalancer2DefaultSecurityGroup770CF998:
+    AppServiceLoadBalancer2SecurityGroupA5F365F8:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupDescription: Only allow from Cloudflare IPs
@@ -3689,15 +3689,10 @@ Resources:
                   FromPort: 443
                   IpProtocol: tcp
                   ToPort: 443
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/DefaultSecurityGroup/Resource
+            aws:cdk:path: CyberworldsStack/AppService/LoadBalancer2/SecurityGroup/Resource
     AppServiceLoadBalancer2AlbBB348FF5:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
@@ -3722,7 +3717,7 @@ Resources:
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
-                      - AppServiceLoadBalancer2DefaultSecurityGroup770CF998
+                      - AppServiceLoadBalancer2SecurityGroupA5F365F8
                       - GroupId
             Subnets:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
@@ -3801,10 +3796,10 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    ApiServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A04940002F9FB96C:
+    ApiServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A4000CFE0C3D1:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A049:4000
+            Description: from CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -3813,12 +3808,12 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34
+                    - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
                     - GroupId
             ToPort: 4000
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackApiServiceLoadBalancerDefaultSecurityGroup66B1A049:4000
+                CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
     ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD:
         Type: AWS::IAM::Role
         Properties:
@@ -4552,7 +4547,7 @@ Resources:
             - ApiServiceTaskDefinitionTaskRole5521C40B
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/Service/Service
-    ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34:
+    ApiServiceLoadBalancerSecurityGroupBEE4C4F3:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupDescription: Only allow from Cloudflare IPs
@@ -4671,15 +4666,10 @@ Resources:
                   FromPort: 443
                   IpProtocol: tcp
                   ToPort: 443
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/DefaultSecurityGroup/Resource
+            aws:cdk:path: CyberworldsStack/ApiService/LoadBalancer/SecurityGroup/Resource
     ApiServiceLoadBalancerAlb67D7EA2E:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
@@ -4704,7 +4694,7 @@ Resources:
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
-                      - ApiServiceLoadBalancerDefaultSecurityGroup6AF2FF34
+                      - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
                       - GroupId
             Subnets:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
@@ -6057,7 +6047,7 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/MigrationService/InstanceSecurityGroup/Resource
-    FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9:
+    FileProcessorServiceLoadBalancerSecurityGroup2345292F:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupDescription: Only allow from Cloudflare IPs
@@ -6176,15 +6166,10 @@ Resources:
                   FromPort: 443
                   IpProtocol: tcp
                   ToPort: 443
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow from anyone on port 443
-                  FromPort: 443
-                  IpProtocol: tcp
-                  ToPort: 443
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/DefaultSecurityGroup/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/LoadBalancer/SecurityGroup/Resource
     FileProcessorServiceLoadBalancerAlb736015CB:
         Type: AWS::ElasticLoadBalancingV2::LoadBalancer
         Properties:
@@ -6209,7 +6194,7 @@ Resources:
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
-                      - FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9
+                      - FileProcessorServiceLoadBalancerSecurityGroup2345292F
                       - GroupId
             Subnets:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
@@ -7065,10 +7050,10 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC0044000D31F7CB9:
+    FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B40007F4B684B:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC004:4000
+            Description: from CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -7077,13 +7062,13 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - FileProcessorServiceLoadBalancerDefaultSecurityGroup1E73E2F9
+                    - FileProcessorServiceLoadBalancerSecurityGroup2345292F
                     - GroupId
             ToPort: 4000
         Metadata:
             aws:cdk:path:
                 CyberworldsStack/FileProcessorService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackFileProcessorServiceLoadBalancerDefaultSecurityGroup693DC004:4000
+                CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
     FileProcessorServiceAutoScalingGroupInstanceRoleFECBC5DF:
         Type: AWS::IAM::Role
         Properties:
