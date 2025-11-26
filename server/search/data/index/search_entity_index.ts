@@ -1952,126 +1952,152 @@ export async function searchBySemantics(
 
     const results = await runAllPromises(
         hits.map(async (hit): Promise<SearchEntityResultModel | null> => {
-            const entityId = assertExists(hit.fields["entity.id"]?.[0]);
+            try {
+                const entityId = assertExists(hit.fields["entity.id"]?.[0]);
 
-            // If we've already seen this entity, return null. We only return one result
-            // per entity and only the result with the highest score. The first entity we
-            // see should have the highest score given the hit list is sorted by score (we
-            // double check this with an `assert()`).
-            const highestScore = highestScoreByEntityId.get(entityId);
-            if (highestScore !== undefined) {
-                assert(highestScore >= hit.score);
-                return null;
-            }
-            highestScoreByEntityId.set(entityId, hit.score);
-
-            const score = hit.score * options.semanticScoreScaleFromOpensearch;
-
-            // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
-            // score here, I wish I could have OpenSearch stop if it can't find hits better
-            // than this score. But I can't seem to find the OpenSearch parameter that will
-            // let me do this?
-            if (score < options.minSemanticScore) return null;
-
-            // The highlighted body text we get from OpenSearch is markdown formatted with
-            // `<em>` tags inserted where we need to highlight. To get this in a format we
-            // can render:
-            //
-            // 1. Parse the Markdown back to a ProseMirror node
-            // 2. Print the ProseMirror node to a single line of text
-            let rawBodyTextSnippet = hit.fields.text?.[0];
-            const preambleEndIndex = hit.fields?.preambleEndIndex?.[0];
-
-            // Remove the preamble from the chunk text.
-            rawBodyTextSnippet =
-                typeof preambleEndIndex === "number"
-                    ? rawBodyTextSnippet?.slice(preambleEndIndex)
-                    : rawBodyTextSnippet;
-
-            // If the chunk text starts with the document header then remove that.
-            rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
-
-            // Emulate OpenSearch highlighting. So if our semantic search chunk text
-            // matches the query words at all the user sees highlighted text as expected.
-            //
-            // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
-            // with OpenSearch's highlighter. For example, we don't support highlighting
-            // tokens that would have been split up by the `word_delimiter_graph` filter
-            // and we don't support highlighting typos from a fuzzy match.
-            if (rawBodyTextSnippet) {
-                let offsetIndex = 0;
-                const highlightTagStart = "<em>";
-                const highlightTagEnd = "</em>";
-
-                for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
-                    rawBodyTextSnippet,
-                )) {
-                    if (!queryTokens.has(token.text)) continue;
-
-                    rawBodyTextSnippet =
-                        rawBodyTextSnippet.slice(0, offsetIndex + token.sourceStartIndex) +
-                        highlightTagStart +
-                        rawBodyTextSnippet.slice(
-                            offsetIndex + token.sourceStartIndex,
-                            offsetIndex + token.sourceStartIndex + token.sourceLength,
-                        ) +
-                        highlightTagEnd +
-                        rawBodyTextSnippet.slice(
-                            offsetIndex + token.sourceStartIndex + token.sourceLength,
-                        );
-
-                    offsetIndex += highlightTagStart.length + highlightTagEnd.length;
+                // If we've already seen this entity, return null. We only return one result
+                // per entity and only the result with the highest score. The first entity we
+                // see should have the highest score given the hit list is sorted by score (we
+                // double check this with an `assert()`).
+                const highestScore = highestScoreByEntityId.get(entityId);
+                if (highestScore !== undefined) {
+                    assert(highestScore >= hit.score);
+                    return null;
                 }
-            }
+                highestScoreByEntityId.set(entityId, hit.score);
 
-            const bodySnippet = rawBodyTextSnippet
-                ? parseSearchContent(rawBodyTextSnippet, {
-                      shouldParseEmphasisHtmlTagAsHighlight: true,
-                  })
-                : null;
+                const score = hit.score * options.semanticScoreScaleFromOpensearch;
 
-            const bodyTextSnippet = bodySnippet
-                ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
-                      shouldPreserveMark: mark => mark.type.name === "highlight",
-                      // We serialize mentions to search as their underlying text content. So we'll
-                      // never have any mentions when parsing the body text snippet from our search
-                      // index.
-                      getAccountIfExists: () => null,
-                      getSearchEntityIfExists: () => null,
-                      getFileIfExists: () => null,
-                  }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
-                : [];
+                // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
+                // score here, I wish I could have OpenSearch stop if it can't find hits better
+                // than this score. But I can't seem to find the OpenSearch parameter that will
+                // let me do this?
+                if (score < options.minSemanticScore) return null;
 
-            const hitMedia = hit.fields["entity.media"]?.[0];
+                // The highlighted body text we get from OpenSearch is markdown formatted with
+                // `<em>` tags inserted where we need to highlight. To get this in a format we
+                // can render:
+                //
+                // 1. Parse the Markdown back to a ProseMirror node
+                // 2. Print the ProseMirror node to a single line of text
+                let rawBodyTextSnippet = hit.fields.text?.[0];
+                const preambleEndIndex = hit.fields?.preambleEndIndex?.[0];
 
-            const media = hitMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
-                : null;
+                // Remove the preamble from the chunk text.
+                rawBodyTextSnippet =
+                    typeof preambleEndIndex === "number"
+                        ? rawBodyTextSnippet?.slice(preambleEndIndex)
+                        : rawBodyTextSnippet;
 
-            let model: SearchEntityModel | AccountModel;
+                // If the chunk text starts with the document header then remove that.
+                rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
 
-            if (!isSearchEntityModelId(entityId)) {
-                // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
-                // `Account:${AccountId}`. Expect that account search entities always have an
-                // account media object.
-                assert(hitMedia?.type === "Account");
+                // Emulate OpenSearch highlighting. So if our semantic search chunk text
+                // matches the query words at all the user sees highlighted text as expected.
+                //
+                // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
+                // with OpenSearch's highlighter. For example, we don't support highlighting
+                // tokens that would have been split up by the `word_delimiter_graph` filter
+                // and we don't support highlighting typos from a fuzzy match.
+                if (rawBodyTextSnippet) {
+                    let offsetIndex = 0;
+                    const highlightTagStart = "<em>";
+                    const highlightTagEnd = "</em>";
 
-                model = await getAccount(context, spaceId, hitMedia.accountId);
-            } else {
-                model = new SearchEntityModel({
-                    id: entityId,
-                    title: hit.fields["entity.title"]?.[0] ?? null,
-                    titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
-                    media,
+                    for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
+                        rawBodyTextSnippet,
+                    )) {
+                        if (!queryTokens.has(token.text)) continue;
+
+                        rawBodyTextSnippet =
+                            rawBodyTextSnippet.slice(0, offsetIndex + token.sourceStartIndex) +
+                            highlightTagStart +
+                            rawBodyTextSnippet.slice(
+                                offsetIndex + token.sourceStartIndex,
+                                offsetIndex + token.sourceStartIndex + token.sourceLength,
+                            ) +
+                            highlightTagEnd +
+                            rawBodyTextSnippet.slice(
+                                offsetIndex + token.sourceStartIndex + token.sourceLength,
+                            );
+
+                        offsetIndex += highlightTagStart.length + highlightTagEnd.length;
+                    }
+                }
+
+                const bodySnippet = rawBodyTextSnippet
+                    ? parseSearchContent(rawBodyTextSnippet, {
+                          shouldParseEmphasisHtmlTagAsHighlight: true,
+                      })
+                    : null;
+
+                const bodyTextSnippet = bodySnippet
+                    ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
+                          shouldPreserveMark: mark => mark.type.name === "highlight",
+                          // We serialize mentions to search as their underlying text content. So we'll
+                          // never have any mentions when parsing the body text snippet from our search
+                          // index.
+                          getAccountIfExists: () => null,
+                          getSearchEntityIfExists: () => null,
+                          getFileIfExists: () => null,
+                      }).map(segment => ({
+                          isHighlighted: segment.marks.length > 0,
+                          text: segment.text,
+                      }))
+                    : [];
+
+                const hitMedia = hit.fields["entity.media"]?.[0];
+
+                const media = hitMedia
+                    ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
+                    : null;
+
+                let model: SearchEntityModel | AccountModel;
+
+                if (!isSearchEntityModelId(entityId)) {
+                    // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
+                    // `Account:${AccountId}`. Expect that account search entities always have an
+                    // account media object.
+                    assert(hitMedia?.type === "Account");
+
+                    model = await getAccount(context, spaceId, hitMedia.accountId);
+                } else {
+                    model = new SearchEntityModel({
+                        id: entityId,
+                        title: hit.fields["entity.title"]?.[0] ?? null,
+                        titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
+                        media,
+                    });
+                }
+
+                return new SearchEntityResultModel({
+                    model,
+                    score: hit.score,
+                    bodyTextSnippet,
+                    parsedFilter: null,
                 });
+            } catch (e) {
+                // TODO(imjoshin): Remove this after debugging
+                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/09wr65pbx6f9hjsr1ypmy7ywcg
+                let rawBodyTextSnippet = hit.fields.text?.[0];
+                const preambleEndIndex = hit.fields?.preambleEndIndex?.[0];
+                rawBodyTextSnippet =
+                    typeof preambleEndIndex === "number"
+                        ? rawBodyTextSnippet?.slice(preambleEndIndex)
+                        : rawBodyTextSnippet;
+                rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
+                // eslint-disable-next-line no-console
+                console.log(
+                    JSON.stringify({
+                        error: e instanceof Error ? e.message : String(e),
+                        hit,
+                        queryText,
+                        preambleEndIndex,
+                        rawBodyTextSnippet,
+                    }),
+                );
+                throw e;
             }
-
-            return new SearchEntityResultModel({
-                model,
-                score: hit.score,
-                bodyTextSnippet,
-                parsedFilter: null,
-            });
         }),
     );
 
