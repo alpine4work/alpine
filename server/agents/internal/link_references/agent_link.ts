@@ -98,32 +98,43 @@ type AgentLinkPaginatedMessagesListCommonOptions<
     } | null;
 };
 
+export type AgentTaskCommentsPageLink<
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+> = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
+    readonly type: "TaskComments";
+    readonly taskId: TaskId;
+
+    // Either the title of the task or the preview of the first comment
+    // that the agent sees
+    readonly label: string;
+};
+
+export type AgentChatMessagesPageLink<
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+> = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
+    readonly type: "ChatMessages";
+    readonly chatId: ChatId;
+
+    // Either the preview of the message OR the name of the chat.
+    readonly label: string;
+};
+
+export type AgentDocumentCommentsCommentsPageLink<
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+> = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
+    readonly type: "DocumentCommentThreadComments";
+    readonly documentId: DocumentId;
+    readonly commentThreadId: DocumentCommentThreadId;
+
+    // the preview of the first message in the thread that the agent sees
+    readonly label: string;
+};
 export type AgentPaginatedMessagesListLink<
     PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
 > =
-    | (AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
-          readonly type: "ChatMessages";
-          readonly chatId: ChatId;
-
-          // Either the preview of the message OR the name of the chat.
-          readonly label: string;
-      })
-    | (AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
-          readonly type: "DocumentCommentThreadComments";
-          readonly documentId: DocumentId;
-          readonly commentThreadId: DocumentCommentThreadId;
-
-          // the preview of the first message in the thread that the agent sees
-          readonly label: string;
-      })
-    | (AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
-          readonly type: "TaskComments";
-          readonly taskId: TaskId;
-
-          // Either the title of the task or the preview of the first comment
-          // that the agent sees
-          readonly label: string;
-      });
+    | AgentChatMessagesPageLink<PageInfo>
+    | AgentDocumentCommentsCommentsPageLink<PageInfo>
+    | AgentTaskCommentsPageLink<PageInfo>;
 
 // NOTE(ifitzsimmons, #ai): Post comments are a special case because the first "message" in
 // the list of messages is the post itself. So `/posts/messages/{index}` is not the first

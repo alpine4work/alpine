@@ -5,13 +5,21 @@ import {
     ApiContentResponse,
     ApiMessageResponse,
     ApiPostResponse,
+    ApiTaskResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {generateId} from "~/shared/id/id.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    ChatId,
+    DocumentCommentThreadId,
+    DocumentId,
+    PostId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type HttpMethod = "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
@@ -305,6 +313,120 @@ export class ApiClientMock implements ApiClient {
         }).length;
     }
 
+    mockGetChatMessagesList(
+        spaceId: SpaceId,
+        chatId: ChatId,
+        responseData: {
+            totalMessageCount?: number;
+            nextCursor?: number | null;
+            messages?: Array<ApiMessageResponse>;
+        },
+        // If you don't provide this, it'll match any page info in the order that you
+        // call the mock.
+        pageInfo?: {
+            from?: "start" | "end";
+            // undefined means the query is starting at the begining of the list of comments
+            cursor: number | undefined;
+            limit: number;
+        },
+    ): void {
+        const matcherData = pageInfo
+            ? {
+                  path: {id: chatId},
+                  query: {
+                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
+                      cursor: pageInfo.cursor,
+                      limit: pageInfo.limit,
+                  },
+              }
+            : undefined;
+
+        this.mockGet(
+            "/chats/{id}/messages",
+            {
+                data: {
+                    spaceId,
+                    totalMessageCount: 0,
+                    nextCursor: null,
+                    messages: [],
+                    ...responseData,
+                },
+            },
+            matcherData,
+        );
+    }
+
+    mockGetDocument(
+        spaceId: SpaceId,
+        documentId: DocumentId,
+        responseData: Partial<{title: string; content: ApiContentResponse}>,
+    ): void {
+        documentId ??= generateId<DocumentId>();
+        spaceId ??= generateId<SpaceId>();
+        const defaultContent: ApiContentResponse = {
+            elements: [
+                {type: "Paragraph", elements: [{type: "Text", text: "Test Document Content"}]},
+            ],
+        };
+
+        this.mockGet(
+            "/documents/{id}",
+            {
+                data: {
+                    document: {
+                        id: documentId,
+                        title: responseData.title ?? "Test Document",
+                        content: responseData.content ?? defaultContent,
+                    },
+                    spaceId,
+                },
+            },
+            {path: {id: documentId}},
+        );
+    }
+
+    mockGetDocumentCommentsList(
+        spaceId: SpaceId,
+        documentId: DocumentId,
+        commentThreadId: DocumentCommentThreadId,
+        responseData: {
+            totalMessageCount?: number;
+            nextCursor?: number | null;
+            messages?: Array<ApiMessageResponse>;
+        },
+        pageInfo?: {
+            from?: "start" | "end";
+            // undefined means the query is starting at the begining of the list of comments
+            cursor: number | undefined;
+            limit: number;
+        },
+    ): void {
+        const matcherData = pageInfo
+            ? {
+                  path: {id: documentId, threadId: commentThreadId},
+                  query: {
+                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
+                      cursor: pageInfo.cursor,
+                      limit: pageInfo.limit,
+                  },
+              }
+            : undefined;
+
+        this.mockGet(
+            "/documents/{id}/threads/{threadId}/messages",
+            {
+                data: {
+                    spaceId,
+                    totalMessageCount: 0,
+                    nextCursor: null,
+                    messages: [],
+                    ...responseData,
+                },
+            },
+            matcherData,
+        );
+    }
+
     mockGetPost(
         spaceId: SpaceId,
         postId: PostId,
@@ -365,6 +487,80 @@ export class ApiClientMock implements ApiClient {
 
         this.mockGet(
             "/posts/{id}/messages",
+            {
+                data: {
+                    spaceId,
+                    totalMessageCount: 0,
+                    nextCursor: null,
+                    messages: [],
+                    ...responseData,
+                },
+            },
+            matcherData,
+        );
+    }
+
+    mockGetTask(
+        spaceId: SpaceId,
+        taskId: TaskId,
+        responseData: Partial<Omit<ApiTaskResponse, "id">>,
+    ): void {
+        taskId ??= generateId<TaskId>();
+        spaceId ??= generateId<SpaceId>();
+
+        this.mockGet(
+            "/tasks/{id}",
+            {
+                data: {
+                    task: {
+                        id: taskId,
+                        status: responseData.status ?? {type: "Open", isActive: true},
+                        title: responseData.title ?? "Test Task",
+                        content: responseData.content ?? {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Test Task Content"}],
+                                },
+                            ],
+                        },
+                        ...responseData,
+                    },
+                    spaceId,
+                },
+            },
+            {path: {id: taskId}},
+        );
+    }
+
+    mockGetTaskCommentsList(
+        spaceId: SpaceId,
+        taskId: TaskId,
+        responseData: {
+            totalMessageCount?: number;
+            nextCursor?: number | null;
+            messages?: Array<ApiMessageResponse>;
+        },
+        pageInfo?: {
+            from?: "start" | "end";
+            // undefined means the query is starting at the begining of the list of comments
+            cursor: number | undefined;
+            limit: number;
+        },
+    ): void {
+        const matcherData = pageInfo
+            ? {
+                  path: {id: taskId},
+                  query: {
+                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
+                      cursor: pageInfo.cursor,
+                      limit: pageInfo.limit,
+                  },
+              }
+            : undefined;
+
+        this.mockGet(
+            "/tasks/{id}/messages",
             {
                 data: {
                     spaceId,

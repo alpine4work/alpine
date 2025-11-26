@@ -165,6 +165,8 @@ export type ApiChat = ApiSpecification.components["schemas"]["Chat"];
 
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
+export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
+
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
 export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];

@@ -1,8 +1,13 @@
-import {Root, RootContent} from "mdast";
+import {Paragraph, PhrasingContent, Root, RootContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
-import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_references/agent_link.js";
+import {
+    AgentChatMessagesPageLink,
+    AgentDocumentCommentsCommentsPageLink,
+    AgentPaginatedMessagesListLink,
+    AgentTaskCommentsPageLink,
+} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
     findAgentLinkForApiPathIfExists,
@@ -10,17 +15,15 @@ import {
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {parseMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_messages_list_content_to_markdown_root.js";
-import {
-    printAgentLinkPath,
-    printAgentPlainTextLabel,
-} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 
 /**
  * Loads content for a list of message/comments. When paginating through a list of messages,
@@ -48,31 +51,31 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 export async function loadAgentMessagesListLinkContent(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Root> {
-    const messages = await loadPageMessages(options);
+    const messagesContent = await loadPageMessages(options);
 
-    const preambleElements = await getPagePreambleElements(options);
+    const preamble = await getPagePreambleElements(options);
 
     return {
         type: "root",
-        children: [...preambleElements, {type: "break"}, {type: "break"}, ...messages],
+        children: [preamble, ...messagesContent],
     };
 }
 
 async function loadPageMessages(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Array<RootContent>> {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
-            return await getMarkdownContentForPageFromStart({
+            return getMarkdownContentForPageFromStart({
                 ...options,
                 cursorOptions: link.pageInfo,
             });
@@ -106,21 +109,28 @@ async function loadPageMessages(options: {
 // ```
 async function getPagePreambleElements(options: {
     tracer: TracerBase;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     transaction: DurableObjectTransaction;
     link: AgentPaginatedMessagesListLink;
-}): Promise<Array<Root["children"][number]>> {
-    const {tracer, request, transaction, link} = options;
-    switch (link.type) {
+}): Promise<Paragraph> {
+    switch (options.link.type) {
         case "ChatMessages":
-            return getPreambleForChatMessages(tracer, request, transaction, link);
+            return getPreambleForChatMessages({
+                ...options,
+                link: options.link,
+            });
         case "DocumentCommentThreadComments":
-            return getPreambleForDocumentComments(tracer, request, transaction, link);
-            break;
+            return getPreambleForDocumentComments({
+                ...options,
+                link: options.link,
+            });
         case "TaskComments":
-            return getPreambleForTaskComments(tracer, request, transaction, link);
+            return getPreambleForTaskComments({
+                ...options,
+                link: options.link,
+            });
         default:
-            throw exhaustive(link);
+            throw exhaustive(options.link);
     }
 }
 
@@ -134,9 +144,9 @@ async function getMarkdownContentForPageFromStart({
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "Start";
         index: number;
@@ -159,13 +169,15 @@ async function getMarkdownContentForPageFromStart({
             ? await putAgentNextMessagesPageLink(transaction, link, nextCursor)
             : null;
 
-    return parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: messages,
         conversationState,
     });
+
+    return messagesContent;
 }
 
 async function getMarkdownContentForPageFromEnd({
@@ -178,10 +190,10 @@ async function getMarkdownContentForPageFromEnd({
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "End"; index: number};
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Array<RootContent>> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
@@ -200,13 +212,15 @@ async function getMarkdownContentForPageFromEnd({
             ? await putAgentPreviousMessagesPageLink(transaction, link, nextCursor)
             : null;
 
-    return parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: null,
         paginationType: link.paginationType,
         pageMessages: messages,
         conversationState,
     });
+
+    return messagesContent;
 }
 
 async function getMarkdownContentForPageFromMiddle({
@@ -219,10 +233,10 @@ async function getMarkdownContentForPageFromMiddle({
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "Middle"; index: number};
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Array<RootContent>> {
     const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
         await getAgentMessagesFromEndUntilLimitTokenCount(
@@ -260,13 +274,15 @@ async function getMarkdownContentForPageFromMiddle({
             ? await putAgentNextMessagesPageLink(transaction, link, pageEndIndex)
             : null;
 
-    return parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
         pageMessages: [...messagesBeforeCurrent, ...messagesAfterCurrent],
         conversationState,
     });
+
+    return messagesContent;
 }
 
 function getMessageRoomPath(link: AgentPaginatedMessagesListLink): ApiMessageRoomPath {
@@ -282,122 +298,141 @@ function getMessageRoomPath(link: AgentPaginatedMessagesListLink): ApiMessageRoo
     }
 }
 
-async function getPreambleForChatMessages(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-    transaction: DurableObjectTransaction,
-    link: Extract<AgentPaginatedMessagesListLink, {type: "ChatMessages"}>,
-): Promise<Array<Root["children"][number]>> {
-    const {
-        data: {chat},
-    } = await request.apiClient.get(tracer, "/chats/{id}", {
-        params: {path: {id: link.chatId}},
-    });
-
-    const accountLinks = await runAllPromises(
-        chat.members.map(async ({account}) => {
-            const accountLink = await findAgentLinkForApiPathIfExists(
-                transaction,
-                `/accounts/${account.id}`,
-            );
-            if (accountLink) return accountLink;
-
-            return createAgentLink(transaction, {type: "Account", account});
-        }),
-    );
-
-    // TODO(ifitzsimmons, #ai): Test thoroughly.
-    const accountLinkElements = accountLinks.flatMap(
-        (accountLink, currentIndex): Root["children"] => {
-            const linkElement: Root["children"][number] = {
-                type: "link",
-                url: printAgentLinkPath(accountLink),
-                children: [{type: "text", value: printAgentPlainTextLabel(accountLink)}],
-            };
-
-            // Determine the separator based on position
-            let separator = "";
-            if (accountLinks.length === 2) {
-                // For two accounts: "Account1 and ", "Account2"
-                if (currentIndex === 0) {
-                    separator = " and ";
-                }
-            } else if (accountLinks.length > 2) {
-                // For 3+ accounts: "Account1, ", "Account2, ", "Account3 and ", "Account4"
-                if (currentIndex < accountLinks.length - 2) {
-                    separator = ", ";
-                } else if (currentIndex === accountLinks.length - 2) {
-                    separator = " and ";
-                }
-            }
-
-            // Return link + separator text node (if separator exists)
-            if (separator) {
-                return [linkElement, {type: "text", value: separator}];
-            }
-            return [linkElement];
-        },
-    );
-
-    return [
-        {type: "paragraph", children: [{type: "text", value: "Members in chat: "}]},
-        ...accountLinkElements,
-    ];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getPreambleForChatMessages(_options: {
+    tracer: TracerBase;
+    request: LoadAgentMessagesListLinkRequest;
+    transaction: DurableObjectTransaction;
+    link: AgentChatMessagesPageLink;
+}): Promise<Paragraph> {
+    return {
+        type: "paragraph",
+        children: [
+            {
+                type: "text",
+                value: "This is a chat conversation.",
+            },
+        ],
+    };
 }
 
-async function getPreambleForDocumentComments(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-    transaction: DurableObjectTransaction,
-    link: Extract<AgentPaginatedMessagesListLink, {type: "DocumentCommentThreadComments"}>,
-): Promise<Array<Root["children"][number]>> {
-    let documentLink = await findAgentLinkForApiPathIfExists(
-        transaction,
-        `/documents/${link.documentId}`,
-    );
-
-    if (!documentLink) {
-        const document = await request.apiClient.get(tracer, "/documents/{id}", {
-            params: {path: {id: link.documentId}},
-        });
-        documentLink = await createAgentLink(transaction, {
-            type: "Document",
-            document: {id: link.documentId, title: document.data.document.title},
-        });
-    }
-
-    return [
-        {type: "paragraph", children: [{type: "text", value: "Comments on "}]},
+// TODO(ifitzsimmons, #ai): This preamble should eventually include the snippet
+// of text that the comment was created on.
+async function getPreambleForDocumentComments({
+    tracer,
+    request,
+    transaction,
+    link,
+}: {
+    tracer: TracerBase;
+    request: LoadAgentMessagesListLinkRequest;
+    transaction: DurableObjectTransaction;
+    link: AgentDocumentCommentsCommentsPageLink;
+}): Promise<Paragraph> {
+    const content: Array<PhrasingContent> = [
         {
+            type: "text",
+            value: "This is a conversation about a ",
+        },
+    ];
+
+    const shouldShowDocumentLink =
+        (link.paginationType === "page" && link.pageNumber === 1) ||
+        (link.paginationType === "chunk" && link.pageNumber === 0);
+
+    if (!shouldShowDocumentLink) {
+        content.push({
+            type: "text",
+            value: "document",
+        });
+    } else {
+        let documentLink = await findAgentLinkForApiPathIfExists(
+            transaction,
+            `/documents/${link.documentId}`,
+        );
+
+        if (!documentLink) {
+            const {
+                data: {document},
+            } = await request.apiClient.get(tracer, "/documents/{id}", {
+                params: {path: {id: link.documentId}},
+            });
+            documentLink = await createAgentLink(transaction, {
+                type: "Document",
+                document: {id: link.documentId, title: document.title},
+            });
+        }
+
+        content.push({
             type: "link",
             url: printAgentLinkPath(documentLink),
-            children: [{type: "text", value: printAgentPlainTextLabel(documentLink)}],
-        },
-    ];
-}
-
-async function getPreambleForTaskComments(
-    tracer: TracerBase,
-    request: AgentWebhookRequest,
-    transaction: DurableObjectTransaction,
-    link: Extract<AgentPaginatedMessagesListLink, {type: "TaskComments"}>,
-): Promise<Array<Root["children"][number]>> {
-    let taskLink = await findAgentLinkForApiPathIfExists(transaction, `/tasks/${link.taskId}`);
-    if (!taskLink) {
-        const {
-            data: {task},
-        } = await request.apiClient.get(tracer, "/tasks/{id}", {
-            params: {path: {id: link.taskId}},
+            children: [{type: "text", value: "document"}],
         });
-        taskLink = await createAgentLink(transaction, {type: "Task", task});
     }
 
-    return [
-        {type: "paragraph", children: [{type: "text", value: "Comments on Task: "}]},
+    content.push({
+        type: "text",
+        value: ".",
+    });
+
+    return {
+        type: "paragraph",
+        children: content,
+    };
+}
+
+async function getPreambleForTaskComments({
+    tracer,
+    request,
+    transaction,
+    link,
+}: {
+    tracer: TracerBase;
+    request: LoadAgentMessagesListLinkRequest;
+    transaction: DurableObjectTransaction;
+    link: AgentTaskCommentsPageLink;
+}): Promise<Paragraph> {
+    const content: Array<PhrasingContent> = [
         {
-            type: "link",
-            url: printAgentLinkPath(taskLink),
-            children: [{type: "text", value: printAgentPlainTextLabel(taskLink)}],
+            type: "text",
+            value: "This is a conversation about a ",
         },
     ];
+
+    const shouldShowTaskLink =
+        (link.paginationType === "page" && link.pageNumber === 1) ||
+        (link.paginationType === "chunk" && link.pageNumber === 0);
+
+    if (!shouldShowTaskLink) {
+        content.push({
+            type: "text",
+            value: "task",
+        });
+    } else {
+        let taskLink = await findAgentLinkForApiPathIfExists(transaction, `/tasks/${link.taskId}`);
+        if (!taskLink) {
+            const {
+                data: {task},
+            } = await request.apiClient.get(tracer, "/tasks/{id}", {
+                params: {path: {id: link.taskId}},
+            });
+            taskLink = await createAgentLink(transaction, {type: "Task", task});
+        }
+
+        content.push({
+            type: "link",
+            url: printAgentLinkPath(taskLink),
+            children: [{type: "text", value: "task"}],
+        });
+    }
+
+    content.push({
+        type: "text",
+        value: ".",
+    });
+
+    return {
+        type: "paragraph",
+        children: content,
+    };
 }
