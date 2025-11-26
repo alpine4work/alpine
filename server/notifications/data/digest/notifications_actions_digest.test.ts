@@ -1,4 +1,5 @@
-import {fromDate, parseDateTime, toZoned} from "@internationalized/date";
+import {ZonedDateTime, fromDate, parseDateTime, toZoned} from "@internationalized/date";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -23,7 +24,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
@@ -814,6 +815,57 @@ describe("sendNotificationDigestForInbox", () => {
         expect(sendMock).toHaveBeenCalledTimes(1);
     });
 
+    test("should send email using default time zone when account time zone is not set", async () => {
+        const emailSpy = import.meta.jest.spyOn(
+            EmailContextModule.NoopEmailContextModule.prototype,
+            "send",
+        );
+        const sendMock = import.meta.jest.fn();
+        emailSpy.mockImplementationOnce(sendMock);
+        const space = await TestSpace.create(context);
+
+        const account = await TestAccount.create(context, {observedTimeZone: null});
+
+        const session = await space.createSession(account);
+        await session.account.createEmailAddress(generateEmailAddressForTest(session.account));
+
+        const timeZone = await getAccountTimeZoneIfExists(context.action(session), account.id);
+        expect(timeZone).toBeNull();
+
+        const sendTime = new Date("2024-01-15T13:00:00Z"); // 08:00 EST
+        await ProcessContextModule.waitForTestTasks();
+
+        await InboxTable.createItem(context.action(session), {
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
+            spaceId: space.id,
+            accountId: account.id,
+            generation: initialInboxGeneration,
+            loudNotificationCount: 0,
+            lastZeroEntryCountTime: null,
+            digestNotificationsOptedOutTime: null,
+            entryCount: 1,
+            lastEntryUpdatedTime: new Date("2024-01-15T12:00:00Z"),
+            digestNotificationsSchedule: new Set(["08:00", "17:00"]),
+            digestNotificationsLastSentTime: new Date("2024-01-11T14:00:00Z"),
+            digestNotificationsNextScheduledDateTime: sendTime as any,
+        });
+
+        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+            accountId: session.account.id,
+            spaceId: space.id,
+        });
+
+        expect(sendMock).toHaveBeenCalledWith({
+            fromEmailAddressAlias: "Inbox",
+            toEmailAddress: expect.any(String),
+            templateName: "NotificationDigest",
+            templateProps: expect.objectContaining({
+                localizedDigestTime: expect.any(ZonedDateTime),
+            }),
+        });
+    });
+
     test("should not send email when digestNotificationsLastSentTime is after sendTime", async () => {
         const emailSpy = import.meta.jest.spyOn(
             EmailContextModule.NoopEmailContextModule.prototype,
@@ -998,10 +1050,12 @@ describe("sendNotificationDigestForInbox", () => {
             digestNotificationsNextScheduledDateTime: sendTime as any,
         });
 
-        await sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
-            accountId: session.account.id,
-            spaceId: space.id,
-        });
+        await expect(
+            sendNotificationDigestForInbox(context.systemAction(space.id), sendTime, {
+                accountId: session.account.id,
+                spaceId: space.id,
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
 
         expect(sendMock).not.toHaveBeenCalled();
     });

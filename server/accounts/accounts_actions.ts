@@ -248,7 +248,7 @@ export async function createAccountForTest(
         name: string;
         hasInternalAccess?: boolean;
         createdTime?: Date;
-        observedTimeZone?: TimeZone;
+        observedTimeZone?: TimeZone | null;
     },
 ) {
     assert(process.env.NODE_ENV === "test");

@@ -1,9 +1,6 @@
 import {fromDate} from "@internationalized/date";
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
-import {
-    ServerActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
+import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {assertScheduleDateTime} from "~/server/notifications/core/schedule_date_time.js";
 import {computeDigestNotificationsNextScheduledDateTime} from "~/server/notifications/data/digest/compute_digest_notifications_next_scheduled_date_time.js";
@@ -15,22 +12,24 @@ import {
     authorizeSpaceAccess,
     getLatestEmailAddress,
     getSpace,
-    isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // Verify time is still a valid time for this inbox's schedule just in case their schedule has
 // changed. Specifying a lag time of 0 ensures we'll get back the same time if it's still valid.
-async function isSendTimeEqualToExpectedScheduledDigestTime(
-    context: ServerActionContext,
-    sendTime: Date,
-    inboxItem: InboxAttributesItem,
-) {
-    const timeZone = await getAccountTimeZoneIfExists(context, inboxItem.accountId);
+function isSendTimeEqualToExpectedScheduledDigestTime({
+    timeZone,
+    sendTime,
+    inboxItem,
+}: {
+    timeZone: TimeZone | null;
+    sendTime: Date;
+    inboxItem: InboxAttributesItem;
+}) {
     const expectedScheduledDigestTime = computeDigestNotificationsNextScheduledDateTime(
         sendTime,
         timeZone,
@@ -70,16 +69,18 @@ export async function sendNotificationDigestForInbox(
 
         let shouldSend = false;
 
+        const timeZone =
+            (await getAccountTimeZoneIfExists(context, inboxItem.accountId)) ?? defaultTimeZone;
+
         if (
             (inboxItem.digestNotificationsLastSentTime?.getTime() ?? 0) < sendTime.getTime() &&
-            (await isAccountMemberOfSpace(context, inboxItem.spaceId, accountId)) &&
             isInboxEligibleForDigestNotification(context, inboxItem) &&
-            (await isSendTimeEqualToExpectedScheduledDigestTime(context, sendTime, inboxItem))
+            isSendTimeEqualToExpectedScheduledDigestTime({timeZone, sendTime, inboxItem})
         ) {
             shouldSend = true;
         }
         if (!hasSent && shouldSend) {
-            const [emailAddress, {name: spaceName}, digestContent, unsubscribeUrl, timeZone] =
+            const [emailAddress, {name: spaceName}, digestContent, unsubscribeUrl] =
                 await runAllPromises([
                     getLatestEmailAddress(context, accountId),
                     getSpace(context, inboxItem.spaceId),
@@ -93,16 +94,16 @@ export async function sendNotificationDigestForInbox(
                         emailType: "NotificationDigest",
                         baseUrl: context.constants.edgeServiceUrl,
                     }),
-                    getAccountTimeZoneIfExists(context, accountId),
                 ]);
 
+            const localizedDigestTime = fromDate(sendTime, timeZone);
             await context.email.send({
                 fromEmailAddressAlias: "Inbox",
                 toEmailAddress: emailAddress,
                 templateName: "NotificationDigest",
                 templateProps: {
                     locale: defaultLocale,
-                    localizedDigestTime: fromDate(sendTime, timeZone as TimeZone),
+                    localizedDigestTime,
                     spaceName,
                     digestContent,
                     unsubscribeUrl,

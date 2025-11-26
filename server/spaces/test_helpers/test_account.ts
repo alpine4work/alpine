@@ -10,6 +10,7 @@ import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -38,16 +39,19 @@ export class TestAccount {
             id = generateId<AccountId>(),
             name = TestAccount.getNewName(),
             hasInternalAccess = false,
+            observedTimeZone = defaultTimeZone,
         }: {
             id?: AccountId;
             name?: string;
             hasInternalAccess?: boolean;
+            observedTimeZone?: TimeZone | null;
         } = {},
     ) {
         await createAccountForTest(context, {
             id,
             name,
             hasInternalAccess,
+            observedTimeZone,
         });
 
         return new TestAccount(context, id, name);
