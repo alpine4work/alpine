@@ -248,8 +248,17 @@ export class DynamoClient {
             while (errorCause instanceof Error && "cause" in errorCause)
                 errorCause = errorCause.cause;
 
-            if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
+            if (
+                isObject(errorCause) &&
+                (errorCause.__type === "ConditionalCheckFailedException" ||
+                    // If a PutItem request for an item conflicts with an ongoing TransactWriteItems request
+                    // that includes the same item, the request fails with a TransactionConflictException [1].
+                    //
+                    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
+                    errorCause.__type === "TransactionConflictException")
+            ) {
                 retryConditionCheckError?.(error);
+            }
 
             throw error;
         }
@@ -325,8 +334,17 @@ export class DynamoClient {
             while (errorCause instanceof Error && "cause" in errorCause)
                 errorCause = errorCause.cause;
 
-            if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
+            if (
+                isObject(errorCause) &&
+                (errorCause.__type === "ConditionalCheckFailedException" ||
+                    // If a DeleteItem request for an item conflicts with an ongoing TransactWriteItems request
+                    // that includes the same item, the request fails with a TransactionConflictException [1].
+                    //
+                    // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-conflict-handling
+                    errorCause.__type === "TransactionConflictException")
+            ) {
                 retryConditionCheckError?.(error);
+            }
 
             throw error;
         }
@@ -404,6 +422,7 @@ export class DynamoClient {
                     (cancellationReason, index) =>
                         isObject(cancellationReason) &&
                         (cancellationReason.Code === "None" ||
+                            cancellationReason.Code === "TransactionConflict" ||
                             (entries[index]?.isConditionCheckErrorRetriable &&
                                 cancellationReason.Code === "ConditionalCheckFailed")),
                 )
