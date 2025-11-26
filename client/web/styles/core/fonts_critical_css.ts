@@ -16,8 +16,8 @@ const formatPercentage = (percentage: number) =>
 //
 // See:
 // https://beta.nextjs.org/docs/optimizing/fonts
-// https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
-const fallbackFontSizeAdjust = 1.0764;
+// https://github.com/vercel/next.js/blob/f71ce534a8e9429f4341998ae386b23055c5888c/packages/next/src/server/font-utils.ts#L19-L44
+const fallbackFontSizeAdjust = 1.07119386637;
 
 /**
  * We inline this CSS in a `<style>` element so the browser doesn't have to
@@ -103,6 +103,7 @@ export const getFontsCriticalCss = (resourceServiceUrl: string) =>
     /* ===================================================================== */
     "@font-face { " +
     'font-family: "CyInterFallback"; ' +
+    'src: local("Arial"); ' +
     `ascent-override: ${formatPercentage(
         interFontAscender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
     )}; ` +
