@@ -4,7 +4,7 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
-import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -80,11 +80,18 @@ test("single human message", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Hello world!
+
 </human>
 `);
 });
@@ -99,11 +106,18 @@ test("single bot message", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <bot name="Assistant">
+
 Hello human!
+
 </bot>
 `);
 });
@@ -123,13 +137,20 @@ test("multiple messages from same author within 10 minutes are grouped", async (
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
 
 Second message
+
 </human>
 `);
 });
@@ -149,15 +170,24 @@ test("messages from different authors", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Hello!
+
 </human>
 
 <bot name="Assistant">
+
 Hi there!
+
 </bot>
 `);
 });
@@ -177,17 +207,26 @@ test("messages with time difference in hours", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Morning message
+
 </human>
 
 <time>January 1st at 8:12am EST</time>
 
 <human name="Alice">
+
 Afternoon message
+
 </human>
 `);
 });
@@ -207,17 +246,26 @@ test("messages with time difference in multiple hours", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Morning message
+
 </human>
 
 <time>January 1st at 10:00am EST</time>
 
 <human name="Alice">
+
 Afternoon message
+
 </human>
 `);
 });
@@ -237,17 +285,26 @@ test("messages with time difference in days", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Today's message
+
 </human>
 
 <time>January 2nd at 8:00am EST</time>
 
 <human name="Alice">
+
 Tomorrow's message
+
 </human>
 `);
 });
@@ -267,17 +324,26 @@ test("messages with time difference in multiple days", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Monday message
+
 </human>
 
 <time>January 3rd at 9:00am EST</time>
 
 <human name="Alice">
+
 Wednesday message
+
 </human>
 `);
 });
@@ -313,31 +379,42 @@ test("complex conversation with multiple participants and timing", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/Los_Angeles"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/Los_Angeles"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 1:00am PST</time>
 
 <human name="Alice" timezone="EST">
+
 Good morning!
+
 </human>
 
 <bot name="Assistant">
+
 Good morning! How can I help?
+
 </bot>
 
 <human name="Alice" timezone="EST">
+
 I need help with my project.
 
 Actually, nevermind.
+
 </human>
 
 <time>January 1st at 2:07am PST</time>
 
 <bot name="Assistant">
+
 Let me know if you change your mind!
+
 </bot>
 `);
 });
@@ -352,11 +429,18 @@ test("HTML escaping in author names", async () => {
         }),
     ]);
 
-    expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <bot name="Alice &amp; Bob&#39;s &quot;Bot&quot;">
+
 Hello
+
 </bot>
 `);
 });
@@ -386,18 +470,18 @@ test("text property uses `printAgentContentToMarkdown()` result", async () => {
         content,
     });
 
-    // Verify that the text property matches what printAgentContentToMarkdown would produce
-    const expectedText = await storage.transaction(transaction =>
-        printAgentContentToMarkdown(transaction, content, {spaceId}),
-    );
-    expect(message.text).toEqual(expectedText);
-    expect(message.text).toEqual("Check out [this link][missing-link]!\n");
-
-    expect(printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Check out [this link][missing-link]!
+
 </human>
 `);
 });
@@ -415,15 +499,20 @@ test("timezone attribute when user timezone differs from context", async () => {
 
     // When context timezone is different, timezone attribute should be added
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/Los_Angeles"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/Los_Angeles"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 4:00am PST</time>
 
 <human name="Alice" timezone="EST">
+
 Hello from New York!
+
 </human>
 `);
 });
@@ -441,15 +530,20 @@ test("no timezone attribute when user timezone matches context", async () => {
 
     // When context timezone matches, no timezone attribute
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Hello!
+
 </human>
 `);
 });
@@ -467,28 +561,33 @@ test("bot messages never have timezone attributes", async () => {
 
     // Bots never get timezone attributes even if timezone differs
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/Los_Angeles"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/Los_Angeles"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 4:00am PST</time>
 
 <bot name="Assistant">
+
 Hello!
+
 </bot>
 `);
 });
 
 test("empty messages array", async () => {
     const baseTime = new Date("2024-01-01T12:00:00Z");
-    expect(printAgentMessagesLog([], {time: baseTime, timeZone: defaultTimeZone})).toEqual("");
+    expect(printAgentMessagesLog([], {time: baseTime, timeZone: defaultTimeZone})).toEqual([]);
     expect(
         printAgentMessagesLog([], {
             time: baseTime,
             timeZone: assertTimeZone("America/New_York"),
         }),
-    ).toEqual("");
+    ).toEqual([]);
 });
 
 test("combination of timezone and time attributes", async () => {
@@ -511,21 +610,28 @@ test("combination of timezone and time attributes", async () => {
     // Second message should have timezone attribute but NO time attribute (time tag was just injected)
     // Note: Time tag shows the time in the CONTEXT timezone (EST), not the message timezone (PST)
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
+
 </human>
 
 <time>January 1st at 9:00am EST</time>
 
 <human name="Alice" timezone="PST">
+
 Second message
+
 </human>
 `);
 });
@@ -556,23 +662,32 @@ test("multiple timezone changes in conversation", async () => {
     // Context is New York, so Bob and Charlie should have timezone attributes
     // Charlie is only 5 minutes after Bob (< 10 minutes), so no time attribute
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 From New York
+
 </human>
 
 <human name="Bob" timezone="PST">
+
 From Los Angeles
+
 </human>
 
 <human name="Charlie" timezone="CST">
+
 From Chicago
+
 </human>
 `);
 });
@@ -589,9 +704,12 @@ test("timezone attribute with special characters in abbreviation", async () => {
     ]);
 
     // Test that timezone abbreviations are properly escaped
-    const result = printAgentMessagesLog(messages, {
-        time: new Date("2024-01-01T12:00:00Z"),
-        timeZone: assertTimeZone("America/Los_Angeles"),
+    const result = printMarkdownTree({
+        type: "root",
+        children: printAgentMessagesLog(messages, {
+            time: new Date("2024-01-01T12:00:00Z"),
+            timeZone: assertTimeZone("America/Los_Angeles"),
+        }),
     });
     expect(result).toContain('timezone="EST"');
     expect(result).not.toContain("timezone=EST"); // Must be quoted
@@ -616,19 +734,26 @@ test("messages with same timezone as context do not get attribute", async () => 
 
     // Both have same timezone as context, so no timezone attributes
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First
+
 </human>
 
 <human name="Bob">
+
 Second
+
 </human>
 `);
 });
@@ -653,17 +778,22 @@ test("grouped messages with different timezones", async () => {
     // Messages should be grouped, but only first should have timezone attribute
     // Note: Time tag shows the time in the CONTEXT timezone (EST), not the message timezone (PST)
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice" timezone="PST">
+
 First message
 
 Second message
+
 </human>
 `);
 });
@@ -687,19 +817,26 @@ test("same author switching timezones within 1 hour", async () => {
 
     // Messages should NOT be grouped because timezone changed, even though same author and < 1 hour
     expect(
-        printAgentMessagesLog(messages, {
-            time: new Date("2024-01-01T12:00:00Z"),
-            timeZone: assertTimeZone("America/Los_Angeles"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: new Date("2024-01-01T12:00:00Z"),
+                timeZone: assertTimeZone("America/Los_Angeles"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 4:00am PST</time>
 
 <human name="Alice">
+
 From LA
+
 </human>
 
 <human name="Alice" time="30 minutes later" timezone="EST">
+
 Now in NY
+
 </human>
 `);
 });
@@ -724,9 +861,12 @@ test("messages from authors in different olson timezones but same formatted time
 
     // Both timezones format to the same abbreviation (EST),
     // so no timezone attribute should be shown
-    const result = printAgentMessagesLog(messages, {
-        time: new Date("2024-01-01T12:00:00Z"),
-        timeZone: assertTimeZone("America/New_York"),
+    const result = printMarkdownTree({
+        type: "root",
+        children: printAgentMessagesLog(messages, {
+            time: new Date("2024-01-01T12:00:00Z"),
+            timeZone: assertTimeZone("America/New_York"),
+        }),
     });
 
     // Alice and Bob are both in EST, so no timezone attribute for either
@@ -734,11 +874,15 @@ test("messages from authors in different olson timezones but same formatted time
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 From New York
+
 </human>
 
 <human name="Bob">
+
 From Toronto
+
 </human>
 `);
 });
@@ -760,14 +904,18 @@ test("message with trailing newline is trimmed", async () => {
         content,
     });
 
-    // The message.text will have a trailing newline from printAgentContentToMarkdown
-    // Verify it gets trimmed in the output
-    expect(message.text).toEqual("Hello world\n");
-    expect(printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Hello world
+
 </human>
 `);
 });
@@ -784,11 +932,18 @@ test("message without trailing newline is not modified", async () => {
 
     // Manually verify the message text to ensure it ends with newline (from printAgentContentToMarkdown)
     // Then check the output is properly formatted
-    expect(printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone})).toEqual(`\
+    expect(
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog([message], {time: baseTime, timeZone: defaultTimeZone}),
+        }),
+    ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 Hello
+
 </human>
 `);
 });
@@ -804,15 +959,20 @@ test("time tag injected before first message", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
+
 </human>
 `);
 });
@@ -833,21 +993,28 @@ test("time tag injected when messages are exactly 1 hour apart", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
+
 </human>
 
 <time>January 1st at 8:00am EST</time>
 
 <human name="Alice">
+
 Second message
+
 </human>
 `);
 });
@@ -868,21 +1035,28 @@ test("time tag injected when messages are more than 1 hour apart", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
+
 </human>
 
 <time>January 1st at 10:00am EST</time>
 
 <human name="Alice">
+
 Second message
+
 </human>
 `);
 });
@@ -903,19 +1077,26 @@ test("messages 10-59 minutes apart get relative time but no time tag", async () 
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First message
+
 </human>
 
 <human name="Alice" time="30 minutes later">
+
 Second message
+
 </human>
 `);
 });
@@ -932,15 +1113,20 @@ test("time tag uses context timezone not message timezone", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice" timezone="PST">
+
 From LA
+
 </human>
 `);
 });
@@ -1007,35 +1193,48 @@ test("time tag and relative time attribute work together", async () => {
     // ```
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 4:00am EST</time>
 
 <human name="Alice">
+
 Morning message
+
 </human>
 
 <human name="Alice" time="15 minutes later">
+
 Still morning
+
 </human>
 
 <time>January 1st at 5:30am EST</time>
 
 <human name="Alice">
+
 After lunch
+
 </human>
 
 <human name="Alice" time="30 minutes later">
+
 Still afternoon
 
 Still afternoon
+
 </human>
 
 <human name="Alice" time="10 minutes later">
+
 Still afternoon
+
 </human>
 `);
 });
@@ -1063,25 +1262,34 @@ test("time tag injection with different authors and timezones", async () => {
     ]);
 
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 From New York
+
 </human>
 
 <bot name="Assistant">
+
 Reply from bot
+
 </bot>
 
 <time>January 1st at 8:15am EST</time>
 
 <human name="Bob" timezone="PST">
+
 From Los Angeles
+
 </human>
 `);
 });
@@ -1104,21 +1312,28 @@ test("time tag with relative time attribute on same message", async () => {
     // The second message does NOT have a relative time attribute because
     // a time tag was just injected (currentMessageTime === previousTimeInjectionTime)
     expect(
-        printAgentMessagesLog(messages, {
-            time: baseTime,
-            timeZone: assertTimeZone("America/New_York"),
+        printMarkdownTree({
+            type: "root",
+            children: printAgentMessagesLog(messages, {
+                time: baseTime,
+                timeZone: assertTimeZone("America/New_York"),
+            }),
         }),
     ).toEqual(`\
 <time>January 1st at 7:00am EST</time>
 
 <human name="Alice">
+
 First
+
 </human>
 
 <time>January 1st at 8:30am EST</time>
 
 <human name="Alice">
+
 Second
+
 </human>
 `);
 });

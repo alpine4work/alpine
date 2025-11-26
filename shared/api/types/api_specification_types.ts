@@ -1834,6 +1834,7 @@ export namespace ApiSpecification {
             readonly Post: {
                 readonly id: components["schemas"]["PostId"];
                 readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content"];
                 readonly contentPreview: string;
@@ -2276,6 +2277,7 @@ export namespace ApiSpecification {
             readonly Post_Response: {
                 readonly id: components["schemas"]["PostId"];
                 readonly author: components["schemas"]["Account"];
+                readonly createdTime: components["schemas"]["DateTime"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content_Response"];
                 readonly contentPreview: string;

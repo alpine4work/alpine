@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@miniflare/durable-objects",
         "//:node_modules/@miniflare/storage-memory",
         "//server/agents/api/test_helpers",
+        "//shared/spaces/test_helpers",
     ],
     # IMPORTANT: We try to keep the first-party dependency list for our agent
     # service family pretty small. Since long term, we want an ecosystem of

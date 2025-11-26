@@ -167,6 +167,8 @@ export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
 
+export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
+
 export type ApiMessagePayloadResponse =
     ApiSpecification.components["schemas"]["MessagePayload_Response"];
 

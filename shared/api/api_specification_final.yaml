@@ -1539,22 +1539,22 @@ components:
                     const: Divider
         ContentTableBlockElement:
             type: object
-            required: &a56
+            required: &a57
                 - type
                 - width
                 - columns
                 - rows
             additionalProperties: false
             properties:
-                type: &a57
+                type: &a58
                     const: Table
-                width: &a58
+                width: &a59
                     type: number
-                hasHeaderRow: &a59
+                hasHeaderRow: &a60
                     type: boolean
-                hasHeaderColumn: &a60
+                hasHeaderColumn: &a61
                     type: boolean
-                columns: &a61
+                columns: &a62
                     type: array
                     minItems: 2
                     items:
@@ -2032,6 +2032,7 @@ components:
             required: &a33
                 - id
                 - author
+                - createdTime
                 - content
                 - contentPreview
             additionalProperties: false
@@ -2040,11 +2041,13 @@ components:
                     $ref: "#/components/schemas/PostId"
                 author: &a35
                     $ref: "#/components/schemas/Account"
-                channel: &a36
+                createdTime: &a36
+                    $ref: "#/components/schemas/DateTime"
+                channel: &a37
                     $ref: "#/components/schemas/ChannelPreview"
                 content:
                     $ref: "#/components/schemas/Content"
-                contentPreview: &a37
+                contentPreview: &a38
                     type: string
         PostPreview:
             type: object
@@ -2064,22 +2067,22 @@ components:
                     type: string
         Task:
             type: object
-            required: &a38
+            required: &a39
                 - id
                 - status
                 - title
                 - content
             additionalProperties: false
             properties:
-                id: &a39
+                id: &a40
                     $ref: "#/components/schemas/TaskId"
-                status: &a40
+                status: &a41
                     $ref: "#/components/schemas/TaskStatus"
-                title: &a41
+                title: &a42
                     type: string
-                assignee: &a42
+                assignee: &a43
                     $ref: "#/components/schemas/Account"
-                due: &a43
+                due: &a44
                     type: object
                     required:
                         - date
@@ -2088,7 +2091,7 @@ components:
                         date:
                             type: string
                             format: date
-                priority: &a44
+                priority: &a45
                     type: string
                     enum:
                         - Low
@@ -2175,7 +2178,7 @@ components:
                     $ref: "#/components/schemas/LabelString"
         Message:
             type: object
-            required: &a63
+            required: &a64
                 - index
                 - author
                 - createdTime
@@ -2183,21 +2186,21 @@ components:
                 - payload
             additionalProperties: false
             properties:
-                index: &a64
+                index: &a65
                     type: integer
                     minimum: 0
-                author: &a65
+                author: &a66
                     $ref: "#/components/schemas/Account"
-                createdTime: &a66
+                createdTime: &a67
                     $ref: "#/components/schemas/DateTime"
-                createdTimeZone: &a67
+                createdTimeZone: &a68
                     $ref: "#/components/schemas/TimeZone"
                 payload:
                     $ref: "#/components/schemas/MessagePayload"
         MessagePayload:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload"
-                - &a62
+                - &a63
                   $ref: "#/components/schemas/MessageDeletedPayload"
             discriminator:
                 propertyName: type
@@ -2206,14 +2209,14 @@ components:
                     Deleted: "#/components/schemas/MessageDeletedPayload"
         MessageContentPayload:
             type: object
-            required: &a45
+            required: &a46
                 - type
                 - content
             additionalProperties: false
             properties:
-                type: &a46
+                type: &a47
                     const: Content
-                parent: &a47
+                parent: &a48
                     oneOf:
                         - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
                     discriminator:
@@ -2244,20 +2247,20 @@ components:
                     const: Deleted
         MessageStreamPart:
             type: object
-            required: &a48
+            required: &a49
                 - index
                 - version
                 - payload
                 - createdTime
             additionalProperties: false
             properties:
-                index: &a49
+                index: &a50
                     type: integer
                     minimum: 0
-                version: &a50
+                version: &a51
                     type: integer
                     minimum: 0
-                createdTime: &a51
+                createdTime: &a52
                     type: string
                     format: date-time
                 payload:
@@ -2275,23 +2278,23 @@ components:
                     Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload"
         MessageStreamContentPartPayload:
             type: object
-            required: &a52
+            required: &a53
                 - type
                 - content
             additionalProperties: false
             properties:
-                type: &a53
+                type: &a54
                     const: Content
                 content:
                     $ref: "#/components/schemas/Content"
         MessageStreamReasoningPartPayload:
             type: object
-            required: &a54
+            required: &a55
                 - type
                 - content
             additionalProperties: false
             properties:
-                type: &a55
+                type: &a56
                     const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content"
@@ -2932,68 +2935,69 @@ components:
             properties:
                 id: *a34
                 author: *a35
-                channel: *a36
+                createdTime: *a36
+                channel: *a37
                 content:
                     $ref: "#/components/schemas/Content_Response"
-                contentPreview: *a37
+                contentPreview: *a38
         Task_Response:
             type: object
-            required: *a38
+            required: *a39
             additionalProperties: false
             properties:
-                id: *a39
-                status: *a40
-                title: *a41
-                assignee: *a42
-                due: *a43
-                priority: *a44
+                id: *a40
+                status: *a41
+                title: *a42
+                assignee: *a43
+                due: *a44
+                priority: *a45
                 content:
                     $ref: "#/components/schemas/Content_Response"
         MessageContentPayload_Response:
             type: object
-            required: *a45
+            required: *a46
             additionalProperties: false
             properties:
-                type: *a46
-                parent: *a47
+                type: *a47
+                parent: *a48
                 content:
                     $ref: "#/components/schemas/Content_Response"
         MessageStreamPart_Response:
             type: object
-            required: *a48
+            required: *a49
             additionalProperties: false
             properties:
-                index: *a49
-                version: *a50
-                createdTime: *a51
+                index: *a50
+                version: *a51
+                createdTime: *a52
                 payload:
                     $ref: "#/components/schemas/MessageStreamPartPayload_Response"
         MessageStreamContentPartPayload_Response:
             type: object
-            required: *a52
+            required: *a53
             additionalProperties: false
             properties:
-                type: *a53
+                type: *a54
                 content:
                     $ref: "#/components/schemas/Content_Response"
         MessageStreamReasoningPartPayload_Response:
             type: object
-            required: *a54
+            required: *a55
             additionalProperties: false
             properties:
-                type: *a55
+                type: *a56
                 content:
                     $ref: "#/components/schemas/Content_Response"
         ContentTableBlockElement_Response:
             type: object
-            required: *a56
+            required: *a57
             additionalProperties: false
             properties:
-                type: *a57
-                width: *a58
-                hasHeaderRow: *a59
-                hasHeaderColumn: *a60
-                columns: *a61
+                type: *a58
+                width: *a59
+                hasHeaderRow: *a60
+                hasHeaderColumn: *a61
+                columns: *a62
                 rows:
                     type: array
                     minItems: 1
@@ -3002,7 +3006,7 @@ components:
         MessagePayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - *a62
+                - *a63
             discriminator:
                 propertyName: type
                 mapping:
@@ -3010,12 +3014,12 @@ components:
                     Deleted: "#/components/schemas/MessageDeletedPayload"
         Message_Response:
             type: object
-            required: *a63
+            required: *a64
             additionalProperties: false
             properties:
-                index: *a64
-                author: *a65
-                createdTime: *a66
-                createdTimeZone: *a67
+                index: *a65
+                author: *a66
+                createdTime: *a67
+                createdTimeZone: *a68
                 payload:
                     $ref: "#/components/schemas/MessagePayload_Response"

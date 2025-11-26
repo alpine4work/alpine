@@ -1,12 +1,29 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
+import {RootContent} from "mdast";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone, formatTimeZoneAbbreviation} from "~/shared/helpers/intl/time_zone.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+
+/**
+ * When printing messages to the log, we'll group successive messages from the same author
+ * that are less than 10 minutes apart into a single block. This object helps us track the
+ * current message block while iterating over the messages.
+ */
+type MessageBlock = {
+    readonly openingTag: string;
+    readonly closingTag: string;
+    readonly messages: Array<AgentMessage>;
+    readonly authorId: AccountId;
+    readonly formattedTimeZone: string;
+    lastMessageTime: Date;
+};
 
 /**
  * Prints messages to a log format that an LLM can use to understand a
@@ -25,16 +42,14 @@ export function printAgentMessagesLog(
         time: Date;
         timeZone: TimeZone;
     },
-): string {
-    let text = "";
+): Array<RootContent> {
+    const children: Array<RootContent> = [];
     const conversationFormattedTimeZone = formatTimeZoneAbbreviation(
         timeContext.timeZone,
         timeContext.time,
     );
-    let previous: {
-        message: AgentMessage;
-        formattedTimeZone: string;
-    } | null = null;
+
+    let currentBlock: MessageBlock | null = null;
     let previousTimeInjectionTime: Date | null = null;
 
     for (const message of messages) {
@@ -45,126 +60,137 @@ export function printAgentMessagesLog(
         );
 
         const differenceInMinutesSinceLastMessage =
-            previous !== null
-                ? differenceInMinutes(message.createdTime, previous.message.createdTime)
+            currentBlock !== null
+                ? differenceInMinutes(currentMessageTime, currentBlock.lastMessageTime)
                 : 0;
 
         // If there are consecutive messages from the same author, we put them
         // within the same <human> or <bot> tag IF:
-        // 1. They're less than 1 hour apart.
+        // 1. They're less than 10 minutes apart.
         // 2. The author did not switch timezones.
         //
         // Importantly, a user can change Olson Timezones without changing the actual
         // standardized timezone. e.g. America/New_York and America/Toronto both format to
         // EST, so we shouldn't show the timezone attribute if a user takes a flight from
         // NYC to Toronto.
+        const shouldContinueBlock =
+            currentBlock !== null &&
+            currentBlock.authorId === message.author.id &&
+            currentBlock.formattedTimeZone === currentMessageFormattedTimeZone &&
+            differenceInMinutesSinceLastMessage < 10;
+
+        if (shouldContinueBlock) {
+            // shouldContinueBlock can only be true if currentBlock is not null.
+            assert(currentBlock !== null);
+
+            currentBlock.messages.push(message);
+            currentBlock.lastMessageTime = currentMessageTime;
+            continue;
+        }
+
+        // Flush the previous block before starting a new one
+        flushCurrentBlock();
+
+        // Inject time tag if needed
         if (
-            previous !== null &&
-            previous.message.author.id === message.author.id &&
-            previous.formattedTimeZone === currentMessageFormattedTimeZone &&
-            differenceInMinutesSinceLastMessage < 10
+            previousTimeInjectionTime === null ||
+            differenceInHours(message.createdTime, previousTimeInjectionTime) >= 1
         ) {
-            text += "\n";
-        } else {
-            /* eslint-disable string-quotes */
+            const currentMessageDate = toCalendarDate(
+                parseAbsolute(message.createdTime, timeContext.timeZone),
+            );
 
-            if (previous && previous.message !== null) {
-                if (previous.message.author.botId) {
-                    text += "</bot>";
-                } else {
-                    text += "</human>";
-                }
-
-                text += "\n\n";
-            }
-
-            if (
-                previousTimeInjectionTime === null ||
-                differenceInHours(message.createdTime, previousTimeInjectionTime) >= 1
-            ) {
-                const currentMessageTime = deserializeDateString(message.createdTime);
-                const currentMessageDate = toCalendarDate(
-                    parseAbsolute(message.createdTime, timeContext.timeZone),
-                );
-
-                const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-                    defaultLocale,
-                    timeContext.timeZone,
-                    currentMessageDate,
-                    currentMessageTime,
-                    {withLongMonth: true},
-                );
-                previousTimeInjectionTime = currentMessageTime;
-                text += `<time>${formattedTime} ${conversationFormattedTimeZone}</time>`;
-                text += "\n\n";
-            }
-
-            if (message.author.botId) {
-                text += `<bot name="${escapeHtml(message.author.name)}"`;
-            } else {
-                text += `<human name="${escapeHtml(message.author.name)}"`;
-            }
-
-            // Include the time difference between this message and the last message. Since
-            // it may be important context for the conversation. Whenever messages are more
-            // than an hour apart, we inject a `<time/> tag with the time of the message.
-            // The first message after the time injection should never have a relative time.
-            // Because we inject the current time between messages that are further than an hour
-            // apart, the relative time between two messages between time injection tags will
-            // never exceed 1 hour.
-            if (
-                currentMessageTime.getTime() !== previousTimeInjectionTime?.getTime() &&
-                differenceInMinutesSinceLastMessage >= 10
-            ) {
-                text += ` time="${printPrettyNumber(
-                    defaultLocale,
-                    differenceInMinutesSinceLastMessage,
-                    "minute",
-                )} later"`;
-            }
-
-            // Include timezone attribute for users whose timezone differs from the context
-            // timezone
-            if (
-                !message.author.botId &&
-                currentMessageFormattedTimeZone !== conversationFormattedTimeZone
-            ) {
-                const timeZoneAbbreviation = formatTimeZoneAbbreviation(
-                    message.createdTimeZone,
-                    currentMessageTime,
-                );
-                text += ` timezone="${escapeHtml(timeZoneAbbreviation)}"`;
-            }
-
-            text += ">\n";
-
-            /* eslint-enable string-quotes */
+            const formattedTime = formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                defaultLocale,
+                timeContext.timeZone,
+                currentMessageDate,
+                currentMessageTime,
+                {withLongMonth: true},
+            );
+            previousTimeInjectionTime = currentMessageTime;
+            children.push({
+                type: "html",
+                value: `<time>${formattedTime} ${conversationFormattedTimeZone}</time>`,
+            });
         }
 
-        // Trim trailing newline.
-        if (message.text.endsWith("\n")) {
-            text += message.text.slice(0, -1);
+        /* eslint-disable string-quotes */
+
+        // Build opening tag with attributes
+        let openingTag = "";
+        if (message.author.botId) {
+            openingTag += `<bot name="${escapeHtml(message.author.name)}"`;
         } else {
-            text += message.text;
+            openingTag += `<human name="${escapeHtml(message.author.name)}"`;
         }
 
-        text += "\n";
+        // Include the time difference between this message and the last message. Since
+        // it may be important context for the conversation. Whenever messages are more
+        // than an hour apart, we inject a `<time/>` tag with the time of the message.
+        // The first message after the time injection should never have a relative time.
+        // Because we inject the current time between messages that are further than an hour
+        // apart, the relative time between two messages between time injection tags will
+        // never exceed 1 hour.
+        if (
+            currentMessageTime.getTime() !== previousTimeInjectionTime?.getTime() &&
+            differenceInMinutesSinceLastMessage >= 10
+        ) {
+            openingTag += ` time="${printPrettyNumber(
+                defaultLocale,
+                differenceInMinutesSinceLastMessage,
+                "minute",
+            )} later"`;
+        }
 
-        previous = {
-            message,
+        // Include timezone attribute for users whose timezone differs from the context
+        // timezone
+        if (
+            !message.author.botId &&
+            currentMessageFormattedTimeZone !== conversationFormattedTimeZone
+        ) {
+            const timeZoneAbbreviation = formatTimeZoneAbbreviation(
+                message.createdTimeZone,
+                currentMessageTime,
+            );
+            openingTag += ` timezone="${escapeHtml(timeZoneAbbreviation)}"`;
+        }
+
+        /* eslint-enable string-quotes */
+
+        openingTag += ">";
+
+        currentBlock = {
+            openingTag,
+            closingTag: message.author.botId ? "</bot>" : "</human>",
+            messages: [message],
+            authorId: message.author.id,
+            lastMessageTime: currentMessageTime,
             formattedTimeZone: currentMessageFormattedTimeZone,
         };
     }
 
-    if (previous && previous.message !== null) {
-        if (previous.message.author.botId) {
-            text += "</bot>";
-        } else {
-            text += "</human>";
+    // Flush any remaining block
+    flushCurrentBlock();
+
+    return children;
+
+    function flushCurrentBlock() {
+        if (currentBlock === null) return;
+
+        assert(currentBlock.messages.length > 0);
+
+        children.push({
+            type: "html",
+            value: currentBlock.openingTag,
+        });
+
+        for (const message of currentBlock.messages) {
+            for (const elements of message.markdownContent) {
+                children.push(elements);
+            }
         }
 
-        text += "\n";
+        children.push({type: "html", value: currentBlock.closingTag});
+        currentBlock = null;
     }
-
-    return text;
 }

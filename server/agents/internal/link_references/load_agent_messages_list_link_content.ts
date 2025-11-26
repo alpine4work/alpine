@@ -1,4 +1,4 @@
-import {Root} from "mdast";
+import {Root, RootContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
@@ -58,7 +58,7 @@ export async function loadAgentMessagesListLinkContent(options: {
 
     return {
         type: "root",
-        children: [...preambleElements, {type: "break"}, {type: "break"}, ...messages.children],
+        children: [...preambleElements, {type: "break"}, {type: "break"}, ...messages],
     };
 }
 
@@ -68,7 +68,7 @@ async function loadPageMessages(options: {
     request: AgentWebhookRequest;
     link: AgentPaginatedMessagesListLink;
     conversationState: AgentConversationState;
-}): Promise<Root> {
+}): Promise<Array<RootContent>> {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
@@ -141,7 +141,7 @@ async function getMarkdownContentForPageFromStart({
         from: "Start";
         index: number;
     };
-}): Promise<Root> {
+}): Promise<Array<RootContent>> {
     const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
         tracer,
         transaction,
@@ -182,7 +182,7 @@ async function getMarkdownContentForPageFromEnd({
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "End"; index: number};
     conversationState: AgentConversationState;
-}): Promise<Root> {
+}): Promise<Array<RootContent>> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -223,7 +223,7 @@ async function getMarkdownContentForPageFromMiddle({
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "Middle"; index: number};
     conversationState: AgentConversationState;
-}): Promise<Root> {
+}): Promise<Array<RootContent>> {
     const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
         await getAgentMessagesFromEndUntilLimitTokenCount(
             tracer,

@@ -296,6 +296,7 @@ describe("post creation", () => {
                             role: "Member",
                         },
                     },
+                    createdTime: expect.any(String),
                     channel: {
                         id: channel.id,
                         name: "Test Channel",
@@ -382,6 +383,7 @@ describe("post creation", () => {
                             role: "Member",
                         },
                     },
+                    createdTime: expect.any(String),
                     channel: {
                         id: channel.id,
                         name: "Rich Content Channel",
@@ -569,6 +571,7 @@ describe("post creation", () => {
                         ],
                     },
                     contentPreview: "in Test Channel:",
+                    createdTime: expect.any(String),
                 },
             },
         });

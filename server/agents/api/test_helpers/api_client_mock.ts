@@ -1,8 +1,17 @@
 import {PathsWithMethod} from "openapi-typescript-helpers";
 import {ApiClient} from "~/server/agents/api/api_client.js";
+import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
+import {
+    ApiContentResponse,
+    ApiMessageResponse,
+    ApiPostResponse,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {generateId} from "~/shared/id/id.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type HttpMethod = "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
@@ -294,5 +303,78 @@ export class ApiClientMock implements ApiClient {
             }
             return true;
         }).length;
+    }
+
+    mockGetPost(
+        spaceId: SpaceId,
+        postId: PostId,
+        responseData: Partial<Omit<ApiPostResponse, "id">>,
+    ): void {
+        postId ??= generateId<PostId>();
+        spaceId ??= generateId<SpaceId>();
+        const defaultContent: ApiContentResponse = {
+            elements: [{type: "Paragraph", elements: [{type: "Text", text: "Test Post Content"}]}],
+        };
+
+        this.mockGet(
+            "/posts/{id}",
+            {
+                data: {
+                    post: {
+                        id: postId,
+                        author: responseData.author ?? createApiAccountMock({}),
+                        content: responseData.content ?? defaultContent,
+                        contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
+                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
+                        ...responseData,
+                    },
+                    spaceId,
+                },
+            },
+            {path: {id: postId}},
+        );
+    }
+
+    mockGetPostCommentsList(
+        spaceId: SpaceId,
+        postId: PostId,
+        responseData: {
+            totalMessageCount?: number;
+            nextCursor?: number | null;
+            messages?: Array<ApiMessageResponse>;
+        },
+        // If you don't provide this, it'll match any page info in the order that you
+        // call the mock.
+        pageInfo?: {
+            from?: "start" | "end";
+            // undefined means the query is starting at the begining of the list of comments
+            cursor: number | undefined;
+            limit: number;
+        },
+    ): void {
+        const matcherData = pageInfo
+            ? {
+                  path: {id: postId},
+                  query: {
+                      ...(pageInfo.from ? {from: pageInfo.from} : {}),
+                      cursor: pageInfo.cursor,
+                      limit: pageInfo.limit,
+                  },
+              }
+            : undefined;
+
+        this.mockGet(
+            "/posts/{id}/messages",
+            {
+                data: {
+                    spaceId,
+                    totalMessageCount: 0,
+                    nextCursor: null,
+                    messages: [],
+                    ...responseData,
+                },
+            },
+            matcherData,
+        );
     }
 }

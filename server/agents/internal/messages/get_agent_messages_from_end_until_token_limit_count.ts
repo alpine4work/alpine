@@ -5,6 +5,12 @@ import {ApiMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
+/**
+ * Given an *end range __inclusive__* index, get all messages before that index within a provided
+ * token limit (including the message at the index).
+ *
+ * Returns null if the conversation is empty. Also returns the next end range __exclusive index.
+ */
 export async function getAgentMessagesFromEndUntilLimitTokenCount(
     tracer: TracerBase,
     transaction: DurableObjectTransaction,
@@ -44,7 +50,7 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
                 payload: currentMessage.payload,
             });
 
-            const tokenCount = message.getTokenCount();
+            const tokenCount = message.estimateTokenCount();
 
             // If this message would put us over our token limit then DO NOT add the
             // message and instead return the messages we have.

@@ -1,11 +1,10 @@
-import {Root} from "mdast";
+import {Link, Paragraph, PhrasingContent, Root, RootContent, Text} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
     createAgentLink,
-    findAgentLinkForApiPathIfExists,
     putAgentNextMessagesPageLink,
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
@@ -14,13 +13,20 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
-import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
-import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiMessageRoomPath,
+    ApiPostResponse,
+} from "~/shared/api/types/api_specification_convenience_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+type LoadAgentPostCommentsLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
 
 /**
  * Loads content for a list of message/comments. When paginating through a list of messages,
@@ -49,29 +55,52 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 export async function loadAgentPostCommentsLinkContent(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Root> {
-    const {content, shouldShowPreamble} = await loadPageMessages(options);
+    // We always fetch the post when loading a page of comments. We need the post in order to
+    // create the preamble elements for the list of messages. If we're loading the first page,
+    // we also need to fetch the post's content.
+    //
+    // TODO(ifitzsimmons, #ai): add post preview API endpoint so we can fetch the
+    // data we need without needing to fetch the entire contents of the post.
+    // As is, it kinda stinks that we load the contents of the post here and then
+    // throw it away. If/when the Agent tries to read the post, we'll load the entire
+    // post again. We can then just fetch the post content only when we need it.
+    //
+    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
+    const post = await fetchPost(options.tracer, options.request, options.link.postId);
 
-    if (!shouldShowPreamble) return content;
+    const {messagesContent, doesPageContainPost} = await loadPageMessages({
+        ...options,
+        post,
+    });
 
-    const preambleElements = await getPreambleForPostComments(options);
+    const preambleElements = await getPreambleForPostComments({
+        transaction: options.transaction,
+        post,
+        doesPageContainPost,
+        currentPageLink: options.link,
+    });
 
     return {
         type: "root",
-        children: [...preambleElements, {type: "break"}, {type: "break"}, ...content.children],
+        children: [preambleElements, ...messagesContent],
     };
 }
 
 async function loadPageMessages(options: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
-    conversationState: AgentConversationState;
-}): Promise<{content: Root; shouldShowPreamble: boolean}> {
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
+    post: ApiPostResponse;
+}): Promise<{
+    messagesContent: Array<RootContent>;
+    doesPageContainPost: boolean;
+}> {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
@@ -104,58 +133,60 @@ async function getMarkdownContentForPageFromStart({
     link,
     conversationState,
     cursorOptions,
+    post,
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "Start";
         index: number;
     };
-}): Promise<{content: Root; shouldShowPreamble: boolean}> {
-    const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
-        tracer,
-        transaction,
-        request.apiClient,
-        request.spaceId,
-        parseApiMessageRoomPath(getMessageRoomPath(link)),
-        {
-            startingIndex: cursorOptions.index,
-            limitTokenCount: agentMessagePageTokenLimitCount,
-        },
-    );
+    post: ApiPostResponse;
+}): Promise<{
+    messagesContent: Array<RootContent>;
+    doesPageContainPost: boolean;
+}> {
+    // If we are loading the first page of post comments, we should load the post as
+    // well. Any time a post is referenced, it will be stored as the first page of
+    // comments for that post.
+    const isFirstPage = cursorOptions.index === 0;
+
+    const [{messages, nextCursor}, originalPostMessage] = await runAllPromises([
+        getAgentMessagesFromStartUntilTokenLimitCount(
+            tracer,
+            transaction,
+            request.apiClient,
+            request.spaceId,
+            parseApiMessageRoomPath(getMessageRoomPath(link)),
+            {
+                startingIndex: cursorOptions.index,
+                limitTokenCount: agentMessagePageTokenLimitCount,
+            },
+        ),
+        isFirstPage ? getPostAgentMessage(transaction, request, post, conversationState) : null,
+    ]);
 
     const nextPageLink =
         nextCursor !== null
             ? await putAgentNextMessagesPageLink(transaction, link, nextCursor)
             : null;
 
+    const pageMessages = [...(originalPostMessage ? [originalPostMessage] : []), ...messages];
+
     const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
-        pageMessages: messages,
+        pageMessages,
         conversationState,
     });
 
-    // If we are loading the first page of post comments, we should load the post as
-    // well. Any time a post is referenced, it will be stored as the first page of
-    // comments for that post.
-    const shouldShowPostContent = cursorOptions.index === 0;
-    const postContentElements =
-        cursorOptions.index === 0
-            ? await getPostContentElements(tracer, transaction, request, link)
-            : [];
-
     return {
-        content: {
-            type: "root",
-            children: [...postContentElements, ...messagesContent.children],
-        },
-        // Only show post comments preamble if we are not already showing the post content.
-        shouldShowPreamble: !shouldShowPostContent,
+        messagesContent,
+        doesPageContainPost: isFirstPage,
     };
 }
 
@@ -166,17 +197,22 @@ async function getMarkdownContentForPageFromEnd({
     link,
     conversationState,
     cursorOptions,
+    post,
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "End";
         index: number;
     };
-}): Promise<{content: Root; shouldShowPreamble: boolean}> {
+    post: ApiPostResponse;
+}): Promise<{
+    messagesContent: Array<RootContent>;
+    doesPageContainPost: boolean;
+}> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -194,27 +230,26 @@ async function getMarkdownContentForPageFromEnd({
             ? await putAgentPreviousMessagesPageLink(transaction, link, nextCursor)
             : null;
 
+    // If we loaded the first comment when loading this page, load the post content as well.
+    const isFirstPage = !previousPageLink;
+
+    const originalPostMessage = isFirstPage
+        ? [await getPostAgentMessage(transaction, request, post, conversationState)]
+        : [];
+
+    const pageMessages = [...originalPostMessage, ...messages];
+
     const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: null,
         paginationType: link.paginationType,
-        pageMessages: messages,
+        pageMessages,
         conversationState,
     });
 
-    // If we loaded the first comment when loading this page, load the post content as well.
-    const shouldShowPostContent = !previousPageLink;
-    const postContentElements = shouldShowPostContent
-        ? await getPostContentElements(tracer, transaction, request, link)
-        : [];
-
     return {
-        content: {
-            type: "root",
-            children: [...postContentElements, ...messagesContent.children],
-        },
-        // Only show post comments preamble if we are not already showing the post content.
-        shouldShowPreamble: !shouldShowPostContent,
+        messagesContent,
+        doesPageContainPost: isFirstPage,
     };
 }
 
@@ -225,17 +260,22 @@ async function getMarkdownContentForPageFromMiddle({
     link,
     conversationState,
     cursorOptions,
+    post,
 }: {
     tracer: TracerBase;
     transaction: DurableObjectTransaction;
-    request: AgentWebhookRequest;
+    request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
-    conversationState: AgentConversationState;
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "Middle";
         index: number;
     };
-}): Promise<{content: Root; shouldShowPreamble: boolean}> {
+    post: ApiPostResponse;
+}): Promise<{
+    messagesContent: Array<RootContent>;
+    doesPageContainPost: boolean;
+}> {
     const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
         await getAgentMessagesFromEndUntilLimitTokenCount(
             tracer,
@@ -254,7 +294,7 @@ async function getMarkdownContentForPageFromMiddle({
             ? await putAgentPreviousMessagesPageLink(transaction, link, pageStartIndex)
             : null;
 
-    const {messages: messagesAfterCurrent, nextCursor: pageEndIndex} =
+    const {messages: messagesAfterAndIncludingCurrent, nextCursor: pageEndIndex} =
         await getAgentMessagesFromStartUntilTokenLimitCount(
             tracer,
             transaction,
@@ -272,27 +312,29 @@ async function getMarkdownContentForPageFromMiddle({
             ? await putAgentNextMessagesPageLink(transaction, link, pageEndIndex)
             : null;
 
+    // If we loaded the first comment when loading this page, load the post content as well.
+    const isFirstPage = !previousPageLink;
+
+    const originalPostMessage = isFirstPage
+        ? [await getPostAgentMessage(transaction, request, post, conversationState)]
+        : [];
+
+    const pageMessages = [
+        ...originalPostMessage,
+        ...messagesBeforeCurrent,
+        ...messagesAfterAndIncludingCurrent,
+    ];
+
     const messagesContent = await parseMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
-        pageMessages: [...messagesBeforeCurrent, ...messagesAfterCurrent],
+        pageMessages,
         conversationState,
     });
-
-    // If we loaded the first comment when loading this page, load the post content as well.
-    const shouldShowPostContent = !previousPageLink;
-    const postContentElements = shouldShowPostContent
-        ? await getPostContentElements(tracer, transaction, request, link)
-        : [];
-
     return {
-        content: {
-            type: "root",
-            children: [...postContentElements, ...messagesContent.children],
-        },
-        // Only show post comments preamble if we are not already showing the post content.
-        shouldShowPreamble: !shouldShowPostContent,
+        messagesContent,
+        doesPageContainPost: isFirstPage,
     };
 }
 
@@ -301,70 +343,105 @@ function getMessageRoomPath(link: AgentPostCommentsLink): ApiMessageRoomPath {
 }
 
 async function getPreambleForPostComments({
-    tracer,
-    request,
     transaction,
-    link,
+    post,
+    currentPageLink,
+    doesPageContainPost,
 }: {
-    tracer: TracerBase;
-    request: AgentWebhookRequest;
     transaction: DurableObjectTransaction;
-    link: Extract<AgentPostCommentsLink, {type: "PostComments"}>;
-}): Promise<Array<Root["children"][number]>> {
-    let postLink = await findAgentLinkForApiPathIfExists(transaction, `/posts/${link.postId}`);
-    if (!postLink) {
-        // TODO(ifitzsimmons, #ai): add post preview API endpoint so we can fetch the
-        // data we need without needing to fetch the entire contents of the post.
-        // As is, it kinda stinks that we load the contents of the post here and then
-        // throw it away. If/when the Agent tries to read the post, we'll load the entire
-        // post again.
-        //
-        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/znbyh8f7sx5s0nb29zygvcasjw
-        const {
-            data: {post},
-        } = await request.apiClient.get(tracer, "/posts/{id}", {
-            params: {path: {id: link.postId}},
-        });
+    post: ApiPostResponse;
+    currentPageLink: AgentPostCommentsLink;
+    doesPageContainPost: boolean;
+}): Promise<Paragraph> {
+    // If the page type is "page", we already showed the post content on the first page.
+    // For chunks, we want to show a link to the post for the first chunk only.
+    const shouldLinkPost =
+        currentPageLink.paginationType === "chunk" && currentPageLink.pageNumber === 0;
 
-        // TODO(ifitzsimmons, #ai): This is actually a strong reason to NOT show comments
-        // when loading a post. I think a better idea is to show a link with
-        // `[See comments](link/to/first/page)`. That way, when the agent sees comments
-        // first, it can load the post and decide whether it wants to paginate from there
-        // or not. We should also consider adding a flag to post links that indicates
-        // whether or not we should show a link to more comments when loading the post
-        // content. When loading the post from here, we've already loaded some amount of
-        // post comments, so we I don't think we should show a "See comments" link if/when
-        // the agent tries to read the post.
-        postLink = await createAgentLink(transaction, {
-            type: "Post",
-            post,
+    const [postLink, channelLink] = await runAllPromises([
+        shouldLinkPost
+            ? createAgentLink(transaction, {
+                  type: "Post",
+                  post: {
+                      id: post.id,
+                      contentPreview: post.contentPreview,
+                  },
+              })
+            : null,
+        post.channel
+            ? createAgentLink(transaction, {type: "Channel", channel: post.channel})
+            : null,
+    ]);
+
+    const postText: Text = {type: "text", value: "post"};
+    const postElement: Text | Link = postLink
+        ? {
+              type: "link",
+              url: printAgentLinkPath(postLink),
+              children: [postText],
+          }
+        : postText;
+
+    const channelElements: Array<PhrasingContent> = channelLink
+        ? [
+              {type: "text", value: " in "},
+              {
+                  type: "link",
+                  url: printAgentLinkPath(channelLink),
+                  children: [{type: "text", value: printAgentPlainTextLabel(channelLink)}],
+              },
+          ]
+        : [];
+
+    const content: Array<PhrasingContent> = [
+        {type: "text", value: `This is a conversation about a `},
+        postElement,
+        ...channelElements,
+        {type: "text", value: "."},
+    ];
+
+    if (doesPageContainPost) {
+        content.push({
+            type: "text",
+            value: " The first message on this page contains the original post.",
         });
     }
 
-    return [
-        {type: "paragraph", children: [{type: "text", value: "Comments on Post: "}]},
-        {
-            type: "link",
-            url: printAgentLinkPath(postLink),
-            children: [{type: "text", value: printAgentPlainTextLabel(postLink)}],
-        },
-    ];
+    return {
+        type: "paragraph",
+        children: content,
+    };
 }
 
-async function getPostContentElements(
+async function fetchPost(
     tracer: TracerBase,
-    transaction: DurableObjectTransaction,
-    request: AgentWebhookRequest,
-    link: AgentPostCommentsLink,
-): Promise<Root["children"]> {
+    request: Pick<AgentWebhookRequest, "apiClient" | "spaceId">,
+    postId: PostId,
+): Promise<ApiPostResponse> {
     const {
         data: {post},
     } = await request.apiClient.get(tracer, "/posts/{id}", {
-        params: {path: {id: link.postId}},
+        params: {path: {id: postId}},
     });
-    const postContent = await printAgentContentToMarkdownTree(transaction, post.content, {
-        spaceId: request.spaceId,
-    });
+    return post;
+}
 
-    return postContent.children;
+async function getPostAgentMessage(
+    transaction: DurableObjectTransaction,
+    request: LoadAgentPostCommentsLinkRequest,
+    post: ApiPostResponse,
+    conversationState: Pick<AgentConversationState, "timeZone">,
+): Promise<AgentMessage> {
+    return AgentMessage.new(transaction, {
+        spaceId: request.spaceId,
+        index: -1, // The post is not a message, so it has an index of -1.
+        author: post.author,
+        createdTime: post.createdTime,
+        // TODO(ifitzsimmons, #ai): Add users timezone during Post creation.
+        createdTimeZone: conversationState.timeZone,
+        payload: {
+            type: "Content",
+            content: post.content,
+        },
+    });
 }

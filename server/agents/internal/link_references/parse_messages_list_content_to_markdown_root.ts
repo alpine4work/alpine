@@ -1,4 +1,4 @@
-import {Root} from "mdast";
+import {RootContent} from "mdast";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentLinkPaginationType} from "~/server/agents/internal/link_references/agent_link.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
@@ -15,12 +15,12 @@ export async function parseMessagesListContentToMarkdownRoot({
     nextPageLinkString: string | null;
     paginationType: AgentLinkPaginationType;
     pageMessages: Array<AgentMessage>;
-    conversationState: AgentConversationState;
-}): Promise<Root> {
-    const children: Root["children"] = [];
+    conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
+}): Promise<Array<RootContent>> {
+    const content: Array<RootContent> = [];
 
     if (previousPageLinkString) {
-        children.push({
+        content.push({
             type: "paragraph",
             children: [
                 {
@@ -28,31 +28,25 @@ export async function parseMessagesListContentToMarkdownRoot({
                     url: previousPageLinkString,
                     children: [{type: "text", value: `« Previous ${paginationType}`}],
                 },
-                // Create an empty line between the previous page link and the messages
-                {type: "break"},
-                {type: "break"},
             ],
         });
     }
 
     // There shouldn't be a conversation timezone context for the messages returned
     // by a read link tool call.
-    const messagesText = printAgentMessagesLog(pageMessages, {
+    const messagesContent = printAgentMessagesLog(pageMessages, {
         time: conversationState.startTime,
         timeZone: conversationState.timeZone,
     });
-    if (messagesText) {
-        children.push({
-            type: "paragraph",
-            children: [{type: "text", value: messagesText}],
-        });
+
+    for (const element of messagesContent) {
+        content.push(element);
     }
 
     if (nextPageLinkString) {
-        children.push({
+        content.push({
             type: "paragraph",
             children: [
-                {type: "break"},
                 {
                     type: "link",
                     url: nextPageLinkString,
@@ -62,8 +56,5 @@ export async function parseMessagesListContentToMarkdownRoot({
         });
     }
 
-    return {
-        type: "root",
-        children,
-    };
+    return content;
 }

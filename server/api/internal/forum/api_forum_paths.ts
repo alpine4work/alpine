@@ -99,6 +99,7 @@ export const apiForumPaths: Pick<
                     spaceId: post.spaceId,
                     post: {
                         id: post.id,
+                        createdTime: serializeDateString(post.createdTime),
                         channel: {
                             id: channelId,
                             name: post.channelName,
@@ -150,6 +151,7 @@ export const apiForumPaths: Pick<
                     post: {
                         id: pathParameters.id,
                         author: post.content.author,
+                        createdTime: serializeDateString(post.createdTime),
                         channel: {
                             id: post.channel.id,
                             name: post.channel.name,
