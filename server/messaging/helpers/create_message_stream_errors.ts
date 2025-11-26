@@ -1,8 +1,8 @@
-import {messageStreamTimeoutServerLimitMs} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
+import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 
-const timeoutInSeconds = messageStreamTimeoutServerLimitMs / 1000;
+const timeoutInSeconds = Math.round(messageStreamTimeoutMs / 1000);
 
 export function createCantCompleteStaleMessageStreamError() {
     return new FailedPreconditionError("The stream has timed out", {

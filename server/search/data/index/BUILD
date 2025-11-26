@@ -68,6 +68,7 @@ ts_project(
         "//:node_modules/stemmer",
         "//server/access",
         "//server/accounts",
+        "//server/api/content",
         "//server/chat/data",
         "//server/content",
         "//server/context",

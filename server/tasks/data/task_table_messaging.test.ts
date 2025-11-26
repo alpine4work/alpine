@@ -160,13 +160,14 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     async putMessageStreamPart(
         context,
-        {roomKey: taskId, messageIndex: commentIndex, partIndex, payload},
+        {roomKey: taskId, messageIndex: commentIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
         return await putTaskCommentStreamPart(context, {
             taskId,
             commentIndex,
             partIndex,
             payload,
+            isTimeoutErrorCompletion,
         });
     },
     async completeMessageStream(context, {roomKey: taskId, messageIndex: commentIndex}) {

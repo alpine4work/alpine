@@ -1,5 +1,5 @@
 import {Mark, Node} from "prosemirror-model";
-import {intoApiTaskStatus} from "~/server/api/internal/shared/into_api_task_status.js";
+import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
 import {
     ApiContentBlockElementResponse,

@@ -1,5 +1,11 @@
 import {Node} from "prosemirror-model";
-import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_actions.js";
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {
+    getChatAccountIds,
+    getChatMessagePayload,
+    putChatMessageStreamPart,
+} from "~/server/chat/data/chat_actions.js";
 import {
     ServerActionContext,
     ServerSystemActionContext,
@@ -9,6 +15,7 @@ import {
     getDocumentCommentPayload,
     getDocumentContent,
     getDocumentTitleIfExists,
+    putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
 import {getFileIfExistsAsSystem} from "~/server/files/data/files_actions.js";
 import {getChannelNameAndDescriptionContentAndContributors} from "~/server/forum/data/get_channel_name_and_description_content_and_contributors.js";
@@ -18,8 +25,12 @@ import {
     getPostContentAndChannelPreviewIfExists,
 } from "~/server/forum/data/get_post_content_and_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
-import {getPostCommentPayload} from "~/server/forum/data/post_messaging.js";
+import {
+    getPostCommentPayload,
+    putPostCommentStreamPart,
+} from "~/server/forum/data/post_messaging.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
+import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     SearchEntityDependencyId,
@@ -45,10 +56,12 @@ import {
     TaskStepCountByAccountId,
     getTaskCommentPayload,
     getTaskNotesContentWithoutReferences,
+    putTaskCommentStreamPart,
 } from "~/server/tasks/data/task_table.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -73,6 +86,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -99,7 +113,11 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessagePayload,
+    MessageStream,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 import {
     SearchDynamicEntityId,
     SearchDynamicEntityIdObject,
@@ -390,6 +408,7 @@ class SearchEntityReadState {
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
         documentAccessPolicy: AccessPolicy;
     }> {
         this._recordDependencyId(`Document:${documentId}:Authorization`);
@@ -503,6 +522,7 @@ class SearchEntityReadState {
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
         channelId: ChannelId;
         channelAccessPolicy: AccessPolicy;
     }> {
@@ -529,6 +549,7 @@ class SearchEntityReadState {
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
     }> {
         this._recordDependencyId(`TaskComment:${taskId}-${commentIndex}`);
 
@@ -561,6 +582,7 @@ class SearchEntityReadState {
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
     }> {
         this._recordDependencyId(`ChatMessage:${chatId}-${messageIndex}`);
 
@@ -1345,8 +1367,21 @@ async function getDocumentCommentSearchEntity(
         createdTime,
         authorId,
         payload: commentPayload,
+        stream: commentStream,
         documentAccessPolicy,
     } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
+
+    // If we're running an `IndexSearchEntity` job then we also want to check if
+    // the message has timed out alongside updating the OpenSearch index.
+    if (commentStream) {
+        state.registerAdditionalWrite(
+            createMessageStreamTimeoutAdditionalWrite(
+                {documentId, commentThreadId, commentIndex},
+                commentStream,
+                putDocumentCommentStreamPart,
+            ),
+        );
+    }
 
     if (commentPayload.type === "Deleted") {
         return {...searchDeletedMessageEntity, id};
@@ -1531,8 +1566,21 @@ async function getPostCommentSearchEntity(
         createdTime,
         authorId,
         payload: commentPayload,
+        stream: commentStream,
         channelAccessPolicy,
     } = await state.getPostCommentPayload(postId, commentIndex);
+
+    // If we're running an `IndexSearchEntity` job then we also want to check if
+    // the message has timed out alongside updating the OpenSearch index.
+    if (commentStream) {
+        state.registerAdditionalWrite(
+            createMessageStreamTimeoutAdditionalWrite(
+                {postId, commentIndex},
+                commentStream,
+                putPostCommentStreamPart,
+            ),
+        );
+    }
 
     if (commentPayload.type === "Deleted") {
         return {...searchDeletedMessageEntity, id};
@@ -1681,17 +1729,88 @@ const nameByNumber = new Map([
     [10, "ten"],
 ]);
 
+function createMessageStreamTimeoutAdditionalWrite<Options extends {}>(
+    options: Options,
+    messageStream: MessageStream & {readonly lastPingTime: Date | null},
+    putMessageStreamPart: (
+        context: ServerSystemActionContext,
+        options: Options & {
+            partIndex: "Create";
+            payload: MessageStreamPartPayload;
+            isTimeoutErrorCompletion: true;
+        },
+    ) => Promise<unknown>,
+) {
+    return async (context: ServerSystemActionContext) => {
+        // Message stream has been successfully completed! No update needed.
+        if (messageStream.completedTime !== null) return;
+
+        const currentTime = new Date();
+
+        // If we've possibly passed the stream timeout then complete the stream with a
+        // final error message.
+        //
+        // We need to account for clock skew because message stream code schedules the
+        // `IndexSearchEntity` job to always run after possible stream timeout. If the
+        // message has timed out we have to complete it here or else the message will
+        // be in an incomplete state on the client forever!
+        if (
+            !isDatePossiblyLessThanWithUncertaintyWindow(
+                (messageStream.lastPingTime ?? messageStream.createdTime).getTime() +
+                    messageStreamTimeoutMs,
+                currentTime,
+            )
+        ) {
+            return;
+        }
+
+        const content = assertMessageContent(
+            fromApiContent(
+                MessageContentProsemirrorSchema,
+                parseApiContentFromMarkdown(defaultAgentErrorDisplayMessage, {
+                    spaceId: context.actor.getSpaceId(),
+                }),
+            ),
+        );
+
+        await putMessageStreamPart(context, {
+            ...options,
+            partIndex: "Create",
+            payload: {type: "Content", content},
+            // We're putting an error part after the message has timed out. We need to skip
+            // the time out check or this will throw an error.
+            //
+            // This will also complete the stream.
+            isTimeoutErrorCompletion: true,
+        });
+    };
+}
+
 async function getChatMessageSearchEntity(
     state: SearchEntityReadState,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<SearchEntity> {
     const id: SearchEntityId = `ChatMessage:${chatId}-${messageIndex}`;
 
-    const [{accountIds: chatAccountIds}, {createdTime, authorId, payload: messagePayload}] =
-        await runAllPromises([
-            state.getChatAccountIds(chatId),
-            state.getChatMessagePayload(chatId, messageIndex),
-        ]);
+    const [
+        {accountIds: chatAccountIds},
+        {createdTime, authorId, payload: messagePayload, stream: messageStream},
+    ] = await runAllPromises([
+        state.getChatAccountIds(chatId),
+        state.getChatMessagePayload(chatId, messageIndex),
+    ]);
+
+    // If we're running an `IndexSearchEntity` job then we also want to check if
+    // the message has timed out alongside updating the OpenSearch index.
+    if (messageStream) {
+        state.registerAdditionalWrite(
+            createMessageStreamTimeoutAdditionalWrite(
+                {chatId, messageIndex},
+                messageStream,
+                putChatMessageStreamPart,
+            ),
+        );
+    }
 
     if (messagePayload.type === "Deleted") {
         return {...searchDeletedMessageEntity, id};
@@ -2059,7 +2178,24 @@ async function getTaskCommentSearchEntity(
         return {...searchDeletedMessageEntity, id};
     }
 
-    const {createdTime, authorId, payload: commentPayload} = unwrapResult(commentResult);
+    const {
+        createdTime,
+        authorId,
+        payload: commentPayload,
+        stream: commentStream,
+    } = unwrapResult(commentResult);
+
+    // If we're running an `IndexSearchEntity` job then we also want to check if
+    // the message has timed out alongside updating the OpenSearch index.
+    if (commentStream) {
+        state.registerAdditionalWrite(
+            createMessageStreamTimeoutAdditionalWrite(
+                {taskId, commentIndex},
+                commentStream,
+                putTaskCommentStreamPart,
+            ),
+        );
+    }
 
     const accessPolicy = getTaskSearchEntityAccessPolicy({
         task,

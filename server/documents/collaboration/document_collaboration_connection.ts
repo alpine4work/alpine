@@ -68,7 +68,6 @@ import {
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
-    MessagingRealtimeBroadcastPingMessageStreamRequest,
     MessagingRealtimeBroadcastPutMessageStreamPartRequest,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -813,19 +812,6 @@ export class DocumentCollaborationConnection {
         iterateAllConnections: () => Iterable<DocumentCollaborationConnection>,
     ) {
         MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
-            mapIterable(iterateAllConnections(), connection =>
-                connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
-            ),
-        );
-    }
-
-    public static broadcastPingMessageStream(
-        context: WorkerActionContext,
-        commentThreadId: DocumentCommentThreadId,
-        request: MessagingRealtimeBroadcastPingMessageStreamRequest,
-        iterateAllConnections: () => Iterable<DocumentCollaborationConnection>,
-    ) {
-        MessagingRealtimeConnection.broadcastPingMessageStream(context, request, () =>
             mapIterable(iterateAllConnections(), connection =>
                 connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
             ),

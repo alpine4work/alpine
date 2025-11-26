@@ -470,7 +470,7 @@ export function completeApiMessageStream(
     }
 }
 
-export function sendPing(
+export function pingApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
     roomPathObject: ApiMessageRoomPathObject,

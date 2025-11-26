@@ -71,6 +71,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -1486,6 +1487,9 @@ export async function authorizeOwnSpaceAccountAccess(
         actor: ActorContextModule;
     }>,
     accountId: AccountId,
+    options?: {
+        displayMessage?: ErrorDisplayMessage;
+    },
 ) {
     switch (context.actor.type) {
         case "System": {
@@ -1493,6 +1497,7 @@ export async function authorizeOwnSpaceAccountAccess(
             if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
                 throw new PermissionDeniedError(
                     "Can’t access account that’s not in the system actor’s space",
+                    options,
                 );
             }
             break;
@@ -1501,7 +1506,10 @@ export async function authorizeOwnSpaceAccountAccess(
         case "ImpersonatedAccount":
         case "Bot": {
             if (context.actor.getPossiblyBotAccountId() !== accountId) {
-                throw new PermissionDeniedError("Can’t access account that’s not the actor’s");
+                throw new PermissionDeniedError(
+                    "Can’t access account that’s not the actor’s",
+                    options,
+                );
             }
             break;
         }

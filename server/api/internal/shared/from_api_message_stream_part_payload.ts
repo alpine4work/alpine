@@ -1,4 +1,4 @@
-import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {printApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

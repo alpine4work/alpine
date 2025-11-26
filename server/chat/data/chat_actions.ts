@@ -1,4 +1,4 @@
-import {addDays, addSeconds} from "date-fns";
+import {addDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
@@ -11,7 +11,6 @@ import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_ac
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerBotActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -42,8 +41,11 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
-import {hasMessageStreamTimedOutOnServer} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
-import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {
+    messageStreamIndexSearchEntityDelaySeconds,
+    shouldScheduleMessageStreamIndexSearchEntityJob,
+} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     messagingEventExpirationDays,
@@ -88,7 +90,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
-import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
@@ -112,7 +113,11 @@ import {
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
-import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessageUpdatesBackfillResult,
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -1026,25 +1031,29 @@ function sendChatMessageForAccount(
  * more granular part updates in the future.
  */
 export function putChatMessageStreamPart(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         chatId,
         messageIndex,
         partIndex,
         payload,
         consistency,
+        isTimeoutErrorCompletion = false,
     }: {
         chatId: ChatId;
         messageIndex: number;
-        partIndex: number;
+        partIndex: number | "Create";
         payload: MessageStreamPartPayload;
         consistency?: DynamoCacheReadConsistency;
+        isTimeoutErrorCompletion?: boolean;
     },
-): Promise<{
-    spaceId: SpaceId;
-    version: number;
-    createdTime: Date;
-}> {
+): Promise<{spaceId: SpaceId; createdTime: Date}> {
+    if (isTimeoutErrorCompletion && context.actor.type !== "System") {
+        throw new PermissionDeniedError(
+            "Only system actors can complete a message stream after timeout",
+        );
+    }
+
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
             // Make sure the bot has access (and wasn't removed from the space).
@@ -1068,34 +1077,44 @@ export function putChatMessageStreamPart(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         if (item.completedTime !== null) {
+            // If the stream is already completed then noop.
+            if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
+
             throw new FailedPreconditionError("The stream has already been completed", {
                 displayMessage: errorDisplayMessage`The stream has already been completed.`,
             });
         }
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (!isTimeoutErrorCompletion && hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantWriteToStaleMessageStreamError();
+        }
+
+        if (partIndex === "Create") {
+            partIndex = item.partCount;
         }
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
 
+        const lastPingTime =
+            item.lastPingTime && currentTime <= item.lastPingTime
+                ? // NOTE(ifitzsimmons): This makes sure lastPingTime is always at least 1ms ahead of
+                  // the previous ping time. This is important if we have two different instances
+                  // processing pings with different clock skews.
+                  new Date(item.lastPingTime.getTime() + 1)
+                : currentTime;
+
         let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
 
         if (
-            isDatePossiblyLessThanWithUncertaintyWindow(
-                addSeconds(
-                    item.lastIndexSearchEntityJob.sendTime,
-                    item.lastIndexSearchEntityJob.delaySeconds,
-                ),
-                currentTime,
+            shouldScheduleMessageStreamIndexSearchEntityJob(
+                item.lastIndexSearchEntityJob,
+                lastPingTime,
             )
         ) {
             nextIndexSearchEntityJob = {
@@ -1108,7 +1127,8 @@ export function putChatMessageStreamPart(
 
         let createdTime: Date;
         if (partIndex === item.partCount) {
-            createdTime = new Date();
+            createdTime = currentTime;
+
             const createPartTransactionEntry = ChatTable.transactionCreateOrReplaceItem({
                 partitionType: "Chat",
                 sortRangeType: "Messages#StreamPart",
@@ -1126,10 +1146,11 @@ export function putChatMessageStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
+                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
-                    lastPingTime: createdTime,
+                    lastPingTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -1167,7 +1188,8 @@ export function putChatMessageStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ChatTable.transactionDirectlyUpdateItem({
                     ...item,
-                    lastPingTime: createdTime,
+                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
+                    lastPingTime,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
@@ -1192,7 +1214,30 @@ export function putChatMessageStreamPart(
             );
         }
 
-        return {spaceId, version, createdTime};
+        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+        // sending this realtime event the user might not see an update to their
+        // message in realtime.
+        //
+        // Should we send this broadcast event in a DynamoDB Streams listener that
+        // reacts to the update? We plan to move `NotificationEvent`,
+        // `IndexSearchEntity`, and other processing that needs to reliably run after
+        // an updates to DynamoDB Streams.
+        context.process.waitUntil(
+            context.edge.broadcastToDurableObject(
+                `/api/durable-objects/chat/${chatId}/broadcast-put-message-stream-part`,
+                {
+                    serviceName: "ChatRealtimeService",
+                    route: "/api/durable-objects/chat/:chatId/broadcast-put-message-stream-part",
+                    body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
+                        index: messageIndex,
+                        partIndex,
+                        part: {version, payload, createdTime},
+                    }),
+                },
+            ),
+        );
+
+        return {spaceId, createdTime};
     });
 }
 
@@ -1203,7 +1248,7 @@ export function putChatMessageStreamPart(
  * does nothing.
  */
 export function completeChatMessageStream(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         chatId,
         messageIndex,
@@ -1240,11 +1285,9 @@ export function completeChatMessageStream(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         // Already completed!
         if (item.completedTime !== null) {
@@ -1255,7 +1298,7 @@ export function completeChatMessageStream(
         // `Date.now()` and override the time that is returned.
         const completedTime = new Date(Date.now());
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantCompleteStaleMessageStreamError();
         }
 
@@ -1263,6 +1306,28 @@ export function completeChatMessageStream(
             ...item,
             completedTime,
         });
+
+        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+        // sending this realtime event the user might not see an update to their
+        // message in realtime.
+        //
+        // Should we send this broadcast event in a DynamoDB Streams listener that
+        // reacts to the update? We plan to move `NotificationEvent`,
+        // `IndexSearchEntity`, and other processing that needs to reliably run after
+        // an updates to DynamoDB Streams.
+        context.process.waitUntil(
+            context.edge.broadcastToDurableObject(
+                `/api/durable-objects/chat/${chatId}/broadcast-complete-message-stream`,
+                {
+                    serviceName: "ChatRealtimeService",
+                    route: "/api/durable-objects/chat/:chatId/broadcast-complete-message-stream",
+                    body: MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.serialize({
+                        index: messageIndex,
+                        completedTime,
+                    }),
+                },
+            ),
+        );
 
         return {spaceId, completedTime};
     });
@@ -1275,7 +1340,7 @@ export function completeChatMessageStream(
  * will update its `lastPingTime`.
  */
 export function pingChatMessageStream(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         chatId,
         messageIndex,
@@ -1312,17 +1377,15 @@ export function pingChatMessageStream(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         if (item.completedTime !== null) {
             throw createCantPingCompletedMessageStreamError();
         }
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantPingStaleMessageStreamError();
         }
 
@@ -1338,10 +1401,43 @@ export function pingChatMessageStream(
                   new Date(item.lastPingTime.getTime() + 1)
                 : currentTime;
 
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        // Our `IndexSearchEntity` job also serves to expire streams that haven't been
+        // updated in a while. So we need to re-schedule it when the stream is pinged.
+        if (
+            shouldScheduleMessageStreamIndexSearchEntityJob(
+                item.lastIndexSearchEntityJob,
+                lastPingTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
         await ChatTable.directlyUpdateItem(context, {
             ...item,
             lastPingTime,
+            lastIndexSearchEntityJob: nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
         });
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "ChatMessage",
+                        chatId,
+                        messageIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
 
         return {spaceId, lastPingTime};
     });

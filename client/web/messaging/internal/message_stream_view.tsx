@@ -1,24 +1,9 @@
-import {differenceInMilliseconds} from "date-fns/differenceInMilliseconds";
-import {Memo, useEffect, useMemo, useState} from "react";
-import {ContentView} from "~/client/web/content/content_view.js";
-import {
-    hasMessageStreamTimedOutOnClient,
-    messageStreamTimeoutClientLimitMs,
-} from "~/client/web/messaging/internal/has_message_stream_timed_out_on_client.js";
+import {Memo, useMemo, useState} from "react";
 import {MessageStreamViewItemList} from "~/client/web/messaging/internal/message_stream_view_item_list.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {
-    MessageContentProsemirrorSchema,
-    MessageContentWithReferences,
-    assertMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageStream} from "~/shared/messaging/message_schema.js";
 
@@ -70,48 +55,6 @@ export function MessageStreamView({
     const isContentEmpty = useMemo(() => isContentBodyEmpty(content.doc), [content.doc]);
     const [wasIncompleteWhenMounted] = useState(() => stream.completedTime === null);
 
-    // When we render the component, if the current date is past the timeout threshold,
-    // set `hasResponseTimedOut` to true.
-    const [hasResponseTimedOut, setHasResponseTimedOut] = useState(() => {
-        return stream.completedTime === null && hasMessageStreamTimedOutOnClient(stream);
-    });
-
-    useEffect(() => {
-        // If the stream is completed or we've already timed out, return early.
-        if (stream.completedTime !== null || hasResponseTimedOut) return;
-
-        const lastUpdatedTime = stream.lastPingTime ?? stream.createdTime;
-
-        // See comment [1] for guidance on using sycnhronized system clock on client.
-        //
-        // [1]: https://app.graphite.com/github/pr/cyberworlds/cyberworlds/784/ping-API-to-keep-durable-object-alive#comment-PRRC_kwDOH2ktg86XX_c_
-        const clock =
-            getSynchronizedSystemClock().getStateWithoutListening().value ??
-            unsynchronizedSystemClock;
-        const timeoutTime = lastUpdatedTime.getTime() + messageStreamTimeoutClientLimitMs;
-
-        // We want to run the timeout logic 15 seconds after the last time the stream
-        // was updated. So we calculate the absolute time of the last update plus 15 seconds,
-        // and then we figure out how many milliseconds away we are from that time.
-        // So if current time is timestep 45 and last updated time is 35, the timeout
-        // will run in about 5 seconds (at timestep 50, which is 15 seconds after the last update).
-        const timeoutMs = differenceInMilliseconds(timeoutTime, clock.now());
-        const {clear} = createTimeout(() => setHasResponseTimedOut(true), timeoutMs);
-
-        return () => clear();
-    }, [stream.completedTime, stream.lastPingTime, stream.createdTime, hasResponseTimedOut]);
-
-    if (hasResponseTimedOut) {
-        return (
-            <ContentView
-                content={{
-                    doc: createErrorMessageContent.get(),
-                    references: emptyContentReferences,
-                }}
-            />
-        );
-    }
-
     return (
         <div
             style={{
@@ -132,21 +75,3 @@ export function MessageStreamView({
         </div>
     );
 }
-
-const createErrorMessageContent = new Lazy(() => {
-    return assertMessageContent(
-        MessageContentProsemirrorSchema.node("doc", {}, [
-            MessageContentProsemirrorSchema.node("paragraph", {}, [
-                MessageContentProsemirrorSchema.text(
-                    "I couldn’t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
-                ),
-                MessageContentProsemirrorSchema.text("support@alpine.inc", [
-                    MessageContentProsemirrorSchema.mark("link", {
-                        url: "mailto:support@alpine.inc",
-                    }),
-                ]),
-                MessageContentProsemirrorSchema.text("."),
-            ]),
-        ]),
-    );
-});

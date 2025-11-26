@@ -77,6 +77,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/agents/api:api",
     "//server/alpha:alpha",
     "//server/api:api_lib",
+    "//server/api/content:content",
     "//server/api/internal/chat:chat",
     "//server/api/internal/documents:documents",
     "//server/api/internal/forum:forum",

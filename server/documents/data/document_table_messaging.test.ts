@@ -261,7 +261,10 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             commentIndex: messageIndex,
         });
     },
-    async putMessageStreamPart(context, {roomKey, messageIndex: commentIndex, partIndex, payload}) {
+    async putMessageStreamPart(
+        context,
+        {roomKey, messageIndex: commentIndex, partIndex, payload, isTimeoutErrorCompletion},
+    ) {
         const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
         return await putDocumentCommentStreamPart(context, {
@@ -270,6 +273,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             commentIndex,
             partIndex,
             payload,
+            isTimeoutErrorCompletion,
         });
     },
     async completeMessageStream(context, {roomKey, messageIndex: commentIndex}) {

@@ -1,8 +1,8 @@
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {
     ApiOperation200JsonResponseType,
     ApiPaths,
 } from "~/server/api/internal/shared/api_paths_type.js";
-import {fromApiContent} from "~/server/api/internal/shared/from_api_content.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
@@ -25,12 +25,7 @@ import {
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
-import {
-    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
-    MessagingRealtimeBroadcastNewMessageRequestSchema,
-    MessagingRealtimeBroadcastPingMessageStreamRequestSchema,
-    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
-} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> = {
     "/chats/{id}": {
@@ -195,7 +190,7 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                             createdTimeZone,
                             payload,
                             stream: requestBody.isStream
-                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                ? {createdTime, completedTime: null, parts: []}
                                 : null,
                         }),
                     },
@@ -229,30 +224,6 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 consistency: "StrongWithinCache",
             });
 
-            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-            // sending this realtime event the user might not see an update to their
-            // message in realtime.
-            //
-            // Should we send this broadcast event in a DynamoDB Streams listener that
-            // reacts to the update? We plan to move `NotificationEvent`,
-            // `IndexSearchEntity`, and other processing that needs to reliably run after
-            // an updates to DynamoDB Streams.
-            context.process.waitUntil(
-                context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/chat/${pathParameters.id}/broadcast-complete-message-stream`,
-                    {
-                        serviceName: "ChatRealtimeService",
-                        route: "/api/durable-objects/chat/:chatId/broadcast-complete-message-stream",
-                        body: MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.serialize(
-                            {
-                                index: pathParameters.index,
-                                completedTime,
-                            },
-                        ),
-                    },
-                ),
-            );
-
             return {
                 content: {
                     spaceId,
@@ -270,31 +241,6 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
                 consistency: "StrongWithinCache",
             });
 
-            // NOTE(ifitzsimmons): If the process dies after committing to DynamoDB but before
-            // sending this realtime event the might see an error message in place of the actual
-            // response from the Agent. On the client, we check to see if we've received a healthy
-            // ping OR a stream message within some time limit. If we get neither, we'll show
-            // a client-only error. Fortunately, if this happens, the user will see the full agent
-            // response when refreshing the page.
-            //
-            // Should we send this broadcast event in a DynamoDB Streams listener that
-            // reacts to the update? We plan to move `NotificationEvent`,
-            // `IndexSearchEntity`, and other processing that needs to reliably run after
-            // an updates to DynamoDB Streams.
-            context.process.waitUntil(
-                context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/chat/${pathParameters.id}/broadcast-ping-message-stream`,
-                    {
-                        serviceName: "ChatRealtimeService",
-                        route: "/api/durable-objects/chat/:chatId/broadcast-ping-message-stream",
-                        body: MessagingRealtimeBroadcastPingMessageStreamRequestSchema.serialize({
-                            index: pathParameters.index,
-                            lastPingTime,
-                        }),
-                    },
-                ),
-            );
-
             return {
                 content: {
                     spaceId,
@@ -310,38 +256,13 @@ export const apiChatPaths: Pick<ApiPaths, keyof ApiPaths & `/chats/${string}`> =
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId, version, createdTime} = await putChatMessageStreamPart(context, {
+            const {spaceId} = await putChatMessageStreamPart(context, {
                 chatId: pathParameters.id,
                 messageIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
                 payload,
                 consistency: "StrongWithinCache",
             });
-
-            // NOTE(calebmer): If the process dies after committing to DynamoDB but before
-            // sending this realtime event the user might not see an update to their
-            // message in realtime.
-            //
-            // Should we send this broadcast event in a DynamoDB Streams listener that
-            // reacts to the update? We plan to move `NotificationEvent`,
-            // `IndexSearchEntity`, and other processing that needs to reliably run after
-            // an updates to DynamoDB Streams.
-            context.process.waitUntil(
-                context.edge.broadcastToDurableObject(
-                    `/api/durable-objects/chat/${pathParameters.id}/broadcast-put-message-stream-part`,
-                    {
-                        serviceName: "ChatRealtimeService",
-                        route: "/api/durable-objects/chat/:chatId/broadcast-put-message-stream-part",
-                        body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize(
-                            {
-                                index: pathParameters.index,
-                                partIndex: pathParameters.partIndex,
-                                part: {version, payload, createdTime},
-                            },
-                        ),
-                    },
-                ),
-            );
 
             return {content: {spaceId}};
         },

@@ -43,7 +43,6 @@ import {
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
-    MessagingRealtimeBroadcastPingMessageStreamRequest,
     MessagingRealtimeBroadcastPutMessageStreamPartRequest,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -366,16 +365,6 @@ export class TaskNotesCollaborationConnection {
         iterateAllConnections: () => Iterable<TaskNotesCollaborationConnection>,
     ) {
         MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
-            mapIterable(iterateAllConnections(), connection => connection._messagingConnection),
-        );
-    }
-
-    public static broadcastPingMessageStream(
-        context: WorkerActionContext,
-        request: MessagingRealtimeBroadcastPingMessageStreamRequest,
-        iterateAllConnections: () => Iterable<TaskNotesCollaborationConnection>,
-    ) {
-        MessagingRealtimeConnection.broadcastPingMessageStream(context, request, () =>
             mapIterable(iterateAllConnections(), connection => connection._messagingConnection),
         );
     }

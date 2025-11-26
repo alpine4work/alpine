@@ -31,7 +31,6 @@ import {AccountId, PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/typ
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
-    MessagingRealtimeBroadcastPingMessageStreamRequest,
     MessagingRealtimeBroadcastPutMessageStreamPartRequest,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -200,16 +199,6 @@ export class PostRealtimeConnection {
         iterateAllConnections: () => Iterable<PostRealtimeConnection>,
     ) {
         MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
-            mapIterable(iterateAllConnections(), connection => connection._connection),
-        );
-    }
-
-    public static broadcastPingMessageStream(
-        context: WorkerActionContext,
-        request: MessagingRealtimeBroadcastPingMessageStreamRequest,
-        iterateAllConnections: () => Iterable<PostRealtimeConnection>,
-    ) {
-        MessagingRealtimeConnection.broadcastPingMessageStream(context, request, () =>
             mapIterable(iterateAllConnections(), connection => connection._connection),
         );
     }

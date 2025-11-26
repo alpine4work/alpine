@@ -42,7 +42,7 @@ export type MessageItem = {
     readonly createdTimeZone: TimeZone;
     readonly authorId: AccountId;
     readonly payload: MessagePayload;
-    readonly stream: MessageStream | null;
+    readonly stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
 };
 
 /**
@@ -68,12 +68,7 @@ export async function* processMessagesQuery(
             return null;
         }
 
-        let stream: {
-            completedTime: Date | null;
-            lastPingTime: Date | null;
-            createdTime: Date;
-            parts: Array<{payload: MessageStreamPartPayload; createdTime: Date; version: number}>;
-        } | null = null;
+        let stream: (MessageStream & {readonly lastPingTime: Date | null}) | null = null;
 
         if (
             currentItem.payload.type !== "Content" ||

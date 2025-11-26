@@ -54,7 +54,6 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "date-fns/compareAsc",
     "date-fns/differenceInDays",
     "date-fns/differenceInHours",
-    "date-fns/differenceInMilliseconds",
     "date-fns/differenceInMinutes",
     "date-fns/differenceInMonths",
     "date-fns/differenceInWeeks",

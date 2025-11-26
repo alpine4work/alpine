@@ -93,10 +93,6 @@ export function useMessagingRealtime<
                 onUpdateMessages(messages => messages.completeMessageStream(event), null);
                 break;
             }
-            case "PingMessageStream": {
-                onUpdateMessages(messages => messages.pingMessageStream(event), null);
-                break;
-            }
             default:
                 throw exhaustive(event);
         }

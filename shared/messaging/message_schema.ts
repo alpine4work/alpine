@@ -297,7 +297,6 @@ export type MessageStream = SchemaType<typeof MessageStreamSchema>;
 export const MessageStreamSchema = Schema.object({
     createdTime: Schema.date,
     completedTime: Schema.date.nullable(),
-    lastPingTime: Schema.date.nullable(),
     parts: Schema.array(
         Schema.object({
             version: Schema.integer,

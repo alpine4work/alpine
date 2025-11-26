@@ -1,4 +1,4 @@
-import {intoApiTaskStatus} from "~/server/api/internal/shared/into_api_task_status.js";
+import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {
     ApiSearchResult,
     ApiSearchResultBodyMatchItem,

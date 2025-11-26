@@ -13,6 +13,7 @@ import {
 import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {
     TestAccountActionContext,
+    TestActionContext,
     TestBotActionContext,
     TestContext,
     TestSessionActionContext,
@@ -26,7 +27,7 @@ import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_se
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {uploadTestFile} from "~/server/files/test_helpers/test_file.js";
-import {messageStreamTimeoutServerLimitMs} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
+import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {
     messagingBackfillSafetyWindowMinutes,
     messagingEventExpirationDays,
@@ -46,6 +47,7 @@ import {
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -118,6 +120,7 @@ type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
     payload: MessagePayload;
     stream: {
         completedTime: Date | null;
+        lastPingTime: Date | null;
         parts: ReadonlyArray<{
             version: number;
             payload: MessageStreamPartPayload;
@@ -172,12 +175,13 @@ type PingMessageStreamFunctionForTest<RoomKey extends string> = (
  * Put a stream part for a streaming message.
  */
 type PutMessageStreamPartFunctionForTest<RoomKey extends string> = (
-    context: TestBotActionContext,
+    context: TestActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
-        partIndex: number;
+        partIndex: number | "Create";
         payload: MessageStreamPartPayload;
+        isTimeoutErrorCompletion?: boolean;
     },
 ) => Promise<{createdTime: Date}>;
 
@@ -10348,6 +10352,249 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
+            test("can put stream message part with `Create` index as first part", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can put stream message part with `Create` index as third part", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 3"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can put stream message part with `Create` index two parts in a row", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 2"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 3"),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 4"),
+                    },
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 2"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 3"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 4"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
             test("can’t put stream message part if message isn’t a stream", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
@@ -10517,7 +10764,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                             content: createSimpleMessageContent("Test part 1"),
                         },
                     }),
-                ).rejects.toThrow("Only the bot who created the stream can update it");
+                ).rejects.toThrow("Can’t access account that’s not the actor’s");
 
                 expect(
                     await getMessagePayload(session.action(), {
@@ -11460,7 +11707,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
-                ).rejects.toThrow("Only the bot who created the stream can update it");
+                ).rejects.toThrow("Can’t access account that’s not the actor’s");
 
                 expect(
                     await getMessagePayload(session.action(), {
@@ -12183,7 +12430,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }
             });
 
-            test("putting a stream part update doesn’t change the parts original created timme", async () => {
+            test("putting a stream part update doesn’t change the parts original created time", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12285,7 +12532,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12321,7 +12568,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12370,7 +12617,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12439,7 +12686,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12508,7 +12755,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12554,7 +12801,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         });
 
-                        currentTime += 11 * 1000;
+                        currentTime += 3 * 1000;
+
+                        await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+
+                        currentTime += 8 * 1000;
 
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
@@ -12589,11 +12843,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
@@ -12639,12 +12893,15 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         });
 
-                        currentTime += 11 * 1000;
+                        currentTime += 3 * 1000;
 
                         await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
                         });
+
+                        currentTime += 8 * 1000;
+
                         await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
                             roomKey: room.key,
                             messageIndex: message.index,
@@ -12678,17 +12935,92 @@ export function testMessagingImplementation<RoomKey extends string>(
                     ),
                 ).toEqual([
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                     {
-                        delaySeconds: 10,
+                        delaySeconds: 20,
                         job: expect.objectContaining({type: "IndexSearchEntity"}),
                     },
                 ]);
             });
 
-            test("putting stream part after creation fails if `messageStreamTimeoutServerLimitMs` has passed", async () => {
+            test("pinging stream after a delay does send new index job", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const sentJobs = await TestLocalJobSender.captureSentJobs(async () => {
+                    const originalTime = Date.now();
+                    const originalDateNow = Date.now;
+
+                    let currentTime = originalTime;
+                    Date.now = () => currentTime;
+
+                    try {
+                        // Stream created at T0, timeoutTime = T10, indexSearchEntity.jobTime = T20
+                        const message = await createMessage(
+                            botAccount.action(getRoomBotScope(room.key)),
+                            {
+                                roomKey: room.key,
+                                parent: null,
+                                content: createSimpleMessageContent("Hello, world!"),
+                                fileIds: [],
+                                isStream: true,
+                            },
+                        );
+
+                        currentTime += 5 * 1000;
+
+                        // stream updated at T5, timeoutTime = T15, indexSearchEntity.jobTime = T20 (no new job)
+                        await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                            partIndex: 0,
+                            payload: {
+                                type: "Content",
+                                content: createSimpleMessageContent("Test part 1"),
+                            },
+                        });
+
+                        // stream updated at T11, timeoutTime = T21, indexSearchEntity.jobTime = T31 (new job is scheduled)
+                        currentTime += 6 * 1000;
+
+                        await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        });
+                    } finally {
+                        Date.now = originalDateNow;
+                    }
+                });
+
+                expect(
+                    sentJobs.filter(
+                        ({job}) =>
+                            job.type === "IndexSearchEntity" &&
+                            (job.update.type.includes("Message") ||
+                                job.update.type.includes("Comment")),
+                    ),
+                ).toEqual([
+                    {
+                        delaySeconds: 20,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                    {
+                        delaySeconds: 20,
+                        job: expect.objectContaining({type: "IndexSearchEntity"}),
+                    },
+                ]);
+            });
+
+            test("putting stream part after creation fails if `messageStreamTimeoutMs` has passed", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12716,7 +13048,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     );
 
-                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+                    currentTime += messageStreamTimeoutMs + 1000;
 
                     await expect(
                         putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
@@ -12734,7 +13066,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }
             });
 
-            test("putting stream part fails after `messageStreamTimeoutServerLimitMs` limit", async () => {
+            test("putting stream part fails after `messageStreamTimeoutMs` limit", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12773,7 +13105,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     });
 
-                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+                    currentTime += messageStreamTimeoutMs + 1000;
 
                     await expect(
                         putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
@@ -12791,7 +13123,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }
             });
 
-            test("putting stream part update after `messageStreamTimeoutServerLimitMs` throws an exception", async () => {
+            test("putting stream part update after `messageStreamTimeoutMs` throws an exception", async () => {
                 const space = await TestSpace.create(context);
                 const session = await space.createSession({role: "Admin"});
 
@@ -12830,7 +13162,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     });
 
-                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+                    currentTime += messageStreamTimeoutMs + 1000;
 
                     await expect(
                         putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
@@ -12843,6 +13175,62 @@ export function testMessagingImplementation<RoomKey extends string>(
                             },
                         }),
                     ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting timeout error stream part succeeds after `messageStreamTimeoutMs` limit", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalDateNow = Date.now;
+                const originalTime = Date.now();
+
+                try {
+                    let currentTime = originalTime;
+                    Date.now = () => currentTime;
+
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent("Hello, world!"),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    currentTime += messageStreamTimeoutMs + 1000;
+
+                    await putMessageStreamPart(space.systemAction(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: "Create",
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Timeout error"),
+                        },
+                        isTimeoutErrorCompletion: true,
+                    });
                 } finally {
                     Date.now = originalDateNow;
                 }
@@ -12887,7 +13275,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                         },
                     });
 
-                    currentTime += messageStreamTimeoutServerLimitMs + 1000;
+                    currentTime += messageStreamTimeoutMs + 1000;
 
                     await expect(
                         completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
@@ -12895,6 +13283,801 @@ export function testMessagingImplementation<RoomKey extends string>(
                             messageIndex: message.index,
                         }),
                     ).rejects.toThrow(new FailedPreconditionError("The stream has timed out"));
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("can complete stream message and put new part for timeout error", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(space.systemAction(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Timeout error"),
+                    },
+                    isTimeoutErrorCompletion: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: expect.any(Date),
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Timeout error"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can complete stream message and put part update for timeout error", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(space.systemAction(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Timeout error"),
+                    },
+                    isTimeoutErrorCompletion: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: expect.any(Date),
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Timeout error"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can’t complete stream message and put new part for timeout error if not system actor", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await expect(
+                    putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: "Create",
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Timeout error"),
+                        },
+                        isTimeoutErrorCompletion: true,
+                    }),
+                ).rejects.toThrow("Only system actors can complete a message stream after timeout");
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: null,
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can complete stream message and put new part for timeout error twice (it’s idempotent)", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await putMessageStreamPart(space.systemAction(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Timeout error 1"),
+                    },
+                    isTimeoutErrorCompletion: true,
+                });
+
+                await putMessageStreamPart(space.systemAction(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Timeout error 2"),
+                    },
+                    isTimeoutErrorCompletion: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: expect.any(Date),
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Timeout error 1"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("can complete stream message with timeout error (noop) after stream has been completed", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Test part 1"),
+                    },
+                });
+
+                await completeMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
+
+                await putMessageStreamPart(space.systemAction(), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: "Create",
+                    payload: {
+                        type: "Content",
+                        content: createSimpleMessageContent("Timeout error"),
+                    },
+                    isTimeoutErrorCompletion: true,
+                });
+
+                expect(
+                    await getMessagePayload(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    }).then(({stream}) => stream),
+                ).toEqual(
+                    expect.objectContaining({
+                        completedTime: expect.any(Date),
+                        parts: [
+                            {
+                                version: expect.any(Number),
+                                createdTime: expect.any(Date),
+                                payload: {
+                                    type: "Content",
+                                    content: createSimpleMessageContent("Test part 1"),
+                                },
+                            },
+                        ],
+                    }),
+                );
+            });
+
+            test("ping updates the stream ping time", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    currentTime += 5000;
+
+                    await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("ping updates the stream ping time monotonically", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    const lastCurrentTime = currentTime;
+                    currentTime -= 1000;
+
+                    await pingMessageStream(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(lastCurrentTime + 1);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting a new stream part updates the stream ping time", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 1,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting a new stream part updates the stream ping time monotonically", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    const lastCurrentTime = currentTime;
+                    currentTime -= 1000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 1,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(lastCurrentTime + 1);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting an updated stream part updates the stream ping time", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+            });
+
+            test("putting an updated stream part updates the stream ping time monotonically", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({role: "Admin"});
+
+                const botAccount = await TestBot.createAndInstantiate(session);
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const originalTime = Date.now();
+                const originalDateNow = Date.now;
+
+                let currentTime = originalTime;
+                Date.now = () => currentTime;
+
+                try {
+                    const message = await createMessage(
+                        botAccount.action(getRoomBotScope(room.key)),
+                        {
+                            roomKey: room.key,
+                            parent: null,
+                            content: createSimpleMessageContent(),
+                            fileIds: [],
+                            isStream: true,
+                        },
+                    );
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(null);
+
+                    currentTime += 5000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 1"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(currentTime);
+
+                    const lastCurrentTime = currentTime;
+                    currentTime -= 1000;
+
+                    await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                        partIndex: 0,
+                        payload: {
+                            type: "Content",
+                            content: createSimpleMessageContent("Test part 2"),
+                        },
+                    });
+
+                    expect(
+                        await getMessagePayload(session.action(), {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        }).then(({stream}) => assertExists(stream).lastPingTime?.getTime() ?? null),
+                    ).toEqual(lastCurrentTime + 1);
                 } finally {
                     Date.now = originalDateNow;
                 }

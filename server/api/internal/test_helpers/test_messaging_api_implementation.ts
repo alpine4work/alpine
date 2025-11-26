@@ -3,7 +3,7 @@ import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {messageStreamTimeoutServerLimitMs} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
+import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -3537,7 +3537,7 @@ export function testMessagingApiImplementation(
                 const originalTime = Date.now();
                 const originalDateNow = Date.now;
 
-                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+                Date.now = () => originalTime + messageStreamTimeoutMs + 3000;
 
                 try {
                     const pingResponse = await server.PUT(
@@ -3583,7 +3583,7 @@ export function testMessagingApiImplementation(
                 const originalTime = Date.now();
                 const originalDateNow = Date.now;
 
-                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+                Date.now = () => originalTime + messageStreamTimeoutMs + 3000;
 
                 try {
                     const completionResponse = await server.PUT(
@@ -3629,7 +3629,7 @@ export function testMessagingApiImplementation(
                 const originalTime = Date.now();
                 const originalDateNow = Date.now;
 
-                Date.now = () => originalTime + messageStreamTimeoutServerLimitMs + 3000;
+                Date.now = () => originalTime + messageStreamTimeoutMs + 3000;
 
                 try {
                     const putPartResponse = await server.PUT(

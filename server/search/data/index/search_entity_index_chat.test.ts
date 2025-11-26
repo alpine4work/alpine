@@ -1,5 +1,9 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
-import {putChatMessageStreamPart, sendChatMessage} from "~/server/chat/data/chat_actions.js";
+import {
+    pingChatMessageStream,
+    putChatMessageStreamPart,
+    sendChatMessage,
+} from "~/server/chat/data/chat_actions.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -353,6 +357,47 @@ test("will index streaming chat message after delay", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
+    await pingChatMessageStream(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await pingChatMessageStream(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await pingChatMessageStream(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
@@ -402,9 +447,34 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    import.meta.jest.advanceTimersByTime(5 * 1000);
+    import.meta.jest.advanceTimersByTime(1 * 1000);
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chat.id}-${message.index}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["Part 1\n\nPart 3\n\nPart 4"],
+        },
+    });
+
+    import.meta.jest.advanceTimersByTime(4 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await pingChatMessageStream(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -426,6 +496,11 @@ test("will index streaming chat message after delay", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
+    await pingChatMessageStream(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+    });
+
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
@@ -441,4 +516,141 @@ test("will index streaming chat message after delay", async () => {
             body: ["Part 1\n\nPart 3\n\nPart 5\n\nPart 6"],
         },
     });
+});
+
+test("will complete streaming chat message with error if not updated after delay", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const botAccount = await TestBot.createAndInstantiate(session);
+
+    const chat = await TestChat.get(session, botAccount);
+
+    await chat.sendMessage(session);
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const message = await sendChatMessage(botAccount.action(session), {
+        chatId: chat.id,
+        parent: null,
+        content: createSimpleMessageContent(),
+        fileIds: [],
+        isStream: true,
+        createdTimeZone: defaultTimeZone,
+    });
+
+    await putChatMessageStreamPart(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+        partIndex: 0,
+        payload: {
+            type: "Content",
+            content: createSimpleMessageContent("Part 1"),
+        },
+    });
+
+    await putChatMessageStreamPart(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+        partIndex: 1,
+        payload: {
+            type: "Content",
+            content: createSimpleMessageContent("Part 2"),
+        },
+    });
+
+    await putChatMessageStreamPart(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+        partIndex: 1,
+        payload: {
+            type: "Content",
+            content: createSimpleMessageContent("Part 3"),
+        },
+    });
+
+    await putChatMessageStreamPart(botAccount.action(session), {
+        chatId: chat.id,
+        messageIndex: message.index,
+        partIndex: 2,
+        payload: {
+            type: "Content",
+            content: createSimpleMessageContent("Part 4"),
+        },
+    });
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chat.id}-${message.index}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chat.id}-${message.index}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["Part 1\n\nPart 3\n\nPart 4"],
+        },
+    });
+
+    await expect(
+        putChatMessageStreamPart(botAccount.action(session), {
+            chatId: chat.id,
+            messageIndex: message.index,
+            partIndex: 2,
+            payload: {
+                type: "Content",
+                content: createSimpleMessageContent("Part 5"),
+            },
+        }),
+    ).rejects.toThrow("The stream has already been completed");
+
+    import.meta.jest.advanceTimersToNextTimer();
+    await ProcessContextModule.waitForTestTasks();
 });

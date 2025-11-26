@@ -2,7 +2,11 @@ import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js"
 import {DataLossError} from "~/shared/error/error.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {MessagePayload, MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessagePayload,
+    MessageStream,
+    MessageStreamPartPayload,
+} from "~/shared/messaging/message_schema.js";
 
 export type CommentQueryItem = {
     readonly sortRangeType: "Comments";
@@ -55,12 +59,7 @@ export async function* processCommentsQuery(
             return null;
         }
 
-        let stream: {
-            completedTime: Date | null;
-            lastPingTime: Date | null;
-            createdTime: Date;
-            parts: Array<{version: number; payload: MessageStreamPartPayload; createdTime: Date}>;
-        } | null = null;
+        let stream: (MessageStream & {readonly lastPingTime: Date | null}) | null = null;
 
         if (
             currentItem.payload.type !== "Content" ||

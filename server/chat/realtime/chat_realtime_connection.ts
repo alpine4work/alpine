@@ -29,7 +29,6 @@ import {AccountId, ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/typ
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
-    MessagingRealtimeBroadcastPingMessageStreamRequest,
     MessagingRealtimeBroadcastPutMessageStreamPartRequest,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {
@@ -148,16 +147,6 @@ export class ChatRealtimeConnection {
         iterateAllConnections: () => Iterable<ChatRealtimeConnection>,
     ) {
         MessagingRealtimeConnection.broadcastCompleteMessageStream(context, request, () =>
-            mapIterable(iterateAllConnections(), connection => connection._connection),
-        );
-    }
-
-    public static broadcastPingMessageStream(
-        context: WorkerActionContext,
-        request: MessagingRealtimeBroadcastPingMessageStreamRequest,
-        iterateAllConnections: () => Iterable<ChatRealtimeConnection>,
-    ) {
-        MessagingRealtimeConnection.broadcastPingMessageStream(context, request, () =>
             mapIterable(iterateAllConnections(), connection => connection._connection),
         );
     }

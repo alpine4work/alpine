@@ -1,9 +1,5 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-GENERATE_SRCS = [
-    "generate_api_specification_main.ts",
-]
-
 ts_project(
     name = "shared",
     test_deps = ["//shared/documents"],
@@ -25,14 +21,15 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/prosemirror-model",
         "//:node_modules/yaml",
+        "//server/api/content",
         "//server/api/markdown",
         "//server/bots",
         "//server/content",
         "//server/context",
         "//server/files/data",
-        "//server/language_models/core",
         "//server/helpers",
         "//server/helpers/node",
+        "//server/language_models/core",
         "//server/messaging/helpers",
         "//server/node",
         "//server/spaces",

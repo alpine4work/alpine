@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {intoApiContent} from "~/server/api/internal/shared/into_api_content.js";
+import {intoApiContent} from "~/server/api/content/into_api_content.js";
 import {getContentFileReference} from "~/server/content/get_content_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";

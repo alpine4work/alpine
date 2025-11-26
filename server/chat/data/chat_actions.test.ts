@@ -4453,12 +4453,16 @@ testMessagingImplementation<ChatId>(context, {
     async pingMessageStream(context, {roomKey: chatId, messageIndex}) {
         return pingChatMessageStream(context, {chatId, messageIndex});
     },
-    async putMessageStreamPart(context, {roomKey: chatId, messageIndex, partIndex, payload}) {
+    async putMessageStreamPart(
+        context,
+        {roomKey: chatId, messageIndex, partIndex, payload, isTimeoutErrorCompletion},
+    ) {
         return await putChatMessageStreamPart(context, {
             chatId,
             messageIndex,
             partIndex,
             payload,
+            isTimeoutErrorCompletion,
         });
     },
     async completeMessageStream(context, {roomKey: chatId, messageIndex}) {

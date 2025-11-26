@@ -162,13 +162,14 @@ testMessagingImplementation<PostId>(context, {
     },
     async putMessageStreamPart(
         context,
-        {roomKey: postId, messageIndex: commentIndex, partIndex, payload},
+        {roomKey: postId, messageIndex: commentIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
         return await putPostCommentStreamPart(context, {
             postId,
             commentIndex,
             partIndex,
             payload,
+            isTimeoutErrorCompletion,
         });
     },
     async completeMessageStream(context, {roomKey: postId, messageIndex: commentIndex}) {

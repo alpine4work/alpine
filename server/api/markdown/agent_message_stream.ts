@@ -185,6 +185,8 @@ export class AgentMessageStream {
     private async _parseTextIntoMarkdownParts(): Promise<Array<Array<BlockContent>>> {
         let text = this._text;
 
+        if (text.length === 0) return [];
+
         // If the text ends with an incomplete HTML tag then remove it from the text.
         // Expect to get the rest of our HTML tag later from the LLM.
         const incompleteHtmlTagMatch = text.match(

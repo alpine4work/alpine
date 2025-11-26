@@ -4,6 +4,7 @@ import {
     createApiClient,
     createApiMessage,
     getApiMessagesFromStart,
+    pingApiMessageStream,
     putApiMessageStreamPart,
 } from "~/server/agents/api/api_client.js";
 import {
@@ -32,13 +33,13 @@ import {
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
-import {startPingingApiMessageStream} from "~/server/agents/internal/messages/start_pinging_api_message_stream.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
-import {defaultAgentErrorText} from "~/shared/agents/default_agent_error_text.js";
+import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
+import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
 import {
     ApiMessageRoomPathObject,
     getApiMentionPathIfExists,
@@ -58,6 +59,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -324,17 +326,38 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         },
     });
 
+    let isCompleted = false;
+
     const updateThrottleMs = 100;
     let updateTimeout: Timeout | null = null;
     const updateMutex = new Mutex();
+
+    let pingInterval: Interval | null = null;
+    startPingInterval();
+
+    function startPingInterval() {
+        assert(pingInterval === null);
+
+        pingInterval = createInterval(() => {
+            void updateMutex.withLock(async () => {
+                await pingApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+            });
+        }, agentMessageStreamPingIntervalMs);
+    }
 
     const update = (
         newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
     ) => {
         void updateMutex.withLock(async () => {
-            await tracer.withSpan("Update message stream", async tracer => {
-                const putParts = await content.update(newPartPayloads);
+            const putParts = await content.update(newPartPayloads);
+            if (putParts.length === 0) return;
 
+            // Calling `putApiMessageStreamPart()` also pings the message stream. So cancel
+            // our current interval and re-schedule it after we've finished updating.
+            pingInterval?.clear();
+            pingInterval = null;
+
+            try {
                 // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
                 // more efficient than making two separate `PUT` requests when `update()`
                 // returns multiple parts.
@@ -362,7 +385,12 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
                         {payload: part.payload},
                     );
                 }
-            });
+            } finally {
+                // Start the ping timeout schedule again since we cleared the timeout earlier.
+                if (!isCompleted) {
+                    startPingInterval();
+                }
+            }
         });
     };
 
@@ -396,19 +424,19 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         },
     };
 
-    const interval = startPingingApiMessageStream(
-        tracer,
-        request.apiClient,
-        request.room,
-        messageIndex,
-    );
-
     try {
         await createChatGptAgentResponse(tracer, request, messageState);
     } catch (error) {
-        content.pushText(defaultAgentErrorText);
+        content.pushText(defaultAgentErrorDisplayMessage);
         throw error;
     } finally {
+        isCompleted = true;
+
+        // @ts-expect-error: TypeScript is dumb and doesn't realize we may have set
+        // `pingTimeout` to a value.
+        pingInterval?.clear();
+        pingInterval = null;
+
         // @ts-expect-error: TypeScript is dumb and doesn't realize
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
         // `updateTimeout`.
@@ -419,7 +447,6 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         await updateMutex.waitForUnlock();
 
         await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
-        interval.clear();
     }
 }
 

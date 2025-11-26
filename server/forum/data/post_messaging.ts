@@ -1,4 +1,4 @@
-import {addDays, addSeconds} from "date-fns";
+import {addDays} from "date-fns";
 import {Step} from "prosemirror-transform";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
@@ -7,7 +7,6 @@ import {
 import {
     ServerAccountActionContext,
     ServerActionContext,
-    ServerBotActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
@@ -33,8 +32,11 @@ import {
     createCantPingStaleMessageStreamError,
     createCantWriteToStaleMessageStreamError,
 } from "~/server/messaging/helpers/create_message_stream_errors.js";
-import {hasMessageStreamTimedOutOnServer} from "~/server/messaging/helpers/has_message_stream_timed_out_on_server.js";
-import {messageStreamIndexSearchEntityDelaySeconds} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {
+    messageStreamIndexSearchEntityDelaySeconds,
+    shouldScheduleMessageStreamIndexSearchEntityJob,
+} from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
     messagingEventExpirationDays,
@@ -44,7 +46,11 @@ import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
-import {getAccount, isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
+import {
+    authorizeOwnSpaceAccountAccess,
+    getAccount,
+    isAccountMemberOfSpace,
+} from "~/server/spaces/spaces_actions.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
@@ -63,7 +69,6 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -83,7 +88,11 @@ import {
     MessageStreamPartPayload,
     iterateMessageContentPayloadParentIndexes,
 } from "~/shared/messaging/message_schema.js";
-import {MessageUpdatesBackfillResult} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {
+    MessageUpdatesBackfillResult,
+    MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
+    MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -456,25 +465,29 @@ export async function createPostComment(
  * more granular part updates in the future.
  */
 export function putPostCommentStreamPart(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         postId,
         commentIndex,
         partIndex,
         payload,
         consistency,
+        isTimeoutErrorCompletion = false,
     }: {
         postId: PostId;
         commentIndex: number;
-        partIndex: number;
+        partIndex: number | "Create";
         payload: MessageStreamPartPayload;
         consistency?: DynamoCacheReadConsistency;
+        isTimeoutErrorCompletion?: boolean;
     },
-): Promise<{
-    spaceId: SpaceId;
-    version: number;
-    createdTime: Date;
-}> {
+): Promise<{spaceId: SpaceId; createdTime: Date}> {
+    if (isTimeoutErrorCompletion && context.actor.type !== "System") {
+        throw new PermissionDeniedError(
+            "Only system actors can complete a message stream after timeout",
+        );
+    }
+
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId}, item] = await runAllPromises([
             // Make sure the bot has access (and wasn't removed from the space).
@@ -498,34 +511,44 @@ export function putPostCommentStreamPart(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         if (item.completedTime !== null) {
+            // If the stream is already completed then noop.
+            if (isTimeoutErrorCompletion) return {spaceId, createdTime: new Date()};
+
             throw new FailedPreconditionError("The stream has already been completed", {
                 displayMessage: errorDisplayMessage`The stream has already been completed.`,
             });
         }
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (!isTimeoutErrorCompletion && hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantWriteToStaleMessageStreamError();
+        }
+
+        if (partIndex === "Create") {
+            partIndex = item.partCount;
         }
 
         // Use `Date.now()` so tests can mock the `Date.now()` function.
         const currentTime = new Date(Date.now());
 
+        const lastPingTime =
+            item.lastPingTime && currentTime <= item.lastPingTime
+                ? // NOTE(ifitzsimmons): This makes sure lastPingTime is always at least 1ms ahead of
+                  // the previous ping time. This is important if we have two different instances
+                  // processing pings with different clock skews.
+                  new Date(item.lastPingTime.getTime() + 1)
+                : currentTime;
+
         let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
 
         if (
-            isDatePossiblyLessThanWithUncertaintyWindow(
-                addSeconds(
-                    item.lastIndexSearchEntityJob.sendTime,
-                    item.lastIndexSearchEntityJob.delaySeconds,
-                ),
-                currentTime,
+            shouldScheduleMessageStreamIndexSearchEntityJob(
+                item.lastIndexSearchEntityJob,
+                lastPingTime,
             )
         ) {
             nextIndexSearchEntityJob = {
@@ -538,7 +561,8 @@ export function putPostCommentStreamPart(
 
         let createdTime: Date;
         if (partIndex === item.partCount) {
-            createdTime = new Date();
+            createdTime = currentTime;
+
             const createPartTransactionEntry = ForumTable.transactionCreateOrReplaceItem({
                 partitionType: "Post",
                 sortRangeType: "Comments#StreamPart",
@@ -556,10 +580,11 @@ export function putPostCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ForumTable.transactionDirectlyUpdateItem({
                     ...item,
+                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
                     partCount: partIndex + 1,
                     lastPartUpdateLockVersion: 0,
                     lastPartCreatedTime: createdTime,
-                    lastPingTime: createdTime,
+                    lastPingTime,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
                 }),
@@ -597,7 +622,8 @@ export function putPostCommentStreamPart(
             await DynamoTableSchema.executeTransaction(context, [
                 ForumTable.transactionDirectlyUpdateItem({
                     ...item,
-                    lastPingTime: createdTime,
+                    completedTime: isTimeoutErrorCompletion ? currentTime : null,
+                    lastPingTime,
                     lastPartUpdateLockVersion: item.lastPartUpdateLockVersion + 1,
                     lastIndexSearchEntityJob:
                         nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
@@ -622,7 +648,30 @@ export function putPostCommentStreamPart(
             );
         }
 
-        return {spaceId, version, createdTime};
+        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+        // sending this realtime event the user might not see an update to their
+        // message in realtime.
+        //
+        // Should we send this broadcast event in a DynamoDB Streams listener that
+        // reacts to the update? We plan to move `NotificationEvent`,
+        // `IndexSearchEntity`, and other processing that needs to reliably run after
+        // an updates to DynamoDB Streams.
+        context.process.waitUntil(
+            context.edge.broadcastToDurableObject(
+                `/api/durable-objects/posts/${postId}/broadcast-put-message-stream-part`,
+                {
+                    serviceName: "PostRealtimeService",
+                    route: "/api/durable-objects/posts/:postId/broadcast-put-message-stream-part",
+                    body: MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema.serialize({
+                        index: commentIndex,
+                        partIndex,
+                        part: {version, payload, createdTime},
+                    }),
+                },
+            ),
+        );
+
+        return {spaceId, createdTime};
     });
 }
 
@@ -633,7 +682,7 @@ export function putPostCommentStreamPart(
  * does nothing.
  */
 export function completePostCommentStream(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         postId,
         commentIndex,
@@ -670,18 +719,16 @@ export function completePostCommentStream(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         // Already completed!
         if (item.completedTime !== null) {
             return {spaceId, completedTime: item.completedTime};
         }
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantCompleteStaleMessageStreamError();
         }
 
@@ -693,6 +740,28 @@ export function completePostCommentStream(
             ...item,
             completedTime,
         });
+
+        // NOTE(calebmer): If the process dies after committing to DynamoDB but before
+        // sending this realtime event the user might not see an update to their
+        // message in realtime.
+        //
+        // Should we send this broadcast event in a DynamoDB Streams listener that
+        // reacts to the update? We plan to move `NotificationEvent`,
+        // `IndexSearchEntity`, and other processing that needs to reliably run after
+        // an updates to DynamoDB Streams.
+        context.process.waitUntil(
+            context.edge.broadcastToDurableObject(
+                `/api/durable-objects/posts/${postId}/broadcast-complete-message-stream`,
+                {
+                    serviceName: "PostRealtimeService",
+                    route: "/api/durable-objects/posts/:postId/broadcast-complete-message-stream",
+                    body: MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema.serialize({
+                        index: commentIndex,
+                        completedTime,
+                    }),
+                },
+            ),
+        );
 
         return {spaceId, completedTime};
     });
@@ -714,7 +783,7 @@ const PostCommentItemContextCache = new DynamoContextCache<
  * will update its `lastPingTime`.
  */
 export function pingPostCommentStream(
-    context: ServerBotActionContext,
+    context: ServerActionContext,
     {
         postId,
         commentIndex,
@@ -751,17 +820,15 @@ export function pingPostCommentStream(
             });
         }
 
-        if (item.authorId !== context.actor.getBotAccountId()) {
-            throw new PermissionDeniedError("Only the bot who created the stream can update it", {
-                displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
-            });
-        }
+        await authorizeOwnSpaceAccountAccess(context, item.authorId, {
+            displayMessage: errorDisplayMessage`Only the bot who created the stream can update it.`,
+        });
 
         if (item.completedTime !== null) {
             throw createCantPingCompletedMessageStreamError();
         }
 
-        if (hasMessageStreamTimedOutOnServer(item)) {
+        if (hasMessageStreamDefinitelyTimedOut(item)) {
             throw createCantPingStaleMessageStreamError();
         }
 
@@ -777,10 +844,43 @@ export function pingPostCommentStream(
                   new Date(item.lastPingTime.getTime() + 1)
                 : currentTime;
 
+        let nextIndexSearchEntityJob: {sendTime: Date; delaySeconds: number} | null = null;
+
+        // Our `IndexSearchEntity` job also serves to expire streams that haven't been
+        // updated in a while. So we need to re-schedule it when the stream is pinged.
+        if (
+            shouldScheduleMessageStreamIndexSearchEntityJob(
+                item.lastIndexSearchEntityJob,
+                lastPingTime,
+            )
+        ) {
+            nextIndexSearchEntityJob = {
+                sendTime: currentTime,
+                delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
+            };
+        }
+
         await ForumTable.directlyUpdateItem(context, {
             ...item,
             lastPingTime,
+            lastIndexSearchEntityJob: nextIndexSearchEntityJob ?? item.lastIndexSearchEntityJob,
         });
+
+        if (nextIndexSearchEntityJob) {
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "PostComment",
+                        postId,
+                        commentIndex,
+                        updatedTraits: {type: "Some", traits: []},
+                    },
+                },
+                {delaySeconds: nextIndexSearchEntityJob.delaySeconds},
+            );
+        }
 
         return {spaceId, lastPingTime};
     });
