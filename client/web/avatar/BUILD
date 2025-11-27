@@ -4,7 +4,7 @@ ts_project(
     name = "avatar",
     visibility = [
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     deps = [
         "//:node_modules/phosphor-react",

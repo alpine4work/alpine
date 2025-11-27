@@ -778,7 +778,7 @@ function createBuildFile(dirPath: string) {
         deps: finalDeps,
         testDeps: finalTestDeps,
         // eslint-disable-next-line string-quotes
-        visibilityRaw: `"//app:__subpackages__",\n        "//client:__subpackages__",`,
+        visibilityRaw: `"//app:__subpackages__",\n        "//client/web:__subpackages__",`,
     };
 
     const newContent = generateBuildFileContent(config);

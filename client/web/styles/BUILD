@@ -14,7 +14,7 @@ ts_project(
     ),
     visibility = [
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     deps = [
         # `:styles_bundle_file` as a dependency here adds `styles.css` to our runfiles

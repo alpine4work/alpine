@@ -4,7 +4,7 @@ ts_project(
     name = "design",
     visibility = [
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     deps = [
         "//:node_modules/@popperjs/core",

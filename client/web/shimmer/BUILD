@@ -4,7 +4,7 @@ ts_project(
     name = "shimmer",
     visibility = [
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     # IMPORTANT: This files in this package are included in the code bundle
     # downloaded for every space route. Try to keep it dependency light! Avoid

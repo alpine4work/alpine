@@ -13,7 +13,7 @@ ts_project(
     visibility = [
         "//admin/eslint:__pkg__",
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     deps = [
         "//:node_modules/@lume/kiwi",

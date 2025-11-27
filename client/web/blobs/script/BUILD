@@ -51,7 +51,7 @@ js_library(
     ],
     visibility = [
         "//app:__subpackages__",
-        "//client:__subpackages__",
+        "//client/web:__subpackages__",
     ],
     deps = [
         "//shared/error",
