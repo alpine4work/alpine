@@ -77,7 +77,6 @@ ts_playwright_tests(
         "//:node_modules/sharp",
         "//:node_modules/ws",
         "//admin/helpers",
-        "//admin/lambda/local/file_processor_service:lambda_runtime",
         "//app:app_lib",
         "//server/chat/test_helpers",
         "//server/documents/test_helpers",

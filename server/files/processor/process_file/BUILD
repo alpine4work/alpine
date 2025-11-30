@@ -4,11 +4,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 
 ts_project(
     name = "process_file",
-    visibility = [
-        "//admin/aws:__subpackages__",
-        "//admin/dev:__subpackages__",
-        "//admin/lambda/local/file_processor_service:__subpackages__",
-    ],
+    visibility = ["//server/files/processor:__subpackages__"],
     deps = [
         "//server/aws",
         "//server/context",
@@ -23,9 +19,9 @@ ts_project(
 aws_lambda(
     name = "process_file_lambda",
     srcs = [":process_file"],
+    base_image = "lambda_node22_libreoffice",
     entry_point = "process_file_lambda.js",
     visibility = ["//admin/aws:__pkg__"],
-    base_image = "lambda_node22_libreoffice",
 )
 
 production_transition(

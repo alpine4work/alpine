@@ -21,6 +21,7 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type Options = ServiceOptions<typeof options>;
+
 export const options = {
     port: {type: "string"},
     ...lambdaActionContextOptions,

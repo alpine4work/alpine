@@ -417,10 +417,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
         jobQueueServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
         fileProcessorServiceSubprocess = spawn(
-            joinPath(
-                runfilesPath,
-                "cyberworlds/admin/lambda/local/file_processor_service/lambda_runtime.sh",
-            ),
+            joinPath(runfilesPath, "cyberworlds/server/files/processor/processor.sh"),
             [
                 `--port=${fileProcessorServicePort}`,
                 `--sqsLocalPort=${context.getSqsLocalPort()}`,

@@ -4,10 +4,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 
 ts_project(
     name = "resize_file",
-    visibility = [
-        "//admin/dev:__subpackages__",
-        "//admin/lambda/local/file_processor_service:__subpackages__"
-    ],
+    visibility = ["//server/files/processor:__subpackages__"],
     deps = [
         "//server/aws",
         "//server/files/processor:processor_lib",
@@ -33,4 +30,3 @@ production_transition(
     target = ":resize_file_lambda",
     visibility = ["//admin/aws:__pkg__"],
 )
-

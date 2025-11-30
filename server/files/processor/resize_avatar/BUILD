@@ -4,11 +4,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 
 ts_project(
     name = "resize_avatar",
-    visibility = [
-        "//admin/aws:__subpackages__",
-        "//admin/dev:__subpackages__",
-        "//admin/lambda/local/file_processor_service:__subpackages__",
-    ],
+    visibility = ["//server/files/processor:__subpackages__"],
     deps = [
         "//:node_modules/sharp",
         "//server/aws",

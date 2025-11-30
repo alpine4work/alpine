@@ -5,8 +5,17 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 exports_files(glob(["test_fixtures/*"]))
 
+LOCAL_SRCS = [
+    "file_processor_local_service.ts",
+    "file_processor_local_service_main.ts",
+]
+
 ts_project(
     name = "processor_lib",
+    srcs = glob(
+        ["**/*.ts"],
+        exclude = LOCAL_SRCS + ["**/*.test.ts"],
+    ),
     data = ["@ffmpeg"],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
@@ -37,12 +46,7 @@ ts_project(
             "size": "medium",
         },
     },
-    visibility = [
-        "//admin/lambda/local/file_processor_service:__pkg__",
-        "//server/files/processor/process_file:__pkg__",
-        "//server/files/processor/resize_file:__pkg__",
-        "//server/files/processor/test_helpers:__pkg__",
-    ],
+    visibility = ["//server/files/processor:__subpackages__"],
     deps = [
         "//:node_modules/@lezer/common",
         "//:node_modules/@lezer/highlight",
@@ -73,7 +77,7 @@ ts_project(
 )
 
 js_binary(
-    name = "processor",
+    name = "processor_legacy",
     data = [":processor_lib"],
     entry_point = "file_processor_service_main.js",
     visibility = ["//app/integration_tests:__pkg__"],
@@ -81,7 +85,7 @@ js_binary(
 
 js_image_layer(
     name = "processor_image_layer",
-    binary = ":processor",
+    binary = ":processor_legacy",
     root = "/var/www",
 )
 
@@ -135,4 +139,35 @@ production_transition(
     name = "processor_image_tarball_production",
     target = ":processor_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
+)
+
+ts_project(
+    name = "processor_local_lib",
+    srcs = LOCAL_SRCS,
+    # We lint and format everything with the above `ts_project()`.
+    lint_and_format_srcs = [],
+    test_srcs = [],
+    deps = [
+        ":processor_lib",
+        "//admin/lambda/local",
+        "//server/files/processor/process_file",
+        "//server/files/processor/resize_avatar",
+        "//server/files/processor/resize_file",
+        "//server/helpers/node",
+        "//server/lambda",
+        "//server/node",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/tracer",
+    ],
+)
+
+js_binary(
+    name = "processor",
+    data = [":processor_local_lib"],
+    entry_point = "file_processor_local_service_main.js",
+    visibility = [
+        "//admin/dev:__pkg__",
+        "//app/integration_tests:__pkg__",
+    ],
 )

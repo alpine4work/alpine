@@ -522,8 +522,8 @@ function createArtifacts() {
             server: new MutexValue<ArtifactServer | null>(null),
         },
         {
-            bazelTarget: "//admin/lambda/local/file_processor_service:lambda_runtime",
-            executablePath: "admin/lambda/local/file_processor_service/lambda_runtime.sh",
+            bazelTarget: "//server/files/processor",
+            executablePath: "server/files/processor/processor.sh",
             stdioPrefix: "flp",
             ports: {
                 publicPort: fileProcessorDevPort,

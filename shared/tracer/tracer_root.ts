@@ -63,7 +63,6 @@ export type TracerServiceName =
     | "TaskRealtimeService"
     | "JobQueueService"
     | "FileProcessorService"
-    | "FileProcessorLocalService"
     | "ApiService"
     | "AgentService"
     | "ChatGptAgentService"
