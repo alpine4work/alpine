@@ -7263,7 +7263,7 @@ Resources:
         Properties:
             ContainerDefinitions:
                 - Command:
-                      - /var/www/server/files/processor/processor
+                      - /var/www/server/files/processor/processor_legacy
                       - --port=4000
                       - --temporaryDirectoryPath=/var/www-data/files
                       - --edgeServiceUrl=https://alpine.inc

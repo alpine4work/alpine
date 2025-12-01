@@ -380,7 +380,7 @@ export class AwsFileProcessorService extends Construct {
                 //
                 // `runService()` implements env variable substitution which is why we can use
                 // env variable syntax like `$HONEYCOMB_API_KEY`.
-                "/var/www/server/files/processor/processor",
+                "/var/www/server/files/processor/processor_legacy",
                 `--port=${port}`,
                 "--temporaryDirectoryPath=/var/www-data/files",
                 "--edgeServiceUrl=https://alpine.inc",
