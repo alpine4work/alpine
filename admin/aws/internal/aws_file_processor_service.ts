@@ -410,7 +410,7 @@ export class AwsFileProcessorService extends Construct {
                     // perform healthcheck.
                     //
                     // eslint-disable-next-line string-quotes
-                    `/var/www/server/files/processor/processor.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
+                    `/var/www/server/files/processor/processor_legacy.runfiles/nodejs_linux_arm64/bin/nodejs/bin/node --input-type module --eval "const response = await fetch('http://localhost:${port}/healthcheck'); if (!response.ok) { throw new Error('Healthcheck failed') }"`,
                 ],
             },
         });
