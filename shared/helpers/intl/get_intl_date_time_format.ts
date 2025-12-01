@@ -1,7 +1,7 @@
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
-let intlDateTimeFormatByOptions: {[key: string]: Intl.DateTimeFormat} | undefined;
+let intlDateTimeFormatByOptions: Map<string, Intl.DateTimeFormat> | undefined;
 
 export type IntlDateTimeFormatOptions = {
     readonly locale: Locale;
@@ -35,20 +35,26 @@ export function getIntlDateTimeFormat({
     minute,
     second,
 }: IntlDateTimeFormatOptions): Intl.DateTimeFormat {
-    intlDateTimeFormatByOptions ??= {};
+    intlDateTimeFormatByOptions ??= new Map();
 
     const optionsString = `${locale},${timeZone},${year ?? ""},${month ?? ""},${day ?? ""},${
         weekday ?? ""
     },${hour ?? ""},${minute ?? ""},${second ?? ""}`;
 
-    return (intlDateTimeFormatByOptions[optionsString] ??= new Intl.DateTimeFormat(locale, {
-        timeZone,
-        year,
-        month,
-        day,
-        weekday,
-        hour,
-        minute,
-        second,
-    }));
+    let intlDateTimeFormat = intlDateTimeFormatByOptions.get(optionsString);
+    if (intlDateTimeFormat === undefined) {
+        intlDateTimeFormat = new Intl.DateTimeFormat(locale, {
+            timeZone,
+            year,
+            month,
+            day,
+            weekday,
+            hour,
+            minute,
+            second,
+        });
+        intlDateTimeFormatByOptions.set(optionsString, intlDateTimeFormat);
+    }
+
+    return intlDateTimeFormat;
 }
