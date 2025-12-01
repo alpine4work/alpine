@@ -1,5 +1,5 @@
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
-import {agentDocumentPageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {agentInitialDocumentPageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentDocumentPageLink,
@@ -92,6 +92,7 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
     let currentPageStartIndex = 0;
     let currentPageTokenCount = 0;
     let currentPageNumber = 1;
+    let tokenLimitForPage = agentInitialDocumentPageTokenLimitCount;
 
     for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
@@ -102,7 +103,7 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
         // If adding this element would exceed the limit and we have at least one element,
         // create a page boundary
         if (
-            currentPageTokenCount + elementTokenCount > agentDocumentPageTokenLimitCount &&
+            currentPageTokenCount + elementTokenCount > tokenLimitForPage &&
             i > currentPageStartIndex
         ) {
             pageBoundaries.push({
@@ -114,6 +115,18 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
             currentPageStartIndex = i;
             currentPageTokenCount = elementTokenCount;
             currentPageNumber += 1;
+
+            // Similar to the way we increase page sizes when paginating through messages, we'll also
+            // increase each subsequent document page size. Since we store the whole document in memory
+            // on first read, we bake the exponential page growth into the page creation process.
+            //
+            // The agent spends reasoning tokens between page reads trying to decide whether to read more
+            // or to stop. If the agent is trying to pull in a lot of context that requires paginating
+            // through many pages, it will spend a lot of unnecessary reasoning tokens.
+            //
+            // By increasing the token exponentially as it paginates, we can spend less reasoning tokens
+            // and return results faster.
+            tokenLimitForPage = Math.floor(tokenLimitForPage * 1.5);
         } else {
             currentPageTokenCount += elementTokenCount;
         }

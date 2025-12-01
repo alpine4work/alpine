@@ -97,6 +97,7 @@ describe("loadAgentMessagesListLinkContent", () => {
                 label: "Hello!",
                 pageInfo: {from: "Start", index: 0},
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
 
             const result = await storage.transaction(async transaction => {
@@ -160,6 +161,7 @@ Hello!
                 label: "Hello!",
                 pageInfo: {from: "Start", index: 0},
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
 
             const result = await storage.transaction(async transaction => {
@@ -255,6 +257,7 @@ Hello hello!
                 label: "Hello!",
                 pageInfo: {from: "Start", index: 0},
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
 
             const result = await storage.transaction(async transaction => {
@@ -339,6 +342,7 @@ Hello David!
             label: "Looks comprehensive!",
             pageInfo: {from: "Start", index: 0},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {
@@ -398,6 +402,7 @@ Thanks Alice!
             label: "Started implementation!",
             pageInfo: {from: "Start", index: 0},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {

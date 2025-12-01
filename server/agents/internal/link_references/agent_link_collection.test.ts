@@ -560,6 +560,7 @@ describe("createAgentLink", () => {
                     rootMessage: {
                         dedupeNumber: 1,
                     },
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage1Page2Link)).toBe(
                     "/chat/ian-hello-world?page=2",
@@ -579,6 +580,7 @@ describe("createAgentLink", () => {
                     rootMessage: {
                         dedupeNumber: 2,
                     },
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage2Page2Link)).toBe(
                     "/chat/ian-hello-world-2?page=2",
@@ -597,6 +599,7 @@ describe("createAgentLink", () => {
                         dedupeNumber: 1,
                     },
                     dedupeNumber: 2,
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage1Page2WithNewStartIndex)).toBe(
                     "/chat/ian-hello-world?page=2&version=2",
@@ -615,6 +618,7 @@ describe("createAgentLink", () => {
                         dedupeNumber: 2,
                     },
                     dedupeNumber: 2,
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage2Page2WithNewStartIndex)).toBe(
                     "/chat/ian-hello-world-2?page=2&version=2",
@@ -656,6 +660,7 @@ describe("createAgentLink", () => {
                     rootMessage: {
                         dedupeNumber: 1,
                     },
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage1Page2Link)).toBe(
                     "/chat/ian-hello-world?chunk=1",
@@ -675,6 +680,7 @@ describe("createAgentLink", () => {
                     rootMessage: {
                         dedupeNumber: 2,
                     },
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage2Page2Link)).toBe(
                     "/chat/ian-hello-world-2?chunk=1",
@@ -693,6 +699,7 @@ describe("createAgentLink", () => {
                         dedupeNumber: 1,
                     },
                     dedupeNumber: 2,
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage1Page2WithNewStartIndex)).toBe(
                     "/chat/ian-hello-world?chunk=1&version=2",
@@ -711,6 +718,7 @@ describe("createAgentLink", () => {
                         dedupeNumber: 2,
                     },
                     dedupeNumber: 2,
+                    tokenLimitForPage: 1500, // 1000 * 1.5
                 });
                 expect(printAgentLinkPath(chatMessage2Page2WithNewStartIndex)).toBe(
                     "/chat/ian-hello-world-2?chunk=1&version=2",

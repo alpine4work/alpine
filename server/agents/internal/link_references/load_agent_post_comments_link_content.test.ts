@@ -296,6 +296,7 @@ ${"This is a comment on the post.".repeat(200)}
                     pageInfo: {from: "Middle", index: 1},
                     rootMessage: null,
                     label: "Hi Alice, how are you?",
+                    tokenLimitForPage: 1000,
                 },
                 conversationState,
             });
@@ -383,6 +384,7 @@ ${"Hi Alice, how are you?".repeat(200)}
             label: "Nice post!",
             pageInfo: {from: "Start", index: 0},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {
@@ -485,6 +487,7 @@ Nice post!
             label: "Third comment!",
             pageInfo: {from: "End", index: 2},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {
@@ -591,6 +594,7 @@ Third comment!
             label: "Third comment!",
             pageInfo: {from: "Middle", index: 3},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {
@@ -678,6 +682,7 @@ ${"Fourth comment!".repeat(200)}
             label: "Exciting stuff!",
             pageInfo: {from: "End", index: 4},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {
@@ -756,6 +761,7 @@ Thanks Alice!
             label: "First comment!",
             pageInfo: {from: "Start", index: 0},
             rootMessage: null,
+            tokenLimitForPage: 1000,
         };
 
         const result = await storage.transaction(async transaction => {

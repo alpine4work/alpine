@@ -80,14 +80,11 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     });
 
     test("creates multiple pages for long document", async () => {
-        // Create a document with enough content for 3 pages
-        // Each page should have ~1000 tokens, so we need ~4000 characters per page
-        const longText = "a".repeat(12000);
         const content: ApiContentResponse = {
             elements: [
-                createParagraphElement(longText), // Page 1
-                createParagraphElement(longText), // Page 2
-                createParagraphElement(longText), // Page 3
+                createParagraphElement("a".repeat(12000)), // Page 1
+                createParagraphElement("a".repeat(18000)), // Page 2
+                createParagraphElement("a".repeat(27000)), // Page 3
             ],
         };
 
@@ -146,6 +143,59 @@ describe("createDocumentPagesAndGetFirstPage", () => {
                 nextPageAgentLinkString: null,
                 previousPageAgentLinkString: null,
                 pageStartElementIndex: 2,
+                pageEndElementIndexExclusive: 3,
+            },
+        });
+    });
+
+    test("creates multiple pages for long document with exponential page size growth", async () => {
+        const content: ApiContentResponse = {
+            elements: [
+                createParagraphElement("a".repeat(12000)), // Page 1
+                createParagraphElement("a".repeat(12000)), // Page 2
+                createParagraphElement("a".repeat(12000)), // Page 2
+            ],
+        };
+
+        const documentKey = await putAgentLocalDocumentContent(storage, documentId, content);
+
+        const firstPage = await createAgentDocumentPagesAndReturnFirstPage(storage, {
+            documentKey,
+            originalLinkPathObject: {
+                type: "DocumentPage",
+                documentId,
+                title: "Long Document",
+                localDocumentPage: null,
+            },
+        });
+
+        expect(firstPage).toEqual({
+            type: "DocumentPage",
+            documentId,
+            title: "Long Document",
+            localDocumentPage: {
+                documentKey,
+                pageNumber: 1,
+                localDocumentVersion: 1,
+                nextPageAgentLinkString: "/document/long-document?page=2",
+                previousPageAgentLinkString: null,
+                pageStartElementIndex: 0,
+                pageEndElementIndexExclusive: 1,
+            },
+        });
+
+        const secondPage = await getAgentLink(storage, "/document/long-document?page=2");
+        expect(secondPage).toEqual({
+            type: "DocumentPage",
+            documentId,
+            title: "Long Document",
+            localDocumentPage: {
+                documentKey,
+                pageNumber: 2,
+                localDocumentVersion: 1,
+                nextPageAgentLinkString: null,
+                previousPageAgentLinkString: null,
+                pageStartElementIndex: 1,
                 pageEndElementIndexExclusive: 3,
             },
         });

@@ -92,6 +92,7 @@ describe("printAgentLinkPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/chat/ian-how-is-everyone-doing");
         });
@@ -108,6 +109,7 @@ describe("printAgentLinkPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/post/ian-great-update");
         });
@@ -124,6 +126,7 @@ describe("printAgentLinkPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/task-comments/ian-working-on-it");
         });
@@ -143,6 +146,7 @@ describe("printAgentLinkPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/document-thread/ian-this-looks-great");
         });
@@ -161,6 +165,7 @@ describe("printAgentLinkPath", () => {
                 },
                 label: "Ian: hello",
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/chat/ian-hello?page=5");
         });
@@ -180,6 +185,7 @@ describe("printAgentLinkPath", () => {
                 rootMessage: {
                     dedupeNumber: 3,
                 },
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/chat/ian-hello-3?page=5&version=2");
         });
@@ -196,6 +202,7 @@ describe("printAgentLinkPath", () => {
                     index: 5,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/chat/ian-hello?chunk=-10");
         });
@@ -213,6 +220,7 @@ describe("printAgentLinkPath", () => {
                     index: 3,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/document-thread/ian-this-looks-great?page=3");
         });
@@ -230,6 +238,7 @@ describe("printAgentLinkPath", () => {
                     index: 7,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/post/ian-great-update-2?chunk=7&version=2");
         });
@@ -246,6 +255,7 @@ describe("printAgentLinkPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentLinkPath(link)).toBe("/task-comments/ian-hello");
         });
@@ -477,6 +487,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printApiPathForAgentLink(link)).toBe(`/chats/${chatId}/messages`);
         });
@@ -524,6 +535,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printApiPathForAgentLink(link)).toBe(`/chats/${chatId}/messages`);
         });
@@ -540,6 +552,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printApiPathForAgentLink(link)).toBe(`/posts/${postId}/messages`);
         });
@@ -556,6 +569,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printApiPathForAgentLink(link)).toBe(`/tasks/${taskId}/messages`);
         });
@@ -575,6 +589,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                     index: -3,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printApiPathForAgentLink(link)).toBe(
                 `/documents/${documentId}/threads/${commentThreadId}/messages`,
@@ -656,6 +671,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Alice, Bob, and 2 others");
         });
@@ -723,6 +739,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: how is everyone doing?");
         });
@@ -739,6 +756,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: great update!");
         });
@@ -755,6 +773,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: working on it");
         });
@@ -774,6 +793,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: -3,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: this looks great!");
         });
@@ -792,6 +812,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: hello");
         });
@@ -809,6 +830,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: -3,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: this looks great!");
         });
@@ -825,6 +847,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 0,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: great update!");
         });
@@ -841,6 +864,7 @@ describe("printAgentPlainTextLabel", () => {
                     index: 1,
                 },
                 rootMessage: null,
+                tokenLimitForPage: 1000,
             };
             expect(printAgentPlainTextLabel(link)).toBe("Ian: great update!");
         });

@@ -1,6 +1,5 @@
 import {Link, Paragraph, PhrasingContent, Root, RootContent, Text} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {agentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {
@@ -163,7 +162,7 @@ async function getMarkdownContentForPageFromStart({
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
                 startingIndex: cursorOptions.index,
-                limitTokenCount: agentMessagePageTokenLimitCount,
+                limitTokenCount: link.tokenLimitForPage,
             },
         ),
         isFirstPage ? getPostAgentMessage(transaction, request, post, conversationState) : null,
@@ -221,7 +220,7 @@ async function getMarkdownContentForPageFromEnd({
         parseApiMessageRoomPath(getMessageRoomPath(link)),
         {
             startingIndex: cursorOptions.index,
-            limitTokenCount: agentMessagePageTokenLimitCount,
+            limitTokenCount: link.tokenLimitForPage,
         },
     );
 
@@ -285,7 +284,7 @@ async function getMarkdownContentForPageFromMiddle({
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
                 startingIndex: cursorOptions.index - 1,
-                limitTokenCount: agentMessagePageTokenLimitCount / 2,
+                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
         );
 
@@ -303,7 +302,7 @@ async function getMarkdownContentForPageFromMiddle({
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
                 startingIndex: cursorOptions.index,
-                limitTokenCount: agentMessagePageTokenLimitCount / 2,
+                limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
         );
 

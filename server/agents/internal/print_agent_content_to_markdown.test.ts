@@ -2,6 +2,7 @@
 
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {defaultAgentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
@@ -302,6 +303,7 @@ test("mixed mentions and external links", async () => {
                     pageNumber: 1,
                     paginationType: "page",
                     rootMessage: null,
+                    tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
                 },
             ],
         ]),
@@ -835,6 +837,7 @@ test("dedupes by entity and label combination", async () => {
                     pageNumber: 1,
                     paginationType: "page",
                     rootMessage: null,
+                    tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
                 },
             ],
             [

@@ -46,6 +46,20 @@ type AgentLinkPaginatedMessagesListCommonOptions<
 
     readonly dedupeNumber?: number;
 
+    /**
+     * When loading messages for a page, we specify the maximum number of tokens that we should
+     * load. As the agent paginates through a list of pages, we increase the token limit for
+     * each subsequent page by a factor of 1.5.
+     *
+     * The agent spends reasoning tokens between page reads trying to decide whether to read more
+     * or to stop. If the agent is trying to pull in a lot of context that requires paginating
+     * through many pages, it will spend a lot of unnecessary reasoning tokens.
+     *
+     * By increasing the token exponentially as it paginates, we can spend less reasoning tokens
+     * and return results faster.
+     */
+    readonly tokenLimitForPage: number;
+
     // NOTE(ifitzsimmons, #dedupe-message-labels): Let's say we have two chat messages
     // come in, bot with the label "Hello world". We would create links with paths
     // "/chat/hello-world" (Link A) and "/chat/hello-world-2" (Link B). We then deduplicate

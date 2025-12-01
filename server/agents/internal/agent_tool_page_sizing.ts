@@ -7,7 +7,7 @@
  *
  * [1]: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
  */
-export const agentDocumentPageTokenLimitCount = 2000;
+export const agentInitialDocumentPageTokenLimitCount = 2000;
 
 /**
  * This is roughly 750 words per page based on the estimated
@@ -18,7 +18,7 @@ export const agentDocumentPageTokenLimitCount = 2000;
  *
  * [1]: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
  */
-export const agentMessagePageTokenLimitCount = 1000;
+export const defaultAgentMessagePageTokenLimitCount = 1000;
 
 /**
  * The initial token limit for messages to include in context. This is based on
