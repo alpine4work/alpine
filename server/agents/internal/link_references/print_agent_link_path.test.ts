@@ -89,7 +89,7 @@ describe("printAgentLinkPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -106,7 +106,7 @@ describe("printAgentLinkPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -123,7 +123,7 @@ describe("printAgentLinkPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -143,7 +143,7 @@ describe("printAgentLinkPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -484,7 +484,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -532,7 +532,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -549,7 +549,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -566,7 +566,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -668,7 +668,7 @@ describe("printAgentPlainTextLabel", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -736,7 +736,7 @@ describe("printAgentPlainTextLabel", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -753,7 +753,7 @@ describe("printAgentPlainTextLabel", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -770,7 +770,7 @@ describe("printAgentPlainTextLabel", () => {
                 pageNumber: 1,
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,
@@ -809,7 +809,7 @@ describe("printAgentPlainTextLabel", () => {
                 label: "Ian: hello",
                 pageInfo: {
                     from: "Start",
-                    index: 0,
+                    cursor: null,
                 },
                 rootMessage: null,
                 tokenLimitForPage: 1000,

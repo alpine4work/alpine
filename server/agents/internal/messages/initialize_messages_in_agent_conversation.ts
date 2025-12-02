@@ -35,7 +35,7 @@ export async function loadMessagesListLinkContent(options: {
     const commonLinkOptions = {
         paginationType: "page",
         pageNumber: 1,
-        pageInfo: {from: "End", index: options.request.event.index},
+        pageInfo: {from: "End", cursor: options.request.event.index + 1},
         tokenLimitForPage: agentInitializeMessagesTokenLimitCount,
         rootMessage: null,
         isMessageRoomPage: true,

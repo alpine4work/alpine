@@ -6,10 +6,10 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
- * Given an *end range __inclusive__* index, get all messages before that index within a provided
- * token limit (including the message at the index).
+ * Get all messages before the cursor within a provided token limit (including
+ * the message at the cursor).
  *
- * Returns null if the conversation is empty. Also returns the next end range __exclusive index.
+ * Returns null if the conversation is empty. Also returns the next cursor.
  */
 export async function getAgentMessagesFromEndUntilLimitTokenCount(
     tracer: TracerBase,
@@ -17,12 +17,12 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
     apiClient: ApiClient,
     spaceId: SpaceId,
     roomPathObject: ApiMessageRoomPathObject,
-    {startingIndex, limitTokenCount}: {startingIndex: number; limitTokenCount: number},
+    {startingCursor, limitTokenCount}: {startingCursor: number; limitTokenCount: number},
 ): Promise<{
     messages: Array<AgentMessage>;
     nextCursor: number | null;
 }> {
-    let cursor: number | null = startingIndex + 1;
+    let cursor: number | null = startingCursor;
     let totalTokenCount = 0;
     const messages: Array<AgentMessage> = [];
 

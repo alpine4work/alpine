@@ -141,7 +141,7 @@ async function getMarkdownContentForPageFromStart({
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "Start";
-        index: number;
+        cursor: number | null;
     };
     post: ApiPostResponse;
 }): Promise<{
@@ -151,7 +151,7 @@ async function getMarkdownContentForPageFromStart({
     // If we are loading the first page of post comments, we should load the post as
     // well. Any time a post is referenced, it will be stored as the first page of
     // comments for that post.
-    const isFirstPage = cursorOptions.index === 0;
+    const isFirstPage = cursorOptions.cursor === null;
 
     const [{messages, nextCursor}, originalPostMessage] = await runAllPromises([
         getAgentMessagesFromStartUntilTokenLimitCount(
@@ -161,7 +161,7 @@ async function getMarkdownContentForPageFromStart({
             request.spaceId,
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
-                startingIndex: cursorOptions.index,
+                startingCursor: cursorOptions.cursor,
                 limitTokenCount: link.tokenLimitForPage,
             },
         ),
@@ -205,7 +205,7 @@ async function getMarkdownContentForPageFromEnd({
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {
         from: "End";
-        index: number;
+        cursor: number;
     };
     post: ApiPostResponse;
 }): Promise<{
@@ -219,7 +219,7 @@ async function getMarkdownContentForPageFromEnd({
         request.spaceId,
         parseApiMessageRoomPath(getMessageRoomPath(link)),
         {
-            startingIndex: cursorOptions.index,
+            startingCursor: cursorOptions.cursor,
             limitTokenCount: link.tokenLimitForPage,
         },
     );
@@ -283,7 +283,8 @@ async function getMarkdownContentForPageFromMiddle({
             request.spaceId,
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
-                startingIndex: cursorOptions.index - 1,
+                // get everything before current index
+                startingCursor: cursorOptions.index,
                 limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
         );
@@ -301,7 +302,8 @@ async function getMarkdownContentForPageFromMiddle({
             request.spaceId,
             parseApiMessageRoomPath(getMessageRoomPath(link)),
             {
-                startingIndex: cursorOptions.index,
+                // get everything after and including current index
+                startingCursor: cursorOptions.index - 1,
                 limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
         );

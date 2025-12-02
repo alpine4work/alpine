@@ -242,7 +242,7 @@ export async function createAgentLink(
         const pageNumber = paginationType === "page" ? 1 : 0;
         const pageInfo: AgentLinkPaginatedMessagesListPageInfo =
             paginationType === "page"
-                ? {from: "Start", index: 0}
+                ? {from: "Start", cursor: null}
                 : {from: "Middle", index: messageIndex};
 
         return {paginationType, pageNumber, pageInfo};

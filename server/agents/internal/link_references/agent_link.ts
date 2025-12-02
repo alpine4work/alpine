@@ -27,7 +27,7 @@ export type AgentLinkPaginationType = "page" | "chunk";
 export type AgentLinkPaginatedMessagesListPageInfo =
     | {
           readonly from: "Start";
-          readonly index: number;
+          readonly cursor: number | null;
       }
     | {
           readonly from: "Middle";
@@ -35,7 +35,7 @@ export type AgentLinkPaginatedMessagesListPageInfo =
       }
     | {
           readonly from: "End";
-          readonly index: number;
+          readonly cursor: number;
       };
 type AgentLinkPaginatedMessagesListCommonOptions<
     PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,

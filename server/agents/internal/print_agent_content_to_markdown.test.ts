@@ -298,7 +298,7 @@ test("mixed mentions and external links", async () => {
                     label: "This Post",
                     pageInfo: {
                         from: "Start",
-                        index: 0,
+                        cursor: null,
                     },
                     pageNumber: 1,
                     paginationType: "page",
@@ -832,7 +832,7 @@ test("dedupes by entity and label combination", async () => {
                     label: "Task",
                     pageInfo: {
                         from: "Start",
-                        index: 0,
+                        cursor: null,
                     },
                     pageNumber: 1,
                     paginationType: "page",

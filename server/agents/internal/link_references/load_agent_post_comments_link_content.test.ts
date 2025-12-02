@@ -382,7 +382,7 @@ ${"Hi Alice, how are you?".repeat(200)}
             paginationType: "page",
             pageNumber: 0,
             label: "Nice post!",
-            pageInfo: {from: "Start", index: 0},
+            pageInfo: {from: "Start", cursor: null},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };
@@ -485,7 +485,7 @@ Nice post!
             paginationType: "chunk",
             pageNumber: 0,
             label: "Third comment!",
-            pageInfo: {from: "End", index: 2},
+            pageInfo: {from: "End", cursor: 3},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };
@@ -680,7 +680,7 @@ ${"Fourth comment!".repeat(200)}
             paginationType: "chunk",
             pageNumber: 0,
             label: "Exciting stuff!",
-            pageInfo: {from: "End", index: 4},
+            pageInfo: {from: "End", cursor: 5},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };
@@ -759,7 +759,7 @@ Thanks Alice!
             paginationType: "page",
             pageNumber: 0,
             label: "First comment!",
-            pageInfo: {from: "Start", index: 0},
+            pageInfo: {from: "Start", cursor: null},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };

@@ -95,7 +95,7 @@ describe("loadAgentMessagesListLinkContent", () => {
                 paginationType: "page",
                 pageNumber: 0,
                 label: "Hello!",
-                pageInfo: {from: "Start", index: 0},
+                pageInfo: {from: "Start", cursor: null},
                 rootMessage: null,
                 tokenLimitForPage: 1000,
             };
@@ -159,7 +159,7 @@ Hello!
                 paginationType: "page",
                 pageNumber: 0,
                 label: "Hello!",
-                pageInfo: {from: "Start", index: 0},
+                pageInfo: {from: "Start", cursor: null},
                 rootMessage: null,
                 tokenLimitForPage: 1000,
             };
@@ -255,7 +255,7 @@ Hello hello!
                 paginationType: "page",
                 pageNumber: 0,
                 label: "Hello!",
-                pageInfo: {from: "Start", index: 0},
+                pageInfo: {from: "Start", cursor: null},
                 rootMessage: null,
                 tokenLimitForPage: 1000,
             };
@@ -340,7 +340,7 @@ Hello David!
             paginationType: "page",
             pageNumber: 0,
             label: "Looks comprehensive!",
-            pageInfo: {from: "Start", index: 0},
+            pageInfo: {from: "Start", cursor: null},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };
@@ -400,7 +400,7 @@ Thanks Alice!
             paginationType: "page",
             pageNumber: 0,
             label: "Started implementation!",
-            pageInfo: {from: "Start", index: 0},
+            pageInfo: {from: "Start", cursor: null},
             rootMessage: null,
             tokenLimitForPage: 1000,
         };
