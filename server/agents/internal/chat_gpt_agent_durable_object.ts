@@ -267,7 +267,12 @@ async function initializeInChatGptAgentConversationIfNeeded(
         conversation,
     );
 
-    await initializeMessagesInAgentConversation(tracer, transaction, request, conversation);
+    await initializeMessagesInAgentConversation({
+        tracer,
+        transaction,
+        request,
+        conversation,
+    });
 
     assert(conversation.getState().lastMessageIndex !== null);
 }

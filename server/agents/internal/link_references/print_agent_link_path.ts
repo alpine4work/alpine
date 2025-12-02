@@ -9,6 +9,10 @@ import {ApiPath} from "~/shared/api/parse_api_path.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function printAgentLinkPath(link: AgentLink) {
+    if (isLinkMessageRoomPage(link)) {
+        return `/room`;
+    }
+
     switch (link.type) {
         case "Account": {
             const label = dedupeAgentLinkPath(link.name, link.dedupeNumber);
@@ -189,6 +193,24 @@ export function printAgentPlainTextLabel(link: AgentLink): string {
         case "TaskCollection": {
             return link.name;
         }
+        default:
+            throw exhaustive(link);
+    }
+}
+
+function isLinkMessageRoomPage(link: AgentLink): boolean {
+    switch (link.type) {
+        case "ChatMessages":
+        case "DocumentCommentThreadComments":
+        case "TaskComments":
+        case "PostComments":
+            return !!link.isMessageRoomPage;
+        case "Account":
+        case "Channel":
+        case "DocumentPage":
+        case "Task":
+        case "TaskCollection":
+            return false;
         default:
             throw exhaustive(link);
     }

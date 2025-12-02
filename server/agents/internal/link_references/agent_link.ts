@@ -110,6 +110,8 @@ type AgentLinkPaginatedMessagesListCommonOptions<
     readonly rootMessage: {
         readonly dedupeNumber: number;
     } | null;
+
+    readonly isMessageRoomPage?: boolean;
 };
 
 export type AgentTaskCommentsPageLink<
