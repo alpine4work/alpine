@@ -8334,7 +8334,7 @@ test("identical adjacent marks in simple table cell", async () => {
             ],
         },
         `\
-| <mark class="highlight-red"> </mark><mark class="highlight-red"> </mark> | |
+| <mark class="highlight-red">  </mark> | |
 | - | - |
 `,
     );
@@ -8502,6 +8502,257 @@ test("less than or not equals in link URL", async () => {
         },
         `\
 [ ](\\≮)
+`,
+    );
+});
+
+test("comment mark mixed with other marks", async () => {
+    const threadId = generateId<DocumentCommentThreadId>();
+
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Next, something outrageous happened. "},
+                        {
+                            type: "Text",
+                            text: "The Eagles sought to defend ",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                        {
+                            type: "Text",
+                            text: "their title",
+                            marks: [
+                                {type: "Comment", threadId},
+                                {type: "Link", url: "https://example.com"},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: " (and honor) in the 2025-2026 season. They promoted a ",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                        {
+                            type: "Text",
+                            text: "mere",
+                            marks: [{type: "Comment", threadId}, {type: "Italic"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                        {
+                            type: "Text",
+                            text: "squire",
+                            marks: [{type: "Comment", threadId}, {type: "Bold"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " to the ",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                        {
+                            type: "Text",
+                            text: "captain",
+                            marks: [{type: "Comment", threadId}, {type: "Strike"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " of their ",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                        {
+                            type: "Text",
+                            text: "army",
+                            marks: [
+                                {type: "Comment", threadId},
+                                {type: "Highlight", color: "Red"},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: ".",
+                            marks: [{type: "Comment", threadId}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+Next, something outrageous happened. <mark data-comment="${threadId}">The Eagles sought to defend [their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* **squire** to the ~~captain~~ of their <mark class="highlight-red">army</mark>.</mark>
+`,
+    );
+});
+
+test("comment mark mixed with nested comment marks (nested comment mark is less than parent)", async () => {
+    const threadAId = generateId<DocumentCommentThreadId>();
+    const threadBId = generateId<DocumentCommentThreadId>();
+
+    const thread1Id = threadAId > threadBId ? threadAId : threadBId;
+    const thread2Id = threadAId > threadBId ? threadBId : threadAId;
+
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Next, something outrageous happened. "},
+                        {
+                            type: "Text",
+                            text: "The Eagles sought to defend ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "their title",
+                            marks: [
+                                {type: "Comment", threadId: thread1Id},
+                                {type: "Link", url: "https://example.com"},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: " (and honor) in the 2025-2026 season. They promoted a ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "mere",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Italic"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "squire",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Bold"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " to the ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "captain",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Strike"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " of their ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "army",
+                            marks: [
+                                {type: "Comment", threadId: thread1Id},
+                                {type: "Comment", threadId: thread2Id},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: ".",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+Next, something outrageous happened. <mark data-comment="${thread1Id}">The Eagles sought to defend [their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* **squire** to the ~~captain~~ of their </mark><mark data-comment="${thread2Id}"><mark data-comment="${thread1Id}">army</mark></mark><mark data-comment="${thread1Id}">.</mark>
+`,
+    );
+});
+
+test("comment mark mixed with nested comment marks (nested comment mark is greater than parent)", async () => {
+    const threadAId = generateId<DocumentCommentThreadId>();
+    const threadBId = generateId<DocumentCommentThreadId>();
+
+    const thread1Id = threadAId < threadBId ? threadAId : threadBId;
+    const thread2Id = threadAId < threadBId ? threadBId : threadAId;
+
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {type: "Text", text: "Next, something outrageous happened. "},
+                        {
+                            type: "Text",
+                            text: "The Eagles sought to defend ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "their title",
+                            marks: [
+                                {type: "Comment", threadId: thread1Id},
+                                {type: "Link", url: "https://example.com"},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: " (and honor) in the 2025-2026 season. They promoted a ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "mere",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Italic"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "squire",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Bold"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " to the ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "captain",
+                            marks: [{type: "Comment", threadId: thread1Id}, {type: "Strike"}],
+                        },
+                        {
+                            type: "Text",
+                            text: " of their ",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                        {
+                            type: "Text",
+                            text: "army",
+                            marks: [
+                                {type: "Comment", threadId: thread1Id},
+                                {type: "Comment", threadId: thread2Id},
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: ".",
+                            marks: [{type: "Comment", threadId: thread1Id}],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+Next, something outrageous happened. <mark data-comment="${thread1Id}">The Eagles sought to defend [their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* **squire** to the ~~captain~~ of their <mark data-comment="${thread2Id}">army</mark>.</mark>
 `,
     );
 });

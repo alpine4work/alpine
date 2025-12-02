@@ -232,11 +232,25 @@ export const apiContentInlineElementMarkTypeNormalizedOrder = getObjectKeysWithK
     // We use an object so TypeScript makes sure we list each type once. Then
     // convert to an array with `Object.keys()`.
     cast<Record<ApiContentInlineElementMark["type"], true>>({
+        // Always put other marks inside comments so the `<mark>` HTML isn't broken apart. Like this:
+        //
+        // ```md
+        // <mark data-comment="abc">123</mark>[<mark data-comment="abc">456</mark>](https://example.com)<mark data-comment="abc">789</mark>
+        // ```
+        //
+        // "Yuck! Terrible!" (source: Ian)
+        //
+        // Instead we want:
+        //
+        // ```md
+        // <mark data-comment="abc">123[456](https://example.com)789</mark>
+        // ```
+        Comment: true,
+
         // We put link first since this influences print order. We'll be able to merge
         // adjacent links since they're always wrapping all other marks.
         Link: true,
 
-        Comment: true,
         Highlight: true,
         Bold: true,
         Italic: true,

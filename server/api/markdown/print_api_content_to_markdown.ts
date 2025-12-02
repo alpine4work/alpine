@@ -45,6 +45,11 @@ declare module "mdast" {
     export interface LinkData {
         mentionElement?: ApiContentMentionInlineElement;
     }
+
+    export interface HtmlData {
+        expectedOpenHtml?: string;
+        expectedCloseHtml?: string;
+    }
 }
 
 export type ApiContentMarkdownPrinterOptions = {
@@ -685,63 +690,86 @@ function printApiContentInlineElementsToMarkdown(
         for (const nextContent of printApiContentInlineElementToMarkdown(element, elementOptions)) {
             if (contents.length === 0) {
                 contents.push(nextContent);
-            } else {
-                let lastContent = contents[contents.length - 1]!;
+                continue;
+            }
 
-                // Breaks can't be followed by HTML. So if we see a break followed by HTML then
-                // replace the break with an HTML equivalent.
-                if (
-                    lastContent.type === "break" &&
-                    (nextContent.type === "html" ||
-                        nextContent.type === "emphasis" ||
-                        nextContent.type === "strong" ||
-                        nextContent.type === "delete")
-                ) {
-                    lastContent = contents[contents.length - 1] = {type: "html", value: "<br/>"};
+            let lastContent = contents[contents.length - 1]!;
 
-                    for (let i = contents.length - 2; i >= 0; i--) {
-                        const lastContent = contents[i]!;
-                        if (lastContent.type !== "break") break;
-                        contents[i] = {type: "html", value: "<br/>"};
-                    }
+            // Breaks can't be followed by HTML. So if we see a break followed by HTML then
+            // replace the break with an HTML equivalent.
+            if (
+                lastContent.type === "break" &&
+                (nextContent.type === "html" ||
+                    nextContent.type === "emphasis" ||
+                    nextContent.type === "strong" ||
+                    nextContent.type === "delete")
+            ) {
+                lastContent = contents[contents.length - 1] = {type: "html", value: "<br/>"};
+
+                for (let i = contents.length - 2; i >= 0; i--) {
+                    const lastContent = contents[i]!;
+                    if (lastContent.type !== "break") break;
+                    contents[i] = {type: "html", value: "<br/>"};
                 }
+            }
 
-                if (mergePhrasingContent(lastContent, nextContent)) {
-                    // Merge successful. Don't yield anything.
+            // If we have content that looks like:
+            //
+            // ```md
+            // <mark data-comment="abc">123</mark><mark data-comment="abc">*456*</mark>
+            // ```
+            //
+            // We want to remove the intermediate `</mark><mark data-comment="abc">` HTML.
+            // We generate the original content because of how marks are represented on
+            // text nodes in our `ApiContent` object.
+            if (
+                lastContent.type === "html" &&
+                nextContent.type === "html" &&
+                lastContent.data?.expectedOpenHtml !== undefined &&
+                nextContent.data?.expectedCloseHtml !== undefined &&
+                lastContent.data.expectedOpenHtml === nextContent.value &&
+                nextContent.data.expectedCloseHtml === lastContent.value
+            ) {
+                // Remove `lastContent`, don't push `nextContent`, simply continue.
+                contents.pop();
+                continue;
+            }
 
-                    if (contents.length >= 2) {
-                        const lastLastContent = contents[contents.length - 2]!;
+            if (mergePhrasingContent(lastContent, nextContent)) {
+                // Merge successful. Don't yield anything.
 
-                        // If we have an emphasis node immediately adjacent to a strong node then we
-                        // want to use the `_` marker for the emphasis node instead of the `*` marker
-                        // to avoid parsing ambiguities. `emphasisMarker` is added in a patch to
-                        // `mdast-util-to-markdown`.
-                        if (lastLastContent.type === "strong" && lastContent.type === "emphasis") {
-                            lastContent.data ??= {};
-                            lastContent.data.emphasisMarker = "_";
-                        } else if (
-                            lastLastContent.type === "emphasis" &&
-                            lastContent.type === "strong"
-                        ) {
-                            lastLastContent.data ??= {};
-                            lastLastContent.data.emphasisMarker = "_";
-                        }
-                    }
-                } else {
+                if (contents.length >= 2) {
+                    const lastLastContent = contents[contents.length - 2]!;
+
                     // If we have an emphasis node immediately adjacent to a strong node then we
                     // want to use the `_` marker for the emphasis node instead of the `*` marker
                     // to avoid parsing ambiguities. `emphasisMarker` is added in a patch to
                     // `mdast-util-to-markdown`.
-                    if (lastContent.type === "strong" && nextContent.type === "emphasis") {
-                        nextContent.data ??= {};
-                        nextContent.data.emphasisMarker = "_";
-                    } else if (lastContent.type === "emphasis" && nextContent.type === "strong") {
+                    if (lastLastContent.type === "strong" && lastContent.type === "emphasis") {
                         lastContent.data ??= {};
                         lastContent.data.emphasisMarker = "_";
+                    } else if (
+                        lastLastContent.type === "emphasis" &&
+                        lastContent.type === "strong"
+                    ) {
+                        lastLastContent.data ??= {};
+                        lastLastContent.data.emphasisMarker = "_";
                     }
-
-                    contents.push(nextContent);
                 }
+            } else {
+                // If we have an emphasis node immediately adjacent to a strong node then we
+                // want to use the `_` marker for the emphasis node instead of the `*` marker
+                // to avoid parsing ambiguities. `emphasisMarker` is added in a patch to
+                // `mdast-util-to-markdown`.
+                if (lastContent.type === "strong" && nextContent.type === "emphasis") {
+                    nextContent.data ??= {};
+                    nextContent.data.emphasisMarker = "_";
+                } else if (lastContent.type === "emphasis" && nextContent.type === "strong") {
+                    lastContent.data ??= {};
+                    lastContent.data.emphasisMarker = "_";
+                }
+
+                contents.push(nextContent);
             }
         }
     }
@@ -891,12 +919,15 @@ function* printApiContentInlineElementToMarkdown(
                 // Our markdown parser sees "[`]:" and thinks "that's a definition!" without
                 // considering that it's in backticks.
                 if (marks?.some(mark => mark.type === "Link") && element.text.includes("]")) {
+                    const openHtml = "<code>";
+                    const closeHtml = "</code>";
+
                     yield* printApiContentInlineElementMarksToMarkdown(
                         marks,
                         [
-                            {type: "html", value: "<code>"},
+                            {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}},
                             {type: "text", value: element.text},
-                            {type: "html", value: "</code>"},
+                            {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}},
                         ],
                         options,
                     );
@@ -991,19 +1022,38 @@ function* printApiContentInlineElementToMarkdown(
             ];
 
             if (hasCodeMark) {
-                childContent.unshift({type: "html", value: "<code>"});
-                childContent.push({type: "html", value: "</code>"});
+                const openHtml = "<code>";
+                const closeHtml = "</code>";
+
+                childContent.unshift({
+                    type: "html",
+                    value: openHtml,
+                    data: {expectedCloseHtml: closeHtml},
+                });
+
+                childContent.push({
+                    type: "html",
+                    value: closeHtml,
+                    data: {expectedOpenHtml: openHtml},
+                });
             }
 
-            if (linkMark) {
+            const contents = printApiContentInlineElementMarksToMarkdown(
+                marks,
+                childContent,
+                options,
+            );
+
+            if (!linkMark) {
+                yield* contents;
+            } else {
                 // eslint-disable-next-line string-quotes
-                yield {type: "html", value: `<a href="${escapeHtml(linkMark.url)}">`};
-            }
+                const openHtml = `<a href="${escapeHtml(linkMark.url)}">`;
+                const closeHtml = "</a>";
 
-            yield* printApiContentInlineElementMarksToMarkdown(marks, childContent, options);
-
-            if (linkMark) {
-                yield {type: "html", value: "</a>"};
+                yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+                yield* contents;
+                yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
             }
             break;
         }
@@ -1111,15 +1161,20 @@ function* printApiContentInlineElementMarksToMarkdown(
         !Array.isArray(content) ? [content] : content,
     );
 
-    // If the URL looks like a mention then we need to use the HTML `<a>` form to
-    // serialize the link. So the Markdown link isn't parsed as a mention.
-    //
-    // eslint-disable-next-line string-quotes
-    if (mentionishMark) yield {type: "html", value: `<a href="${escapeHtml(mentionishMark.url)}">`};
+    if (!mentionishMark) {
+        yield* markedContent;
+    } else {
+        // If the URL looks like a mention then we need to use the HTML `<a>` form to
+        // serialize the link. So the Markdown link isn't parsed as a mention.
+        //
+        // eslint-disable-next-line string-quotes
+        const openHtml = `<a href="${escapeHtml(mentionishMark.url)}">`;
+        const closeHtml = "</a>";
 
-    yield* markedContent;
-
-    if (mentionishMark) yield {type: "html", value: `</a>`};
+        yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+        yield* markedContent;
+        yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
+    }
 }
 
 function* printApiContentInlineElementMarkToMarkdown(
@@ -1149,17 +1204,24 @@ function* printApiContentInlineElementMarkToMarkdown(
         }
         case "Highlight": {
             const color = printApiContentInlineElementHighlightMarkColor(mark.color);
+
             // eslint-disable-next-line string-quotes
-            yield {type: "html", value: `<mark class="highlight-${escapeHtml(color)}">`};
+            const openHtml = `<mark class="highlight-${escapeHtml(color)}">`;
+            const closeHtml = `</mark>`;
+
+            yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
             yield* content;
-            yield {type: "html", value: `</mark>`};
+            yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
             break;
         }
         case "Comment": {
             // eslint-disable-next-line string-quotes
-            yield {type: "html", value: `<mark data-comment="${escapeHtml(mark.threadId)}">`};
+            const openHtml = `<mark data-comment="${escapeHtml(mark.threadId)}">`;
+            const closeHtml = `</mark>`;
+
+            yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
             yield* content;
-            yield {type: "html", value: `</mark>`};
+            yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
             break;
         }
         default:
