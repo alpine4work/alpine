@@ -2,7 +2,7 @@ import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentTaskLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {parseAgentContentToMarkdownRoot} from "~/server/agents/internal/link_references/parge_agent_content_to_markdown_root.js";
+import {parseAgentContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_root.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 // TODO(ifitzsimmons, #ai): Add sample content once we land on content format

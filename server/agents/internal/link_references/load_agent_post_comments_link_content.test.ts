@@ -6,8 +6,8 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
@@ -117,21 +117,17 @@ describe("loadAgentPostCommentsLinkContent", () => {
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice Author">
-
 This is a post about quarterly results.
-
 </human>
 
 <human name="Bob commentor">
-
 This is a comment on the post.
-
 </human>
 `);
     });
@@ -206,23 +202,19 @@ This is a comment on the post.
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice Author">
-
 This is a post about quarterly results.
-
 </human>
 
 <time>November 21st at 8:24am EST</time>
 
 <human name="Bob commentor" timezone="PST">
-
 ${"This is a comment on the post.".repeat(200)}
-
 </human>
 
 [Next page »](/post/this-is-a-post-about-quarterly-results?page=2)
@@ -302,27 +294,21 @@ ${"This is a comment on the post.".repeat(200)}
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [post](/post/test-post-content-preview) in [Announcements](/channel/announcements). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice">
-
 This is a post about quarterly results.
-
 </human>
 
 <human name="Alice" time="19 minutes later" timezone="PST">
-
 Hello Bob!
-
 </human>
 
 <human name="Alice">
-
 ${"Hi Alice, how are you?".repeat(200)}
-
 </human>
 
 [Next chunk »](/post/hi-alice-how-are-you?chunk=1)
@@ -397,25 +383,20 @@ ${"Hi Alice, how are you?".repeat(200)}
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a post in [General](/channel/general). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice">
-
 Post content.
-
 </human>
 
 <human name="Alice" time="19 minutes later" timezone="CST">
-
 Nice post!
-
 </human>
 
 <human name="Bob" timezone="PST">
-
 ## This is a heading
 
 - with
@@ -427,7 +408,6 @@ Nice post!
   - with a nested list
 
   - item
-
 </human>
 `);
     });
@@ -500,33 +480,25 @@ Nice post!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [post](/post/test-post-content-preview) in [General](/channel/general). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice">
-
 Post content.
-
 </human>
 
 <human name="Alice" time="19 minutes later" timezone="CST">
-
 First comment!
-
 </human>
 
 <human name="Bob" timezone="PST">
-
 Second comment!
-
 </human>
 
 <human name="Alice" time="16 minutes later">
-
 Third comment!
-
 </human>
 `);
     });
@@ -607,7 +579,7 @@ Third comment!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
 
 [« Previous chunk](/post/third-comment?chunk=-1)
@@ -615,21 +587,15 @@ This is a conversation about a [post](/post/alice-in-announcements-big-news) in 
 <time>November 20th at 8:10am EST</time>
 
 <human name="Bob">
-
 ${"Second comment!".repeat(200)}
-
 </human>
 
 <human name="Alice">
-
 Third comment!
-
 </human>
 
 <human name="Bob">
-
 ${"Fourth comment!".repeat(200)}
-
 </human>
 
 [Next chunk »](/post/third-comment?chunk=1)
@@ -695,7 +661,7 @@ ${"Fourth comment!".repeat(200)}
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [post](/post/alice-in-announcements-big-news) in [Announcements](/channel/announcements).
 
 [« Previous chunk](/post/exciting-stuff?chunk=-1)
@@ -703,15 +669,11 @@ This is a conversation about a [post](/post/alice-in-announcements-big-news) in 
 <time>November 20th at 8:13am EST</time>
 
 <human name="Alice">
-
 ${"Exciting stuff!".repeat(400)}
-
 </human>
 
 <human name="Bob">
-
 Thanks Alice!
-
 </human>
 `);
     });
@@ -774,23 +736,19 @@ Thanks Alice!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a post in [General](/channel/general). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice">
-
 Post content.
 
 First comment!
-
 </human>
 
 <human name="Bob">
-
 Second comment!
-
 </human>
 `);
     });
@@ -834,15 +792,13 @@ Second comment!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a post in [Announcements](/channel/announcements). The first message on this page contains the original post.
 
 <time>November 20th at 8:05am EST</time>
 
 <human name="Alice Author">
-
 This is a post about quarterly results.
-
 </human>
 `);
     });

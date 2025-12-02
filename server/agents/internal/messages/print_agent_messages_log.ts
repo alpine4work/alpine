@@ -2,6 +2,7 @@ import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {differenceInHours, differenceInMinutes} from "date-fns";
 import escapeHtml from "escape-html";
 import {RootContent} from "mdast";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -34,6 +35,20 @@ type MessageBlock = {
  * have a `timezone` attribute added to their tag.
  */
 export function printAgentMessagesLog(
+    messages: ReadonlyArray<AgentMessage>,
+    /**
+     * The time and timezone of the user whose message triggered the durable object creation.
+     */
+    timeContext: {
+        time: Date;
+        timeZone: TimeZone;
+    },
+): string {
+    const markdownTree = printAgentMessagesIntoMarkdownTree(messages, timeContext);
+    return printAgentContentMarkdownTree({type: "root", children: markdownTree});
+}
+
+export function printAgentMessagesIntoMarkdownTree(
     messages: ReadonlyArray<AgentMessage>,
     /**
      * The time and timezone of the user whose message triggered the durable object creation.

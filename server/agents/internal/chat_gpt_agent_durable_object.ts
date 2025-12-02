@@ -27,6 +27,7 @@ import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {loadAgentLinkContent} from "~/server/agents/internal/link_references/load_agent_link_content.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
 import {
     printAgentPlainTextLabel,
     printApiPathForAgentLink,
@@ -37,7 +38,6 @@ import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
 import {
@@ -834,7 +834,7 @@ async function callChatGptAgentFunction({
                 link,
                 conversationState,
             });
-            return printMarkdownTree(markdownTree);
+            return printAgentContentMarkdownTree(markdownTree);
         }
         case "search_alpine": {
             if (

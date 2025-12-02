@@ -6,7 +6,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
-import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
 import {
     ApiContentResponse,
     ApiMessageResponse,
@@ -110,15 +110,13 @@ describe("loadAgentMessagesListLinkContent", () => {
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Hello!
-
 </human>
 `);
         });
@@ -174,21 +172,17 @@ Hello!
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Hello!
-
 </human>
 
 <human name="Bob">
-
 Hello hello!
-
 </human>
 `);
         });
@@ -270,33 +264,25 @@ Hello hello!
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Hello!
-
 </human>
 
 <human name="Bob">
-
 Hello hello!
-
 </human>
 
 <human name="Charlie">
-
 Hello Charlie!
-
 </human>
 
 <human name="David">
-
 Hello David!
-
 </human>
 `);
         });
@@ -355,21 +341,17 @@ Hello David!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a document.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Looks comprehensive!
-
 </human>
 
 <human name="Bob">
-
 Thanks Alice!
-
 </human>
 `);
     });
@@ -415,15 +397,13 @@ Thanks Alice!
             });
         });
 
-        expect(printMarkdownTree(result)).toEqual(`\
+        expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a task.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Started implementation!
-
 </human>
 `);
     });
@@ -509,27 +489,21 @@ Started implementation!
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Hello Bob!
-
 </human>
 
 <human name="Bob">
-
 Hi Alice, how are you?
-
 </human>
 
 <human name="Alice">
-
 I'm doing great, thanks!
-
 </human>
 `);
         });
@@ -604,21 +578,17 @@ I'm doing great, thanks!
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Hello Bob!
-
 </human>
 
 <human name="Bob">
-
 ${"Hi Alice, how are you?".repeat(200)}
-
 </human>
 
 [Next chunk »](/chat/hi-alice-how-are-you?chunk=1)
@@ -675,17 +645,15 @@ ${"Hi Alice, how are you?".repeat(200)}
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 First message
 
 Second message
-
 </human>
 `);
         });
@@ -734,15 +702,13 @@ Second message
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 ${"Long message content.".repeat(200)}
-
 </human>
 
 [Next page »](/chat/long-message-content?page=2)
@@ -822,7 +788,7 @@ ${"Long message content.".repeat(200)}
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 [« Previous chunk](/chat/long-message-content?chunk=-1)
@@ -830,11 +796,9 @@ This is a chat conversation.
 <time>November 21st at 8:16am EST</time>
 
 <human name="Alice">
-
 ${"First message before the index".repeat(200)}
 
 ${"Long message content.".repeat(100)}
-
 </human>
 
 [Next chunk »](/chat/long-message-content?chunk=1)
@@ -911,19 +875,17 @@ ${"Long message content.".repeat(100)}
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a chat conversation.
 
 <time>November 21st at 8:17am EST</time>
 
 <human name="Alice">
-
 First message before the index
 
 Hello Bob!
 
 ${"Long message content.".repeat(100)}
-
 </human>
 
 [Next chunk »](/chat/long-message-content?chunk=1)
@@ -1011,27 +973,21 @@ ${"Long message content.".repeat(100)}
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [document](/document/my-document).
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 This looks great!
-
 </human>
 
 <human name="Bob">
-
 Thanks Alice!
-
 </human>
 
 <human name="Alice">
-
 You're welcome!
-
 </human>
 `);
         });
@@ -1083,15 +1039,13 @@ You're welcome!
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [document](/document/project-plan).
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 Starting a discussion here.
-
 </human>
 `);
         });
@@ -1147,15 +1101,13 @@ Starting a discussion here.
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [document](/document/long-discussion).
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 ${"Long comment text.".repeat(200)}
-
 </human>
 
 [Next page »](/document-thread/long-comment-text?page=2)
@@ -1252,27 +1204,21 @@ ${"Long comment text.".repeat(200)}
                 });
             });
 
-            expect(printMarkdownTree(result)).toEqual(`\
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
 This is a conversation about a [document](/document/feedback-document).
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-
 First comment.
-
 </human>
 
 <human name="Bob">
-
 Second comment.
-
 </human>
 
 <human name="Alice">
-
 Third comment from second request.
-
 </human>
 `);
         });

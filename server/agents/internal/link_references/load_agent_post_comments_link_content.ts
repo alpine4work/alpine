@@ -7,11 +7,11 @@ import {
     putAgentNextMessagesPageLink,
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {parseMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_messages_list_content_to_markdown_root.js";
 import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {printMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/print_messages_list_content_to_markdown_root.js";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
@@ -175,7 +175,7 @@ async function getMarkdownContentForPageFromStart({
 
     const pageMessages = [...(originalPostMessage ? [originalPostMessage] : []), ...messages];
 
-    const messagesContent = await parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await printMessagesListContentToMarkdownRoot({
         previousPageLinkString: null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
@@ -238,7 +238,7 @@ async function getMarkdownContentForPageFromEnd({
 
     const pageMessages = [...originalPostMessage, ...messages];
 
-    const messagesContent = await parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await printMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: null,
         paginationType: link.paginationType,
@@ -275,8 +275,11 @@ async function getMarkdownContentForPageFromMiddle({
     messagesContent: Array<RootContent>;
     doesPageContainPost: boolean;
 }> {
-    const {messages: messagesBeforeCurrent, nextCursor: pageStartIndex} =
-        await getAgentMessagesFromEndUntilLimitTokenCount(
+    const [
+        {messages: messagesBeforeCurrent, nextCursor: pageStartIndex},
+        {messages: messagesAfterAndIncludingCurrent, nextCursor: pageEndIndex},
+    ] = await runAllPromises([
+        getAgentMessagesFromEndUntilLimitTokenCount(
             tracer,
             transaction,
             request.apiClient,
@@ -287,15 +290,8 @@ async function getMarkdownContentForPageFromMiddle({
                 startingCursor: cursorOptions.index,
                 limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
-        );
-
-    const previousPageLink =
-        pageStartIndex !== null
-            ? await putAgentPreviousMessagesPageLink(transaction, link, pageStartIndex)
-            : null;
-
-    const {messages: messagesAfterAndIncludingCurrent, nextCursor: pageEndIndex} =
-        await getAgentMessagesFromStartUntilTokenLimitCount(
+        ),
+        getAgentMessagesFromStartUntilTokenLimitCount(
             tracer,
             transaction,
             request.apiClient,
@@ -306,12 +302,17 @@ async function getMarkdownContentForPageFromMiddle({
                 startingCursor: cursorOptions.index - 1,
                 limitTokenCount: Math.floor(link.tokenLimitForPage / 2),
             },
-        );
+        ),
+    ]);
 
-    const nextPageLink =
+    const [previousPageLink, nextPageLink] = await runAllPromises([
+        pageStartIndex !== null
+            ? putAgentPreviousMessagesPageLink(transaction, link, pageStartIndex)
+            : null,
         pageEndIndex !== null
-            ? await putAgentNextMessagesPageLink(transaction, link, pageEndIndex)
-            : null;
+            ? putAgentNextMessagesPageLink(transaction, link, pageEndIndex)
+            : null,
+    ]);
 
     // If we loaded the first comment when loading this page, load the post content as well.
     const isFirstPage = !previousPageLink;
@@ -326,7 +327,7 @@ async function getMarkdownContentForPageFromMiddle({
         ...messagesAfterAndIncludingCurrent,
     ];
 
-    const messagesContent = await parseMessagesListContentToMarkdownRoot({
+    const messagesContent = await printMessagesListContentToMarkdownRoot({
         previousPageLinkString: previousPageLink ? printAgentLinkPath(previousPageLink) : null,
         nextPageLinkString: nextPageLink ? printAgentLinkPath(nextPageLink) : null,
         paginationType: link.paginationType,
