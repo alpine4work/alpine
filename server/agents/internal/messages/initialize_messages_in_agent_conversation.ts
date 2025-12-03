@@ -3,7 +3,7 @@ import {agentInitializeMessagesTokenLimitCount} from "~/server/agents/internal/a
 import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
-import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";

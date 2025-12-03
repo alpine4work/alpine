@@ -2,7 +2,7 @@ import {List, ListItem, Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentTaskCollectionLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {parseAgentContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_root.js";
+import {parseAgentContentToMarkdownTree} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_tree.js";
 import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
@@ -93,7 +93,7 @@ export async function loadAgentTaskCollectionLinkContent({
     // TODO(calebmer, #ai): We should include the first few tasks in
     // the task collection and give ChatGPT a tool to read more.
     const [collectionContent, ...tasksContent] = await runAllPromises([
-        parseAgentContentToMarkdownRoot({
+        parseAgentContentToMarkdownTree({
             transaction,
             request,
             frontmatter: {

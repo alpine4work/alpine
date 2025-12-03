@@ -1,7 +1,7 @@
 import {Root} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentAccountLink} from "~/server/agents/internal/link_references/agent_link.js";
-import {parseAgentContentToMarkdownRoot} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_root.js";
+import {parseAgentContentToMarkdownTree} from "~/server/agents/internal/link_references/parse_agent_content_to_markdown_tree.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 // TODO(ifitzsimmons, #ai): Add sample content once we land on content format
@@ -22,7 +22,7 @@ export async function loadAgentAccountLinkContent({
         params: {path: {id: request.spaceId, accountId: link.accountId}},
     });
 
-    return await parseAgentContentToMarkdownRoot({
+    return parseAgentContentToMarkdownTree({
         transaction,
         request,
         frontmatter: {

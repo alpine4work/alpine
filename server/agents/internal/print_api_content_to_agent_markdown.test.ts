@@ -5,7 +5,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {defaultAgentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {printAgentContentToMarkdown} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {printApiContentToAgentMarkdown} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
@@ -28,7 +28,7 @@ async function testPrintAgentContentToMarkdown(
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {
-    const actualMarkdown = await printAgentContentToMarkdown(storage, content, {spaceId});
+    const actualMarkdown = await printApiContentToAgentMarkdown(storage, content, {spaceId});
 
     expect(actualMarkdown).toEqual(expectedMarkdown);
 
@@ -525,7 +525,7 @@ test("identical mentions with same label and target path reuse the same referenc
 
 test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", async () => {
     const actualMarkdown1 = await storage.transaction(transaction =>
-        printAgentContentToMarkdown(
+        printApiContentToAgentMarkdown(
             transaction,
             {
                 elements: [
@@ -552,7 +552,7 @@ test("multiple calls to `printAgentContentToMarkdown()` dedupe across calls", as
     );
 
     const actualMarkdown2 = await storage.transaction(transaction =>
-        printAgentContentToMarkdown(
+        printApiContentToAgentMarkdown(
             transaction,
             {
                 elements: [

@@ -7,14 +7,14 @@ import {
     printAgentLinkPath,
     printAgentPlainTextLabel,
 } from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {printMarkdownTree} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export async function parseAgentContentToMarkdownRoot({
+export async function parseAgentContentToMarkdownTree({
     transaction,
     request,
     frontmatter,
@@ -25,7 +25,7 @@ export async function parseAgentContentToMarkdownRoot({
     frontmatter: Record<string, AgentLink | string | number | boolean | undefined>;
     content?: ApiContentResponse;
 }): Promise<Root> {
-    const markdownTree = await printAgentContentToMarkdownTree(
+    const markdownTree = await printApiContentToAgentMarkdownTree(
         transaction,
         content ?? {elements: []},
         {spaceId: request.spaceId},

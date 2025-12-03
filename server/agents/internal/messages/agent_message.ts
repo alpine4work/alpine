@@ -1,7 +1,7 @@
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
 import {RootContent} from "mdast";
 import {DurableObjectTransactionInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
-import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {visitApiContent} from "~/server/agents/internal/visit_api_content.js";
 import {
     ApiContent,
@@ -60,7 +60,7 @@ export class AgentMessage {
             payload: ApiMessageContentPayloadResponse;
         },
     ) {
-        const markdownTree = await printAgentContentToMarkdownTree(
+        const markdownTree = await printApiContentToAgentMarkdownTree(
             transaction,
             message.payload.content,
             {

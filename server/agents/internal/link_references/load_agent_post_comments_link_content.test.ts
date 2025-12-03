@@ -6,7 +6,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {AgentPostCommentsLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
-import {printAgentContentMarkdownTree} from "~/server/agents/internal/link_references/print_agent_content_markdown_tree.js";
+import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";

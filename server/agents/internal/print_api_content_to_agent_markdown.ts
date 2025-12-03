@@ -1,4 +1,4 @@
-import {Parent} from "mdast";
+import {Parent, Root} from "mdast";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
@@ -23,13 +23,13 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * that we think is too technical for an LLM. For example, removes URLs from
  * links. We give LLMs a tool to read content from links.
  */
-export async function printAgentContentToMarkdown(
+export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
     content: ApiContentResponse,
     {spaceId}: {spaceId: SpaceId},
 ) {
-    const markdownTree = await printAgentContentToMarkdownTree(storage, content, {spaceId});
-    return printMarkdownTree(markdownTree);
+    const markdownTree = await printApiContentToAgentMarkdownTree(storage, content, {spaceId});
+    return printAgentContentMarkdownTree(markdownTree);
 }
 
 /**
@@ -37,7 +37,7 @@ export async function printAgentContentToMarkdown(
  * that we think is too technical for an LLM. For example, removes URLs from
  * links. We give LLMs a tool to read content from links.
  */
-export async function printAgentContentToMarkdownTree(
+export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
     content: ApiContentResponse,
     {spaceId}: {spaceId: SpaceId},
@@ -111,6 +111,38 @@ export async function printAgentContentToMarkdownTree(
     await promiseWaiter.wait();
 
     return markdownTree;
+}
+
+/**
+ * Agent content includes html tags for things such as wrapping messages from a user.
+ * For example, a message from Alice looks like
+ *
+ * ```html
+ * <human name="Alice">
+ * {markdownContent}
+ * </human>
+ * ```
+ * The problem is that `printMarkdownTree` adds new lines around each markdown "block". So the
+ * above example actually looks like the following (assuming the content is a paragraph with
+ * text "Hello!"):
+ * ```html
+ * <human name="Alice">
+ *
+ * Hello!
+ *
+ * </human>
+ * ```
+ *
+ * The new lines are technically correct, but are not useful for the LLM. They also make the log
+ * harder to read. This function strips new lines after opening message tags and before closing
+ * message tags.
+ */
+export function printAgentContentMarkdownTree(markdownRoot: Root): string {
+    const markdownString = printMarkdownTree(markdownRoot);
+
+    return markdownString
+        .replaceAll(/^(<(?:human|bot)(?:>| [^>]*>))\n/gm, "$1")
+        .replaceAll(/\n(<\/(?:human|bot)(?:>| [^>]*>))$/gm, "$1");
 }
 
 function createAgentLinkForApiMentionPath(

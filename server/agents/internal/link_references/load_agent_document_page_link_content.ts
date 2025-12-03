@@ -11,7 +11,7 @@ import {
 import {createAgentDocumentPagesAndReturnFirstPage} from "~/server/agents/internal/link_references/create_agent_document_pages_and_get_first_page.js";
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
-import {printAgentContentToMarkdownTree} from "~/server/agents/internal/print_agent_content_to_markdown.js";
+import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {InternalError} from "~/shared/error/error.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -60,7 +60,7 @@ export async function loadAgentDocumentPageLinkContent({
         pageLink.pageEndElementIndexExclusive,
     );
 
-    const pageContentTree = await printAgentContentToMarkdownTree(
+    const pageContentTree = await printApiContentToAgentMarkdownTree(
         transaction,
         {elements: pageElements},
         {spaceId: request.spaceId},
