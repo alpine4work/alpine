@@ -10,10 +10,12 @@ import {
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
+    getDocumentCommentThreadContent,
     getDocumentContent,
     pingDocumentCommentStream,
     putDocumentCommentStreamPart,
 } from "~/server/documents/data/documents_actions.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -25,6 +27,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}": {
@@ -48,6 +51,60 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                             }),
                             document.content,
                         ),
+                    },
+                },
+            };
+        },
+    },
+
+    "/documents/{id}/threads/{threadId}": {
+        get: async (context, {pathParameters}) => {
+            const options = {consistency: "StrongWithinCache"} as const;
+
+            const [commentThread, documentContent] = await runAllPromises([
+                getDocumentCommentThreadContent(
+                    context,
+                    {
+                        documentId: pathParameters.id,
+                        commentThreadId: pathParameters.threadId,
+                    },
+                    options,
+                ),
+                getDocumentContent(context, pathParameters.id, options),
+            ]);
+
+            const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector([
+                pathParameters.threadId,
+            ])(documentContent.content);
+
+            const contentSnippetOrFallback =
+                contentSnippetByCommentThreadId.get(pathParameters.threadId) ??
+                commentThread.fallbackContentSnippet;
+
+            const contentSnippet = contentSnippetOrFallback
+                ? await intoApiContentWithReferences(
+                      context,
+                      commentThread.spaceId,
+                      FileDocumentAuthorizer.bind({
+                          type: "Document",
+                          documentId: pathParameters.id,
+                      }),
+                      contentSnippetOrFallback,
+                  )
+                : null;
+
+            return {
+                content: {
+                    spaceId: commentThread.spaceId,
+                    commentThread: {
+                        id: commentThread.id,
+                        createdTime: serializeDateString(commentThread.createdTime),
+                        isResolved: commentThread.isResolved,
+                        commentCount: commentThread.commentCount,
+                        firstCommentAuthor: commentThread.firstCommentAuthor
+                            ? intoApiAccount(commentThread.firstCommentAuthor.initialData)
+                            : null,
+                        documentContentSnippet: contentSnippet ?? {elements: []},
                     },
                 },
             };

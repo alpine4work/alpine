@@ -257,6 +257,32 @@ paths:
                                     document:
                                         $ref: "#/components/schemas/Document"
 
+    /documents/{id}/threads/{threadId}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentId"}
+            - name: threadId
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/DocumentThreadId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [spaceId, commentThread]
+                                additionalProperties: false
+                                properties:
+                                    spaceId:
+                                        $ref: "#/components/schemas/SpaceId"
+                                    commentThread:
+                                        $ref: "#/components/schemas/DocumentCommentThread"
+
     /documents/{id}/threads/{threadId}/messages/{index}:
         parameters:
             - name: id
@@ -1934,6 +1960,35 @@ components:
                     $ref: "#/components/schemas/DocumentId"
                 title:
                     type: string
+
+        DocumentCommentThread:
+            type: object
+            required:
+                [
+                    id,
+                    createdTime,
+                    isResolved,
+                    commentCount,
+                    firstCommentAuthor,
+                    documentContentSnippet,
+                ]
+            additionalProperties: false
+            properties:
+                id:
+                    $ref: "#/components/schemas/DocumentThreadId"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                isResolved:
+                    type: boolean
+                commentCount:
+                    type: integer
+                    minimum: 0
+                firstCommentAuthor:
+                    oneOf:
+                        - $ref: "#/components/schemas/Account"
+                        - type: "null"
+                documentContentSnippet:
+                    $ref: "#/components/schemas/Content"
 
         ChannelPreview:
             type: object

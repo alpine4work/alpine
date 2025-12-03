@@ -18,10 +18,14 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
  * `isDeepEqual()` check) then the two `ApiContent`s are considered to be
  * equivalent.
  */
-export function normalizeApiContent(content: ApiContent): ApiContent {
+export function normalizeApiContent<Content extends ApiContent>(content: Content): Content {
     return produce(content, content => {
         normalizeApiContentBlockElements(content.elements);
     });
+}
+
+export function normalizeDraftApiContent(content: Draft<ApiContent>) {
+    normalizeApiContentBlockElements(content.elements);
 }
 
 function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {

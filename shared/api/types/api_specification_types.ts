@@ -404,6 +404,50 @@ export namespace ApiSpecification {
             readonly patch?: never;
             readonly trace?: never;
         };
+        readonly "/documents/{id}/threads/{threadId}": {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    readonly id: components["schemas"]["DocumentId"];
+                    readonly threadId: components["schemas"]["DocumentThreadId"];
+                };
+                readonly cookie?: never;
+            };
+            readonly get: {
+                readonly parameters: {
+                    readonly query?: never;
+                    readonly header?: never;
+                    readonly path: {
+                        readonly id: components["schemas"]["DocumentId"];
+                        readonly threadId: components["schemas"]["DocumentThreadId"];
+                    };
+                    readonly cookie?: never;
+                };
+                readonly requestBody?: never;
+                readonly responses: {
+                    readonly 200: {
+                        headers: {
+                            readonly [name: string]: unknown;
+                        };
+                        content: {
+                            readonly "application/json": {
+                                readonly spaceId: components["schemas"]["SpaceId"];
+                                readonly commentThread: components["schemas"]["DocumentCommentThread_Response"];
+                            };
+                        };
+                    };
+                    readonly default: components["responses"]["Error"];
+                };
+            };
+            readonly put?: never;
+            readonly post?: never;
+            readonly delete?: never;
+            readonly options?: never;
+            readonly head?: never;
+            readonly patch?: never;
+            readonly trace?: never;
+        };
         readonly "/documents/{id}/threads/{threadId}/messages/{index}": {
             readonly parameters: {
                 readonly query?: never;
@@ -1822,6 +1866,14 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
             };
+            readonly DocumentCommentThread: {
+                readonly id: components["schemas"]["DocumentThreadId"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly isResolved: boolean;
+                readonly commentCount: number;
+                readonly firstCommentAuthor: components["schemas"]["Account"] | null;
+                readonly documentContentSnippet: components["schemas"]["Content"];
+            };
             readonly ChannelPreview: {
                 readonly id: components["schemas"]["ChannelId"];
                 readonly name: components["schemas"]["LabelString"];
@@ -2268,6 +2320,14 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["DocumentId"];
                 readonly title: string;
                 readonly content: components["schemas"]["Content_Response"];
+            };
+            readonly DocumentCommentThread_Response: {
+                readonly id: components["schemas"]["DocumentThreadId"];
+                readonly createdTime: components["schemas"]["DateTime"];
+                readonly isResolved: boolean;
+                readonly commentCount: number;
+                readonly firstCommentAuthor: components["schemas"]["Account"] | null;
+                readonly documentContentSnippet: components["schemas"]["Content_Response"];
             };
             readonly Channel_Response: {
                 readonly id: components["schemas"]["ChannelId"];

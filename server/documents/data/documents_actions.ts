@@ -1681,13 +1681,62 @@ export async function getDocumentCommentThread(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
     },
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentCommentThreadModel> {
     const [{spaceId}, commentThreadItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId, "Comment"),
-        getDocumentCommentThreadItem(context, {documentId, commentThreadId}),
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
+        getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
     return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+}
+
+export async function getDocumentCommentThreadContent(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+    },
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+) {
+    const [commentThreadItem, documentContent] = await runAllPromises([
+        getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
+        getDocumentContent(context, documentId, {consistency}),
+    ]);
+
+    const spaceId = documentContent.spaceId;
+
+    const firstCommentAuthorId = iterableFirst(
+        commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
+    );
+    const firstCommentAuthor = firstCommentAuthorId
+        ? await getAccount(
+              context.dynamo.unexpectStrongReadConsistency(),
+              spaceId,
+              firstCommentAuthorId,
+          )
+        : null;
+
+    const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
+        ? assertDocumentWithOptionalTitleContent(
+              stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
+                  exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
+              }),
+          )
+        : null;
+
+    return {
+        spaceId,
+        id: commentThreadId,
+        createdTime: commentThreadItem.createdTime,
+        isResolved: commentThreadItem.resolutionState.type === "Resolved",
+        commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
+        firstCommentAuthor,
+        fallbackContentSnippet,
+    };
 }
 
 /**

@@ -47,8 +47,19 @@ declare module "mdast" {
     }
 
     export interface HtmlData {
-        expectedOpenHtml?: string;
-        expectedCloseHtml?: string;
+        htmlData?: {
+            type?: "Comment";
+            originalHtml: string;
+            expectedMatchingTag:
+                | {
+                      type: "Close";
+                      expectedHtml: string;
+                  }
+                | {
+                      type: "Open";
+                      expectedHtml: string;
+                  };
+        };
     }
 }
 
@@ -64,6 +75,21 @@ export type ApiContentMarkdownPrinterOptions = {
      * attributes to tables.
      */
     readonly withoutTableWidth?: boolean;
+
+    /**
+     * If `true` then we convert comment marks to simple `<comment>` tags.
+     *
+     * ```html
+     * <mark data-comment="1234567890">commented text</mark>
+     * ```
+     *
+     * becomes
+     *
+     * ```html
+     * <comment>commented text</comment>
+     * ```
+     */
+    readonly withSimpleCommentMarkHtml?: boolean;
 };
 
 export {actuallyPrintApiContentToMarkdown as printApiContentToMarkdown};
@@ -688,6 +714,19 @@ function printApiContentInlineElementsToMarkdown(
         }
 
         for (const nextContent of printApiContentInlineElementToMarkdown(element, elementOptions)) {
+            if (
+                options.withSimpleCommentMarkHtml &&
+                nextContent.type === "html" &&
+                nextContent.data?.htmlData !== undefined &&
+                nextContent.data.htmlData.type === "Comment"
+            ) {
+                if (nextContent.data.htmlData.expectedMatchingTag.type === "Close") {
+                    nextContent.value = "<comment>";
+                } else {
+                    nextContent.value = "</comment>";
+                }
+            }
+
             if (contents.length === 0) {
                 contents.push(nextContent);
                 continue;
@@ -725,10 +764,14 @@ function printApiContentInlineElementsToMarkdown(
             if (
                 lastContent.type === "html" &&
                 nextContent.type === "html" &&
-                lastContent.data?.expectedOpenHtml !== undefined &&
-                nextContent.data?.expectedCloseHtml !== undefined &&
-                lastContent.data.expectedOpenHtml === nextContent.value &&
-                nextContent.data.expectedCloseHtml === lastContent.value
+                lastContent.data?.htmlData !== undefined &&
+                nextContent.data?.htmlData !== undefined &&
+                lastContent.data.htmlData.expectedMatchingTag.type === "Open" &&
+                nextContent.data.htmlData.expectedMatchingTag.type === "Close" &&
+                lastContent.data.htmlData.expectedMatchingTag.expectedHtml ===
+                    nextContent.data.htmlData.originalHtml &&
+                nextContent.data.htmlData.expectedMatchingTag.expectedHtml ===
+                    lastContent.data.htmlData.originalHtml
             ) {
                 // Remove `lastContent`, don't push `nextContent`, simply continue.
                 contents.pop();
@@ -925,9 +968,33 @@ function* printApiContentInlineElementToMarkdown(
                     yield* printApiContentInlineElementMarksToMarkdown(
                         marks,
                         [
-                            {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}},
+                            {
+                                type: "html",
+                                value: openHtml,
+                                data: {
+                                    htmlData: {
+                                        expectedMatchingTag: {
+                                            type: "Close",
+                                            expectedHtml: closeHtml,
+                                        },
+                                        originalHtml: openHtml,
+                                    },
+                                },
+                            },
                             {type: "text", value: element.text},
-                            {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}},
+                            {
+                                type: "html",
+                                value: closeHtml,
+                                data: {
+                                    htmlData: {
+                                        expectedMatchingTag: {
+                                            type: "Open",
+                                            expectedHtml: openHtml,
+                                        },
+                                        originalHtml: closeHtml,
+                                    },
+                                },
+                            },
                         ],
                         options,
                     );
@@ -1028,13 +1095,23 @@ function* printApiContentInlineElementToMarkdown(
                 childContent.unshift({
                     type: "html",
                     value: openHtml,
-                    data: {expectedCloseHtml: closeHtml},
+                    data: {
+                        htmlData: {
+                            expectedMatchingTag: {type: "Close", expectedHtml: closeHtml},
+                            originalHtml: openHtml,
+                        },
+                    },
                 });
 
                 childContent.push({
                     type: "html",
                     value: closeHtml,
-                    data: {expectedOpenHtml: openHtml},
+                    data: {
+                        htmlData: {
+                            expectedMatchingTag: {type: "Open", expectedHtml: openHtml},
+                            originalHtml: closeHtml,
+                        },
+                    },
                 });
             }
 
@@ -1051,9 +1128,27 @@ function* printApiContentInlineElementToMarkdown(
                 const openHtml = `<a href="${escapeHtml(linkMark.url)}">`;
                 const closeHtml = "</a>";
 
-                yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+                yield {
+                    type: "html",
+                    value: openHtml,
+                    data: {
+                        htmlData: {
+                            expectedMatchingTag: {type: "Close", expectedHtml: closeHtml},
+                            originalHtml: openHtml,
+                        },
+                    },
+                };
                 yield* contents;
-                yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
+                yield {
+                    type: "html",
+                    value: closeHtml,
+                    data: {
+                        htmlData: {
+                            expectedMatchingTag: {type: "Open", expectedHtml: openHtml},
+                            originalHtml: closeHtml,
+                        },
+                    },
+                };
             }
             break;
         }
@@ -1171,9 +1266,27 @@ function* printApiContentInlineElementMarksToMarkdown(
         const openHtml = `<a href="${escapeHtml(mentionishMark.url)}">`;
         const closeHtml = "</a>";
 
-        yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+        yield {
+            type: "html",
+            value: openHtml,
+            data: {
+                htmlData: {
+                    expectedMatchingTag: {type: "Close", expectedHtml: closeHtml},
+                    originalHtml: openHtml,
+                },
+            },
+        };
         yield* markedContent;
-        yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
+        yield {
+            type: "html",
+            value: closeHtml,
+            data: {
+                htmlData: {
+                    expectedMatchingTag: {type: "Open", expectedHtml: openHtml},
+                    originalHtml: closeHtml,
+                },
+            },
+        };
     }
 }
 
@@ -1209,9 +1322,27 @@ function* printApiContentInlineElementMarkToMarkdown(
             const openHtml = `<mark class="highlight-${escapeHtml(color)}">`;
             const closeHtml = `</mark>`;
 
-            yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+            yield {
+                type: "html",
+                value: openHtml,
+                data: {
+                    htmlData: {
+                        expectedMatchingTag: {type: "Close", expectedHtml: closeHtml},
+                        originalHtml: openHtml,
+                    },
+                },
+            };
             yield* content;
-            yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
+            yield {
+                type: "html",
+                value: closeHtml,
+                data: {
+                    htmlData: {
+                        expectedMatchingTag: {type: "Open", expectedHtml: openHtml},
+                        originalHtml: closeHtml,
+                    },
+                },
+            };
             break;
         }
         case "Comment": {
@@ -1219,9 +1350,29 @@ function* printApiContentInlineElementMarkToMarkdown(
             const openHtml = `<mark data-comment="${escapeHtml(mark.threadId)}">`;
             const closeHtml = `</mark>`;
 
-            yield {type: "html", value: openHtml, data: {expectedCloseHtml: closeHtml}};
+            yield {
+                type: "html",
+                value: openHtml,
+                data: {
+                    htmlData: {
+                        type: "Comment",
+                        originalHtml: openHtml,
+                        expectedMatchingTag: {type: "Close", expectedHtml: closeHtml},
+                    },
+                },
+            };
             yield* content;
-            yield {type: "html", value: closeHtml, data: {expectedOpenHtml: openHtml}};
+            yield {
+                type: "html",
+                value: closeHtml,
+                data: {
+                    htmlData: {
+                        type: "Comment",
+                        expectedMatchingTag: {type: "Open", expectedHtml: openHtml},
+                        originalHtml: closeHtml,
+                    },
+                },
+            };
             break;
         }
         default:

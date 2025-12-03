@@ -163,6 +163,9 @@ export type ApiAccountWithoutSpace = ApiSpecification.components["schemas"]["Acc
 
 export type ApiChat = ApiSpecification.components["schemas"]["Chat"];
 
+export type ApiDocumentCommentThreadResponse =
+    ApiSpecification.components["schemas"]["DocumentCommentThread_Response"];
+
 export type ApiTask = ApiSpecification.components["schemas"]["Task"];
 
 export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];

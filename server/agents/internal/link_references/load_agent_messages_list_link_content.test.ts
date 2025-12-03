@@ -7,10 +7,7 @@ import {AgentPaginatedMessagesListLink} from "~/server/agents/internal/link_refe
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
-import {
-    ApiContentResponse,
-    ApiMessageResponse,
-} from "~/shared/api/types/api_specification_convenience_types.js";
+import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -342,7 +339,7 @@ Hello David!
         });
 
         expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a document.
+This is a comment thread on a document.
 
 <time>November 21st at 8:10am EST</time>
 
@@ -894,22 +891,52 @@ ${"Long message content.".repeat(100)}
     });
 
     describe("document comments", () => {
-        test("loads document comment with context", async () => {
+        test("loads document comment with content snippet for first page of conversation", async () => {
             const documentId = generateId<DocumentId>();
             const commentThreadId = generateId<DocumentCommentThreadId>();
             const aliceAccount = createApiAccountMock({
                 name: "Alice",
             });
-            const bobAccount = createApiAccountMock({
-                name: "Bob",
-            });
 
             client.mockGetDocument(spaceId, documentId, {
-                title: "My Document",
-                content: createSampleContent("This is the document content."),
+                title: "Code Review",
+                content: createSampleContent("Review this code."),
             });
 
-            // before start index 1
+            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+                createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                isResolved: false,
+                commentCount: 0,
+                documentContentSnippet: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {type: "Text", text: "This is "},
+                                {
+                                    type: "Text",
+                                    text: "bold",
+                                    marks: [{type: "Bold"}],
+                                },
+                                {type: "Text", text: " and "},
+                                {
+                                    type: "Text",
+                                    text: "italic",
+                                    marks: [{type: "Italic"}],
+                                },
+                                {type: "Text", text: " and "},
+                                {
+                                    type: "Text",
+                                    text: "myFunction()",
+                                    marks: [{type: "Code"}],
+                                },
+                                {type: "Text", text: " inline code."},
+                            ],
+                        },
+                    ],
+                },
+            });
+
             client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
                 totalMessageCount: 1,
                 nextCursor: null,
@@ -918,39 +945,21 @@ ${"Long message content.".repeat(100)}
                         index: 0,
                         author: aliceAccount,
                         createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
-                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: createSampleContent("This looks great!"),
+                            content: createSampleContent("Looks comprehensive!"),
                         },
+                        createdTimeZone: defaultTimeZone,
                     },
-                ],
-            });
-
-            // After and including start index 1
-            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
-                totalMessageCount: 2,
-                nextCursor: null,
-                messages: [
                     {
                         index: 1,
                         author: bobAccount,
                         createdTime: assertDateString("2025-11-21T13:16:00.000Z"),
-                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
                             content: createSampleContent("Thanks Alice!"),
                         },
-                    },
-                    {
-                        index: 2,
-                        author: aliceAccount,
-                        createdTime: assertDateString("2025-11-21T13:17:00.000Z"),
                         createdTimeZone: defaultTimeZone,
-                        payload: {
-                            type: "Content",
-                            content: createSampleContent("You're welcome!"),
-                        },
                     },
                 ],
             });
@@ -960,8 +969,8 @@ ${"Long message content.".repeat(100)}
                     type: "DocumentComment",
                     documentId,
                     commentThreadId,
-                    commentIndex: 1,
-                    preview: "Thanks Alice!",
+                    commentIndex: 0,
+                    preview: "This is bold",
                 })) as AgentPaginatedMessagesListLink;
 
                 return loadAgentMessagesListLinkContent({
@@ -974,34 +983,132 @@ ${"Long message content.".repeat(100)}
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [document](/document/my-document).
+This is a comment thread on the document [Code Review](/document/code-review). The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
+
+<document_preview>
+
+This is **bold** and *italic* and \`myFunction()\` inline code.
+
+</document_preview>
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-This looks great!
+Looks comprehensive!
 </human>
 
 <human name="Bob">
 Thanks Alice!
 </human>
-
-<human name="Alice">
-You're welcome!
-</human>
 `);
         });
-
-        test("loads first document comment with limited context", async () => {
+        test("filters out other comment thread marks from other comments in the same snippet", async () => {
             const documentId = generateId<DocumentId>();
             const commentThreadId = generateId<DocumentCommentThreadId>();
+            const threadId2 = generateId<DocumentCommentThreadId>();
             const aliceAccount = createApiAccountMock({
                 name: "Alice",
             });
 
             client.mockGetDocument(spaceId, documentId, {
-                title: "Project Plan",
-                content: createSampleContent("Project details here."),
+                title: "Code Review",
+                content: createSampleContent("Review this code."),
+            });
+
+            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+                createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                isResolved: false,
+                commentCount: 0,
+                documentContentSnippet: {
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: "Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. ",
+                                    marks: [{type: "Comment", threadId: commentThreadId}],
+                                },
+                                {
+                                    type: "Text",
+                                    text: "They promoted a ",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: "water boy",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Italic"},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " ",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: "to captain",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Bold"},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " to the ",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: "head",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Strike"},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: " of their ",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: "army",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                        {type: "Highlight", color: "Orange"},
+                                    ],
+                                },
+                                {
+                                    type: "Text",
+                                    text: ".",
+                                    marks: [
+                                        {type: "Comment", threadId: commentThreadId},
+                                        {type: "Comment", threadId: threadId2},
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
             });
 
             client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
@@ -1012,11 +1119,21 @@ You're welcome!
                         index: 0,
                         author: aliceAccount,
                         createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
-                        createdTimeZone: defaultTimeZone,
                         payload: {
                             type: "Content",
-                            content: createSampleContent("Starting a discussion here."),
+                            content: createSampleContent("Looks comprehensive!"),
                         },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                    {
+                        index: 1,
+                        author: bobAccount,
+                        createdTime: assertDateString("2025-11-21T13:16:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Thanks Alice!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
                     },
                 ],
             });
@@ -1027,7 +1144,7 @@ You're welcome!
                     documentId,
                     commentThreadId,
                     commentIndex: 0,
-                    preview: "Starting a discussion here.",
+                    preview: "This is bold",
                 })) as AgentPaginatedMessagesListLink;
 
                 return loadAgentMessagesListLinkContent({
@@ -1040,17 +1157,27 @@ You're welcome!
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [document](/document/project-plan).
+This is a comment thread on the document [Code Review](/document/code-review). The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
+
+<document_preview>
+
+<comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment>
+
+</document_preview>
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-Starting a discussion here.
+Looks comprehensive!
+</human>
+
+<human name="Bob">
+Thanks Alice!
 </human>
 `);
         });
 
-        test("loads document comment with link to next page for long threads", async () => {
+        test("shows document link the first time a conversation is loaded but doesn't show comment snippet if not the first page", async () => {
             const documentId = generateId<DocumentId>();
             const commentThreadId = generateId<DocumentCommentThreadId>();
             const aliceAccount = createApiAccountMock({
@@ -1058,29 +1185,103 @@ Starting a discussion here.
             });
 
             client.mockGetDocument(spaceId, documentId, {
-                title: "Long Discussion",
-                content: createSampleContent("Document content."),
+                title: "Code Review",
+                content: createSampleContent("Review this code."),
             });
-
-            // Create many comments to exceed page limit
-            const messages: Array<ApiMessageResponse> = [];
-            for (let i = 0; i < 3; i++) {
-                messages.push({
-                    index: i,
-                    author: aliceAccount,
-                    createdTime: assertDateString(`2025-11-21T13:1${i}:00.000Z`),
-                    createdTimeZone: defaultTimeZone,
-                    payload: {
-                        type: "Content" as const,
-                        content: createSampleContent("Long comment text.".repeat(200)),
-                    },
-                });
-            }
 
             client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
-                totalMessageCount: messages.length,
+                totalMessageCount: 1,
                 nextCursor: null,
-                messages,
+                messages: [
+                    {
+                        index: 3,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Looks comprehensive!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                    {
+                        index: 4,
+                        author: bobAccount,
+                        createdTime: assertDateString("2025-11-21T13:16:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Thanks Alice!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "DocumentCommentThreadComments",
+                        documentId,
+                        commentThreadId,
+                        label: "This is bold",
+                        paginationType: "chunk",
+                        pageNumber: 0,
+                        pageInfo: {from: "Start", cursor: 2},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a comment thread on the document [Code Review](/document/code-review).
+
+<time>November 21st at 8:10am EST</time>
+
+<human name="Alice">
+Looks comprehensive!
+</human>
+
+<human name="Bob">
+Thanks Alice!
+</human>
+`);
+        });
+
+        test("loads document comment without a content snippet", async () => {
+            const documentId = generateId<DocumentId>();
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            client.mockGetDocument(spaceId, documentId, {
+                title: "Resources Doc",
+                content: createSampleContent("Links to resources."),
+            });
+
+            client.mockGetDocumentThread(spaceId, documentId, commentThreadId, {
+                createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                isResolved: false,
+                commentCount: 0,
+                documentContentSnippet: {elements: []},
+            });
+
+            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 0,
+                        author: bobAccount,
+                        createdTime: assertDateString("2025-11-21T13:16:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Good stuff!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
             });
 
             const result = await storage.transaction(async transaction => {
@@ -1089,7 +1290,7 @@ Starting a discussion here.
                     documentId,
                     commentThreadId,
                     commentIndex: 0,
-                    preview: "Long comment text",
+                    preview: "Check out this article",
                 })) as AgentPaginatedMessagesListLink;
 
                 return loadAgentMessagesListLinkContent({
@@ -1102,123 +1303,344 @@ Starting a discussion here.
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [document](/document/long-discussion).
+This is a comment thread on the document [Resources Doc](/document/resources-doc).
 
-<time>November 21st at 8:10am EST</time>
+<time>November 21st at 8:16am EST</time>
 
-<human name="Alice">
-${"Long comment text.".repeat(200)}
+<human name="Bob">
+Good stuff!
 </human>
-
-[Next page »](/document-thread/long-comment-text?page=2)
 `);
         });
 
-        test("loads document comment with multiple messages across API requests", async () => {
+        test("doesn't add content snippet or link to content if it's not the first page of the conversation", async () => {
             const documentId = generateId<DocumentId>();
             const commentThreadId = generateId<DocumentCommentThreadId>();
             const aliceAccount = createApiAccountMock({
                 name: "Alice",
             });
-            const bobAccount = createApiAccountMock({
-                name: "Bob",
+
+            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 3,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("First comment."),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
             });
-
-            client.mockGetDocument(spaceId, documentId, {
-                title: "Feedback Document",
-                content: createSampleContent("Content here."),
-            });
-
-            // First API request
-            client.mockGetDocumentCommentsList(
-                spaceId,
-                documentId,
-                commentThreadId,
-                {
-                    totalMessageCount: 2,
-                    nextCursor: 1,
-                    messages: [
-                        {
-                            index: 0,
-                            author: aliceAccount,
-                            createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
-                            createdTimeZone: defaultTimeZone,
-                            payload: {
-                                type: "Content",
-                                content: createSampleContent("First comment."),
-                            },
-                        },
-                        {
-                            index: 1,
-                            author: bobAccount,
-                            createdTime: assertDateString("2025-11-21T13:16:00.000Z"),
-                            createdTimeZone: defaultTimeZone,
-                            payload: {
-                                type: "Content",
-                                content: createSampleContent("Second comment."),
-                            },
-                        },
-                    ],
-                },
-                {cursor: undefined, limit: 30},
-            );
-
-            // Second API request
-            client.mockGetDocumentCommentsList(
-                spaceId,
-                documentId,
-                commentThreadId,
-                {
-                    totalMessageCount: 0,
-                    nextCursor: null,
-                    messages: [
-                        {
-                            index: 2,
-                            author: aliceAccount,
-                            createdTime: assertDateString("2025-11-21T13:17:00.000Z"),
-                            createdTimeZone: defaultTimeZone,
-                            payload: {
-                                type: "Content",
-                                content: createSampleContent("Third comment from second request."),
-                            },
-                        },
-                    ],
-                },
-                {cursor: 1, limit: 30},
-            );
 
             const result = await storage.transaction(async transaction => {
-                const link = (await createAgentLink(storage, {
-                    type: "DocumentComment",
-                    documentId,
-                    commentThreadId,
-                    commentIndex: 0,
-                    preview: "First comment.",
-                })) as AgentPaginatedMessagesListLink;
                 return loadAgentMessagesListLinkContent({
                     tracer: tracerRoot,
                     transaction,
                     request,
-                    link,
+                    link: {
+                        type: "DocumentCommentThreadComments",
+                        documentId,
+                        commentThreadId,
+                        label: "First comment",
+                        paginationType: "page",
+                        pageNumber: 3,
+                        pageInfo: {from: "Start", cursor: 1},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
                     conversationState,
                 });
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a conversation about a [document](/document/feedback-document).
+This is a comment thread on a document.
 
 <time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
 First comment.
 </human>
+`);
+        });
 
-<human name="Bob">
-Second comment.
-</human>
+        test("doesn't add content snippet or link to content if it's not the first chunk of the conversation", async () => {
+            const documentId = generateId<DocumentId>();
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+            const aliceAccount = createApiAccountMock({
+                name: "Alice",
+            });
+
+            client.mockGetDocumentCommentsList(spaceId, documentId, commentThreadId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 5,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Long comment.".repeat(100)),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "DocumentCommentThreadComments",
+                        documentId,
+                        commentThreadId,
+                        label: "First comment",
+                        paginationType: "chunk",
+                        pageNumber: 1,
+                        pageInfo: {from: "Start", cursor: 3},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a comment thread on a document.
+
+<time>November 21st at 8:10am EST</time>
 
 <human name="Alice">
-Third comment from second request.
+${"Long comment.".repeat(100)}
+</human>
+`);
+        });
+    });
+
+    describe("task comments", () => {
+        test("loads task comment with link to task for first page of conversation", async () => {
+            const taskId = generateId<TaskId>();
+            const aliceAccount = createApiAccountMock({
+                name: "Alice",
+            });
+
+            client.mockGetTask(spaceId, taskId, {
+                title: "Implement Feature X",
+            });
+
+            client.mockGetTaskCommentsList(spaceId, taskId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 0,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Started working on this!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "TaskComments",
+                        taskId,
+                        label: "Started working on this",
+                        paginationType: "page",
+                        pageNumber: 1,
+                        pageInfo: {from: "Start", cursor: null},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a conversation about a [task](/task/implement-feature-x).
+
+<time>November 21st at 8:10am EST</time>
+
+<human name="Alice">
+Started working on this!
+</human>
+`);
+        });
+
+        test("loads task comment without link to task for non-first page of conversation", async () => {
+            const taskId = generateId<TaskId>();
+            const aliceAccount = createApiAccountMock({
+                name: "Alice",
+            });
+
+            client.mockGetTaskCommentsList(spaceId, taskId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 3,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Making progress!"),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "TaskComments",
+                        taskId,
+                        label: "Making progress",
+                        paginationType: "page",
+                        pageNumber: 3,
+                        pageInfo: {from: "Start", cursor: 1},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a conversation about a task.
+
+<time>November 21st at 8:10am EST</time>
+
+<human name="Alice">
+Making progress!
+</human>
+`);
+        });
+
+        test("loads task comment with link to task for first chunk of conversation", async () => {
+            const taskId = generateId<TaskId>();
+            const aliceAccount = createApiAccountMock({
+                name: "Alice",
+            });
+
+            client.mockGetTask(spaceId, taskId, {
+                title: "Implement Feature X",
+            });
+
+            client.mockGetTaskCommentsList(spaceId, taskId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 0,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Investigating the issue."),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "TaskComments",
+                        taskId,
+                        label: "Investigating the issue",
+                        paginationType: "chunk",
+                        pageNumber: 0,
+                        pageInfo: {from: "Start", cursor: null},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a conversation about a [task](/task/implement-feature-x).
+
+<time>November 21st at 8:10am EST</time>
+
+<human name="Alice">
+Investigating the issue.
+</human>
+`);
+        });
+
+        test("loads task comment without link to task for non-first chunk of conversation", async () => {
+            const taskId = generateId<TaskId>();
+            const aliceAccount = createApiAccountMock({
+                name: "Alice",
+            });
+
+            client.mockGetTaskCommentsList(spaceId, taskId, {
+                totalMessageCount: 1,
+                nextCursor: null,
+                messages: [
+                    {
+                        index: 5,
+                        author: aliceAccount,
+                        createdTime: assertDateString("2025-11-21T13:10:00.000Z"),
+                        payload: {
+                            type: "Content",
+                            content: createSampleContent("Detailed review notes."),
+                        },
+                        createdTimeZone: defaultTimeZone,
+                    },
+                ],
+            });
+
+            const result = await storage.transaction(async transaction => {
+                return loadAgentMessagesListLinkContent({
+                    tracer: tracerRoot,
+                    transaction,
+                    request,
+                    link: {
+                        type: "TaskComments",
+                        taskId,
+                        label: "Detailed review notes",
+                        paginationType: "chunk",
+                        pageNumber: 1,
+                        pageInfo: {from: "Start", cursor: 3},
+                        tokenLimitForPage: 1000,
+                        rootMessage: null,
+                    },
+                    conversationState,
+                });
+            });
+
+            expect(printAgentContentMarkdownTree(result)).toEqual(`\
+This is a conversation about a task.
+
+<time>November 21st at 8:10am EST</time>
+
+<human name="Alice">
+Detailed review notes.
 </human>
 `);
         });

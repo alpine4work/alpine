@@ -1,4 +1,5 @@
-import {Paragraph, PhrasingContent, Root, RootContent} from "mdast";
+import {produce} from "immer";
+import {PhrasingContent, Root, RootContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
 import {AgentConversationState} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {
@@ -13,14 +14,24 @@ import {
     putAgentNextMessagesPageLink,
     putAgentPreviousMessagesPageLink,
 } from "~/server/agents/internal/link_references/agent_link_collection.js";
-import {printAgentLinkPath} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {
+    printAgentLinkPath,
+    printAgentPlainTextLabel,
+} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {printMessagesListContentToMarkdownRoot} from "~/server/agents/internal/link_references/print_messages_list_content_to_markdown_root.js";
 import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/internal/messages/get_agent_messages_from_end_until_token_limit_count.js";
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
+import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
+import {visitDraftApiContent} from "~/server/agents/internal/visit_and_produce_api_content.js";
+import {normalizeDraftApiContent} from "~/server/api/markdown/normalize_api_content.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
-import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiContentResponse,
+    ApiMessageRoomPath,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type LoadAgentMessagesListLinkRequest = Pick<AgentWebhookRequest, "apiClient" | "spaceId">;
@@ -55,13 +66,16 @@ export async function loadAgentMessagesListLinkContent(options: {
     link: AgentPaginatedMessagesListLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
 }): Promise<Root> {
-    const messagesContent = await loadPageMessages(options);
+    const {messagesContent, isFirstPage} = await loadPageMessages(options);
 
-    const preamble = await getPagePreambleElements(options);
+    const preamble = await getPagePreambleElements({
+        ...options,
+        isFirstPage,
+    });
 
     return {
         type: "root",
-        children: [preamble, ...messagesContent],
+        children: [...preamble, ...messagesContent],
     };
 }
 
@@ -71,7 +85,7 @@ async function loadPageMessages(options: {
     request: LoadAgentMessagesListLinkRequest;
     link: AgentPaginatedMessagesListLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<Array<RootContent>> {
+}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
     const {link} = options;
     switch (link.pageInfo.from) {
         case "Start": {
@@ -112,7 +126,8 @@ async function getPagePreambleElements(options: {
     request: LoadAgentMessagesListLinkRequest;
     transaction: DurableObjectTransaction;
     link: AgentPaginatedMessagesListLink;
-}): Promise<Paragraph> {
+    isFirstPage: boolean;
+}): Promise<Array<RootContent>> {
     switch (options.link.type) {
         case "ChatMessages":
             return getPreambleForChatMessages({
@@ -151,7 +166,7 @@ async function getMarkdownContentForPageFromStart({
         from: "Start";
         cursor: number | null;
     };
-}): Promise<Array<RootContent>> {
+}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
     const {messages, nextCursor} = await getAgentMessagesFromStartUntilTokenLimitCount(
         tracer,
         transaction,
@@ -177,7 +192,7 @@ async function getMarkdownContentForPageFromStart({
         conversationState,
     });
 
-    return messagesContent;
+    return {messagesContent, isFirstPage: cursorOptions.cursor === null};
 }
 
 async function getMarkdownContentForPageFromEnd({
@@ -194,7 +209,7 @@ async function getMarkdownContentForPageFromEnd({
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "End"; cursor: number};
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<Array<RootContent>> {
+}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
     const {messages, nextCursor} = await getAgentMessagesFromEndUntilLimitTokenCount(
         tracer,
         transaction,
@@ -220,7 +235,7 @@ async function getMarkdownContentForPageFromEnd({
         conversationState,
     });
 
-    return messagesContent;
+    return {messagesContent, isFirstPage: !previousPageLink};
 }
 
 async function getMarkdownContentForPageFromMiddle({
@@ -237,7 +252,7 @@ async function getMarkdownContentForPageFromMiddle({
     link: AgentPaginatedMessagesListLink;
     cursorOptions: {from: "Middle"; index: number};
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-}): Promise<Array<RootContent>> {
+}): Promise<{messagesContent: Array<RootContent>; isFirstPage: boolean}> {
     const [
         {messages: messagesBeforeCurrent, nextCursor: pageStartIndex},
         {messages: messagesAfterCurrent, nextCursor: pageEndIndex},
@@ -285,7 +300,7 @@ async function getMarkdownContentForPageFromMiddle({
         conversationState,
     });
 
-    return messagesContent;
+    return {messagesContent, isFirstPage: !previousPageLink};
 }
 
 function getMessageRoomPath(link: AgentPaginatedMessagesListLink): ApiMessageRoomPath {
@@ -307,16 +322,43 @@ async function getPreambleForChatMessages(_options: {
     request: LoadAgentMessagesListLinkRequest;
     transaction: DurableObjectTransaction;
     link: AgentChatMessagesPageLink;
-}): Promise<Paragraph> {
-    return {
-        type: "paragraph",
-        children: [
-            {
-                type: "text",
-                value: "This is a chat conversation.",
+}): Promise<Array<RootContent>> {
+    return [
+        {
+            type: "paragraph",
+            children: [
+                {
+                    type: "text",
+                    value: "This is a chat conversation.",
+                },
+            ],
+        },
+    ];
+}
+
+function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
+    content: ApiContentResponse,
+    commentThreadId: DocumentCommentThreadId,
+) {
+    return produce(content, content => {
+        visitDraftApiContent(content, {
+            visitInlineElement: element => {
+                if (
+                    element.type === "Text" &&
+                    element.marks !== undefined &&
+                    element.marks.some(
+                        mark => mark.type === "Comment" && mark.threadId !== commentThreadId,
+                    )
+                ) {
+                    element.marks = element.marks.filter(
+                        mark => mark.type !== "Comment" || mark.threadId === commentThreadId,
+                    );
+                }
             },
-        ],
-    };
+        });
+
+        normalizeDraftApiContent(content);
+    });
 }
 
 // TODO(ifitzsimmons, #ai): This preamble should eventually include the snippet
@@ -326,33 +368,46 @@ async function getPreambleForDocumentComments({
     request,
     transaction,
     link,
+    isFirstPage,
 }: {
     tracer: TracerBase;
     request: LoadAgentMessagesListLinkRequest;
     transaction: DurableObjectTransaction;
     link: AgentDocumentCommentsCommentsPageLink;
-}): Promise<Paragraph> {
-    const content: Array<PhrasingContent> = [
+    isFirstPage: boolean;
+}): Promise<Array<RootContent>> {
+    const rootContent: Array<RootContent> = [];
+    const paragraphContent: Array<PhrasingContent> = [
         {
             type: "text",
-            value: "This is a conversation about a ",
+            value: "This is a comment thread on ",
         },
     ];
 
-    const shouldShowDocumentLink =
+    const isFirstRenderForConversation =
         (link.paginationType === "page" && link.pageNumber === 1) ||
         (link.paginationType === "chunk" && link.pageNumber === 0);
 
-    if (!shouldShowDocumentLink) {
-        content.push({
+    let documentContentSnippet: ApiContentResponse | null = null;
+
+    if (!isFirstRenderForConversation) {
+        paragraphContent.push({
             type: "text",
-            value: "document",
+            value: "a document.",
         });
     } else {
-        let documentLink = await findAgentLinkForApiPathIfExists(
-            transaction,
-            `/documents/${link.documentId}`,
-        );
+        // When showing the conversation for the first time, show the snippet of text that the
+        // comment was created on and the link to the document.
+        const [existingDocumentLink, commentThreadData] = await runAllPromises([
+            findAgentLinkForApiPathIfExists(transaction, `/documents/${link.documentId}`),
+            isFirstPage
+                ? request.apiClient.get(tracer, "/documents/{id}/threads/{threadId}", {
+                      params: {path: {id: link.documentId, threadId: link.commentThreadId}},
+                  })
+                : null,
+        ]);
+
+        let documentLink = existingDocumentLink;
 
         if (!documentLink) {
             const {
@@ -366,22 +421,65 @@ async function getPreambleForDocumentComments({
             });
         }
 
-        content.push({
+        paragraphContent.push({
+            type: "text",
+            value: "the document ",
+        });
+        paragraphContent.push({
             type: "link",
             url: printAgentLinkPath(documentLink),
-            children: [{type: "text", value: "document"}],
+            children: [{type: "text", value: printAgentPlainTextLabel(documentLink)}],
         });
+        paragraphContent.push({
+            type: "text",
+            value: ".",
+        });
+
+        const commentThread = commentThreadData?.data?.commentThread;
+        if (commentThread && commentThread.documentContentSnippet.elements.length > 0) {
+            documentContentSnippet = commentThread.documentContentSnippet;
+            paragraphContent.push({
+                type: "text",
+                value: " The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in ",
+            });
+            paragraphContent.push({
+                type: "inlineCode",
+                value: "<comment></comment>",
+            });
+            paragraphContent.push({
+                type: "text",
+                value: ".",
+            });
+        }
     }
 
-    content.push({
-        type: "text",
-        value: ".",
+    rootContent.push({
+        type: "paragraph",
+        children: paragraphContent,
     });
 
-    return {
-        type: "paragraph",
-        children: content,
-    };
+    if (documentContentSnippet) {
+        rootContent.push({type: "html", value: "<document_preview>"});
+
+        const snippetContentMarkdownTree = await printApiContentToAgentMarkdownTree(
+            transaction,
+            getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
+                documentContentSnippet,
+                link.commentThreadId,
+            ),
+            {
+                spaceId: request.spaceId,
+            },
+        );
+
+        for (const element of snippetContentMarkdownTree.children) {
+            rootContent.push(element);
+        }
+
+        rootContent.push({type: "html", value: "</document_preview>"});
+    }
+
+    return rootContent;
 }
 
 async function getPreambleForTaskComments({
@@ -394,8 +492,8 @@ async function getPreambleForTaskComments({
     request: LoadAgentMessagesListLinkRequest;
     transaction: DurableObjectTransaction;
     link: AgentTaskCommentsPageLink;
-}): Promise<Paragraph> {
-    const content: Array<PhrasingContent> = [
+}): Promise<Array<RootContent>> {
+    const paragraphContent: Array<PhrasingContent> = [
         {
             type: "text",
             value: "This is a conversation about a ",
@@ -407,7 +505,7 @@ async function getPreambleForTaskComments({
         (link.paginationType === "chunk" && link.pageNumber === 0);
 
     if (!shouldShowTaskLink) {
-        content.push({
+        paragraphContent.push({
             type: "text",
             value: "task",
         });
@@ -422,20 +520,22 @@ async function getPreambleForTaskComments({
             taskLink = await createAgentLink(transaction, {type: "Task", task});
         }
 
-        content.push({
+        paragraphContent.push({
             type: "link",
             url: printAgentLinkPath(taskLink),
             children: [{type: "text", value: "task"}],
         });
     }
 
-    content.push({
+    paragraphContent.push({
         type: "text",
         value: ".",
     });
 
-    return {
-        type: "paragraph",
-        children: content,
-    };
+    return [
+        {
+            type: "paragraph",
+            children: paragraphContent,
+        },
+    ];
 }

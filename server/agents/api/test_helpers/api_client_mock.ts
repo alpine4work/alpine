@@ -3,6 +3,7 @@ import {ApiClient} from "~/server/agents/api/api_client.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {
     ApiContentResponse,
+    ApiDocumentCommentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
     ApiTaskResponse,
@@ -382,6 +383,33 @@ export class ApiClientMock implements ApiClient {
                 },
             },
             {path: {id: documentId}},
+        );
+    }
+
+    mockGetDocumentThread(
+        spaceId: SpaceId,
+        documentId: DocumentId,
+        commentThreadId: DocumentCommentThreadId,
+        responseData: Partial<Omit<ApiDocumentCommentThreadResponse, "id">>,
+    ): void {
+        this.mockGet(
+            "/documents/{id}/threads/{threadId}",
+            {
+                data: {
+                    spaceId,
+                    commentThread: {
+                        id: commentThreadId,
+                        createdTime: responseData.createdTime ?? serializeDateString(new Date()),
+                        isResolved: responseData.isResolved ?? false,
+                        commentCount: responseData.commentCount ?? 0,
+                        documentContentSnippet: responseData.documentContentSnippet ?? {
+                            elements: [],
+                        },
+                        firstCommentAuthor: responseData.firstCommentAuthor ?? null,
+                    },
+                },
+            },
+            {path: {id: documentId, threadId: commentThreadId}},
         );
     }
 

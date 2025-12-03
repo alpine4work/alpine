@@ -49,6 +49,7 @@ export async function printApiContentToAgentMarkdownTree(
         // Our LLMs don't need to know the width of columns in a table. The potentially
         // long floats will consume a lot of tokens and may confuse the LLM.
         withoutTableWidth: true,
+        withSimpleCommentMarkHtml: true,
     });
 
     const traverse = (node: Parent) => {

@@ -22,11 +22,15 @@ export type ApiContentDraftVisitor = {
     ) => void;
 };
 
-export function visitAndProduceApiContent(
-    content: ApiContent,
+export function visitAndProduceApiContent<Content extends ApiContent>(
+    content: Content,
     visitor: ApiContentDraftVisitor,
-): ApiContent {
+): Content {
     return produce(content, content => {
         visitApiContent(content, visitor as ApiContentVisitor);
     });
+}
+
+export function visitDraftApiContent(content: Draft<ApiContent>, visitor: ApiContentDraftVisitor) {
+    visitApiContent(content, visitor as ApiContentVisitor);
 }

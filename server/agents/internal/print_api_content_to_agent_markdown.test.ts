@@ -9,7 +9,13 @@ import {printApiContentToAgentMarkdown} from "~/server/agents/internal/print_api
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId, PostId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    PostId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 
 const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
@@ -872,4 +878,215 @@ test("dedupes by entity and label combination", async () => {
             ],
         ]),
     );
+});
+
+describe("comment mark conversion", () => {
+    const threadId1 = generateId<DocumentCommentThreadId>();
+    const threadId2 = generateId<DocumentCommentThreadId>();
+
+    test("simple comment mark gets converted to <comment> tag", async () => {
+        await testPrintAgentContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {type: "Text", text: "Before "},
+                            {
+                                type: "Text",
+                                text: "commented text",
+                                marks: [{type: "Comment", threadId: threadId1}],
+                            },
+                            {type: "Text", text: " after."},
+                        ],
+                    },
+                ],
+            },
+            `Before <comment>commented text</comment> after.\n`,
+        );
+    });
+
+    test("nested comment marks get converted to nested <comment> tags", async () => {
+        await testPrintAgentContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {type: "Text", text: "Before "},
+                            {
+                                type: "Text",
+                                text: "doubly commented",
+                                marks: [
+                                    {type: "Comment", threadId: threadId1},
+                                    {type: "Comment", threadId: threadId2},
+                                ],
+                            },
+                            {type: "Text", text: " after."},
+                        ],
+                    },
+                ],
+            },
+            `Before <comment><comment>doubly commented</comment></comment> after.\n`,
+        );
+    });
+
+    test("comment mark with highlight mark preserves highlight", async () => {
+        await testPrintAgentContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {type: "Text", text: "Before "},
+                            {
+                                type: "Text",
+                                text: "highlighted comment",
+                                marks: [
+                                    {type: "Comment", threadId: threadId1},
+                                    {type: "Highlight", color: "Orange"},
+                                ],
+                            },
+                            {type: "Text", text: " after."},
+                        ],
+                    },
+                ],
+            },
+            `Before <comment><mark class="highlight-orange">highlighted comment</mark></comment> after.\n`,
+        );
+    });
+
+    test("merges adjacent comment tags and handles comment nesting", async () => {
+        // ordering of the thread Ids matters. We generate comment marks in the order of the thread Ids.
+        // So if thread 1 ID = "A" and thread 2 ID = "B", and thread 2 is nested inside thread 1, we
+        // get something like:
+        // ```html
+        // <mark data-comment="A">
+        //   hello
+        // </mark>
+        // <mark data-comment="A">
+        //   <mark data-comment="B">
+        //     world
+        //   </mark>
+        // </mark>
+        // ```
+        // Merging adjacent comment tags only works if the next opening comment tag is the same as the
+        // previous closing comment tag. So the above example gives us the desired out, but if
+        // thread 1 Id was greater than thread 2 Id (e.g. thread 1 ID = "B" and thread 2 ID = "A"), we would get:
+        // ```html
+        // <mark data-comment="B">
+        //   hello
+        // </mark>
+        // <mark data-comment="A">
+        //   <mark data-comment="B">
+        //     world
+        //   </mark>
+        // </mark>
+        // ```
+        // This would not be merged correctly because thread 1 is nested inside of thread 2.
+
+        const thread1 = threadId1 < threadId2 ? threadId1 : threadId2;
+        const thread2 = threadId1 < threadId2 ? threadId2 : threadId1;
+        // Example
+        // ```
+        // <comment1 start>Next, something outrageous happened. The Eagles sought to defend their title
+        // (and honor) in the 2025-2026 season. <comment2 start>They promoted a water boy to captain to
+        // the head of their army.</comment2 end></comment1>
+        //```
+        await testPrintAgentContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. ",
+                                marks: [{type: "Comment", threadId: thread1}],
+                            },
+                            {
+                                type: "Text",
+                                text: "They promoted a ",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: "water boy",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                    {type: "Italic"},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: " ",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: "to captain",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                    {type: "Bold"},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: " to the ",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: "head",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                    {type: "Strike"},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: " of their ",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: "army",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                    {type: "Highlight", color: "Orange"},
+                                ],
+                            },
+                            {
+                                type: "Text",
+                                text: ".",
+                                marks: [
+                                    {type: "Comment", threadId: thread1},
+                                    {type: "Comment", threadId: thread2},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+<comment>Next, something outrageous happened. The Eagles sought to defend their title (and honor) in the 2025-2026 season. \
+<comment>They promoted a *water boy* **to captain** to the ~~head~~ of their <mark class="highlight-orange">army</mark>.</comment></comment>\n`,
+        );
+    });
 });
