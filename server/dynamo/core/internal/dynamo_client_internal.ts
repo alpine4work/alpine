@@ -122,7 +122,10 @@ export class DynamoClientInternal {
         const abortTimeout = !this.isLocal()
             ? createTimeout(() => {
                   abortController.abort(new DeadlineExceededError("DynamoDB request timed out"));
-              }, 500)
+
+                  // TODO(calebmer, 2025-12-03): Ideally this would be 500ms. Extending since it
+                  // seems like DynamoDB is having a bad day.
+              }, 2000)
             : // Don't set a DynamoDB request timeout if we're using local DynamoDB. Poor CPU bound
               // SQLite based local DynamoDB can take longer than 500ms in CI when the CPU is under
               // heavy load.
