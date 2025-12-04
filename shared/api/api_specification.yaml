@@ -460,6 +460,8 @@ paths:
                             properties:
                                 channelId:
                                     $ref: "#/components/schemas/ChannelId"
+                                createdTimeZone:
+                                    $ref: "#/components/schemas/TimeZone"
                                 content:
                                     $ref: "#/components/schemas/Content"
             responses:
@@ -2016,7 +2018,7 @@ components:
             type: object
             # `channel` is intentionally optional since we may allow users to create posts
             # that aren't in a channel in the future.
-            required: [id, author, createdTime, content, contentPreview]
+            required: [id, author, createdTime, createdTimeZone, content, contentPreview]
             additionalProperties: false
             properties:
                 id:
@@ -2027,6 +2029,8 @@ components:
                     $ref: "#/components/schemas/Account"
                 createdTime:
                     $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 channel:
                     $ref: "#/components/schemas/ChannelPreview"
                 content:

@@ -9,6 +9,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // Designed for `server/api/internal/forum/api_forum_paths.ts`.
@@ -28,6 +29,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreview<
     spaceId: SpaceId;
     version: number;
     createdTime: Date;
+    createdTimeZone: TimeZone;
     channel: ChannelPreviewModel;
     content: Content;
 }> {
@@ -58,6 +60,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
         spaceId: SpaceId;
         version: number;
         createdTime: Date;
+        createdTimeZone: TimeZone;
         channel: ChannelPreviewModel;
         content: Content;
     }>
@@ -83,6 +86,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
             spaceId: postItem.spaceId,
             version: postItem.updateLockVersion ?? 0,
             createdTime: postItem.createdTime,
+            createdTimeZone: postItem.createdTimeZone,
             channel: channelResult.value,
             content,
         },

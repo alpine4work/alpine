@@ -54,6 +54,7 @@ test("can open and close post comments in channel", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -116,6 +117,7 @@ test("comments are always open at a direct post url", async ({page, context: bro
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -170,6 +172,7 @@ test("can comment on a post", async ({page, context: browserContext, isMobile}) 
     await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session2);
@@ -235,6 +238,7 @@ test("can see comments appear in realtime", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session1);
@@ -365,6 +369,7 @@ test("can see new comments when opening post comments", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext1, session1);

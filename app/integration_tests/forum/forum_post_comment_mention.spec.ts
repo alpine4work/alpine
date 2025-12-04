@@ -5,6 +5,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
@@ -40,6 +41,7 @@ test("can search for an account in mention menu", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -147,6 +149,7 @@ test("can undo to get the full mention when a short mention was inferred", async
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -210,6 +213,7 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);

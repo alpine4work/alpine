@@ -23,6 +23,7 @@ import {
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
+import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
@@ -171,6 +172,7 @@ export function PostCreator({
                     channelId: channel.id,
                     draftId,
                     content: trimContent(state.getDoc()),
+                    createdTimeZone: getClientInfo().timeZone,
                 });
 
                 // While the client should get their new post data through `<ChannelView>`s

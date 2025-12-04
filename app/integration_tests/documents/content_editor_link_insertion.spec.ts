@@ -12,6 +12,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {PostDraftId} from "~/shared/id/types/id_types.js";
@@ -61,6 +62,7 @@ const testCases: Array<{
             const post = await createPost(session.action(), {
                 channelId: channel.id,
                 content: createSimplePostContent("Test post"),
+                createdTimeZone: defaultTimeZone,
             });
 
             await page.goto(`/s/${space.id}/posts/${post.id}`);
@@ -112,6 +114,7 @@ const testCases: Array<{
             const post = await createPost(session.action(), {
                 channelId: channel.id,
                 content: createSimplePostContent("Test post"),
+                createdTimeZone: defaultTimeZone,
             });
 
             await page.goto(`/s/${space.id}/posts/${post.id}`);

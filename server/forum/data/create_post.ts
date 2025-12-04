@@ -39,6 +39,7 @@ import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -59,18 +60,21 @@ export async function createPost(
         channelId,
         draftId = null,
         content,
+        createdTimeZone,
         consistency,
     }: {
         id?: PostId;
         channelId: ChannelId;
         draftId?: PostDraftId | null;
         content: PostContent;
+        createdTimeZone: TimeZone;
         consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     id: PostId;
     spaceId: SpaceId;
     createdTime: Date;
+    createdTimeZone: TimeZone;
     channelName: string;
     getDynamoGeneralRealtimeEventTransaction: (
         context: ServerActionContext,
@@ -92,6 +96,7 @@ export async function createPost(
         // this slightly awkward form to let tests mock different times for post
         // creation.
         createdTime: new Date(Date.now()),
+        createdTimeZone,
         authorId: context.actor.getPossiblyBotAccountId(),
         content,
         contentUpdate: null,
@@ -180,6 +185,7 @@ export async function createPost(
         id: postId,
         spaceId,
         createdTime: postItem.createdTime,
+        createdTimeZone: postItem.createdTimeZone,
         channelName,
         getDynamoGeneralRealtimeEventTransaction: async context => [await result.getEvent(context)],
     };

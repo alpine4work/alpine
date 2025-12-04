@@ -6,6 +6,7 @@ import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
@@ -99,6 +100,7 @@ test("can edit a post in a channel", async ({
     await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -159,6 +161,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);
@@ -228,6 +231,7 @@ test("asks for confirmation to save edited post", async ({
     await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await services.signIn(browserContext, session1);

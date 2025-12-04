@@ -12,6 +12,7 @@ import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     ChatId,
@@ -473,6 +474,7 @@ export class ApiClientMock implements ApiClient {
                     post: {
                         id: postId,
                         author: responseData.author ?? createApiAccountMock({}),
+                        createdTimeZone: responseData.createdTimeZone ?? defaultTimeZone,
                         content: responseData.content ?? defaultContent,
                         contentPreview: responseData.contentPreview ?? "Test Post Content Preview",
                         createdTime: responseData.createdTime ?? serializeDateString(new Date()),

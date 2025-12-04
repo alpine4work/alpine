@@ -47,6 +47,7 @@ test("can not connect to a post in a different space", async () => {
     const post = await createPost(context.action(session), {
         channelId: channel.id,
         content: emptyPostContent,
+        createdTimeZone: defaultTimeZone,
     });
 
     await expect(connectForTest(context.action(otherSession), post.id)).rejects.toThrow(
@@ -63,6 +64,7 @@ test("can not connect to an existing post durable object in a different space", 
     const post = await createPost(context.action(session), {
         channelId: channel.id,
         content: emptyPostContent,
+        createdTimeZone: defaultTimeZone,
     });
 
     await connectForTest(context.action(session), post.id);
@@ -82,6 +84,7 @@ testMessagingRealtimeImplementation<PostId>(context, {
         const post = await createPost(sessions[0].action(), {
             channelId: channel.id,
             content: createSimplePostContent("test"),
+            createdTimeZone: defaultTimeZone,
         });
 
         return {

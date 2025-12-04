@@ -8207,6 +8207,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "createdTimeZone": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
+                                    },
                                     "channelId": {
                                         "valueSchema": {
                                             "type": "Id"

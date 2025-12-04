@@ -199,6 +199,7 @@ export class TestPost extends TestCommentRoomBase {
         const post = await createPost(session.action(), {
             id: postId,
             channelId: channel.id,
+            createdTimeZone: defaultTimeZone,
             draftId,
             content: assertPostContent(content),
         });

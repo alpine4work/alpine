@@ -451,6 +451,7 @@ test("can search channels by affinity", async () => {
                 await createPost(session.action(), {
                     channelId: channel.id,
                     content: createSimplePostContent("Test post"),
+                    createdTimeZone: defaultTimeZone,
                 });
             }
         }

@@ -35,6 +35,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -52,6 +53,7 @@ import {
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -219,6 +221,7 @@ export const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
                         createdTime: Schema.date,
+                        createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
 
                         /** What channel was this post created in? */
                         channelId: Schema.id<ChannelId>(),

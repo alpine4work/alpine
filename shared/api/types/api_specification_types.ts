@@ -709,6 +709,7 @@ export namespace ApiSpecification {
                     readonly content: {
                         readonly "application/json": {
                             readonly channelId: components["schemas"]["ChannelId"];
+                            readonly createdTimeZone?: components["schemas"]["TimeZone"];
                             readonly content: components["schemas"]["Content"];
                         };
                     };
@@ -1887,6 +1888,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["PostId"];
                 readonly author: components["schemas"]["Account"];
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content"];
                 readonly contentPreview: string;
@@ -2338,6 +2340,7 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["PostId"];
                 readonly author: components["schemas"]["Account"];
                 readonly createdTime: components["schemas"]["DateTime"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly channel?: components["schemas"]["ChannelPreview"];
                 readonly content: components["schemas"]["Content_Response"];
                 readonly contentPreview: string;

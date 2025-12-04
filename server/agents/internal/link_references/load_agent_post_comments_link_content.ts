@@ -165,7 +165,7 @@ async function getMarkdownContentForPageFromStart({
                 limitTokenCount: link.tokenLimitForPage,
             },
         ),
-        isFirstPage ? getPostAgentMessage(transaction, request, post, conversationState) : null,
+        isFirstPage ? getPostAgentMessage(transaction, request, post) : null,
     ]);
 
     const nextPageLink =
@@ -233,7 +233,7 @@ async function getMarkdownContentForPageFromEnd({
     const isFirstPage = !previousPageLink;
 
     const originalPostMessage = isFirstPage
-        ? [await getPostAgentMessage(transaction, request, post, conversationState)]
+        ? [await getPostAgentMessage(transaction, request, post)]
         : [];
 
     const pageMessages = [...originalPostMessage, ...messages];
@@ -318,7 +318,7 @@ async function getMarkdownContentForPageFromMiddle({
     const isFirstPage = !previousPageLink;
 
     const originalPostMessage = isFirstPage
-        ? [await getPostAgentMessage(transaction, request, post, conversationState)]
+        ? [await getPostAgentMessage(transaction, request, post)]
         : [];
 
     const pageMessages = [
@@ -432,15 +432,13 @@ async function getPostAgentMessage(
     transaction: DurableObjectTransaction,
     request: LoadAgentPostCommentsLinkRequest,
     post: ApiPostResponse,
-    conversationState: Pick<AgentConversationState, "timeZone">,
 ): Promise<AgentMessage> {
     return AgentMessage.new(transaction, {
         spaceId: request.spaceId,
         index: -1, // The post is not a message, so it has an index of -1.
         author: post.author,
         createdTime: post.createdTime,
-        // TODO(ifitzsimmons, #ai): Add users timezone during Post creation.
-        createdTimeZone: conversationState.timeZone,
+        createdTimeZone: post.createdTimeZone,
         payload: {
             type: "Content",
             content: post.content,

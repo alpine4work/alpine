@@ -1404,6 +1404,7 @@ test("can’t create a post without edit access", async () => {
         createPost(session2.action(), {
             channelId: channel.id,
             content: createSimplePostContent("Test post 1"),
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
@@ -1413,6 +1414,7 @@ test("can’t create a post without edit access", async () => {
         createPost(session2.action(), {
             channelId: channel.id,
             content: createSimplePostContent("Test post 2"),
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
@@ -1422,6 +1424,7 @@ test("can’t create a post without edit access", async () => {
         createPost(session2.action(), {
             channelId: channel.id,
             content: createSimplePostContent("Test post 3"),
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow("Actor doesn’t have `Edit` access level");
 
@@ -1430,6 +1433,7 @@ test("can’t create a post without edit access", async () => {
     await createPost(session2.action(), {
         channelId: channel.id,
         content: createSimplePostContent("Test post 4"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await channel.access.grantDefault(session1, "Manage");
@@ -1437,6 +1441,7 @@ test("can’t create a post without edit access", async () => {
     await createPost(session2.action(), {
         channelId: channel.id,
         content: createSimplePostContent("Test post 5"),
+        createdTimeZone: defaultTimeZone,
     });
 });
 
@@ -6760,6 +6765,7 @@ test("will delete draft when creating post", async () => {
         channelId: channel.id,
         draftId,
         content: createSimplePostContent("Test post content 2"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await ProcessContextModule.waitForTestTasks();
@@ -6800,6 +6806,7 @@ test("will attach referenced files to post when creating from draft", async () =
             channelId: channel.id,
             draftId: null,
             content: postContent,
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(new FailedPreconditionError("Must create post from draft to attach files"));
 
@@ -6808,6 +6815,7 @@ test("will attach referenced files to post when creating from draft", async () =
             channelId: channel.id,
             draftId,
             content: postContent,
+            createdTimeZone: defaultTimeZone,
         }),
     ).rejects.toThrow(new PermissionDeniedError("File isn’t attached to target"));
 
@@ -6822,6 +6830,7 @@ test("will attach referenced files to post when creating from draft", async () =
         channelId: channel.id,
         draftId,
         content: postContent,
+        createdTimeZone: defaultTimeZone,
     });
 
     expect(

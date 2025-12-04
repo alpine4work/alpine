@@ -35,6 +35,7 @@ test("can reply to a comment", async ({page, context: browserContext, isMobile})
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     await createPostComment(context.action(session1), {
@@ -204,6 +205,7 @@ test("clicking a reply will scroll to the comment", async ({page, context: brows
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     for (let i = 0; i < 100; i++) {

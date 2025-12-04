@@ -48,6 +48,7 @@ testMessagingImplementation<PostId>(context, {
         const post = await createPost(context, {
             channelId: channel.id,
             content: createSimplePostContent("test"),
+            createdTimeZone: defaultTimeZone,
         });
 
         return {
@@ -91,6 +92,7 @@ testMessagingImplementation<PostId>(context, {
         const post = await createPost(context, {
             channelId: channel.id,
             content: createSimplePostContent("test"),
+            createdTimeZone: defaultTimeZone,
         });
 
         return {

@@ -243,6 +243,7 @@ export const createPost = defineRpc({
         channelId: Schema.id<ChannelId>(),
         draftId: Schema.id<PostDraftId>().optional(),
         content: PostContentSchema,
+        createdTimeZone: TimeZoneSchema,
     },
     output: {
         post: Schema.object({

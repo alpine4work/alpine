@@ -5,6 +5,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 
@@ -297,6 +298,7 @@ describe("post creation", () => {
                         },
                     },
                     createdTime: expect.any(String),
+                    createdTimeZone: defaultTimeZone,
                     channel: {
                         id: channel.id,
                         name: "Test Channel",
@@ -384,6 +386,7 @@ describe("post creation", () => {
                         },
                     },
                     createdTime: expect.any(String),
+                    createdTimeZone: defaultTimeZone,
                     channel: {
                         id: channel.id,
                         name: "Rich Content Channel",
@@ -572,6 +575,7 @@ describe("post creation", () => {
                     },
                     contentPreview: "in Test Channel:",
                     createdTime: expect.any(String),
+                    createdTimeZone: defaultTimeZone,
                 },
             },
         });

@@ -78,6 +78,7 @@ export const apiForumPaths: Pick<
                 await runAllPromises([
                     createPost(context, {
                         channelId,
+                        createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
                         content,
                         consistency: "Strong",
                     }),
@@ -100,6 +101,7 @@ export const apiForumPaths: Pick<
                     post: {
                         id: post.id,
                         createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: channelId,
                             name: post.channelName,
@@ -152,6 +154,7 @@ export const apiForumPaths: Pick<
                         id: pathParameters.id,
                         author: post.content.author,
                         createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: post.channel.id,
                             name: post.channel.name,

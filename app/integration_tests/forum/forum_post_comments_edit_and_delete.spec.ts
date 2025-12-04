@@ -36,6 +36,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session1), {
@@ -121,6 +122,7 @@ test("can’t edit or delete a post comment that’s not yours", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session2), {
@@ -179,6 +181,7 @@ test("can see a post comment edited in realtime", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session2), {
@@ -265,6 +268,7 @@ test("can delete a post comment", async ({page, context: browserContext, isMobil
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session1), {
@@ -329,6 +333,7 @@ test("can see a post comment deleted in realtime", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session2), {
@@ -409,6 +414,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session2), {
@@ -507,6 +513,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
+        createdTimeZone: defaultTimeZone,
     });
 
     const comment = await createPostComment(context.action(session2), {
