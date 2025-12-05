@@ -10,7 +10,6 @@ import {
 import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
-import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {TestFilesContextModule} from "~/server/context/files_context_module.js";
 import {
     ChatInjection,
@@ -28,6 +27,7 @@ import {
     TasksInjection,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
@@ -259,7 +259,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
      */
     setProcessJob(
         processJob: (
-            context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+            context: Context<TestSystemActionContextModules & PushContextModules>,
             job: JobDescription,
             jobStartTime: Date,
             span: TracerSpan,
@@ -306,7 +306,7 @@ export function createTestContext(
         | {
               shouldSendJobsToSqs?: false;
               processJob?: (
-                  context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+                  context: Context<TestSystemActionContextModules & PushContextModules>,
                   job: JobDescription,
                   jobStartTime: Date,
                   span: TracerSpan,

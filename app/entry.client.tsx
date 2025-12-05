@@ -1,6 +1,7 @@
 import {loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
+import {registerAppServiceWorker} from "~/app/helpers/register_app_service_worker.js";
 import {AppRemixBrowser} from "~/app/router/app_remix_browser.js";
 import {AppContext, AppContextProvider} from "~/client/web/context/app_context.js";
 import {ReactContextModule} from "~/client/web/context/react_context_module.js";
@@ -84,6 +85,10 @@ async function main() {
     subscribeToColorSchemeChange(updateNativeMobileThemeColors);
 
     attachDevConsoleNotInProduction();
+
+    registerAppServiceWorker(context).catch(error => {
+        tracer.logException("Failed to register service worker", error);
+    });
 }
 
 main().catch(scheduleUncaughtError);

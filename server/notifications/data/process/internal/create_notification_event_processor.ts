@@ -1,5 +1,5 @@
 import {getBot} from "~/server/bots/bots_table.js";
-import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
+import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {
     ServerImpersonatedAccountActionContext,
     ServerSystemActionContext,
@@ -10,10 +10,7 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_
 import {hashMd5} from "~/server/helpers/node/hash_md5.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.js";
-import {
-    sendPushNotificationToAccountDevices,
-    shouldSendPushNotification,
-} from "~/server/notifications/data/internal/send_push_notification_to_account_devices.js";
+import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {UpdateInboxEntryResult} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {
     getSpaceAccountBotIdIfExists,
@@ -181,7 +178,7 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
         body: string;
     }>;
 }): (
-    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & PushContextModules>,
     event: Event,
     span: TracerSpan,
 ) => Promise<void> {
@@ -236,7 +233,7 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
     };
 
     async function process(
-        context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        context: Context<ServerSystemActionContextModules & PushContextModules>,
         accountId: AccountId,
         options: {
             event: Event;
@@ -348,29 +345,27 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                 );
                 if (!result) return;
 
-                if (shouldSendPushNotification()) {
-                    await sendPushNotificationToAccountDevices(context, {
-                        accountId,
-                        eventId: event.id,
-                        newInboxEntryItem: result.newInboxEntryItem,
-                        loudNotificationCountDifference: result.loudNotificationCountDifference,
-                        getAlertContent: newInboxEntryItem =>
-                            getAlertContent(context, event, {
-                                info,
-                                accountId,
-                                // TODO(calebmer): All notifications are currently in US English. When we
-                                // localize the product this should change.
-                                locale: defaultLocale,
-                                entryItem: newInboxEntryItem,
-                            }),
-                    });
-                }
+                await sendPushNotificationToAccountTargets(context, {
+                    accountId,
+                    eventId: event.id,
+                    newInboxEntryItem: result.newInboxEntryItem,
+                    loudNotificationCountDifference: result.loudNotificationCountDifference,
+                    getAlertContent: newInboxEntryItem =>
+                        getAlertContent(context, event, {
+                            info,
+                            accountId,
+                            // TODO(calebmer): All notifications are currently in US English. When we
+                            // localize the product this should change.
+                            locale: defaultLocale,
+                            entryItem: newInboxEntryItem,
+                        }),
+                });
             },
         );
     }
 
     async function processForBot(
-        context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        context: Context<ServerSystemActionContextModules & PushContextModules>,
         botId: BotId,
         botAccountId: AccountId,
         {

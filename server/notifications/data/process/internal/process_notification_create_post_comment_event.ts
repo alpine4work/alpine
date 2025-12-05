@@ -189,6 +189,10 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
 
         subtitle += ` post in ${post.channel.name}`;
 
-        return {title: author.initialData.name, subtitle, body};
+        return {
+            title: getAccountShortNameWithoutFullNameTooltip(author.initialData),
+            subtitle,
+            body,
+        };
     },
 });

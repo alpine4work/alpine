@@ -1,6 +1,7 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
-import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
+import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {
     TestSystemActionContext,
@@ -29,7 +30,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export class TestLocalJobSender implements JobSenderBase {
     private readonly _processJob: (
-        context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        context: Context<TestSystemActionContextModules & PushContextModules>,
         job: JobDescription,
         jobStartTime: Date,
         span: TracerSpan,
@@ -51,7 +52,7 @@ export class TestLocalJobSender implements JobSenderBase {
         getProcessContext,
     }: {
         processJob: (
-            context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+            context: Context<TestSystemActionContextModules & PushContextModules>,
             job: JobDescription,
             jobStartTime: Date,
             span: TracerSpan,
@@ -129,6 +130,7 @@ export class TestLocalJobSender implements JobSenderBase {
                         {
                             tracer: new TracerContextModule(span),
                             apns: new TestApnsContextModule(),
+                            webPush: new TestWebPushContextModule(),
                         },
                         async context => {
                             await this._processJob(context, job, jobStartTime, span);

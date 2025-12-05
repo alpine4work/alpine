@@ -43,11 +43,14 @@ import {
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
+import {getOrPromptForBrowserPushNotificationPermission} from "~/client/web/notifications/get_or_prompt_for_browser_push_notification_permission.js";
+import {subscribeToPushNotificationsInBrowser} from "~/client/web/notifications/subscribe_to_push_notifications_in_browser.js";
+import {validateWebPushSubscription} from "~/client/web/notifications/validate_web_push_subscription.js";
 import {
     PeekStackContextProvider,
     PeekStackContextProviderRef,
 } from "~/client/web/peek/peek_stack.js";
-import {useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {useBrowserId, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
@@ -110,11 +113,15 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    registerOurAccountAppleDeviceToken,
     updateOurAccountName,
     updateOurAccountObservedTimeZone,
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
+import {
+    isOptedOutOfWebPushForSpace,
+    registerAccountWebPushSubscription,
+    registerOurAccountAppleDeviceToken,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
     instantiateBotSpaceAccount,
@@ -137,6 +144,8 @@ export const LoaderSchema = Schema.union({
         space: SpaceModel.schema(),
         currentAccount: AccountModel.schema,
         inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+        webPushVapidPublicKey: Schema.string,
+        isOptedOutOfWebPush: Schema.boolean,
     }),
     WithoutAccess: Schema.object({
         type: Schema.value("WithoutAccess"),
@@ -259,23 +268,34 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
             try {
                 // Await on data that we absolutely need first
-                const [currentAccount, currentSpace, inboxResult] = await runAllPromises([
-                    getOwnAccountIfExists(
-                        sessionContext,
-                        spaceId,
-                        sessionContext.actor.getAccountId(),
-                    ),
+                const [currentAccount, currentSpace, inboxResult, webPushOptOutStatusResult] =
+                    await runAllPromises([
+                        getOwnAccountIfExists(
+                            sessionContext,
+                            spaceId,
+                            sessionContext.actor.getAccountId(),
+                        ),
 
-                    // If we're in an `InvitePending` state, we need to return the space
-                    // data for the invite screen.
-                    getSpace(sessionContext, spaceId, {allowInvitePending: true}),
+                        // If we're in an `InvitePending` state, we need to return the space
+                        // data for the invite screen.
+                        getSpace(sessionContext, spaceId, {allowInvitePending: true}),
 
-                    // If `getInbox()` throws because we don't have space access, that's fine. This
-                    // might be a user with a pending invite. We want to load the inbox item here in
-                    // parallel with our other data in case we need it. If there's an error, catch
-                    // the error and throw later after we know we have space access.
-                    captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
-                ]);
+                        // If `getInbox()` throws because we don't have space access, that's fine. This
+                        // might be a user with a pending invite. We want to load the inbox item here in
+                        // parallel with our other data in case we need it. If there's an error, catch
+                        // the error and throw later after we know we have space access.
+                        captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
+
+                        // Get the web push subscription for the current browser if it exists. We allow
+                        // this to throw if we don't have space access just like `getInbox()` above
+                        // and handle it later once we know if we have space access.
+                        captureResultPromise(
+                            isOptedOutOfWebPushForSpace(context.actor.authorizeSession(), {
+                                spaceId,
+                                browserId: context.loader.getBrowserId(),
+                            }),
+                        ),
+                    ]);
 
                 space = currentSpace;
 
@@ -306,6 +326,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 }
 
                 const inbox = unwrapResult(inboxResult);
+                const {optedOut: isOptedOutOfWebPush} = unwrapResult(webPushOptOutStatusResult);
 
                 const propagateEventData: TracerEventData = {
                     context: {
@@ -321,6 +342,8 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         space,
                         currentAccount,
                         inbox,
+                        webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
+                        isOptedOutOfWebPush,
                     },
                     {propagateEventData},
                 );
@@ -425,7 +448,7 @@ export default function SpaceLayoutRoute() {
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
-
+    const browserId = useBrowserId();
     const spaceId = params.spaceId as SpaceId;
 
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
@@ -626,6 +649,42 @@ export default function SpaceLayoutRoute() {
             take();
         });
     }, [context]);
+
+    // Don't re-prompt or recheck for browser push notification permission if we've already done so. The user
+    // may have dismissed the permission prompt, and we don't want to ask again unless they reload the page.
+    const hasPromptedForBrowserPushNotificationPermissionRef = useRef<boolean>(false);
+
+    useEffect(() => {
+        if (loaderData.type !== "WithAccess" || !loaderData.webPushVapidPublicKey) return;
+        if (loaderData.isOptedOutOfWebPush) return;
+        if (hasPromptedForBrowserPushNotificationPermissionRef.current) return;
+        hasPromptedForBrowserPushNotificationPermissionRef.current = true;
+
+        const promptAndSubscribeToWebPushNotifications = async () => {
+            // Note: This prompt will not happen in Safari as it requires the prompt to be triggered by a user action.
+            // Safari users must instead enable push notifications in Notifications settings.
+            const permission = await getOrPromptForBrowserPushNotificationPermission();
+            if (permission === "granted") {
+                const subscription = await subscribeToPushNotificationsInBrowser(
+                    loaderData.webPushVapidPublicKey,
+                );
+
+                if (!subscription) return;
+
+                await registerAccountWebPushSubscription(context, {
+                    browserId,
+                    subscription: validateWebPushSubscription(subscription),
+                    spaceId,
+                });
+            }
+        };
+
+        promptAndSubscribeToWebPushNotifications().catch(error => {
+            context.tracer
+                .getRoot()
+                .logException("Error subscribing to web push notifications", error);
+        });
+    }, [loaderData, spaceId, context, browserId]);
 
     const handleSearchModalClose = useCallback(() => {
         setSearchQueryText(null);

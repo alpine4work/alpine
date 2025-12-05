@@ -237,7 +237,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
             ),
         ]);
 
-        const title = authorAccount.initialData.name;
+        let title: string;
         let body = bodyFromEventContent;
 
         // We don't include "Mentioned you" in the subtitle even if there was a
@@ -248,9 +248,11 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         let subtitle: string | undefined;
 
         if (chatAccountIds.length <= 2) {
-            // No subtitle
+            // Use the author's full name with no subtitle if it's a direct one-to-one chat.
+            title = authorAccount.initialData.name;
         } else {
             subtitle = "to ";
+            title = getAccountShortNameWithoutFullNameTooltip(authorAccount.initialData);
 
             if (chatAccountIds.length === 3 && otherAccount) {
                 subtitle += "you and ";

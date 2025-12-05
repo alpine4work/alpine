@@ -1,4 +1,4 @@
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemWithContentForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
@@ -16,7 +16,7 @@ import {ReactionSet} from "~/shared/reactions/reaction_set.js";
  * changing their reaction then the position stays the same.
  */
 export async function setPostReaction(
-    context: ServerSessionActionContextWithApns,
+    context: ServerSessionActionContextWithPush,
     postId: PostId,
     reaction: Reaction | "GenericLike",
 ) {

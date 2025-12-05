@@ -9,6 +9,7 @@ import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processSendNotificationDigestJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
 import {processNotificationEvent} from "~/server/notifications/data/process/process_notification_event.js";
+import {processSendWebPushNotificationJob} from "~/server/notifications/data/push/notifications_push_jobs.js";
 import {
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
@@ -65,6 +66,10 @@ export async function processJob(
         }
         case "SendNotificationDigest": {
             await processSendNotificationDigestJob(context, job);
+            return;
+        }
+        case "SendWebPushNotification": {
+            await processSendWebPushNotificationJob(context, job);
             return;
         }
         default:

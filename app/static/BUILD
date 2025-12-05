@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
@@ -11,6 +12,7 @@ filegroup(
         "files/fonts/inter-italic.v1.woff2",
         ":files",
         ":icon_pngs",
+        ":service_worker_file"
     ],
     visibility = ["//app:__subpackages__"],
 )
@@ -212,4 +214,10 @@ js_run_binary(
     ],
     chdir = package_name(),
     tool = ":generate_icon_pngs",
+)
+
+copy_file(
+  name = "service_worker_file",
+  src = "service_worker.js",
+  out = "files/service-worker.js",
 )

@@ -8,7 +8,7 @@ import {
     ServerAccountActionContext,
     ServerActionContext,
 } from "~/server/context/server_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -1236,7 +1236,7 @@ export function deletePostComment(
 }
 
 export function setPostCommentReaction(
-    context: ServerSessionActionContextWithApns,
+    context: ServerSessionActionContextWithPush,
     {
         postId,
         commentIndex,

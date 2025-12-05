@@ -2,7 +2,8 @@ import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -316,7 +317,7 @@ export class TestPost extends TestCommentRoomBase {
     }
 
     public override async _setMessageReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         {
             messageIndex,
             contentVersion,
@@ -460,7 +461,10 @@ export class TestPost extends TestCommentRoomBase {
         reaction: Reaction | "GenericLike" = "GenericLike",
     ) {
         return setPostReaction(
-            session.action().clone({apns: new TestApnsContextModule()}),
+            session.action().clone({
+                apns: new TestApnsContextModule(),
+                webPush: new TestWebPushContextModule(),
+            }),
             this.id,
             reaction,
         );

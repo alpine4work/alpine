@@ -303,40 +303,6 @@ export const dynamoGeneratedSchemaDescription: {
                             "childSortRangeByType": {}
                         }
                     }
-                },
-                "AppleDeviceToken": {
-                    "id": 3,
-                    "partitionKeyAttributeByKey": {
-                        "deviceToken": {
-                            "type": "Bytes",
-                            "byteLength": 32
-                        }
-                    },
-                    "sortRangeByType": {
-                        "Attributes": {
-                            "id": 0,
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "accountId": {
-                                        "valueSchema": {
-                                            "type": "Id"
-                                        },
-                                        "optional": false
-                                    },
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    }
-                                }
-                            },
-                            "childSortRangeByType": {}
-                        }
-                    }
                 }
             },
             "indexes": [
@@ -366,20 +332,6 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             }
-                        },
-                        "AccountDevices": {
-                            "itemTypes": [
-                                {
-                                    "partitionType": "AppleDeviceToken",
-                                    "sortRangeType": "Attributes"
-                                }
-                            ],
-                            "partitionKeyAttributeByKey": {
-                                "accountId": {
-                                    "type": "Id"
-                                }
-                            },
-                            "sortKeyAttributeByKey": {}
                         }
                     }
                 }
@@ -9500,6 +9452,126 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "PushTargets": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "WebPushSubscription": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "browserId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "subscription": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "endpoint": {
+                                                        "valueSchema": {
+                                                            "type": "String"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "expirationTime": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Float"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "keys": {
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "p256dh": {
+                                                                    "valueSchema": {
+                                                                        "type": "String"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "auth": {
+                                                                    "valueSchema": {
+                                                                        "type": "String"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "optedOutSpaceIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "AppleDeviceToken": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "deviceToken": {
+                                    "type": "Bytes",
+                                    "byteLength": 32
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

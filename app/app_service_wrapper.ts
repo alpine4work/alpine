@@ -47,6 +47,8 @@ export const options = {
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
+    webPushVapidPublicKey: {type: "string"},
+    webPushVapidPrivateKey: {type: "string"},
     agentServiceLocalPort: {type: "string"},
     agentServiceUrl: {type: "string"},
     chatGptLocalUnscopedApiKey: {type: "string"},

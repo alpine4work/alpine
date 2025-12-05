@@ -416,7 +416,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                             assert(
                                 !sortRangeAttributeNames.has(attributeName),
-                                "Attribute names must be unique within an item",
+                                `Attribute names must be unique within an item`,
                             );
                             sortRangeAttributeNames.add(attributeName);
                         }

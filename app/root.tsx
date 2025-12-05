@@ -56,6 +56,7 @@ import {getFontsCriticalCss} from "~/client/web/styles/core/fonts_critical_css.j
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
+import {colors} from "~/shared/design/core/colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {UnknownError} from "~/shared/error/error.js";
@@ -93,7 +94,20 @@ export function links(): Array<LinkDescriptor> {
         },
         {rel: "stylesheet", href: stylesUrl},
         // Recommend the SVG favicon so it can render in light and dark mode.
-        {rel: "icon", href: "/favicon.svg"},
+        {rel: "icon", href: "/favicon.svg", sizes: "any"},
+
+        {
+            rel: "apple-touch-icon",
+            sizes: "512x512",
+            href: __RESOURCE_SERVICE_URL__ + "/app-icons/app-icon-512x512.png",
+        },
+        {
+            rel: "apple-touch-icon",
+            sizes: "1024x1024",
+            href: __RESOURCE_SERVICE_URL__ + "/app-icons/app-icon-1024x1024.png",
+        },
+
+        {rel: "manifest", href: "/manifest.json"},
     ];
 }
 
@@ -106,6 +120,7 @@ const LoaderSchema = Schema.object({
     browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
     isIntegrationTest: Schema.boolean,
+    webPushVapidPublicKey: Schema.string,
 });
 
 let contentCodeBlockLanguagesPromise: "Unloaded" | Promise<void> | null = "Unloaded";
@@ -137,6 +152,7 @@ export async function loader({context}: LoaderArgs) {
         initialAppRenderId: generateId(),
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
+        webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
         isIntegrationTest: process.env.NODE_ENV === "test",
     });
 }
@@ -182,10 +198,27 @@ function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
                 name="format-detection"
                 content="telephone=no, date=no, email=no, address=no"
             />
+
+            <meta
+                // Set the theme color for PWA installations.
+                // This controls the color of the outer UI of the PWA when it's installed on a device.
+                name="theme-color"
+                content={colors["grey-0"]}
+                media="(prefers-color-scheme: light)"
+            />
+            <meta
+                // Set the theme color for PWA installations
+                // This controls the color of the outer UI of the PWA when it's installed on a device.
+                name="theme-color"
+                content={colors["grey-100"]}
+                media="(prefers-color-scheme: dark)"
+            />
+
             <Meta />
             <style dangerouslySetInnerHTML={{__html: getFontsCriticalCss(resourceServiceUrl)}} />
             <Links />
             <ColorSchemeManager />
+
             {loaderData?.isIntegrationTest && (
                 // If we're running an integration test then add noop `react-refresh`
                 // globals so we don't get any reference errors. Our SWC development config

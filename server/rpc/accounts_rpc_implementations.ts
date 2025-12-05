@@ -1,7 +1,6 @@
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    registerOurAccountAppleDeviceToken,
     updateAccountAvatar,
     updateAccountReactionCharacter,
     updateOurAccountName,
@@ -95,19 +94,6 @@ export default implementRpcs(definitions, {
             return {};
         },
     },
-
-    registerOurAccountAppleDeviceToken: {
-        visibility: ["AppClient"],
-        execute: async (context, input) => {
-            await registerOurAccountAppleDeviceToken(
-                context.actor.authorizeSession(),
-                input.deviceToken,
-            );
-
-            return {};
-        },
-    },
-
     getAccountByIdAsAdmin: {
         visibility: ["AppClient"],
         execute: async (context, input) => {

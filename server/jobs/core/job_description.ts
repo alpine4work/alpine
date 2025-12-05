@@ -10,7 +10,18 @@ import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {AccountId, BotId, BotWebhookEventId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    BotId,
+    BotWebhookEventId,
+    BrowserId,
+    FileId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
+import {
+    SendWebPushNotificationOptionsSchema,
+    WebPushNotificationContentSchema,
+} from "~/shared/notifications/web_push_notification_content.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -160,6 +171,19 @@ const SendNotificationDigestJobDescriptionSchema = Schema.object({
     sendTime: Schema.date,
 });
 
+const SendWebPushNotificationJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendWebPushNotification"),
+    spaceId: Schema.id<SpaceId>(),
+    accountId: Schema.id<AccountId>(),
+    browserId: Schema.id<BrowserId>(),
+    notificationContent: WebPushNotificationContentSchema,
+    options: SendWebPushNotificationOptionsSchema.optional(),
+});
+
+export type SendWebPushNotificationJobDescription = SchemaType<
+    typeof SendWebPushNotificationJobDescriptionSchema
+>;
+
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -174,4 +198,5 @@ export const JobDescriptionSchema = Schema.union({
     AddFeedAccountCandidateEntry: AddFeedAccountCandidateEntryJobDescriptionSchema,
     CallBotWebhook: CallBotWebhookJobDescriptionSchema,
     SendNotificationDigest: SendNotificationDigestJobDescriptionSchema,
+    SendWebPushNotification: SendWebPushNotificationJobDescriptionSchema,
 });

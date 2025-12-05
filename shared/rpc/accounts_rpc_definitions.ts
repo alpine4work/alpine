@@ -72,15 +72,6 @@ export const updateOurAccountObservedTimeZone = defineRpc({
     output: {},
 });
 
-export const registerOurAccountAppleDeviceToken = defineRpc({
-    name: "registerOurAccountAppleDeviceToken",
-    isIdempotent: true,
-    input: {
-        deviceToken: Schema.bytes.fixedLength(32),
-    },
-    output: {},
-});
-
 export const getAccountByIdAsAdmin = defineRpc({
     name: "getAccountByIdAsAdmin",
     isIdempotent: true,

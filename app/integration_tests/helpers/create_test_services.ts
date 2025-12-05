@@ -252,6 +252,12 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
         );
 
+        const webPushVapidPublicKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_public_key");
+        const webPushVapidPrivateKeyPath = joinPath(
+            keysDirectoryPath,
+            "web_push_vapid_private_key",
+        );
+
         const resourceServiceUrl =
             env.RESOURCE_SERVICE_URL ?? `http://localhost:${edgeServicePort}`;
 
@@ -281,6 +287,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
+                `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
@@ -402,6 +410,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
+                `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
             ],

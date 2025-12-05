@@ -6,6 +6,7 @@ import {
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
     AccountId,
+    BrowserId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,
@@ -17,6 +18,7 @@ import {
     InboxEntryModelSchema,
     InboxModel,
 } from "~/shared/notifications/inbox_model.js";
+import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -176,6 +178,59 @@ export const subscribeToDigestNotificationsEmail = defineRpc({
     input: {
         accountId: Schema.id<AccountId>(),
         spaceId: Schema.id<SpaceId>(),
+    },
+    output: {},
+});
+
+export const registerOurAccountAppleDeviceToken = defineRpc({
+    name: "registerOurAccountAppleDeviceToken",
+    isIdempotent: true,
+    input: {
+        deviceToken: Schema.bytes.fixedLength(32),
+    },
+    output: {},
+});
+
+export const isOptedOutOfWebPushForSpace = defineRpc({
+    name: "isOptedOutOfWebPushForSpace",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        browserId: Schema.id<BrowserId>(),
+    },
+    output: {
+        optedOut: Schema.boolean,
+    },
+});
+
+export const optOutOfWebPushForSpace = defineRpc({
+    name: "optOutOfWebPushForSpace",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        browserId: Schema.id<BrowserId>(),
+    },
+    output: {},
+});
+
+export const registerAccountWebPushSubscription = defineRpc({
+    name: "registerAccountWebPushSubscription",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        browserId: Schema.id<BrowserId>(),
+        subscription: WebPushSubscriptionSchema,
+    },
+    output: {},
+});
+
+export const deregisterAccountWebPushSubscription = defineRpc({
+    name: "deregisterAccountWebPushSubscription",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        endpoint: Schema.string,
+        browserId: Schema.id<BrowserId>(),
     },
     output: {},
 });

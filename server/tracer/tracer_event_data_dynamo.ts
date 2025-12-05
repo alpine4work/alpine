@@ -62,7 +62,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
  */
 // prettier-ignore
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
-    ["Accounts", ["Account", "AccountEmailAddress", "Session", "AppleDeviceToken"]],
+    ["Accounts", ["Account", "AccountEmailAddress", "Session"]],
     ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
     ["BotWebhookEvents", ["BotSpace"]],
     ["Bots", ["Bot", "ApiKey"]],
@@ -74,7 +74,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Forum", ["Channel", "Post", "Account"]],
     ["ForumRealtime", ["Channel", "Post", "Realtime", "Graveyard"]],
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],
-    ["Notifications", ["Inbox"]],
+    ["Notifications", ["Inbox", "PushTargets"]],
     ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections", "IndexSearchEntityEmbeddingChunksJob"]],
     ["Spaces", ["Space", "Account", "Bot"]],
     ["SpellCheck", ["IgnoredLint", "Realtime", "Graveyard"]],

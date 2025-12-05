@@ -45,7 +45,11 @@ import {
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
-import {LabelStringSchema, minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
+import {
+    LabelStringWithoutMaxLengthSchema,
+    defaultMaxLabelStringLength,
+    minLabelString,
+} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`
@@ -169,6 +173,7 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Bytes"; readonly byteLength: number}
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
+    | {readonly type: "LabelStringWithoutMaxLength"}
     | {readonly type: "EmailAddress"}
     | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription}
     | {
@@ -551,12 +556,23 @@ export class DynamoKeyAttributeSchema<Value> {
     });
 
     /**
-     * A short, single-line, string that is validated with `LabelStringSchema`.
+     * A short, single-line, string that is validated with `LabelStringWithoutMaxLengthSchema`.
+     *
+     * By default, the max length is 50 characters, though this can be overridden up to 2048
+     * characters (the maximum length of a DynamoDB key). However, keep in mind that we often
+     * concatenate key attributes with other values, so you may have fewer than 2048 characters left
+     * for your string. Exeeding this limit will result in an error from DynamoDB.
      */
-    public static labelString<Value extends string>(): DynamoKeyAttributeSchema<Value> {
+    public static labelString<Value extends string>(
+        {maxLength}: {maxLength?: number | null} = {maxLength: defaultMaxLabelStringLength},
+    ): DynamoKeyAttributeSchema<Value> {
         // Use a cache to optimize a `getByteCount()` that may be immediately followed by
         // `serializeBytes()` for the same value.
         const valueToBytesCache = new Map<string, Uint8Array>();
+
+        const baseSchema = maxLength
+            ? LabelStringWithoutMaxLengthSchema.maxLength(maxLength)
+            : LabelStringWithoutMaxLengthSchema.maxLength(2048);
 
         const schema = new DynamoKeyAttributeSchema<string>({
             description: {type: "LabelString"},
@@ -574,16 +590,16 @@ export class DynamoKeyAttributeSchema<Value> {
                     "Can’t start a label string with U+10FFFF",
                 );
 
-                const serializedString = LabelStringSchema.serialize(value);
+                const serializedString = baseSchema.serialize(value);
                 assert(typeof serializedString === "string");
                 return serializeStringDynamoKeyAttribute(serializedString);
             },
             deserialize: keyAttribute =>
-                LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+                baseSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
 
             binary: {
                 getByteCount: originalValue => {
-                    const value = LabelStringSchema.serialize(originalValue) as string;
+                    const value = baseSchema.serialize(originalValue) as string;
 
                     // Optimization: We often call `getByteCount()` then `serializeBytes()` right
                     // after. Given we won't know the byte count of a string without fully
@@ -597,7 +613,7 @@ export class DynamoKeyAttributeSchema<Value> {
                     return valueBytes.length;
                 },
                 serializeBytes: (originalValue, bytes, byteOffset) => {
-                    const value = LabelStringSchema.serialize(originalValue) as string;
+                    const value = baseSchema.serialize(originalValue) as string;
 
                     // Optimization: We often call `getByteCount()` then `serializeBytes()` right
                     // after. Given we won't know the byte count of a string without fully
@@ -623,7 +639,7 @@ export class DynamoKeyAttributeSchema<Value> {
                     valueToBytesCache.set(value, valueBytes);
                     scheduleMicrotask(() => valueToBytesCache.delete(value));
 
-                    return LabelStringSchema.deserialize(value);
+                    return baseSchema.deserialize(value);
                 },
             },
         });

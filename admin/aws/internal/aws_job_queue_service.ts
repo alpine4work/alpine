@@ -217,6 +217,14 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "apnsCertificatePrivateKey",
                 ),
+                WEB_PUSH_VAPID_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "webPushVapidPublicKey",
+                ),
+                WEB_PUSH_VAPID_PRIVATE_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "webPushVapidPrivateKey",
+                ),
                 GITHUB_APP_ID: EcsSecret.fromSecretsManager(secrets, "githubAppId"),
                 GITHUB_APP_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
@@ -283,6 +291,8 @@ export class AwsJobQueueService extends Construct {
                 "--tokenAgentSecret=$TOKEN_AGENT_SECRET",
                 "--apnsCertificate=$APNS_CERTIFICATE",
                 "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
+                "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
+                "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
                 "--githubAppPrivateKey=$GITHUB_APP_PRIVATE_KEY",
             ],
             healthCheck: {

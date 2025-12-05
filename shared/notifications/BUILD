@@ -4,7 +4,9 @@ ts_project(
     name = "notifications",
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@types/web-push",
         "//:node_modules/@remix-run/router",
+        "//:node_modules/web-push",
         "//shared/accounts",
         "//shared/documents",
         "//shared/dynamo",

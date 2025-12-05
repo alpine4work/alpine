@@ -1,6 +1,6 @@
-import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
@@ -1958,7 +1958,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {
                     type: "DocumentNewCommentThreads",
@@ -1990,7 +1990,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {
                     type: "DocumentNewCommentThreads",
@@ -2024,7 +2024,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {
                     type: "DocumentNewCommentThreads",
@@ -2064,7 +2064,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {
                     type: "DocumentNewCommentThreads",
@@ -2790,7 +2790,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {
                     type: "DocumentNewCommentThreads",

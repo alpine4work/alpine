@@ -1,4 +1,5 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {archiveInboxChannelPostsEntryPost} from "~/server/notifications/data/archive_inbox_channel_posts_entry_post.js";
@@ -37,14 +38,19 @@ test("can’t unarchive post in a fully archived channel posts entry with one po
 
     await ProcessContextModule.waitForTestTasks();
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "ChannelPosts",
-            channelId: channel.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "ChannelPosts",
+                channelId: channel.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     await unarchiveInboxChannelPostsEntryPost(session2.action(), {
         spaceId: space.id,
@@ -78,7 +84,9 @@ test("can’t unarchive post in a deleted channel posts entry with one post", as
     await ProcessContextModule.waitForTestTasks();
 
     await archiveInboxChannelPostsEntryPost(
-        session2.action().clone({apns: new TestApnsContextModule()}),
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
         {
             spaceId: space.id,
             channelId: channel.id,
@@ -269,14 +277,19 @@ test("can’t unarchive post in a fully archived channel posts entry where indiv
 
     await ProcessContextModule.waitForTestTasks();
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "ChannelPosts",
-            channelId: channel.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "ChannelPosts",
+                channelId: channel.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     await unarchiveInboxChannelPostsEntryPost(session2.action(), {
         spaceId: space.id,
@@ -319,14 +332,19 @@ test("can’t unarchive post in a fully archived channel posts entry where indiv
         postId: post2.id,
     });
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "ChannelPosts",
-            channelId: channel.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "ChannelPosts",
+                channelId: channel.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 

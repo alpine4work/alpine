@@ -15,6 +15,7 @@ import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbo
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 
@@ -203,7 +204,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
         }
 
         return {
-            title: author.initialData.name,
+            title: getAccountShortNameWithoutFullNameTooltip(author.initialData),
             subtitle,
             body,
         };

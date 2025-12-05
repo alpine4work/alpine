@@ -1,6 +1,5 @@
 import _Fuse from "fuse.js";
 import {
-    AccountDevice,
     checkAccountVersionConditionCheck,
     createAccountTransactionEntry,
     createAccountWithEmailAddressTransactionEntries,
@@ -8,7 +7,6 @@ import {
     dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization,
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
-    internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
 import {getBot} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
@@ -2675,19 +2673,6 @@ export async function getSpaceAccountNameSearchIndex(
         },
         getByIdIfExists: accountId => accountById.get(accountId) ?? null,
     };
-}
-
-/**
- * Get all devices registered for the provided `AccountId`. System actors can
- * see the registered devices for any account since we need to send push
- * notifications to the account's devices as the system actor.
- */
-export async function getRegisteredAccountDevices(
-    context: ServerActionContext,
-    accountId: AccountId,
-): Promise<ReadonlyArray<AccountDevice>> {
-    await authorizeOwnSpaceAccountAccess(context, accountId);
-    return internalGetRegisteredAccountDevicesWithoutAuthorization(context, accountId);
 }
 
 /**

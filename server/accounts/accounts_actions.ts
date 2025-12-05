@@ -1,7 +1,6 @@
 import {differenceInHours, differenceInMinutes, subHours} from "date-fns";
 import {
     AccountAvatarItem,
-    AccountDevicesIndex,
     AccountEmailAddressIndex,
     AccountEmailAddressItem,
     AccountItem,
@@ -1181,96 +1180,6 @@ export async function updateOurAccountName(
         }
 
         return createAccountModelFromItem(newAccountItem);
-    });
-}
-/**
- * Save a 32-byte Apple device token for the acting account.
- *
- * If the device token was already registered with a different account then
- * this will override the `AccountId` associated with the device token. This is
- * acceptable since device tokens are unguessable. If a device wants to change
- * its `AccountId` (since the user signed out then back in) it may do so.
- */
-export async function registerOurAccountAppleDeviceToken(
-    context: Context<DynamoContextModules & {actor: SessionActorContextModule}>,
-    deviceToken: Uint8Array,
-): Promise<void> {
-    // This method is called every time our iOS app is opened in case the device
-    // token has changed. So it's ok to replace the existing item.
-    await AccountsTable.createOrReplaceItem(context, {
-        partitionType: "AppleDeviceToken",
-        sortRangeType: "Attributes",
-        deviceToken,
-        accountId: context.actor.getAccountId(),
-    });
-}
-
-export type AccountDevice = {
-    readonly type: "Apple";
-    readonly deviceToken: Uint8Array;
-};
-
-/**
- * Get all devices registered for the provided `AccountId`. System actors can
- * see the registered devices for any account since we need to send push
- * notifications to the account's devices as the system actor.
- *
- * You should use `getRegisteredAccountDevices()` in `spaces_table.ts` since it
- * authorizes that the actor is allowed to read the account's registered
- * devices.
- */
-export async function internalGetRegisteredAccountDevicesWithoutAuthorization(
-    context: Context<DynamoContextModules & {actor: ActorContextModule}>,
-    accountId: AccountId,
-): Promise<ReadonlyArray<AccountDevice>> {
-    return arrayFromAsyncIterable(
-        AccountDevicesIndex.query(context, {partitionKey: {accountId}, limit: "All"}),
-        (item): AccountDevice => ({type: "Apple", deviceToken: item.deviceToken}),
-    );
-}
-
-/**
- * Delete a device token associated with the provided `AccountId`. System
- * actors can delete the device token for any account whereas session actors
- * may only delete device tokens for their own account.
- *
- * If the provided device token doesn't exist (or was already deleted) this
- * function does nothing.
- */
-export async function deleteAccountAppleDeviceTokenIfExists(
-    context: Context<DynamoContextModules & {actor: ActorContextModule}>,
-    accountId: AccountId,
-    deviceToken: Uint8Array,
-): Promise<void> {
-    switch (context.actor.type) {
-        case "Session":
-        case "ImpersonatedAccount": {
-            if (context.actor.getAccountId() !== accountId) {
-                throw new PermissionDeniedError(
-                    "Can’t delete device token for a different account",
-                );
-            }
-            break;
-        }
-        case "System": {
-            // System actor can delete device tokens for any account...
-            break;
-        }
-        case "Anonymous": {
-            throw unauthenticatedSessionError();
-        }
-        case "Bot": {
-            throw permissionDeniedBotError();
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
-
-    await AccountsTable.deleteItemWithKeyIfExists(context, {
-        partitionType: "AppleDeviceToken",
-        sortRangeType: "Attributes",
-        deviceToken,
-        accountId,
     });
 }
 

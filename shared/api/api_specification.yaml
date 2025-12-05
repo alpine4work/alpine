@@ -1011,7 +1011,7 @@ components:
         LabelString:
             type: string
             minLength: 1
-            maxLength: {{maxLabelStringLength}}
+            maxLength: {{defaultMaxLabelStringLength}}
 
         DateTime:
             type: string

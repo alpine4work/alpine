@@ -85,6 +85,7 @@ ts_project(
         "//client/web/forum",
         "//client/web/helpers",
         "//client/web/inbox",
+        "//client/web/notifications",
         "//client/web/messaging",
         "//client/web/navigation",
         "//client/web/peek",

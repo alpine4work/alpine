@@ -10,6 +10,11 @@ import {
 } from "~/server/notifications/data/get_inbox_entries.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {observeInbox} from "~/server/notifications/data/observe_inbox.js";
+import {deregisterAccountWebPushSubscription} from "~/server/notifications/data/push/deregister_account_web_push_subscription.js";
+import {isOptedOutOfWebPushForSpace} from "~/server/notifications/data/push/is_opted_out_of_web_push_for_space.js";
+import {optOutOfWebPushForSpace} from "~/server/notifications/data/push/opt_out_of_web_push_for_space.js";
+import {registerAccountWebPushSubscription} from "~/server/notifications/data/push/register_account_web_push_subscription.js";
+import {registerOurAccountAppleDeviceToken} from "~/server/notifications/data/push/register_our_account_apple_device_token.js";
 import {unarchiveInboxChannelPostsEntryPost} from "~/server/notifications/data/unarchive_inbox_channel_posts_entry_post.js";
 import {unarchiveInboxDocumentNewCommentThreadsEntryCommentThread} from "~/server/notifications/data/unarchive_inbox_document_new_comment_threads_entry_comment_thread.js";
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
@@ -141,6 +146,48 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await subscribeToDigestNotificationsEmail(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+    registerOurAccountAppleDeviceToken: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await registerOurAccountAppleDeviceToken(
+                context.actor.authorizeSession(),
+                input.deviceToken,
+            );
+
+            return {};
+        },
+    },
+    isOptedOutOfWebPushForSpace: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const optedOut = await isOptedOutOfWebPushForSpace(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {optedOut};
+        },
+    },
+    optOutOfWebPushForSpace: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await optOutOfWebPushForSpace(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+    registerAccountWebPushSubscription: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await registerAccountWebPushSubscription(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+    deregisterAccountWebPushSubscription: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await deregisterAccountWebPushSubscription(context.actor.authorizeSession(), input);
             return {};
         },
     },

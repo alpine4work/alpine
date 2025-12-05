@@ -17,7 +17,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import {defaultMaxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function ChannelViewNameEditor({
     shouldInitiallyFocusChannelName = true,
@@ -69,7 +69,7 @@ export function ChannelViewNameEditor({
                 <Box display="flex" alignItems="center" gap="2" maxWidth="full" height="9">
                     <FocusRing offset="border" isVisibleFromAnyFocus={true}>
                         <InputWithAutoGrowingWidth
-                            maxLength={maxLabelStringLength}
+                            maxLength={defaultMaxLabelStringLength}
                             ref={useMergedRefs(
                                 inputRef,
                                 useConfirmSaveAfterLosingFocus({

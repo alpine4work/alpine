@@ -21,7 +21,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -5487,7 +5487,7 @@ export function deleteTaskComment(
 }
 
 export function setTaskCommentReaction(
-    context: ServerSessionActionContextWithApns,
+    context: ServerSessionActionContextWithPush,
     {
         taskId,
         commentIndex,

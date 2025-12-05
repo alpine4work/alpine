@@ -6,7 +6,9 @@ ts_project(
     visibility = ["//server/notifications/data:__pkg__"],
     deps = [
         "//server/accounts",
+        "//server/apns",
         "//server/chat/test_helpers",
+        "//server/context",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/forum/test_helpers",

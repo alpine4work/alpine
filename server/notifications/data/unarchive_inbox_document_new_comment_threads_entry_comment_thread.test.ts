@@ -1,4 +1,5 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {archiveInboxDocumentNewCommentThreadsEntryCommentThread} from "~/server/notifications/data/archive_inbox_document_new_comment_threads_entry_comment_thread.js";
@@ -37,14 +38,19 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
 
     await ProcessContextModule.waitForTestTasks();
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "DocumentNewCommentThreads",
-            documentId: document.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "DocumentNewCommentThreads",
+                documentId: document.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     await unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
         spaceId: space.id,
@@ -76,15 +82,12 @@ test("can’t unarchive comment thread in a deleted new comment threads comment 
 
     await ProcessContextModule.waitForTestTasks();
 
-    await archiveInboxDocumentNewCommentThreadsEntryCommentThread(
-        session2.action().clone({apns: new TestApnsContextModule()}),
-        {
-            spaceId: space.id,
-            documentId: document.id,
-            bucketGeneration: 0,
-            commentThreadId: commentThread.id,
-        },
-    );
+    await archiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
+        spaceId: space.id,
+        documentId: document.id,
+        bucketGeneration: 0,
+        commentThreadId: commentThread.id,
+    });
 
     await unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
         spaceId: space.id,
@@ -272,14 +275,19 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
 
     await ProcessContextModule.waitForTestTasks();
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "DocumentNewCommentThreads",
-            documentId: document.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "DocumentNewCommentThreads",
+                documentId: document.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     await unarchiveInboxDocumentNewCommentThreadsEntryCommentThread(session2.action(), {
         spaceId: space.id,
@@ -321,14 +329,19 @@ test("can’t unarchive comment thread in a fully archived new comment threads c
         commentThreadId: commentThread2.id,
     });
 
-    await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-        spaceId: space.id,
-        key: {
-            type: "DocumentNewCommentThreads",
-            documentId: document.id,
-            bucketGeneration: 0,
+    await archiveInboxEntry(
+        session2
+            .action()
+            .clone({apns: new TestApnsContextModule(), webPush: new TestWebPushContextModule()}),
+        {
+            spaceId: space.id,
+            key: {
+                type: "DocumentNewCommentThreads",
+                documentId: document.id,
+                bucketGeneration: 0,
+            },
         },
-    });
+    );
 
     expect(await testGetInboxEntries(session2)).toEqual([]);
 

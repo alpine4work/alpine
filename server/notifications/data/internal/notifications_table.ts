@@ -1,16 +1,19 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
     DynamoTableItemKeyType,
+    DynamoTableItemType,
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     AccountId,
+    BrowserId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
+import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // Regular DynamoDB table for any data regarding notifications that does not
@@ -68,6 +71,63 @@ export const NotificationsTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "PushTargets",
+            partitionKeyAttributes: {
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                /**
+                 * Web push subscriptions are used to send web push notifications to the user's browser.
+                 *
+                 * By default, all of an account's spaces will receive push notifications for a given
+                 * browser. Opting out of receiving web push notifications for a space applies only to
+                 * a particular browser, meaning they will still receive web push notifications for
+                 * that space on a different device unless they have also opted out on that device.
+                 *
+                 * Each `browserId` and `subscription.endpoint` pair should be unique (excl. null),
+                 * as each browser instance can only be subscribed to one endpoint at a time.
+                 *
+                 * The `subscription` object will be null if the user had previously subscribed to
+                 * web push, but is no longer subscribed and should not receive notifications for that
+                 * browser. This may be because they've removed notification permissions in their browser,
+                 * they've signed out of the account on that device, or the subscription has expired.
+                 * We keep this record in case the user re-subscribes on the same device to preserve
+                 * their previously opted out spaces.
+                 */
+                {
+                    name: "WebPushSubscription",
+                    sortKeyAttributes: {
+                        browserId: DynamoKeyAttributeSchema.id<BrowserId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                        lastUpdatedTime: Schema.date,
+                        subscription: WebPushSubscriptionSchema.nullable(),
+                        optedOutSpaceIds: Schema.set(Schema.id<SpaceId>()).default(new Set()),
+                    }),
+                },
+                /**
+                 * Apple device tokens are an anonymous identifier for a device + app pair. It
+                 * is the address to which we send push notifications. Only one user is signed
+                 * in on a device at a time but a user may sign out of the account on their
+                 * device then sign in to another.
+                 *
+                 * When the user signs out of an account we invalidate the device token with
+                 * Apple's Push Notification service (APNs) but don't remove it from the
+                 * database. Invalidating the device token means even if we send notifications
+                 * the device won't show them. When a new user signs in we update the device
+                 * token in the database with the new `AccountId`.
+                 */
+                {
+                    name: "AppleDeviceToken",
+                    sortKeyAttributes: {
+                        deviceToken: DynamoKeyAttributeSchema.bytes(32),
+                    },
+                    attributes: Schema.object({}),
+                },
+            ],
+        },
     ],
 });
 
@@ -81,4 +141,16 @@ export type InboxDocumentCommentThreadInNewCommentThreadsEntryItemKey = DynamoTa
     typeof NotificationsTable,
     "Inbox",
     "DocumentCommentThreadInNewCommentThreadsEntry"
+>;
+
+export type WebPushSubscriptionItem = DynamoTableItemType<
+    typeof NotificationsTable,
+    "PushTargets",
+    "WebPushSubscription"
+>;
+
+export type AppleDeviceTokenItem = DynamoTableItemType<
+    typeof NotificationsTable,
+    "PushTargets",
+    "AppleDeviceToken"
 >;

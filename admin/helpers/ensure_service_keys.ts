@@ -1,6 +1,7 @@
 import {generateKeyPair} from "crypto";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
+import webpush from "web-push";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -44,6 +45,23 @@ export async function ensureServiceKeys(directoryPath: string) {
 
                 await fs.writeFile(joinPath(directoryPath, apiKeyName), apiKey + "\n");
             }),
+            (async () => {
+                const webPushVapidPublicKeyName = "web_push_vapid_public_key";
+                const webPushVapidPrivateKeyName = "web_push_vapid_private_key";
+                if (
+                    (await fs.pathExists(joinPath(directoryPath, webPushVapidPublicKeyName))) &&
+                    (await fs.pathExists(joinPath(directoryPath, webPushVapidPrivateKeyName)))
+                ) {
+                    return;
+                }
+
+                const {publicKey, privateKey} = webpush.generateVAPIDKeys();
+
+                await runAllPromises([
+                    fs.writeFile(joinPath(directoryPath, webPushVapidPublicKeyName), publicKey),
+                    fs.writeFile(joinPath(directoryPath, webPushVapidPrivateKeyName), privateKey),
+                ]);
+            })(),
             ...serviceNames.map(async serviceName => {
                 const privateKeyPath = joinPath(directoryPath, `${serviceName}_rsa`);
                 const publicKeyPath = joinPath(directoryPath, `${serviceName}_rsa.pub`);

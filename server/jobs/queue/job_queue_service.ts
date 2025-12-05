@@ -20,6 +20,7 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {
     GithubContextModule,
     UnimplementedGithubContextModule,
@@ -91,6 +92,8 @@ export const options = {
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
+    webPushVapidPublicKey: {type: "string"},
+    webPushVapidPrivateKey: {type: "string"},
     jobQueueArn: {type: "string"},
     schedulerJobQueueRoleArn: {type: "string"},
     githubAppId: {type: "string"},
@@ -125,26 +128,38 @@ export async function run({
         }
     }
 
-    const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey, githubAppPrivateKey] =
-        await runAllPromises([
-            createServiceTokenAgent({
-                serviceName: "JobQueueService",
-                privateSide: TokenAgentJobQueueServicePrivateSide,
-                options,
-            }),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+    const [
+        tokenAgent,
+        apnsCertificate,
+        apnsCertificatePrivateKey,
+        webPushVapidPublicKey,
+        webPushVapidPrivateKey,
+        githubAppPrivateKey,
+    ] = await runAllPromises([
+        createServiceTokenAgent({
+            serviceName: "JobQueueService",
+            privateSide: TokenAgentJobQueueServicePrivateSide,
+            options,
+        }),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(
+                options.apnsCertificatePrivateKey,
+                "Missing `apnsCertificatePrivateKey` option",
             ),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(
-                    options.apnsCertificatePrivateKey,
-                    "Missing `apnsCertificatePrivateKey` option",
-                ),
-            ),
-            options.githubAppPrivateKey
-                ? getServiceTokenAgentKeyFromOption(options.githubAppPrivateKey)
-                : null,
-        ]);
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.webPushVapidPublicKey, "Missing `webPushVapidPublicKey` option"),
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.webPushVapidPrivateKey, "Missing `webPushVapidPrivateKey` option"),
+        ),
+        options.githubAppPrivateKey
+            ? getServiceTokenAgentKeyFromOption(options.githubAppPrivateKey)
+            : null,
+    ]);
 
     const awsSigner = new AwsRequestSigner();
 
@@ -192,6 +207,11 @@ export async function run({
 
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
+
+    const webPushContextModule = new WebPushContextModule({
+        vapidPublicKey: webPushVapidPublicKey,
+        vapidPrivateKey: webPushVapidPrivateKey,
+    });
 
     const githubContextModule =
         process.env.NODE_ENV !== "production"
@@ -310,6 +330,7 @@ export async function run({
                 ? new SesEmailContextModule(tokenAgent)
                 : new TraceOnlyEmailContextModule(),
         botWebhook: new BotWebhookContextModule(tokenAgent),
+        webPush: webPushContextModule,
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

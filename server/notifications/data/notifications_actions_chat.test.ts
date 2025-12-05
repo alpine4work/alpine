@@ -4,9 +4,11 @@ import {processSendShareNotificationJob} from "~/server/chat/data/chat_actions.j
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {isServerActionContext} from "~/server/context/is_server_action_context.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
@@ -1765,7 +1767,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session3).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat1.id},
@@ -1812,7 +1814,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session2).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat2.id},
@@ -1848,7 +1850,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session2).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat1.id},
@@ -1911,7 +1913,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await expect(
                 archiveInboxEntry(
-                    context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                    context.action(scenario.session3).clone({
+                        apns: new TestApnsContextModule(),
+                        webPush: new TestWebPushContextModule(),
+                    }),
                     {
                         spaceId: scenario.space.id,
                         key: {type: "Chat", chatId: chat1.id},
@@ -1956,7 +1961,10 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await expect(
                 archiveInboxEntry(
-                    context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                    context.action(scenario.session3).clone({
+                        apns: new TestApnsContextModule(),
+                        webPush: new TestWebPushContextModule(),
+                    }),
                     {
                         spaceId: scenario.space.id,
                         key: {type: "Chat", chatId: generateId()},
@@ -2076,7 +2084,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session3).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat1.id},
@@ -2084,7 +2092,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             );
 
             await archiveInboxEntry(
-                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session2).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat2.id},
@@ -2092,7 +2100,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             );
 
             await archiveInboxEntry(
-                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session2).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat1.id},
@@ -2393,7 +2401,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session1).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat.id},
@@ -2447,7 +2455,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session1).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Chat", chatId: chat.id},
@@ -2662,7 +2670,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                 }),
             ]);
 
-            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
+            await archiveInboxEntry(session2.action().clone(createTestPushContextModules()), {
                 spaceId: space.id,
                 key: {type: "Chat", chatId: chat.id},
             });

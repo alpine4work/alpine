@@ -294,6 +294,7 @@ function getHandleSpanName(messageBody: JobQueueMessageBody) {
         case "ScheduleDeploy":
         case "SendEmail":
         case "SendNotificationDigest":
+        case "SendWebPushNotification":
         case "Test": {
             throw new InternalError(`Job ${messageBody.job.type} is not supported`);
         }

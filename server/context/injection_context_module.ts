@@ -29,7 +29,7 @@ import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_act
  * such that you can eliminate the circular dependency.
  */
 
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {TaskContextModuleActionTransaction} from "~/server/context/task_context_module_base.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
@@ -203,7 +203,7 @@ export type NotificationsInjection = {
     ): Promise<void>;
 
     archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         options: {
             spaceId: SpaceId;
             documentId: DocumentId;
@@ -214,7 +214,7 @@ export type NotificationsInjection = {
     ): Promise<void>;
 
     archiveInboxChatEntryAfterSetChatMessageReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         options: {
             spaceId: SpaceId;
             chatId: ChatId;
@@ -224,7 +224,7 @@ export type NotificationsInjection = {
     ): Promise<void>;
 
     archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         options: {
             spaceId: SpaceId;
             postId: PostId;
@@ -234,7 +234,7 @@ export type NotificationsInjection = {
     ): Promise<void>;
 
     archiveInboxTaskEntryAfterSetTaskCommentReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         options: {
             spaceId: SpaceId;
             taskId: TaskId;

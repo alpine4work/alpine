@@ -410,6 +410,10 @@ const TracerEventDataSchema = {
         connectionId: Schema.id(),
         errorReason: Schema.string,
     },
+    webPush: {
+        browserId: Schema.id(),
+        responseStatusCode: Schema.integer,
+    },
     cloudflare: {
         r2: {
             action: IdentifierStringSchema,

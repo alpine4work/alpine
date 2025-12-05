@@ -3,7 +3,8 @@ import {ReplaceStep, Step} from "prosemirror-transform";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {
     TestAccountActionContext,
     TestActionContext,
@@ -123,7 +124,7 @@ export abstract class TestMessagingRoomBase {
     // Public so that we can call from `TestMessage`. Shouldn't be called outside
     // of this file.
     public abstract _setMessageReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         options: {
             messageIndex: number;
             contentVersion: number;
@@ -348,7 +349,10 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         assert(message.payload.type === "Content");
 
         return this.room._setMessageReaction(
-            session.action().clone({apns: new TestApnsContextModule()}),
+            session.action().clone({
+                apns: new TestApnsContextModule(),
+                webPush: new TestWebPushContextModule(),
+            }),
             {
                 messageIndex: this.index,
                 contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,

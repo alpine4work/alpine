@@ -1280,6 +1280,14 @@ export type TracerEventData = {
         readonly errorReason?: string;
     };
 
+    readonly webPush?: {
+        /** The ID of the browser we're sending the notification to. */
+        readonly browserId?: string;
+
+        /** The status code of the response from the web push service. */
+        readonly responseStatusCode?: number;
+    };
+
     /**
      * Any data related to Cloudflare services.
      */

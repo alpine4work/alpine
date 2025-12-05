@@ -9,6 +9,8 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@types/web-push",
+        "//:node_modules/web-push",
         "//server/cloudflare/r2",
         "//server/dynamo/core",
         "//server/helpers",

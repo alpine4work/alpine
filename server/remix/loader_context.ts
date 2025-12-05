@@ -78,6 +78,11 @@ export class LoaderContextModule extends ContextModuleBase {
      */
     public readonly agentServiceUrl: string | null;
 
+    /**
+     * The VAPID public key for the app service. We use this to subscribe to web push notifications.
+     */
+    public readonly webPushVapidPublicKey: string;
+
     // Context modules can't directly mutate `this` so we need an
     // intermediate object.
     private readonly _state: {
@@ -100,10 +105,12 @@ export class LoaderContextModule extends ContextModuleBase {
             tokenAgent,
             sessionCookie,
             agentServiceUrl,
+            webPushVapidPublicKey,
         }: {
             tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
             sessionCookie: SessionCookie;
             agentServiceUrl: string | null;
+            webPushVapidPublicKey: string;
         },
     ) {
         super();
@@ -111,6 +118,7 @@ export class LoaderContextModule extends ContextModuleBase {
         this.tokenAgent = tokenAgent;
         this.sessionCookie = sessionCookie;
         this.agentServiceUrl = agentServiceUrl;
+        this.webPushVapidPublicKey = webPushVapidPublicKey;
     }
 
     private _parseCookieHeader() {
@@ -183,7 +191,6 @@ export class LoaderContextModule extends ContextModuleBase {
                                     process.env.NODE_ENV === "production"
                                         ? "alpine.inc"
                                         : undefined,
-                                httpOnly: true,
                                 path: "/",
                                 sameSite: "lax",
                                 // Only allow the session cookie to be sent over HTTPS in production. In

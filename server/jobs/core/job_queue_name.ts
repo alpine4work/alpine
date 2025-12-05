@@ -14,6 +14,7 @@ export const jobQueueNameByType = {
     ProcessFileLight: "FileProcessorLight",
     SendShareNotification: "Default",
     SendNotificationDigest: "Default",
+    SendWebPushNotification: "Default",
     AddFeedCandidateEntry: "Default",
     AddFeedAccountCandidateEntry: "Default",
     CallBotWebhook: "Default",

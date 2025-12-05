@@ -28,6 +28,10 @@ import {
     SpacesInjectionContextModule,
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
+import {
+    TestWebPushContextModule,
+    WebPushContextModule,
+} from "~/server/context/web_push_context_module.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
@@ -107,51 +111,63 @@ async function createAppService({
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
-    const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey, seedDynamoOptions] =
-        await runAllPromises([
-            createServiceTokenAgent({
-                serviceName: "AppService",
-                privateSide: TokenAgentAppServicePrivateSide,
-                options,
-            }),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+    const [
+        tokenAgent,
+        apnsCertificate,
+        apnsCertificatePrivateKey,
+        webPushVapidPublicKey,
+        webPushVapidPrivateKey,
+        seedDynamoOptions,
+    ] = await runAllPromises([
+        createServiceTokenAgent({
+            serviceName: "AppService",
+            privateSide: TokenAgentAppServicePrivateSide,
+            options,
+        }),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(
+                options.apnsCertificatePrivateKey,
+                "Missing `apnsCertificatePrivateKey` option",
             ),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(
-                    options.apnsCertificatePrivateKey,
-                    "Missing `apnsCertificatePrivateKey` option",
-                ),
-            ),
-            process.env.NODE_ENV !== "production" && options.shouldSeedDynamo
-                ? (async () => {
-                      const agentServiceLocalPort = assertExists(
-                          options.agentServiceLocalPort,
-                          "Missing `agentServiceLocalPort` option in development",
-                      );
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.webPushVapidPublicKey, "Missing `webPushVapidPublicKey` option"),
+        ),
+        getServiceTokenAgentKeyFromOption(
+            assertExists(options.webPushVapidPrivateKey, "Missing `webPushVapidPrivateKey` option"),
+        ),
+        process.env.NODE_ENV !== "production" && options.shouldSeedDynamo
+            ? (async () => {
+                  const agentServiceLocalPort = assertExists(
+                      options.agentServiceLocalPort,
+                      "Missing `agentServiceLocalPort` option in development",
+                  );
 
-                      const chatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
-                          assertExists(
-                              options.chatGptLocalUnscopedApiKey,
-                              "Missing `chatGptLocalUnscopedApiKey` option in development",
-                          ),
-                      );
+                  const chatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
+                      assertExists(
+                          options.chatGptLocalUnscopedApiKey,
+                          "Missing `chatGptLocalUnscopedApiKey` option in development",
+                      ),
+                  );
 
-                      const chatGptLocalScopedApiKey = await getServiceTokenAgentKeyFromOption(
-                          assertExists(
-                              options.chatGptLocalScopedApiKey,
-                              "Missing `chatGptLocalScopedApiKey` option in development",
-                          ),
-                      );
+                  const chatGptLocalScopedApiKey = await getServiceTokenAgentKeyFromOption(
+                      assertExists(
+                          options.chatGptLocalScopedApiKey,
+                          "Missing `chatGptLocalScopedApiKey` option in development",
+                      ),
+                  );
 
-                      return {
-                          agentServiceLocalPort,
-                          chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
-                          chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
-                      };
-                  })()
-                : null,
-        ]);
+                  return {
+                      agentServiceLocalPort,
+                      chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
+                      chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                  };
+              })()
+            : null,
+    ]);
 
     const awsSigner = new AwsRequestSigner();
 
@@ -274,6 +290,13 @@ async function createAppService({
                 : new TraceOnlyEmailContextModule(),
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
+        webPush:
+            process.env.NODE_ENV === "test"
+                ? new TestWebPushContextModule()
+                : new WebPushContextModule({
+                      vapidPublicKey: webPushVapidPublicKey,
+                      vapidPrivateKey: webPushVapidPrivateKey,
+                  }),
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),
@@ -365,6 +388,7 @@ async function createAppService({
                     tokenAgent,
                     sessionCookie,
                     agentServiceUrl,
+                    webPushVapidPublicKey,
                 });
 
                 const response = await processContext.with<

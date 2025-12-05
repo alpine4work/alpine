@@ -10,7 +10,9 @@ export const minLabelString = String.fromCharCode(0);
  *
  * [1]: https://stackoverflow.com/questions/8078939/what-is-the-maximum-length-of-a-facebook-name
  */
-export const maxLabelStringLength = 50;
+export const defaultMaxLabelStringLength = 50;
+
+export const LabelStringWithoutMaxLengthSchema = Schema.string.minLength(1).singleLine().trim();
 
 /**
  * A label string is a short, non-empty, single-line string.
@@ -30,8 +32,6 @@ export const maxLabelStringLength = 50;
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
  */
-export const LabelStringSchema = Schema.string
-    .minLength(1)
-    .maxLength(maxLabelStringLength)
-    .singleLine()
-    .trim();
+export const LabelStringSchema = LabelStringWithoutMaxLengthSchema.maxLength(
+    defaultMaxLabelStringLength,
+);

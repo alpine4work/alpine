@@ -3,6 +3,7 @@ import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import * as EmailContextModule from "~/server/emails/noop_email_context_module.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
@@ -1286,7 +1287,10 @@ describe("getNotificationDigestContent", () => {
         await ProcessContextModule.waitForTestTasks();
 
         await archiveInboxEntry(
-            context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+            context.action(scenario.session1).clone({
+                apns: new TestApnsContextModule(),
+                webPush: new TestWebPushContextModule(),
+            }),
             {
                 spaceId: scenario.space.id,
                 key: {type: "Chat", chatId: chat.id},

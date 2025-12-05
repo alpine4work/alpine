@@ -24,6 +24,8 @@ export type AppServiceConstants = {
             readonly cohereApiKey?: string;
             readonly apnsCertificate?: string;
             readonly apnsCertificatePrivateKey?: string;
+            readonly webPushVapidPublicKey?: string;
+            readonly webPushVapidPrivateKey?: string;
             readonly agentServiceLocalPort?: string;
             readonly chatGptLocalUnscopedApiKey?: string;
             readonly chatGptLocalScopedApiKey?: string;

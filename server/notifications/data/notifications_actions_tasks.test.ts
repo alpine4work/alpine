@@ -1,5 +1,5 @@
-import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {archiveInboxEntry} from "~/server/notifications/data/archive_inbox_entry.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {updateInboxEntryAfterExecuteTransactionTestCheckpoint} from "~/server/notifications/data/internal/update_inbox_entry.js";
@@ -420,7 +420,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             ]);
 
             await archiveInboxEntry(
-                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                context.action(scenario.session3).clone(createTestPushContextModules()),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "Task", taskId: task.id},

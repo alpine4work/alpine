@@ -26,7 +26,7 @@ import {
     ServerMinimalActionContext,
     ServerMinimalBotActionContext,
 } from "~/server/context/server_minimal_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {
     DocumentIndexSearchEntityJob,
     DocumentsTable,
@@ -5710,7 +5710,7 @@ export function deleteDocumentComment(
 }
 
 export function setDocumentCommentReaction(
-    context: ServerSessionActionContextWithApns,
+    context: ServerSessionActionContextWithPush,
     {
         documentId,
         commentThreadId,

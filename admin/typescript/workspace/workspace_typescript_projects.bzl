@@ -47,6 +47,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/web/inbox:inbox",
     "//client/web/messaging:messaging",
     "//client/web/navigation:navigation",
+    "//client/web/notifications:notifications",
     "//client/web/peek:peek",
     "//client/web/reactions:reactions",
     "//client/web/reactions/icons:icons",

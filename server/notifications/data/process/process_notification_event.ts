@@ -1,4 +1,4 @@
-import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
+import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {processNotificationCreateChatMessageEvent} from "~/server/notifications/data/process/internal/process_notification_create_chat_message_event.js";
@@ -25,7 +25,7 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * This function is idempotent.
  */
 export async function processNotificationEvent(
-    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & PushContextModules>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -39,7 +39,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: Context<ServerSystemActionContextModules & PushContextModules>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {

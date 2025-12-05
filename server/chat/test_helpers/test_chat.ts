@@ -11,7 +11,7 @@ import {
     updateChatMessageContent,
 } from "~/server/chat/data/chat_actions.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {
     TestAccountActionContext,
     TestBotActionContext,
@@ -194,7 +194,7 @@ export class TestChat extends TestMessageRoomBase {
     }
 
     public override async _setMessageReaction(
-        context: ServerSessionActionContextWithApns,
+        context: ServerSessionActionContextWithPush,
         {
             messageIndex,
             contentVersion,

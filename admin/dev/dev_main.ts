@@ -198,6 +198,9 @@ const externalHost = (() => {
     return null;
 })();
 
+const webPushVapidPublicKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_public_key");
+const webPushVapidPrivateKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_private_key");
+
 /**
  * An artifact which our dev process manager keeps up-to-date. There are two
  * kinds of artifacts:
@@ -368,6 +371,8 @@ function createArtifacts() {
                 `--inspectorPort=${appDevInspectorPort}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
+                `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--agentServiceLocalPort=${agentsDevPort}`,
@@ -515,6 +520,8 @@ function createArtifacts() {
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
+                `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),

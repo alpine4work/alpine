@@ -12,10 +12,12 @@ ts_project(
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
+        "//:node_modules/@types/web-push",
         "//:node_modules/dotenv",
         "//:node_modules/env-paths",
         "//:node_modules/fs-extra",
         "//:node_modules/pidtree",
+        "//:node_modules/web-push",
         "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",

@@ -248,36 +248,6 @@ export const AccountsTable = DynamoTableSchema.new({
                 },
             ],
         },
-
-        /**
-         * Apple device tokens are an anonymous identifier for a device + app pair. It
-         * is the address to which we send push notifications. Only one user is signed
-         * in on a device at a time but a user may sign out of the account on their
-         * device then sign in to another.
-         *
-         * When the user signs out of an account we invalidate the device token with
-         * Apple's Push Notification service (APNs) but don't remove it from the
-         * database. Invalidating the device token means even if we send notifications
-         * the device won't show them. When a new user signs in we update the device
-         * token in the database with the new `AccountId`.
-         *
-         * We have an index to read all `AppleDeviceToken`s for an account.
-         */
-        {
-            name: "AppleDeviceToken",
-            partitionKeyAttributes: {
-                deviceToken: DynamoKeyAttributeSchema.bytes(32),
-            },
-            sortRanges: [
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        accountId: Schema.id<AccountId>(),
-                    }),
-                },
-            ],
-        },
     ],
 });
 
@@ -291,24 +261,6 @@ export const AccountEmailAddressIndex = AccountsTable.addIndex({
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
     },
     sortKeyAttributes: {createdTime: DynamoKeyAttributeSchema.date.reverse()},
-});
-
-/**
- * Index containing all of an account's devices. When sending the user a push
- * notification we will query this index and send a notification to each
- * device.
- */
-// NOTE(calebmer, 2024-06-11): While today we only support iOS devices, this
-// index should eventually contain all devices for an account no matter the
-// operating system so we only need to query one index. For example, Android
-// registration IDs should also appear in this index.
-export const AccountDevicesIndex = AccountsTable.addIndex({
-    name: "AccountDevices",
-    itemTypes: [{partitionType: "AppleDeviceToken", sortRangeType: "Attributes"}],
-    partitionKeyAttributes: {
-        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-    },
-    sortKeyAttributes: {},
 });
 
 export type AccountEmailAddressItem = DynamoTableItemType<

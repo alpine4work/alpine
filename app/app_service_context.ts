@@ -4,6 +4,7 @@ import {EdgeServiceContextModule} from "~/server/context/edge_service_context_mo
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
@@ -15,6 +16,7 @@ type AppServiceExtraContextModules = {
     opensearch: OpensearchContextModule;
     languageModel: LanguageModelContextModule;
     apns: ApnsContextModuleBase;
+    webPush: WebPushContextModuleBase;
     files: FilesContextModuleBase;
     r2: CloudflareR2ContextModule;
 };

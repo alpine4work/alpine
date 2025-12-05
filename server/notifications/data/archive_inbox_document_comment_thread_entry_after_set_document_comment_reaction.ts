@@ -1,14 +1,11 @@
-import {ServerSessionActionContextWithApns} from "~/server/context/server_session_action_context_with_apns.js";
-import {
-    sendPushNotificationToAccountDevices,
-    shouldSendPushNotification,
-} from "~/server/notifications/data/internal/send_push_notification_to_account_devices.js";
+import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
+import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {updateInboxDocumentCommentThreadEntry} from "~/server/notifications/data/internal/update_inbox_document_comment_thread_entry.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentReaction(
-    context: ServerSessionActionContextWithApns,
+    context: ServerSessionActionContextWithPush,
     {
         spaceId,
         documentId,
@@ -61,17 +58,15 @@ export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentRe
     // If we're archiving an entry with loud notifications, we need to send an
     // alert to Apple devices to update the badge count.
     if (result && result.loudNotificationCountDifference !== 0) {
-        if (shouldSendPushNotification()) {
-            // NOTE(calebmer): Consider turning this into a job on the job queue to
-            // guarantee notification delivery.
-            context.process.waitUntil(
-                sendPushNotificationToAccountDevices(context, {
-                    accountId: context.actor.getAccountId(),
-                    eventId: generateChronologicalId(),
-                    newInboxEntryItem: result.newInboxEntryItem,
-                    loudNotificationCountDifference: result.loudNotificationCountDifference,
-                }),
-            );
-        }
+        // NOTE(calebmer): Consider turning this into a job on the job queue to
+        // guarantee notification delivery.
+        context.process.waitUntil(
+            sendPushNotificationToAccountTargets(context, {
+                accountId: context.actor.getAccountId(),
+                eventId: generateChronologicalId(),
+                newInboxEntryItem: result.newInboxEntryItem,
+                loudNotificationCountDifference: result.loudNotificationCountDifference,
+            }),
+        );
     }
 }

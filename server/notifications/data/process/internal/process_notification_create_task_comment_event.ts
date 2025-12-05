@@ -182,6 +182,10 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
 
         subtitle += ` task`;
 
-        return {title: author.initialData.name, subtitle, body};
+        return {
+            title: getAccountShortNameWithoutFullNameTooltip(author.initialData),
+            subtitle,
+            body,
+        };
     },
 });
