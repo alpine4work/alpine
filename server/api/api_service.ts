@@ -72,6 +72,8 @@ export const options = {
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
+    webPushVapidPublicKey: {type: "string"},
+    webPushVapidPrivateKey: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverBasicProcessContextOptions,
     ...serviceOpensearchOptions,
