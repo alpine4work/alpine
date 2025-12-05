@@ -13,7 +13,9 @@ export function validateWebPushSubscription(subscription: PushSubscription): Web
     );
     return WebPushSubscriptionSchema.deserialize({
         endpoint: subscriptionJson.endpoint,
-        expirationTime: subscriptionJson.expirationTime,
+        // NOTE(rmtobin): Safari doesn't include expiration time in toJSON for some reason,
+        // so we set it to null if it's not present
+        expirationTime: subscriptionJson.expirationTime ?? null,
         keys: subscriptionJson.keys,
     });
 }
