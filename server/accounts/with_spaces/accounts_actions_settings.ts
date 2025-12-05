@@ -15,6 +15,7 @@ import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     TimeZone,
     assertTimeZone,
@@ -79,12 +80,10 @@ async function getAccountSettingsItemIfExists(
 export async function getOurLastOpenedSpaceId(
     context: ServerSessionActionContext,
 ): Promise<SpaceId | null | undefined> {
-    const accountSettingsItem = await getAccountSettingsItemIfExists(
-        context,
-        context.actor.getAccountId(),
-    );
-
-    const {spaceIds} = await getOurAccountSpaceIds(context);
+    const [accountSettingsItem, {spaceIds}] = await runAllPromises([
+        getAccountSettingsItemIfExists(context, context.actor.getAccountId()),
+        getOurAccountSpaceIds(context),
+    ]);
 
     if (
         !accountSettingsItem?.lastOpenedSpaceId ||
@@ -105,11 +104,6 @@ export async function updateOurLastOpenedSpaceId(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const accountSettingsItem = await getAccountSettingsItemIfExists(
-        context,
-        context.actor.getAccountId(),
-    );
-
     await AccountsTable.updateItem(
         context,
         {
@@ -118,15 +112,12 @@ export async function updateOurLastOpenedSpaceId(
             accountId: context.actor.getAccountId(),
         },
         item => {
+            item ??= getInitialAccountSettingsItem(context.actor.getAccountId());
             if (item.lastOpenedSpaceId === spaceId) return item;
             return {
                 ...item,
                 lastOpenedSpaceId: spaceId,
             };
-        },
-        {
-            initialItem:
-                accountSettingsItem ?? getInitialAccountSettingsItem(context.actor.getAccountId()),
         },
     );
 }
@@ -163,11 +154,6 @@ export async function updateOurAccountObservedTimeZone(
         throw new InvalidArgumentError(quote`Received invalid time zone: \`${timeZone}\``);
     }
 
-    const accountSettingsItem = await getAccountSettingsItemIfExists(
-        authorizedContext,
-        authorizedContext.actor.getAccountId(),
-    );
-
     const newAccountSettingsItem = await AccountsTable.updateItem(
         authorizedContext,
         {
@@ -176,20 +162,16 @@ export async function updateOurAccountObservedTimeZone(
             accountId: authorizedContext.actor.getAccountId(),
         },
         item => {
+            item ??= getInitialAccountSettingsItem(authorizedContext.actor.getAccountId());
             if (item.observedTimeZone === timeZone) return item;
             return {
                 ...item,
                 observedTimeZone: timeZone,
             };
         },
-        {
-            initialItem:
-                accountSettingsItem ??
-                getInitialAccountSettingsItem(authorizedContext.actor.getAccountId()),
-        },
     );
 
-    if (newAccountSettingsItem.observedTimeZone !== timeZone) {
+    if (newAccountSettingsItem?.observedTimeZone !== timeZone) {
         // This ensures notifications related to the inbox are in the correct time zone.
         await authorizedContext.notificationsInjection.notifyInboxOfTimeZoneChange(timeZone);
     }

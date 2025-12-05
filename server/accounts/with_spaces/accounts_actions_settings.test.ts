@@ -1,3 +1,7 @@
+import {
+    createSessionForTest,
+    pickRandomReactionCharacterForAccount,
+} from "~/server/accounts/accounts_actions.js";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {
     getOurLastOpenedSpaceId,
@@ -5,13 +9,15 @@ import {
     updateOurLastOpenedSpaceId,
 } from "~/server/accounts/with_spaces/accounts_actions_settings.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {addSpaceAccountForTest, removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {TimeZone, assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext({
     notificationsInjection: {
@@ -88,6 +94,50 @@ describe("updateOurLastOpenedSpaceId()", () => {
         await expect(updateOurLastOpenedSpaceId(session.action(), space2.id)).rejects.toThrow(
             PermissionDeniedError,
         );
+    });
+
+    test("should create a new account settings item and set the lastOpenedSpaceId if it doesn’t exist", async () => {
+        const space1 = await TestSpace.create(context);
+
+        const accountId = generateId<AccountId>();
+        await AccountsTable.createItem(context, {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId,
+            name: "Test Account",
+            nameVersion: 0,
+            createdTime: new Date(),
+            hasInternalAccess: false,
+            reactionCharacter: pickRandomReactionCharacterForAccount(),
+        });
+
+        const initialSettingsItem = await AccountsTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "Settings",
+            accountId,
+        });
+
+        expect(initialSettingsItem).toBe(null);
+
+        const sessionId = generateId<SessionId>();
+        await createSessionForTest(context, {id: sessionId, accountId});
+
+        await addSpaceAccountForTest(context, {spaceId: space1.id, accountId});
+
+        await updateOurLastOpenedSpaceId(
+            context.action({id: sessionId, account: {id: accountId}}),
+            space1.id,
+        );
+
+        const result1 = await AccountsTable.getItemIfExists(
+            context.action({id: sessionId, account: {id: accountId}}),
+            {
+                partitionType: "Account",
+                sortRangeType: "Settings",
+                accountId,
+            },
+        );
+        expect(result1?.lastOpenedSpaceId).toBe(space1.id);
     });
 });
 
@@ -179,5 +229,49 @@ describe("updateOurAccountObservedTimeZone()", () => {
         await expect(
             updateOurAccountObservedTimeZone(session.action(), "Invalid/Time/Zone" as TimeZone),
         ).rejects.toThrow(InvalidArgumentError);
+    });
+
+    test("should create a new account settings item and set the observedTimeZone if it doesn’t exist", async () => {
+        const space1 = await TestSpace.create(context);
+
+        const accountId = generateId<AccountId>();
+        await AccountsTable.createItem(context, {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId,
+            name: "Test Account",
+            nameVersion: 0,
+            createdTime: new Date(),
+            hasInternalAccess: false,
+            reactionCharacter: pickRandomReactionCharacterForAccount(),
+        });
+
+        const initialSettingsItem = await AccountsTable.getItemIfExists(context, {
+            partitionType: "Account",
+            sortRangeType: "Settings",
+            accountId,
+        });
+
+        expect(initialSettingsItem).toBe(null);
+
+        const sessionId = generateId<SessionId>();
+        await createSessionForTest(context, {id: sessionId, accountId});
+
+        await addSpaceAccountForTest(context, {spaceId: space1.id, accountId});
+
+        await updateOurAccountObservedTimeZone(
+            context.action({id: sessionId, account: {id: accountId}}),
+            assertTimeZone("America/Los_Angeles"),
+        );
+
+        const result1 = await AccountsTable.getItemIfExists(
+            context.action({id: sessionId, account: {id: accountId}}),
+            {
+                partitionType: "Account",
+                sortRangeType: "Settings",
+                accountId,
+            },
+        );
+        expect(result1?.observedTimeZone).toBe("America/Los_Angeles");
     });
 });
