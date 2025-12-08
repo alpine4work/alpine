@@ -203,42 +203,40 @@ export abstract class AgentDurableObjectBase<Route> {
         // process the webhook in the background. This is also important since
         // long-running webhooks will cause the request to timeout and Alpine to send
         // a retry.
-        context.process.waitUntil(
-            context.tracer.getTracer().withSpan("Process agent webhook", async span => {
-                try {
-                    const context: AgentWebhookRequest = {
-                        storage: this._state.storage,
-                        spaceId,
-                        accountId,
-                        event,
-                        room: parseApiMessageRoomPath(event.roomPath),
-                        apiClient: createApiClient({
-                            baseUrl: assertExists(
-                                this._env.API_SERVICE_URL,
-                                "Missing `API_SERVICE_URL` environment variable",
-                            ),
-                            apiKey: assertExists(
-                                this._env.CHAT_GPT_API_SERVICE_KEY,
-                                "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
-                            ),
-                            accessToken,
-                        }),
-                        openAiClient: this._openAiClient,
-                    };
+        void context.tracer.getTracer().withSpan("Process agent webhook", async span => {
+            try {
+                const context: AgentWebhookRequest = {
+                    storage: this._state.storage,
+                    spaceId,
+                    accountId,
+                    event,
+                    room: parseApiMessageRoomPath(event.roomPath),
+                    apiClient: createApiClient({
+                        baseUrl: assertExists(
+                            this._env.API_SERVICE_URL,
+                            "Missing `API_SERVICE_URL` environment variable",
+                        ),
+                        apiKey: assertExists(
+                            this._env.CHAT_GPT_API_SERVICE_KEY,
+                            "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
+                        ),
+                        accessToken,
+                    }),
+                    openAiClient: this._openAiClient,
+                };
 
-                    await this._webhook(span, context);
-                } catch (error) {
-                    // Log errors in development since webhook errors aren't shown to the user in
-                    // the UI. So we need to show webhook errors in our logs.
-                    if (process.env.NODE_ENV !== "production") {
-                        // eslint-disable-next-line no-console
-                        console.error("Agent webhook failed:", error);
-                    }
-
-                    span.addException(error);
+                await this._webhook(span, context);
+            } catch (error) {
+                // Log errors in development since webhook errors aren't shown to the user in
+                // the UI. So we need to show webhook errors in our logs.
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-console
+                    console.error("Agent webhook failed:", error);
                 }
-            }),
-        );
+
+                span.addException(error);
+            }
+        });
 
         return new Response(null, {status: 200});
     }
