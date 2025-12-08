@@ -3657,3 +3657,248 @@ test("streams code block correctly", async () => {
         },
     ]);
 });
+
+describe("headers", () => {
+    test("streams headers correctly", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("foo\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "foo"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("bar\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "bar"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("# Heading 1");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Heading 1"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" is cool");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Heading 1 is cool"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("\n\n");
+
+        expect(await message.update()).toEqual([]);
+
+        message.pushText("## heading 2 is cooler");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 2,
+                                elements: [{type: "Text", text: "heading 2 is cooler"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("\n\n### But heading 3 is the coolest");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 4,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 3,
+                                elements: [{type: "Text", text: "But heading 3 is the coolest"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("doesn’t add header if no space after #", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("foo\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "foo"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("#bar\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "#bar"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("##baz\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "##baz"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("###qux\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "###qux"}]}],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("doesn’t add header to inline #", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("foo\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "foo"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("My favorite number is #4\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "My favorite number is #4"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("my least favorite number is # 3 - yuck!");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "my least favorite number is # 3 - yuck!"},
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+});

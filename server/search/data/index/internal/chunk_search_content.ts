@@ -10,8 +10,7 @@ import {
     ContentMarkTypeName,
     ContentTextblockNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
-import {clampListItemIndentation} from "~/shared/content/content_schema.js";
-import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
+import {clampHeadingLevel, clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,

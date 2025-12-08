@@ -20,7 +20,7 @@ import {
     ContentListItemNodeTypeName,
     ContentMarkTypeName,
 } from "~/shared/content/content_node_type_name.js";
-import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
+import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

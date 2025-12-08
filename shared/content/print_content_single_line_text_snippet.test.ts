@@ -1,4 +1,7 @@
-import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {
+    printContentSingleLineTextSnippet,
+    printContentSingleLineTextSnippetPreservingMarks,
+} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -32,6 +35,48 @@ test("headings collapse onto the same line", () => {
         // eslint-disable-next-line string-quotes
         'This is a heading: Followed by a paragraph. This is another heading? Except that last heading had punctuation. This paragraph ends with a colon: And is followed by another heading. Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
     );
+});
+
+test("headings collapse onto the same line and get a bold mark", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("heading", {level: 1}, [schema.text("This is a heading")]),
+        schema.node("paragraph", {}, [schema.text("Followed by a paragraph")]),
+        schema.node("heading", {level: 2}, [schema.text("This is another heading?")]),
+        schema.node("paragraph", {}, [
+            schema.text(
+                "Except that last heading had punctuation. This paragraph ends with a colon:",
+            ),
+        ]),
+        schema.node("heading", {level: 2}, [schema.text("And is followed by another heading.")]),
+        schema.node("paragraph", {}, [
+            // eslint-disable-next-line string-quotes
+            schema.text('Nice. "This paragraph ends with a quote containing punctuation."'),
+        ]),
+        schema.node("paragraph", {}, [schema.text("No extra punctuation added")]),
+    ]);
+
+    expect(
+        printContentSingleLineTextSnippetPreservingMarks(doc, {
+            shouldPreserveMark: mark => mark.type.name === "bold",
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
+        }),
+    ).toEqual([
+        {marks: [schema.mark("bold")], text: "This is a heading: "},
+        {marks: [], text: "Followed by a paragraph. "},
+        {marks: [schema.mark("bold")], text: "This is another heading?"},
+        {
+            marks: [],
+            text: " Except that last heading had punctuation. This paragraph ends with a colon: ",
+        },
+        {marks: [schema.mark("bold")], text: "And is followed by another heading."},
+        {
+            marks: [],
+            // eslint-disable-next-line string-quotes
+            text: ' Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
+        },
+    ]);
 });
 
 test("list items collapse onto the same line", () => {

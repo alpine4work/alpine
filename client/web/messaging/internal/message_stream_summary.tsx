@@ -114,11 +114,15 @@ export function MessageStreamSummary({
                 <div
                     style={{
                         height:
-                            hasStandaloneMarginByContentBlockNodeTypeName[
-                                // HACK: Something with standalone margin.
-                                "fileRow"
-                            ] ||
-                            hasStandaloneMarginByContentBlockNodeTypeName[previousBlockNodeTypeName]
+                            previousBlockNodeTypeName === "divider"
+                                ? spacing[contentStyles.messageDividerMargin]
+                                : hasStandaloneMarginByContentBlockNodeTypeName[
+                                      // HACK: Something with standalone margin.
+                                      "fileRow"
+                                  ] ||
+                                  hasStandaloneMarginByContentBlockNodeTypeName[
+                                      previousBlockNodeTypeName
+                                  ]
                                 ? spacing[contentStyles.standaloneBlockMargin]
                                 : spacing[contentStyles.paragraphMargin],
                     }}
@@ -176,11 +180,14 @@ function renderThinkingIndicator({
             {previousBlockNodeTypeName && (
                 <div
                     style={{
-                        height: hasStandaloneMarginByContentBlockNodeTypeName[
-                            previousBlockNodeTypeName
-                        ]
-                            ? spacing[contentStyles.standaloneBlockMargin]
-                            : spacing[contentStyles.paragraphMargin],
+                        height:
+                            previousBlockNodeTypeName === "divider"
+                                ? spacing[contentStyles.messageDividerMargin]
+                                : hasStandaloneMarginByContentBlockNodeTypeName[
+                                      previousBlockNodeTypeName
+                                  ]
+                                ? spacing[contentStyles.standaloneBlockMargin]
+                                : spacing[contentStyles.paragraphMargin],
                     }}
                 />
             )}

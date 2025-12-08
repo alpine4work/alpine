@@ -695,6 +695,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         <Box
             ref={inputContainerRef}
             id={containerId}
+            className={contentStyles.messageDocClassName}
             // Focusable, but not by keyboard. Only by JavaScript.
             tabIndex={-1}
             flexShrink="0"
@@ -1223,6 +1224,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         : `New ${messageNoun}`
                                                 }
                                                 placeholder={placeholder}
+                                                className={contentStyles.messageDocClassName}
                                                 style={{
                                                     paddingTop:
                                                         messageInputEditorPaddingYPx[platform][

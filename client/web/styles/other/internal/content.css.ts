@@ -179,6 +179,8 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
+export const messageDocClassName = style({});
+
 export const narrowRouteLayoutDocClassName = style({});
 
 export const isDraggingSelectionDocClassName = style({});
@@ -357,9 +359,19 @@ globalStyle(headingLevel1ClassName, {
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel1ClassName}`, {
-    ...fontSizes[headingLevel1FontSize.narrow],
+globalStyle(`${messageDocClassName} ${headingLevel1ClassName}`, {
+    marginTop: standaloneBlockMargin,
 });
+
+globalStyle(
+    [
+        `${narrowRouteLayoutDocClassName} ${headingLevel1ClassName}`,
+        `${messageDocClassName} ${headingLevel1ClassName}`,
+    ].join(", "),
+    {
+        ...fontSizes[headingLevel1FontSize.narrow],
+    },
+);
 globalStyle(`${titleClassName} + ${headingLevel1ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
@@ -374,14 +386,27 @@ globalStyle(headingLevel2ClassName, {
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel2ClassName}`, {
-    ...fontSizes[headingLevel2FontSize.narrow],
+globalStyle(`${messageDocClassName} ${headingLevel2ClassName}`, {
+    marginTop: standaloneBlockMargin,
 });
+
+globalStyle(
+    [
+        `${narrowRouteLayoutDocClassName} ${headingLevel2ClassName}`,
+        `${messageDocClassName} ${headingLevel2ClassName}`,
+    ].join(", "),
+    {
+        ...fontSizes[headingLevel2FontSize.narrow],
+    },
+);
 globalStyle(`${titleClassName} + ${headingLevel2ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
 globalStyle(`${headingLevel1ClassName} + ${headingLevel2ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
+});
+globalStyle(`${messageDocClassName} ${headingLevel1ClassName} + ${headingLevel2ClassName}`, {
+    marginTop: standaloneBlockMargin,
 });
 
 globalStyle(headingLevel3ClassName, {
@@ -394,9 +419,19 @@ globalStyle(headingLevel3ClassName, {
     fontFeatureSettings: '"calt" on',
 });
 
-globalStyle(`${narrowRouteLayoutDocClassName} ${headingLevel3ClassName}`, {
-    ...fontSizes[headingLevel3FontSize.narrow],
+globalStyle(`${messageDocClassName} ${headingLevel3ClassName}`, {
+    marginTop: standaloneBlockMargin,
 });
+
+globalStyle(
+    [
+        `${narrowRouteLayoutDocClassName} ${headingLevel3ClassName}`,
+        `${messageDocClassName} ${headingLevel3ClassName}`,
+    ].join(", "),
+    {
+        ...fontSizes[headingLevel3FontSize.narrow],
+    },
+);
 globalStyle(`${titleClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
@@ -405,6 +440,12 @@ globalStyle(`${headingLevel1ClassName} + ${headingLevel3ClassName}`, {
 });
 globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
+});
+globalStyle(`${messageDocClassName} ${headingLevel1ClassName} + ${headingLevel3ClassName}`, {
+    marginTop: standaloneBlockMargin,
+});
+globalStyle(`${messageDocClassName} ${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
+    marginTop: standaloneBlockMargin,
 });
 
 export const tableWithHeaderRowClassName = style({});
@@ -993,6 +1034,22 @@ globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
     marginTop: spacing[heading1TopMargin.narrow],
     marginBottom: spacing[heading1TopMargin.narrow],
 });
+
+const messageDividerMarginSpacing = "6";
+const messageDividerMargin = spacing[messageDividerMarginSpacing];
+export {messageDividerMarginSpacing as messageDividerMargin};
+export const messageDividerMarginRem = parseRemLength(messageDividerMargin);
+
+globalStyle(
+    [
+        `${messageDocClassName} ${dividerClassName}`,
+        `${narrowRouteLayoutDocClassName} ${messageDocClassName} ${dividerClassName}`,
+    ].join(", "),
+    {
+        marginTop: messageDividerMargin,
+        marginBottom: messageDividerMargin,
+    },
+);
 
 /**
  * The minimum width of a column in absolute units. The table data structure

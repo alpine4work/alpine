@@ -288,6 +288,11 @@ const MessageStreamViewPart = memo(function MessageStreamViewPart({
         ) {
             space = contentStyles.paragraphMargin;
         } else if (
+            currentBlockNodeTypeName === "divider" ||
+            previousBlockNodeTypeName === "divider"
+        ) {
+            space = contentStyles.messageDividerMargin;
+        } else if (
             hasStandaloneMarginByContentBlockNodeTypeName[currentBlockNodeTypeName] ||
             hasStandaloneMarginByContentBlockNodeTypeName[previousBlockNodeTypeName]
         ) {

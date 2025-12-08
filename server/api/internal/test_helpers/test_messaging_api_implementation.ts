@@ -1566,7 +1566,7 @@ export function testMessagingApiImplementation(
             expect(response2.body.nextCursor).toBeNull();
         });
 
-        test("can create message with heading that’s converted to paragraph", async () => {
+        test("can create message with headings", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1584,6 +1584,16 @@ export function testMessagingApiImplementation(
                                 type: "Heading",
                                 level: 1,
                                 elements: [{type: "Text", text: "Hello, world!"}],
+                            },
+                            {
+                                type: "Heading",
+                                level: 2,
+                                elements: [{type: "Text", text: "Level 2"}],
+                            },
+                            {
+                                type: "Heading",
+                                level: 3,
+                                elements: [{type: "Text", text: "Level 3"}],
                             },
                         ],
                     },
@@ -1607,10 +1617,16 @@ export function testMessagingApiImplementation(
                 printApiContentToMarkdown(response.body.message.payload.content, {
                     spaceId: space.id,
                 }),
-            ).toEqual("**Hello, world!**\n");
+            ).toEqual(`\
+# Hello, world!
+
+## Level 2
+
+### Level 3
+`);
         });
 
-        test("can create message with divider that’s converted to paragraph", async () => {
+        test("can create message with divider", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1645,7 +1661,7 @@ export function testMessagingApiImplementation(
                 printApiContentToMarkdown(response.body.message.payload.content, {
                     spaceId: space.id,
                 }),
-            ).toEqual("\\---\n");
+            ).toEqual("<hr/>\n");
         });
 
         test("can create message with italic mark", async () => {

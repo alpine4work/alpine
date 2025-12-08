@@ -299,6 +299,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ) {
                 marginBottom = contentStyles.fileRowGapWidth;
             } else if (
+                message.payload.content.doc.lastChild!.type.name === "divider" ||
+                nextMessage.payload.content.doc.firstChild!.type.name === "divider"
+            ) {
+                marginBottom = contentStyles.messageDividerMargin;
+            } else if (
                 hasStandaloneMarginByContentBlockNodeTypeName[
                     message.payload.content.doc.lastChild!.type.name
                 ] ||
@@ -1051,7 +1056,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <ContentView
                     data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
                     data-index={!message.isOptimistic ? message.index : undefined}
-                    className={messagingStyles.withPointerToolbarClassName}
+                    className={classNames(
+                        contentStyles.messageDocClassName,
+                        messagingStyles.withPointerToolbarClassName,
+                    )}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdate?.time}
                     withUserSelectNone={!canPrimaryInputHover}
@@ -1064,7 +1072,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <ContentViewWithReactionParties
                     data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
                     data-index={!message.isOptimistic ? message.index : undefined}
-                    className={messagingStyles.withPointerToolbarClassName}
+                    className={classNames(
+                        contentStyles.messageDocClassName,
+                        messagingStyles.withPointerToolbarClassName,
+                    )}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdate?.time}
                     withUserSelectNone={!canPrimaryInputHover}
@@ -1548,6 +1559,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                               .type.name
                                                       ]
                                                         ? contentStyles.paragraphMargin
+                                                        : message.payload.content.doc.lastChild!
+                                                              .type.name === "divider"
+                                                        ? contentStyles.messageDividerMargin
                                                         : contentStyles.standaloneBlockMargin
                                                     : undefined
                                             }

@@ -166,7 +166,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                         .canReplaceWith(
                             $start.index(-1),
                             $start.indexAfter(-1),
-                            schema.nodes.divider!,
+                            schema.nodes.divider,
                         )
                 ) {
                     return null;

@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {Box} from "~/client/web/design/box.js";
@@ -14,7 +15,7 @@ import {
     messageViewOutlineBorderRadius,
     messageViewOutlineMargin,
 } from "~/client/web/styles/messaging_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -122,10 +123,13 @@ function MessageViewEditor<RoomKey extends string>({
                     // On mobile, don't allow interactions when unfocused. We're already in an
                     // editing modality.
                     withoutMobileDualModality={true}
-                    className={sprinkles({
-                        paddingRight: messageViewOutlineMargin,
-                        paddingY: messageViewOutlineMargin,
-                    })}
+                    className={classNames(
+                        contentStyles.messageDocClassName,
+                        sprinkles({
+                            paddingRight: messageViewOutlineMargin,
+                            paddingY: messageViewOutlineMargin,
+                        }),
+                    )}
                     style={{
                         paddingLeft: messageViewEditorOutlineMarginLeft,
                         paddingTop: !shouldMergeWithPreviousMessage

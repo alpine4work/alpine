@@ -118,7 +118,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     const {shouldPreserveMark, getFileIfExists} = options;
 
     const segments: Array<{marks: ReadonlyArray<Mark>; text: string}> = [];
-    let breakPunctuation: string | null = null;
+    let breakPunctuation: {marks: ReadonlyArray<Mark>; text: string} | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
     let fileNounNumberState: {noun: string; number: number} | null;
@@ -154,7 +154,21 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                 if (isTextEndedWithPunctuation(lastSegment.text)) {
                     actuallyPrint(" ");
                 } else {
-                    actuallyPrint(`${breakPunctuation} `);
+                    // Add any marks from the break punctuation to `preservedMarks` which gets
+                    // cleared below.
+                    if (breakPunctuation.marks.length > 0) {
+                        const newPreservedMarks = [...preservedMarks];
+
+                        for (const mark of breakPunctuation.marks) {
+                            if (shouldPreserveMark(mark) && !mark.isInSet(preservedMarks)) {
+                                newPreservedMarks.push(mark);
+                            }
+                        }
+
+                        preservedMarks = newPreservedMarks;
+                    }
+
+                    actuallyPrint(`${breakPunctuation.text} `);
                 }
 
                 preservedMarks = actualPreservedMarks;
@@ -189,20 +203,24 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                     printInlineNode(childNode);
                 }
 
-                breakPunctuation = ".";
+                breakPunctuation = {marks: emptyArray, text: "."};
                 break;
             }
             case "title":
             case "heading": {
                 for (const childNode of node.content.content) {
-                    printInlineNode(childNode);
+                    printInlineNode(
+                        childNode,
+                        // Pretend that children of `heading` have the `bold` mark.
+                        [node.type.schema.mark("bold")],
+                    );
                 }
 
                 // Use a colon after headings to introduce the following content. Headings
                 // typically aren't quite proper sentences. Often they're nouns describing the
                 // following section. Colons are similarly used to introduce the content which
                 // follows so let's use that.
-                breakPunctuation = ":";
+                breakPunctuation = {marks: [node.type.schema.mark("bold")], text: ":"};
                 break;
             }
             case "quoteBlock": {
@@ -247,7 +265,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
 
                         isTrimmingStart = false;
                     }
-                    breakPunctuation = "";
+                    breakPunctuation = {marks: emptyArray, text: ""};
                 }
                 break;
             }
@@ -285,7 +303,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                     }
 
                     fileNounNumberState = {noun, number: fileNounNumber};
-                    breakPunctuation = ".";
+                    breakPunctuation = {marks: emptyArray, text: "."};
                 }
                 break;
             }
@@ -321,7 +339,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                 // ProseMirror node type then newlines will be allowed. For example ProseMirror
                 // recommends building code blocks with `whitespace: "pre"`.
                 for (const lineText of node.text!.split(newLineRegExp)) {
-                    if (!isFirstLine) breakPunctuation = "";
+                    if (!isFirstLine) breakPunctuation = {marks: emptyArray, text: ""};
                     isFirstLine = false;
 
                     print(lineText);
@@ -332,7 +350,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                 // A break doesn't always separate ideas. Sometimes its contribution is purely
                 // visual. We still want a space between the content it breaks apart but no
                 // other punctuation.
-                breakPunctuation = "";
+                breakPunctuation = {marks: emptyArray, text: ""};
                 break;
             }
             case "mention": {

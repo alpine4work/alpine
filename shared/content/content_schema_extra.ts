@@ -1,18 +1,13 @@
 import {NodeSpec} from "prosemirror-model";
 import {paragraphParseRulePriority, paragraphParseRules} from "~/shared/content/content_schema.js";
 import {
-    dividerClassName,
     fileClassName,
     fileFloatClassName,
     fileFloatLeftClassName,
     fileFloatRightClassName,
     fileRowLikeClassName,
-    headingLevel1ClassName,
-    headingLevel2ClassName,
-    headingLevel3ClassName,
 } from "~/shared/design/core/constant_class_names.js";
 import {FileIdOrFileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -26,81 +21,6 @@ import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id
 function createProsemirrorNodesSpec<Nodes extends {[key: string]: NodeSpec}>(nodes: Nodes): Nodes {
     return nodes;
 }
-
-export function clampHeadingLevel(level: unknown): number {
-    return typeof level === "number" ? clamp(1, Math.floor(level), 3) : 1;
-}
-
-/**
- * ProseMirror nodes that allow users to create structure in longer form content
- * like posts and documents.
- *
- * Includes headings and dividers.
- */
-export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec({
-    /*
-     * Crucial for adding structure to the document. Can be extended in the
-     * future with an outline feature.
-     *
-     * Can only be levels 1, 2, and 3.
-     *
-     * The element used for a heading is its level plus 1. For example, a
-     * heading with level 1 will use an `<h2>` instead of an `<h1>`. This is
-     * because our support for titles usually lives outside content (e.g.
-     * tasks). This also prevents users from confusing screen readers by
-     * creating a bunch of level 1 headings.
-     */
-    heading: {
-        group: "block",
-        content: "inline*",
-        // Don't allow selecting with a `NodeSelection`. The default is `true` but
-        // there's only a small number of nodes (e.g. `divider`) we actually want to
-        // let be selectable.
-        selectable: false,
-        attrs: {
-            level: {
-                schema: Schema.integer.min(1).max(3),
-                default: 1,
-            },
-        },
-        toDOM: node => {
-            const level = clampHeadingLevel(node.attrs.level);
-
-            return [
-                `h${level + 1}`,
-                {
-                    class:
-                        level === 3
-                            ? headingLevel3ClassName
-                            : level === 2
-                            ? headingLevel2ClassName
-                            : headingLevel1ClassName,
-                },
-                0,
-            ];
-        },
-        parseDOM: [
-            {tag: "h1", priority: 50, attrs: {level: 1}},
-            {tag: "h2", priority: 50, attrs: {level: 1}},
-            {tag: "h3", priority: 50, attrs: {level: 2}},
-            {tag: "h4", priority: 50, attrs: {level: 3}},
-            {tag: "h5", priority: 50, attrs: {level: 3}},
-            {tag: "h6", priority: 50, attrs: {level: 3}},
-        ],
-    },
-
-    /**
-     * Also known as a horizontal rule. Another way to organize documents
-     * alongside headers. Allows the writer to specify an unnamed break in
-     * content.
-     */
-    divider: {
-        group: "block",
-        selectable: true,
-        toDOM: () => ["hr", {class: dividerClassName}],
-        parseDOM: [{tag: "hr"}],
-    },
-});
 
 /**
  * ProseMirror nodes that allow users to create content with files.
