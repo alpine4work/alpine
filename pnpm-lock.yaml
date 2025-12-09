@@ -577,8 +577,8 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.6(patch_hash=nnzo6xfgkiwpbpw72zy5ddae2u))
       '@types/scheduler':
-        specifier: ^0.16.2
-        version: 0.16.2
+        specifier: ^0.26.0
+        version: 0.26.0
       '@types/serve-static':
         specifier: ^1.15.0
         version: 1.15.0
@@ -934,8 +934,8 @@ importers:
         specifier: 1.14.0
         version: 1.14.0
       openai:
-        specifier: ^5.19.1
-        version: 5.19.1(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.23.8)
+        specifier: ^6.10.0
+        version: 6.10.0(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.25.76)
       openapi-fetch:
         specifier: ^0.14.0
         version: 0.14.0
@@ -1116,6 +1116,9 @@ importers:
       yjs:
         specifier: ^13.6.6
         version: 13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
 packages:
 
@@ -4103,8 +4106,8 @@ packages:
   '@types/retry@0.12.2':
     resolution: {integrity: sha512-XISRgDJ2Tc5q4TRqvgJtzsRkFYNJzZrhTdtMoGVBttwzzQJkPnS3WWTFc7kuDRoPtPakl+T+OfdEUjYJj7Jbow==}
 
-  '@types/scheduler@0.16.2':
-    resolution: {integrity: sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==}
+  '@types/scheduler@0.26.0':
+    resolution: {integrity: sha512-WFHp9YUJQ6CKshqoC37iOlHnQSmxNc795UhB26CyBBttrN9svdIrUjl/NjnNmfcwtncN0h/0PPAFWv9ovP8mLA==}
 
   '@types/serve-static@1.15.0':
     resolution: {integrity: sha512-z5xyF6uh8CbjAu9760KDKsH2FcDxZ2tFCsA4HIMWE6IkiYMXfVoa+4f9KX+FN0ZLsaMw1WNG2ETLA6N+/YA+cg==}
@@ -6752,8 +6755,8 @@ packages:
   lezer-elixir@1.1.2:
     resolution: {integrity: sha512-K3yPMJcNhqCL6ugr5NkgOC1g37rcOM38XZezO9lBXy0LwWFd8zdWXfmRbY829vZVk0OGCQoI02yDWp9FF2OWZA==}
 
-  lib0@0.2.104:
-    resolution: {integrity: sha512-1tqKRANSPTcjs/yjPoKh52oRM2u5AYdd8jie8sDiN8/5kpWWiQSHUGgtB4VEXLw1chVL3QPSPp8q9RWqzSn2FA==}
+  lib0@0.2.114:
+    resolution: {integrity: sha512-gcxmNFzA4hv8UYi8j43uPlQ7CGcyMJ2KQb5kZASw6SnAKAf10hK12i2fjrS3Cl/ugZa5Ui6WwIu1/6MIXiHttQ==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -7506,12 +7509,12 @@ packages:
     resolution: {integrity: sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==}
     engines: {node: '>=12'}
 
-  openai@5.19.1:
-    resolution: {integrity: sha512-zSqnUF7oR9ksmpusKkpUgkNrj8Sl57U+OyzO8jzc7LUjTMg4DRfR3uCm+EIMA6iw06sRPNp4t7ojp3sCpEUZRQ==}
+  openai@6.10.0:
+    resolution: {integrity: sha512-ITxOGo7rO3XRMiKA5l7tQ43iNNu+iXGFAcf2t+aWVzzqRaS0i7m1K2BhxNdaveB+5eENhO0VY1FkiZzhBk4v3A==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
-      zod: ^3.23.8
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -8020,7 +8023,7 @@ packages:
   react-stately@3.27.0:
     resolution: {integrity: sha512-C5ubKP33M3SmilXYv2vHYgfSLsOM0jlZ8y1KyEKWeJzN4yxy0sGku2SRUpUWTDdncB5lOeLE21EZBJVz71wePA==}
     peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
 
   react@19.2.0:
     resolution: {integrity: sha512-tmbWg6W31tQLeB5cdIBOicJDJRR2KzXsV7uSK9iNfLWQ5bIZfxuPEHp7M8wiHyHnn0DD1i7w3Zmin0FtkrwoCQ==}
@@ -9220,8 +9223,8 @@ packages:
     peerDependencies:
       zod: ^3.18.0
 
-  zod@3.23.8:
-    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zwitch@2.0.2:
     resolution: {integrity: sha512-JZxotl7SxAJH0j7dN4pxsTV6ZLXoLdGME+PsjkL/DaBrVryK9kTGq06GfKrwcSOqypP+fdXGoCHE36b99fWVoA==}
@@ -10701,7 +10704,7 @@ snapshots:
   '@cloudflare/workers-shared@0.7.1':
     dependencies:
       mime: 3.0.0
-      zod: 3.23.8
+      zod: 3.25.76
 
   '@cloudflare/workers-types@4.20241112.0(patch_hash=ylo6ppuxbnnn5eh5o4zhyyzoeq)': {}
 
@@ -13755,7 +13758,7 @@ snapshots:
 
   '@types/retry@0.12.2': {}
 
-  '@types/scheduler@0.16.2': {}
+  '@types/scheduler@0.26.0': {}
 
   '@types/serve-static@1.15.0':
     dependencies:
@@ -15466,8 +15469,8 @@ snapshots:
       '@babel/plugin-proposal-private-methods': 7.18.6(@babel/core@7.25.2)
       eslint: 8.57.0(patch_hash=voandurs7i7djwvrsfd3v5zv5i)
       hermes-parser: 0.20.1
-      zod: 3.23.8
-      zod-validation-error: 3.4.0(zod@3.23.8)
+      zod: 3.25.76
+      zod-validation-error: 3.4.0(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
@@ -17033,7 +17036,7 @@ snapshots:
       '@lezer/highlight': 1.2.0
       '@lezer/lr': 1.4.1
 
-  lib0@0.2.104:
+  lib0@0.2.114:
     dependencies:
       isomorphic.js: 0.2.5
 
@@ -17837,7 +17840,7 @@ snapshots:
       workerd: 1.20241106.1
       ws: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       youch: 3.2.3
-      zod: 3.23.8
+      zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -18141,10 +18144,10 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@5.19.1(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.23.8):
+  openai@6.10.0(ws@8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10))(zod@3.25.76):
     optionalDependencies:
       ws: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
-      zod: 3.23.8
+      zod: 3.25.76
 
   openapi-fetch@0.14.0:
     dependencies:
@@ -20061,7 +20064,7 @@ snapshots:
 
   y-prosemirror@1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.25.1)(prosemirror-state@1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq))(prosemirror-view@1.40.0(patch_hash=5n5v5wyt6tpdtq6hckzwwkkjdy))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)))(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)):
     dependencies:
-      lib0: 0.2.104
+      lib0: 0.2.114
       prosemirror-model: 1.25.1
       prosemirror-state: 1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq)
       prosemirror-view: 1.40.0(patch_hash=5n5v5wyt6tpdtq6hckzwwkkjdy)
@@ -20070,7 +20073,7 @@ snapshots:
 
   y-protocols@1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)):
     dependencies:
-      lib0: 0.2.104
+      lib0: 0.2.114
       yjs: 13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)
 
   y18n@5.0.8: {}
@@ -20111,7 +20114,7 @@ snapshots:
 
   yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe):
     dependencies:
-      lib0: 0.2.104
+      lib0: 0.2.114
 
   yocto-queue@0.1.0: {}
 
@@ -20138,10 +20141,10 @@ snapshots:
       compress-commons: 6.0.2
       readable-stream: 4.7.0
 
-  zod-validation-error@3.4.0(zod@3.23.8):
+  zod-validation-error@3.4.0(zod@3.25.76):
     dependencies:
-      zod: 3.23.8
+      zod: 3.25.76
 
-  zod@3.23.8: {}
+  zod@3.25.76: {}
 
   zwitch@2.0.2: {}

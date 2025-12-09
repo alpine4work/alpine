@@ -515,11 +515,7 @@ async function createChatGptAgentResponse(
 
     // TODO(calebmer, #ai): Tool calls to implement:
     //
-    // - [ ] Upgrade to reasoning model
-    // - [ ] Load mentioned content
-    // - [ ] Load previous chat messages
     // - [ ] Load content underneath peek
-    // - [ ] Alpine search
     // - [ ] Update/create documents
     // - [ ] Update/create tasks, task collections, and subtasks
     // - [ ] View uploaded files (images mostly)
@@ -535,7 +531,7 @@ async function createChatGptAgentResponse(
         stream: true,
 
         // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
-        model: "gpt-5",
+        model: "gpt-5.1",
         // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.roomPath),
         safety_identifier: request.event.authorId,

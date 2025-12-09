@@ -21,6 +21,7 @@ import {
 } from "~/shared/debug/chat_gpt/chat_gpt_conversation_item.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -128,6 +129,12 @@ export async function loadChatGptConversationItems(
                 break;
             }
             case "function_call_output": {
+                // TODO(ifitzsimmons, #ai): As of OpenAI API v6, function calls can return
+                // a list of items, including images, files, and text content. We don't currently
+                // support these types of function call outputs -- all of our tool calls return
+                // strings. However, we do have plans to support these types of function calls
+                // in the future and when we do, we'll need to update this logic.
+                assert(typeof item.output === "string", "Function call output must be a string");
                 tokenCount = countO200kBaseTokens(item.output);
 
                 content = {
