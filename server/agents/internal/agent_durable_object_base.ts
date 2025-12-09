@@ -272,7 +272,7 @@ export abstract class AgentDurableObjectBase<Route> {
                         }
 
                         // Drain the response body...
-                        await response.json();
+                        await response.text();
                     },
                 );
             }, 30_000);
