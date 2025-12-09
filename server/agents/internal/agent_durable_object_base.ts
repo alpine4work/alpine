@@ -223,6 +223,36 @@ export abstract class AgentDurableObjectBase<Route> {
         // long-running webhooks will cause the request to timeout and Alpine to send
         // a retry.
         void context.tracer.getTracer().withSpan("Process agent webhook", async span => {
+            // HACK(calebmer, 2025-12-09): We were running into an issue where our Durable
+            // Object would die with the error message "IoContext timed out due to
+            // inactivity, waitUntil tasks were cancelled without completing" after ~90
+            // seconds of work. I reached out to an old coworker ([@sunilpai][1]) who's
+            // working at Cloudflare on Durable Objects who suspected this may be a bug in
+            // Durable Objects. After some investigation he provided this response:
+            //
+            // > ok I have a workaround for you, tldr -
+            // >
+            // > - there's a 70-140 second timeout for a DO's own loop
+            // > - immediate workaround for your problem: you can restart this timer by
+            // >   sending the DO a request again, even from itself
+            // > - be careful you terminate this self calling request or you'll get a
+            // >   proper big bill haha
+            // > - long term solution: an alarm also resets the timer, so you should plan
+            // >   on refactoring your timeouts/intervals to alarms
+            // >
+            // > happy to walk through details with you tomorrow if you'd like, and even
+            // > look at code, but that's the basic plan (edited)
+            // >
+            // > alarms last for a max of 15 mins which is why it's a good idea
+            // >
+            // > and you can run timeouts/intervals inside it of course
+            //
+            // Hence this keep alive interval. By sending the Durable Object a request
+            // every 30 seconds (even from within itself!) while we're generating the LLM
+            // response we continually extend the Durable Object's lifespan until all
+            // webhook activity has completed.
+            //
+            // [1]: https://x.com/threepointone
             const keepAliveInterval = createInterval(() => {
                 const durableObjectStub = this._getOwnDurableObjectNamespace().get(this._state.id);
 
