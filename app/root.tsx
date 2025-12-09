@@ -6,7 +6,6 @@ import {
     Scripts,
     ScrollRestoration,
 } from "@remix-run/react";
-import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import {
     ContextType,
@@ -79,38 +78,6 @@ export function meta() {
     return [{title: "Alpine"}];
 }
 
-export function links(): Array<LinkDescriptor> {
-    return [
-        // Preload our primary font Inter from our shared styles in parallel with CSS
-        // to try and avoid flashes of unstyled text.
-        //
-        // https://web.dev/articles/codelab-preload-web-fonts
-        {
-            rel: "preload",
-            href: __RESOURCE_SERVICE_URL__ + "/fonts/inter.v1.woff2",
-            as: "font",
-            type: "font/woff2",
-            crossOrigin: "anonymous",
-        },
-        {rel: "stylesheet", href: stylesUrl},
-        // Recommend the SVG favicon so it can render in light and dark mode.
-        {rel: "icon", href: "/favicon.svg", sizes: "any"},
-
-        {
-            rel: "apple-touch-icon",
-            sizes: "512x512",
-            href: __RESOURCE_SERVICE_URL__ + "/app-icons/app-icon-512x512.png",
-        },
-        {
-            rel: "apple-touch-icon",
-            sizes: "1024x1024",
-            href: __RESOURCE_SERVICE_URL__ + "/app-icons/app-icon-1024x1024.png",
-        },
-
-        {rel: "manifest", href: "/manifest.json"},
-    ];
-}
-
 // The loader returns constants. We don't need to reload on page change.
 export const shouldRevalidate = () => false;
 
@@ -159,68 +126,107 @@ export async function loader({context}: LoaderArgs) {
 
 const rootNativeMobileOutletParentRouteIds = ["root"] as const;
 
-function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
-    const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
+const resourceServiceUrl = __RESOURCE_SERVICE_URL__;
 
+// These `<head>` elements never change. If Remix/React re-render then these
+// elements should not update. Updating these elements may cause resources to
+// be fetched from the server again!
+const constantRootHead = (
+    <>
+        <meta charSet="utf-8" />
+        <meta
+            name="viewport"
+            // - `user-scalable=no`: Don't allow pinch to zoom. This is against
+            //    industry accessibility guidelines. We want our site to feel like an app
+            //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
+            //    help users with accessibility needs we should add support for font
+            //    scaling.
+            //
+            // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
+            //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
+            //   padding.
+            //
+            // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+            // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
+            content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+        />
+        <meta
+            // Ask Google to not index any of our routes.
+            // https://developers.google.com/search/docs/crawling-indexing/block-indexing
+            //
+            // TODO(calebmer): This should be decided on a route-by-route basis instead of
+            // global configuration that can't be configured.
+            name="robots"
+            content="noindex"
+        />
+        <meta
+            // Don't automatically detect format of various text bits on iOS. If we want
+            // format detection we'll manually add it ourselves. Format detection doesn't
+            // play nicely with React server rendering.
+            // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
+            name="format-detection"
+            content="telephone=no, date=no, email=no, address=no"
+        />
+        <meta
+            // Set the theme color for PWA installations.
+            // This controls the color of the outer UI of the PWA when it's installed on a device.
+            name="theme-color"
+            content={colors["grey-0"]}
+            media="(prefers-color-scheme: light)"
+        />
+        <meta
+            // Set the theme color for PWA installations
+            // This controls the color of the outer UI of the PWA when it's installed on a device.
+            name="theme-color"
+            content={colors["grey-100"]}
+            media="(prefers-color-scheme: dark)"
+        />
+        <link
+            // Preload our primary font Inter from our shared styles in parallel with CSS
+            // to try and avoid flashes of unstyled text.
+            //
+            // https://web.dev/articles/codelab-preload-web-fonts
+            rel="preload"
+            href={`${resourceServiceUrl}/fonts/inter.v1.woff2`}
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+        />
+        <link rel="stylesheet" href={stylesUrl} />
+        <link
+            // Recommend the SVG favicon so it can render in light and dark mode.
+            rel="icon"
+            href="/favicon.svg"
+            sizes="any"
+        />
+        <link
+            rel="apple-touch-icon"
+            sizes="512x512"
+            href={`${resourceServiceUrl}/app-icons/app-icon-512x512.png`}
+        />
+        <link
+            rel="apple-touch-icon"
+            sizes="1024x1024"
+            href={`${resourceServiceUrl}/app-icons/app-icon-1024x1024.png`}
+        />
+        <link rel="manifest" href="/manifest.json" />
+
+        <Meta />
+        <Links />
+
+        <style
+            // Must be after `<Links>` to ensure we use our preloaded fonts.
+            dangerouslySetInnerHTML={{__html: getFontsCriticalCss(resourceServiceUrl)}}
+        />
+
+        <ColorSchemeManager />
+    </>
+);
+
+function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
     return (
         <head>
-            <meta charSet="utf-8" />
-            <meta
-                name="viewport"
-                // - `user-scalable=no`: Don't allow pinch to zoom. This is against
-                //    industry accessibility guidelines. We want our site to feel like an app
-                //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
-                //    help users with accessibility needs we should add support for font
-                //    scaling.
-                //
-                // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
-                //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
-                //   padding.
-                //
-                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
-                // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
-                content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-            />
-            <meta
-                // Ask Google to not index any of our routes.
-                // https://developers.google.com/search/docs/crawling-indexing/block-indexing
-                //
-                // TODO(calebmer): This should be decided on a route-by-route basis instead of
-                // global configuration that can't be configured.
-                name="robots"
-                content="noindex"
-            />
-            <meta
-                // Don't automatically detect format of various text bits on iOS. If we want
-                // format detection we'll manually add it ourselves. Format detection doesn't
-                // play nicely with React server rendering.
-                // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
-                name="format-detection"
-                content="telephone=no, date=no, email=no, address=no"
-            />
-
-            <meta
-                // Set the theme color for PWA installations.
-                // This controls the color of the outer UI of the PWA when it's installed on a device.
-                name="theme-color"
-                content={colors["grey-0"]}
-                media="(prefers-color-scheme: light)"
-            />
-            <meta
-                // Set the theme color for PWA installations
-                // This controls the color of the outer UI of the PWA when it's installed on a device.
-                name="theme-color"
-                content={colors["grey-100"]}
-                media="(prefers-color-scheme: dark)"
-            />
-
-            <Meta />
-            <Links
-            // Links must be before the fonts critical CSS to ensure we use our preloaded fonts.
-            />
-            <style dangerouslySetInnerHTML={{__html: getFontsCriticalCss(resourceServiceUrl)}} />
-            <ColorSchemeManager />
-
+            {constantRootHead}
             {loaderData?.isIntegrationTest && (
                 // If we're running an integration test then add noop `react-refresh`
                 // globals so we don't get any reference errors. Our SWC development config
