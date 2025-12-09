@@ -215,8 +215,10 @@ function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
             />
 
             <Meta />
+            <Links
+            // Links must be before the fonts critical CSS to ensure we use our preloaded fonts.
+            />
             <style dangerouslySetInnerHTML={{__html: getFontsCriticalCss(resourceServiceUrl)}} />
-            <Links />
             <ColorSchemeManager />
 
             {loaderData?.isIntegrationTest && (
