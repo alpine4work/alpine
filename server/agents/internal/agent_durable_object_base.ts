@@ -1,5 +1,6 @@
 import {addHours, subHours} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
+import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
@@ -12,20 +13,16 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnknownError} from "~/shared/error/error.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-export type AgentDurableObjectEnv = {
-    API_SERVICE_URL: string;
-    CHAT_GPT_API_SERVICE_KEY: string;
-    OPEN_AI_API_KEY?: string;
-    HONEYCOMB_API_KEY?: string;
-};
 
 export type AgentContext = Context<AgentContextModules>;
 
@@ -73,18 +70,14 @@ export function shouldResetAgentDeleteAllStorageAlarm({
  */
 export abstract class AgentDurableObjectBase<Route> {
     private readonly _state: DurableObjectState;
-    protected readonly _env: AgentDurableObjectEnv;
+    protected readonly _env: AgentServiceEnv;
     private readonly _tracer: Lazy<TracerRoot>;
     private readonly _processContext: Lazy<AgentContext>;
     private readonly _openAiClient: Lazy<OpenAiClient>;
 
     private readonly _alarmTimeMutex: MutexValue<Date | null> = new MutexValue(null);
 
-    constructor(
-        serviceName: TracerServiceName,
-        state: DurableObjectState,
-        env: AgentDurableObjectEnv,
-    ) {
+    constructor(serviceName: TracerServiceName, state: DurableObjectState, env: AgentServiceEnv) {
         this._state = state;
         this._env = env;
 
@@ -127,12 +120,14 @@ export abstract class AgentDurableObjectBase<Route> {
         return this._state.storage;
     }
 
+    protected abstract _getOwnDurableObjectNamespace(): DurableObjectNamespace;
+
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
      * request which helps since we can search our logs for all requests to a
      * certain route.
      */
-    protected abstract _parseRoute(url: URL): [string, Route | "Webhook"];
+    protected abstract _parseRoute(url: URL): [string, Route];
 
     /**
      * Execute an HTTP request against the Durable Object.
@@ -156,7 +151,25 @@ export abstract class AgentDurableObjectBase<Route> {
 
         const url = new URL(request.url);
 
-        const [route, routeObject] = this._parseRoute(url);
+        let route: string;
+        let routeObject: Route | "Webhook" | "KeepAlive";
+
+        switch (url.pathname) {
+            case "/webhook": {
+                route = "/webhook";
+                routeObject = "Webhook";
+                break;
+            }
+            case "/keep-alive": {
+                route = "/keep-alive";
+                routeObject = "KeepAlive";
+                break;
+            }
+            default: {
+                [route, routeObject] = this._parseRoute(url);
+                break;
+            }
+        }
 
         return traceServerResponse(
             this._tracer.get(),
@@ -172,10 +185,16 @@ export abstract class AgentDurableObjectBase<Route> {
                             tracer: new TracerContextModule(span),
                         },
                         actionContext => {
-                            if (routeObject === "Webhook") {
-                                return this._fetchWebhook(actionContext, request);
-                            } else {
-                                return this._fetch(actionContext, request, routeObject, span);
+                            switch (routeObject) {
+                                case "Webhook": {
+                                    return this._fetchWebhook(actionContext, request);
+                                }
+                                case "KeepAlive": {
+                                    return this._fetchKeepAlive(actionContext, request);
+                                }
+                                default: {
+                                    return this._fetch(actionContext, request, routeObject, span);
+                                }
                             }
                         },
                     );
@@ -204,6 +223,30 @@ export abstract class AgentDurableObjectBase<Route> {
         // long-running webhooks will cause the request to timeout and Alpine to send
         // a retry.
         void context.tracer.getTracer().withSpan("Process agent webhook", async span => {
+            const keepAliveInterval = createInterval(() => {
+                const durableObjectStub = this._getOwnDurableObjectNamespace().get(this._state.id);
+
+                void fetchWithTracer(
+                    span,
+                    new URL("/keep-alive", request.url),
+                    {
+                        serviceName: this._tracer.get().serviceName,
+                        route: "/keep-alive",
+                        fetch: request => durableObjectStub.fetch(request),
+                    },
+                    async response => {
+                        if (!response.ok) {
+                            throw new UnknownError(
+                                `Keep alive request failed with status ${response.status}`,
+                            );
+                        }
+
+                        // Drain the response body...
+                        await response.json();
+                    },
+                );
+            }, 30_000);
+
             try {
                 const context: AgentWebhookRequest = {
                     storage: this._state.storage,
@@ -235,10 +278,21 @@ export abstract class AgentDurableObjectBase<Route> {
                 }
 
                 span.addException(error);
+            } finally {
+                keepAliveInterval.clear();
             }
         });
 
         return new Response(null, {status: 200});
+    }
+
+    private async _fetchKeepAlive(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        context: AgentContext,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        request: Request,
+    ): Promise<Response> {
+        return new Response("200 OK", {status: 200, headers: {"content-type": "text/plain"}});
     }
 
     /**

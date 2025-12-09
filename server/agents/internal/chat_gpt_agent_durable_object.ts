@@ -10,9 +10,9 @@ import {
 import {
     AgentContext,
     AgentDurableObjectBase,
-    AgentDurableObjectEnv,
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
+import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {
     chatGptReadLinkTool,
     chatGptSearchAlpineTool,
@@ -80,15 +80,15 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type ChatGptAgentRoute = "NotFound" | "FetchConversationState";
 
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
-    constructor(state: DurableObjectState, env: AgentDurableObjectEnv) {
+    constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("ChatGptAgentService", state, env);
     }
 
-    protected override _parseRoute(url: URL): [string, ChatGptAgentRoute | "Webhook"] {
-        if (url.pathname === "/webhook") {
-            return ["/webhook", "Webhook"];
-        }
+    protected override _getOwnDurableObjectNamespace(): DurableObjectNamespace {
+        return this._env.ChatGptAgentDurableObjectNamespace;
+    }
 
+    protected override _parseRoute(url: URL): [string, ChatGptAgentRoute] {
         if (url.pathname === "/conversation-state") {
             return ["/conversation-state", "FetchConversationState"];
         }
