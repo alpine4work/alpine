@@ -1,3 +1,4 @@
+import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
@@ -6,12 +7,11 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 
-type AgentServiceEnv = {
-    ChatGptAgentDurableObjectNamespace: DurableObjectNamespace;
-    HONEYCOMB_API_KEY?: string;
-};
-
-type AgentServiceRoute = "ChatGptWebhook" | "ChatGptConversationState" | "NotFound";
+type AgentServiceRoute =
+    | "ChatGptWebhook"
+    | "ChatGptConversationState"
+    | "ChatGptKeepAlive"
+    | "NotFound";
 
 async function handleFetch(
     request: Request,
@@ -23,15 +23,27 @@ async function handleFetch(
     let routeString: string;
     let route: AgentServiceRoute;
 
-    if (url.pathname === "/chat-gpt/webhook") {
-        routeString = "/chat-gpt/webhook";
-        route = "ChatGptWebhook";
-    } else if (url.pathname === "/chat-gpt/conversation-state") {
-        routeString = "/chat-gpt/conversation-state";
-        route = "ChatGptConversationState";
-    } else {
-        routeString = "/*";
-        route = "NotFound";
+    switch (url.pathname) {
+        case "/chat-gpt/webhook": {
+            routeString = "/chat-gpt/webhook";
+            route = "ChatGptWebhook";
+            break;
+        }
+        case "/chat-gpt/conversation-state": {
+            routeString = "/chat-gpt/conversation-state";
+            route = "ChatGptConversationState";
+            break;
+        }
+        case "/chat-gpt/keep-alive": {
+            routeString = "/chat-gpt/keep-alive";
+            route = "ChatGptKeepAlive";
+            break;
+        }
+        default: {
+            routeString = "/*";
+            route = "NotFound";
+            break;
+        }
     }
 
     // Create a new tracer for every request because we need a Honeycomb client and
@@ -95,6 +107,34 @@ async function handleFetch(
                     const id = env.ChatGptAgentDurableObjectNamespace.idFromName(
                         `${accountId}:${roomPath}`,
                     );
+
+                    const durableObjectStub = env.ChatGptAgentDurableObjectNamespace.get(id, {
+                        // Currently, we only have data in the AWS region `us-east-1`. So place Durable
+                        // Objects in the Eastern North America region so Durable Objects get low
+                        // latency when making calls to `ApiService` in AWS.
+                        //
+                        // Long term, ideally we'll put space data in the nearest AWS region to the
+                        // customer and our Durable Objects should be created near that data center
+                        // as well. Or we'll have DynamoDB replicas in multiple regions.
+                        locationHint: "enam",
+                    });
+
+                    const newUrl = new URL(request.url);
+                    newUrl.pathname = "/conversation-state";
+
+                    const newRequest = new Request(newUrl.toString(), {
+                        method: "GET",
+                        headers: request.headers,
+                    });
+                    addTracerPropagationContextHeader(newRequest.headers, span);
+
+                    return durableObjectStub.fetch(newRequest);
+                }
+                case "ChatGptKeepAlive": {
+                    const idString = url.searchParams.get("id");
+                    if (!idString) throw new InvalidArgumentError("Missing `id` search param");
+
+                    const id = env.ChatGptAgentDurableObjectNamespace.idFromString(idString);
 
                     const durableObjectStub = env.ChatGptAgentDurableObjectNamespace.get(id, {
                         // Currently, we only have data in the AWS region `us-east-1`. So place Durable

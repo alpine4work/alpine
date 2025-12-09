@@ -120,8 +120,6 @@ export abstract class AgentDurableObjectBase<Route> {
         return this._state.storage;
     }
 
-    protected abstract _getOwnDurableObjectNamespace(): DurableObjectNamespace;
-
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
      * request which helps since we can search our logs for all requests to a
@@ -184,13 +182,16 @@ export abstract class AgentDurableObjectBase<Route> {
                             // this request.
                             tracer: new TracerContextModule(span),
                         },
-                        actionContext => {
+                        async actionContext => {
                             switch (routeObject) {
                                 case "Webhook": {
-                                    return this._fetchWebhook(actionContext, request);
+                                    return this._fetchWebhook(actionContext, request, url);
                                 }
                                 case "KeepAlive": {
-                                    return this._fetchKeepAlive(actionContext, request);
+                                    return new Response("200 OK", {
+                                        status: 200,
+                                        headers: {"content-type": "text/plain"},
+                                    });
                                 }
                                 default: {
                                     return this._fetch(actionContext, request, routeObject, span);
@@ -207,7 +208,11 @@ export abstract class AgentDurableObjectBase<Route> {
         );
     }
 
-    private async _fetchWebhook(context: AgentContext, request: Request): Promise<Response> {
+    private async _fetchWebhook(
+        context: AgentContext,
+        request: Request,
+        url: URL,
+    ): Promise<Response> {
         if (request.method !== "POST") {
             return new Response("405 Method Not Allowed", {
                 status: 405,
@@ -254,15 +259,17 @@ export abstract class AgentDurableObjectBase<Route> {
             //
             // [1]: https://x.com/threepointone
             const keepAliveInterval = createInterval(() => {
-                const durableObjectStub = this._getOwnDurableObjectNamespace().get(this._state.id);
+                const agentServiceBasePath = url.pathname.slice(1).split("/", 2)[0]!;
 
                 void fetchWithTracer(
                     span,
-                    new URL("/keep-alive", request.url),
+                    new URL(
+                        `/${agentServiceBasePath}/keep-alive?id=${this._state.id.toString()}`,
+                        request.url,
+                    ),
                     {
-                        serviceName: this._tracer.get().serviceName,
-                        route: "/keep-alive",
-                        fetch: request => durableObjectStub.fetch(request),
+                        serviceName: "AgentService",
+                        route: `/${agentServiceBasePath}/keep-alive`,
                     },
                     async response => {
                         if (!response.ok) {
@@ -314,15 +321,6 @@ export abstract class AgentDurableObjectBase<Route> {
         });
 
         return new Response(null, {status: 200});
-    }
-
-    private async _fetchKeepAlive(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        context: AgentContext,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        request: Request,
-    ): Promise<Response> {
-        return new Response("200 OK", {status: 200, headers: {"content-type": "text/plain"}});
     }
 
     /**

@@ -84,10 +84,6 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         super("ChatGptAgentService", state, env);
     }
 
-    protected override _getOwnDurableObjectNamespace(): DurableObjectNamespace {
-        return this._env.ChatGptAgentDurableObjectNamespace;
-    }
-
     protected override _parseRoute(url: URL): [string, ChatGptAgentRoute] {
         if (url.pathname === "/conversation-state") {
             return ["/conversation-state", "FetchConversationState"];
