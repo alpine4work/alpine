@@ -72,6 +72,8 @@ export async function searchAlpineForAgent(
 
     // Add matching results sections if any results matched a filter
     if (matchedFilterToResults.size > 0) {
+        let matchedFilterNumber = 1;
+
         for (const [filterText, results] of matchedFilterToResults.entries()) {
             const matchingListItems = await runAllPromises(
                 results.map(result => getOrderedListItemForSearchEntityResult(transaction, result)),
@@ -81,7 +83,14 @@ export async function searchAlpineForAgent(
                 {
                     type: "heading",
                     depth: 1,
-                    children: [{type: "text", value: "Matching results"}],
+                    children: [
+                        {
+                            type: "text",
+                            value: `Matching results${
+                                matchedFilterToResults.size > 1 ? ` ${matchedFilterNumber}` : ""
+                            }`,
+                        },
+                    ],
                 },
                 {
                     type: "paragraph",
@@ -98,6 +107,8 @@ export async function searchAlpineForAgent(
                     children: matchingListItems,
                 },
             );
+
+            matchedFilterNumber++;
         }
     }
 

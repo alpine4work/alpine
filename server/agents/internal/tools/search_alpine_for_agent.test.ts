@@ -946,7 +946,7 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
         );
 
         expect(result).toEqual(`\
-# Matching results
+# Matching results 1
 
 The following search results are all documents created yesterday.
 
@@ -956,7 +956,7 @@ The following search results are all documents created yesterday.
 
 2. [Matching Document 2](/document/matching-document-2)
 
-# Matching results
+# Matching results 2
 
 The following search results are all posts created yesterday.
 
