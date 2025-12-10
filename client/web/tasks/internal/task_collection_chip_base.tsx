@@ -78,7 +78,23 @@ const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
     }),
 );
 
-const nameClassName = sprinkles({fontStyle: "truncate"});
+const nameClassName = sprinkles({
+    position: "relative",
+    zIndex: "0",
+    fontStyle: "normal",
+    overflow: "hidden",
+    paddingRight: "1.5",
+    marginRight: "-1.5",
+});
+
+const nameGradientClassName = sprinkles({
+    position: "absolute",
+    zIndex: "10",
+    right: "0",
+    top: "0",
+    bottom: "0",
+    width: "1.5",
+});
 
 const removeButtonContainerClassName = sprinkles({
     marginLeft: "0.5",
@@ -126,6 +142,8 @@ function TaskCollectionChipBase(
     const isDisabled = !onPress;
     const {pressProps, isPressed} = usePress({isDisabled, onPress});
 
+    const backgroundColor = isPressed ? colorSchemeVars["grey-10"] : colorSchemeVars["grey-5"];
+
     return (
         <div
             // `react-aria` has a bug where `usePress()` will call `event.preventDefault()`
@@ -147,9 +165,7 @@ function TaskCollectionChipBase(
                     : chipWithoutColorAndWithoutRemoveClassName
             }
             tabIndex={tabIndex}
-            style={{
-                backgroundColor: isPressed ? colorSchemeVars["grey-10"] : colorSchemeVars["grey-5"],
-            }}
+            style={{backgroundColor}}
         >
             {color !== null && (
                 <div
@@ -170,12 +186,19 @@ function TaskCollectionChipBase(
                 className={nameClassName}
                 style={{
                     maxWidth: nameMaxWidth ? spacing[nameMaxWidth] : undefined,
+                    whiteSpace: "nowrap",
                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                     // for consistency if the user types anything like 2x2 or an @ mention.
                     // eslint-disable-next-line string-quotes
                     fontFeatureSettings: '"calt" on',
                 }}
             >
+                <div
+                    className={nameGradientClassName}
+                    style={{
+                        background: `linear-gradient(to right, transparent, ${backgroundColor} ${spacing["0.5"]})`,
+                    }}
+                />
                 {name}
             </div>
             {onRemove &&
