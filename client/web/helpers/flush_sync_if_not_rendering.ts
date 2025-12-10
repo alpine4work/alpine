@@ -15,10 +15,7 @@ export function flushSyncIfNotRendering<Value>(action: () => Value): Value {
             // Ignore the "flushSync was called from inside a lifecycle method" warning
             // message. When calling this utility we accept the `flushSync()` within a
             // render won't immediately flush.
-            if (
-                typeof args[0] === "string" &&
-                args[0].startsWith("Warning: flushSync was called")
-            ) {
+            if (typeof args[0] === "string" && args[0].startsWith("flushSync was called")) {
                 return;
             }
 
