@@ -34,4 +34,4 @@ export const documentCommentThreadCountAgainstLimit = createObjectFromKeys(allPl
     ),
 );
 
-export const documentContentEditorSidebarWidth = "96";
+export const documentContentEditorSidebarWidth = "128";
