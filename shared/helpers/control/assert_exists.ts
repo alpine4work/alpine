@@ -5,6 +5,42 @@ import {InternalError} from "~/shared/error/error.js";
  *
  * An assertion is always expected to pass. Assertion failures in production
  * should be a bug.
+ *
+ * Generally prefer `assert()` over `assertExists()` since it's more flexible.
+ * `assertExists(value)` and `assert(value)` usually do the same thing (unless
+ * `value` is `false`, `0`, or `""`). `assertExists()` is mostly useful in some
+ * cases for writing cleaner code.
+ *
+ * For example, say you have an arrow function that returns an expression
+ * (`() => value` instead of the block syntax `() => { return value }`):
+ *
+ * ```ts
+ * () => functionCall(assertExists(nullableValue))
+ * ```
+ *
+ * The above is slightly neater than:
+ *
+ * ```ts
+ * () => {
+ *     assert(nullableValue);
+ *     return functionCall(nullableValue);
+ * }
+ * ```
+ *
+ * Another example, you have some code that returns a nullable value you’re
+ * assigning to a variable you want to assert is non-null (this happens a lot
+ * with React refs):
+ *
+ * ```ts
+ * const value = assertExists(valueRef.current);
+ * ```
+ *
+ * The above is slightly neater than:
+ *
+ * ```ts
+ * assert(valueRef.current);
+ * const value = valueRef.current;
+ * ```
  */
 // TODO(calebmer, #swc-transform): SWC transform that automatically adds an
 // error message and inlines this function. A direct `if` condition will be
