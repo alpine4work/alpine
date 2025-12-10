@@ -862,7 +862,7 @@ components:
                         properties:
                             error:
                                 type: object
-                                required: [message]
+                                required: [message, retry]
                                 additionalProperties: false
                                 properties:
                                     message:
@@ -870,6 +870,16 @@ components:
                                         description:
                                             A human-readable message providing more details about
                                             the error.
+                                    retry:
+                                        type: object
+                                        required: [able]
+                                        additionalProperties: false
+                                        properties:
+                                            able:
+                                                type: boolean
+                                                description:
+                                                    If true, it indicates that the request should
+                                                    succeed if tried again.
 
         GetMessage:
             content:

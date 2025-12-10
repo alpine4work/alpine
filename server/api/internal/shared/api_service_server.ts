@@ -38,6 +38,7 @@ import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_m
 import {ErrorBase, InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -220,6 +221,7 @@ export async function createApiServiceRequestListener(
         return createApiErrorResponse({
             status: 404,
             message: "Path not found.",
+            isRetryable: false,
         });
     });
 
@@ -507,6 +509,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 401,
                         message: "Missing `Authorization` header.",
+                        isRetryable: false,
                     });
                 }
 
@@ -516,6 +519,7 @@ export async function createApiServiceRequestListener(
                         status: 400,
                         message:
                             "Expected `Authorization` header to have `Bearer` authentication scheme.",
+                        isRetryable: false,
                     });
                 }
 
@@ -530,6 +534,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 400,
                         message: "Incorrectly formatted API key in `Authorization` header.",
+                        isRetryable: false,
                     });
                 }
 
@@ -589,6 +594,7 @@ export async function createApiServiceRequestListener(
                                 error: createApiErrorResponse({
                                     status: 403,
                                     message,
+                                    isRetryable: false,
                                 }),
                             };
                         }
@@ -602,6 +608,7 @@ export async function createApiServiceRequestListener(
                                 error: createApiErrorResponse({
                                     status: 403,
                                     message: "Expected bot access token in `Authorization` header.",
+                                    isRetryable: false,
                                 }),
                             };
                         }
@@ -618,6 +625,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 403,
                         message: "Unrecognized API key in `Authorization` header.",
+                        isRetryable: false,
                     });
                 }
 
@@ -631,6 +639,7 @@ export async function createApiServiceRequestListener(
                             status: 403,
                             message:
                                 "Missing access token for unscoped API key in `Authorization` header.",
+                            isRetryable: false,
                         });
                     } else {
                         spaceId = accessTokenPayload.spaceId;
@@ -643,6 +652,7 @@ export async function createApiServiceRequestListener(
                             status: 403,
                             message:
                                 "Can’t have both an access token and a scoped API key in `Authorization` header.",
+                            isRetryable: false,
                         });
                     } else {
                         spaceId = apiKeyAttributes.space.spaceId;
@@ -664,6 +674,7 @@ export async function createApiServiceRequestListener(
                         status: 403,
                         message:
                             "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                        isRetryable: false,
                     });
                 }
 
@@ -671,6 +682,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 403,
                         message: "Bot account was removed from space.",
+                        isRetryable: false,
                     });
                 }
 
@@ -760,6 +772,7 @@ export async function createApiServiceRequestListener(
                         message: propertyName
                             ? quote`Invalid ${propertyName} path parameter.`
                             : "Invalid path parameters.",
+                        isRetryable: false,
                     });
                 }
 
@@ -787,6 +800,7 @@ export async function createApiServiceRequestListener(
                         message: propertyName
                             ? quote`Invalid ${propertyName} query parameter.`
                             : "Invalid query parameters.",
+                        isRetryable: false,
                     });
                 }
 
@@ -794,6 +808,7 @@ export async function createApiServiceRequestListener(
                     return createApiErrorResponse({
                         status: 405,
                         message: quote`${findMyWayMethod} method isn’t supported, try ${firstValidFindMyWayMethod}.`,
+                        isRetryable: false,
                     });
                 }
 
@@ -811,6 +826,7 @@ export async function createApiServiceRequestListener(
                             message: `Invalid request body${
                                 instancePath ? quote` (path: ${"#" + instancePath})` : ""
                             }.`,
+                            isRetryable: false,
                         });
                     }
                 }
@@ -890,6 +906,7 @@ export async function createApiServiceRequestListener(
                     status,
                     message: renderErrorDisplayMessage(displayMessage),
                     stack: error instanceof Error ? error.stack : undefined,
+                    isRetryable: isTransientError(error),
                 });
             }
         }
@@ -909,10 +926,12 @@ export async function createApiServiceRequestListener(
 function createApiErrorResponse({
     status,
     message,
+    isRetryable,
     stack,
 }: {
     status: number;
     message: string;
+    isRetryable: boolean;
     stack?: string;
 }) {
     const body = cast<
@@ -922,6 +941,9 @@ function createApiErrorResponse({
     >({
         error: {
             message,
+            retry: {
+                able: isRetryable,
+            },
 
             // In development environments, include the stack trace (even though it's not
             // declared in the OpenAPI spec).

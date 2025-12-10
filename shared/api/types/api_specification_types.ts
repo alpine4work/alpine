@@ -2425,6 +2425,10 @@ export namespace ApiSpecification {
                         readonly error: {
                             /** @description A human-readable message providing more details about the error. */
                             readonly message: string;
+                            readonly retry: {
+                                /** @description If true, it indicates that the request should succeed if tried again. */
+                                readonly able: boolean;
+                            };
                         };
                     };
                 };

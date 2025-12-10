@@ -25,6 +25,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -112,81 +113,95 @@ export function createApiClient({
             const tracer = assertExists(currentTracer);
             currentTracer = null;
 
-            return fetchWithTracer(
-                tracer,
-                request.url,
-                {
-                    serviceName: "ApiService",
-                    route: routeBySchemaPath.getOrSetDefault(schemaPath),
-                    method: request.method,
-                    headers: request.headers,
-                    body: request.body,
-                    signal: request.signal,
-                },
-                async response => {
-                    // If the request failed, then throw an error. We want to mark this span as
-                    // failed and we don't want to handle errors inline.
-                    if (!response.ok) {
-                        const responseBody: ApiErrorResponseBody = await response.json();
+            // Define the fetch operation
+            return retryWithExponentialBackoff(
+                retry =>
+                    fetchWithTracer(
+                        tracer,
+                        request.url,
+                        {
+                            serviceName: "ApiService",
+                            route: routeBySchemaPath.getOrSetDefault(schemaPath),
+                            method: request.method,
+                            headers: request.headers,
+                            body: request.body,
+                            signal: request.signal,
+                        },
+                        async response => {
+                            // If the request failed, then throw an error. We want to mark this span as
+                            // failed and we don't want to handle errors inline.
+                            if (!response.ok) {
+                                const responseBody: ApiErrorResponseBody = await response.json();
 
-                        let ErrorConstructor: {
-                            new (
-                                message: string,
-                                options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage},
-                            ): ErrorBase;
-                        };
-                        switch (response.status) {
-                            case 400:
-                                ErrorConstructor = InvalidArgumentError;
-                                break;
-                            case 401:
-                                ErrorConstructor = UnauthenticatedError;
-                                break;
-                            case 403:
-                                ErrorConstructor = PermissionDeniedError;
-                                break;
-                            case 404:
-                                ErrorConstructor = NotFoundError;
-                                break;
-                            default:
-                                ErrorConstructor =
-                                    response.status >= 500 ? InternalError : UnknownError;
-                                break;
-                        }
+                                let ErrorConstructor: {
+                                    new (
+                                        message: string,
+                                        options?: {
+                                            cause?: unknown;
+                                            displayMessage?: ErrorDisplayMessage;
+                                        },
+                                    ): ErrorBase;
+                                };
 
-                        throw new ErrorConstructor("API request failed", {
-                            // The error message might contain sensitive user data. So treat the whole
-                            // error message as sensitive text.
-                            displayMessage: errorDisplayMessage`${responseBody.error.message}`,
-                            cause: {status: response.status, ...responseBody},
-                        });
-                    }
+                                switch (response.status) {
+                                    case 400:
+                                        ErrorConstructor = InvalidArgumentError;
+                                        break;
+                                    case 401:
+                                        ErrorConstructor = UnauthenticatedError;
+                                        break;
+                                    case 403:
+                                        ErrorConstructor = PermissionDeniedError;
+                                        break;
+                                    case 404:
+                                        ErrorConstructor = NotFoundError;
+                                        break;
+                                    default:
+                                        ErrorConstructor =
+                                            response.status >= 500 ? InternalError : UnknownError;
+                                }
 
-                    if (options.parseAs === "stream") {
-                        return response;
-                    }
+                                const error = new ErrorConstructor("API request failed", {
+                                    // The error message might contain sensitive user data. So treat the whole
+                                    // error message as sensitive text.
+                                    displayMessage: errorDisplayMessage`${responseBody.error.message}`,
+                                    cause: {status: response.status, ...responseBody},
+                                });
 
-                    // Parse the response body in our `fetchWithTracer()` action so the time it
-                    // takes for the response body to be streamed is included in the span.
-                    const responseBody = await response[options.parseAs]();
+                                if (responseBody.error.retry.able) {
+                                    throw retry(error);
+                                } else {
+                                    throw error;
+                                }
+                            }
 
-                    // Don't throw an error when `openapi-fetch` [calls this method a second
-                    // time][1]. Instead return what we already parsed.
-                    //
-                    // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
-                    (response as any)[options.parseAs] = () => responseBody;
+                            if (options.parseAs === "stream") {
+                                return response;
+                            }
 
-                    // For error handling `openapi-fetch` [calls `response.text()` and tries to
-                    // parse it as JSON][1]. So add a `text()` handler if we're parsing as JSON and
-                    // the request is not ok.
-                    //
-                    // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
-                    if (!response.ok && options.parseAs === "json") {
-                        (response as any).text = () => JSON.stringify(responseBody);
-                    }
+                            // Parse the response body in our `fetchWithTracer()` action so the time it
+                            // takes for the response body to be streamed is included in the span.
+                            const responseBody = await response[options.parseAs]();
 
-                    return response;
-                },
+                            // Don't throw an error when `openapi-fetch` [calls this method a second
+                            // time][1]. Instead return what we already parsed.
+                            //
+                            // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L234-L241
+                            (response as any)[options.parseAs] = () => responseBody;
+
+                            // For error handling `openapi-fetch` [calls `response.text()` and tries to
+                            // parse it as JSON][1]. So add a `text()` handler if we're parsing as JSON and
+                            // the request is not ok.
+                            //
+                            // [1]: https://github.com/openapi-ts/openapi-typescript/blob/b24ff133a62156fb6145092884a1025cff4f2360/packages/openapi-fetch/src/index.js#L243-L250
+                            if (!response.ok && options.parseAs === "json") {
+                                (response as any).text = () => JSON.stringify(responseBody);
+                            }
+
+                            return response;
+                        },
+                    ),
+                {maxAttemptCount: 5},
             );
         },
     });

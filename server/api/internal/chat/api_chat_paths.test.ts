@@ -74,6 +74,9 @@ test("can’t read chat information without access", async () => {
         body: {
             error: expect.objectContaining({
                 message: expect.stringMatching("You don’t have access"),
+                retry: {
+                    able: false,
+                },
             }),
         },
     });
@@ -96,6 +99,9 @@ test("can’t read chat information for non-existent chat", async () => {
         body: {
             error: expect.objectContaining({
                 message: expect.stringMatching("doesn’t exist"),
+                retry: {
+                    able: false,
+                },
             }),
         },
     });
@@ -132,6 +138,9 @@ test("can’t send message to chat bot isn’t a member of (but does have read a
             error: {
                 message: "You don\u2019t have access to this chat.",
                 stack: expect.any(String),
+                retry: {
+                    able: false,
+                },
             },
         },
     });

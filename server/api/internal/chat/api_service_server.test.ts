@@ -22,7 +22,7 @@ test("not found route", async () => {
     expect(await server.GET("/asdf")).toEqual({
         status: 404,
         headers: expect.objectContaining({"content-type": "application/json"}),
-        body: {error: {message: "Path not found."}},
+        body: {error: {message: "Path not found.", retry: {able: false}}},
     });
 });
 
@@ -53,6 +53,9 @@ test("requires authorization header", async () => {
         body: {
             error: {
                 message: "Missing `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -77,6 +80,9 @@ test("requires bearer scheme in authorization header", async () => {
         body: {
             error: {
                 message: "Expected `Authorization` header to have `Bearer` authentication scheme.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -99,6 +105,9 @@ test("requires authorization header to have proper API key", async () => {
         body: {
             error: {
                 message: "Incorrectly formatted API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -121,6 +130,9 @@ test("requires authorization header to have proper API key (an `Id` doesn’t wo
         body: {
             error: {
                 message: "Incorrectly formatted API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -143,6 +155,9 @@ test("rejects improperly formatted access token", async () => {
         body: {
             error: {
                 message: "Invalid access token in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -175,6 +190,9 @@ test("rejects access token for the wrong service", async () => {
         body: {
             error: {
                 message: "Access token in `Authorization` header has an incorrect audience.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -208,6 +226,9 @@ test("rejects expired access token", async () => {
         body: {
             error: {
                 message: "Access token in `Authorization` header has expired.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -238,6 +259,9 @@ test("rejects non-bot token payload", async () => {
         body: {
             error: {
                 message: "Expected bot access token in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -272,6 +296,9 @@ test("rejects unknown API key (with short lived token)", async () => {
         body: {
             error: {
                 message: "Unrecognized API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -302,6 +329,9 @@ test("rejects unknown API key", async () => {
         body: {
             error: {
                 message: "Unrecognized API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -328,6 +358,9 @@ test("doesn’t allow an unscoped API key without an access token", async () => 
         body: {
             error: {
                 message: "Missing access token for unscoped API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -363,6 +396,9 @@ test("doesn’t allow a scoped API key with an access token", async () => {
             error: {
                 message:
                     "Can’t have both an access token and a scoped API key in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -398,6 +434,9 @@ test("doesn’t allow non-bot account in access token", async () => {
             error: {
                 message:
                     "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -434,6 +473,9 @@ test("doesn’t allow mismatched bot between API key and access token", async ()
             error: {
                 message:
                     "Access token bot account isn’t an instantiation of the API key bot in `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -470,6 +512,9 @@ test("rejects request from removed bot account", async () => {
         body: {
             error: {
                 message: "Bot account was removed from space.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -556,7 +601,12 @@ test("can’t use unsupported method", async () => {
         status: 405,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
-            error: {message: "`POST` method isn’t supported, try `GET`."},
+            error: {
+                message: "`POST` method isn’t supported, try `GET`.",
+                retry: {
+                    able: false,
+                },
+            },
         },
     });
 });
@@ -587,6 +637,13 @@ test("validates response with schema in tests", async () => {
                 stack: expect.stringMatching(
                     /^InternalError: Response schema validation failed: must NOT have additional properties\n/,
                 ),
+                // TODO(ifitzsimmons, #ai): This should be false since there is a display message.
+                // Also, shouldn't this be a 400 BadRequest?
+                //
+                // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/3419z2bttnps1q7cqg5w5tyntg
+                retry: {
+                    able: true,
+                },
             },
         },
     });
@@ -613,6 +670,9 @@ test("path param that doesn’t match pattern", async () => {
         body: {
             error: {
                 message: "Invalid `id` path parameter.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -639,6 +699,9 @@ test("integer path param that’s not a number", async () => {
         body: {
             error: {
                 message: "Invalid `index` path parameter.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -755,6 +818,9 @@ test("doesn’t use authorization cookie if request isn’t an HTML request", as
         body: {
             error: {
                 message: "Missing `Authorization` header.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -790,6 +856,9 @@ test("invalid request body throws a validation error", async () => {
         body: {
             error: {
                 message: "Invalid request body (path: `#/content/elements/0/type`).",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -851,6 +920,9 @@ test("can’t read message with invalid string query parameter", async () => {
         body: {
             error: {
                 message: "Invalid `from` query parameter.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
@@ -877,6 +949,9 @@ test("can’t read message with invalid integer query parameter", async () => {
         body: {
             error: {
                 message: "Invalid `limit` query parameter.",
+                retry: {
+                    able: false,
+                },
             },
         },
     });
