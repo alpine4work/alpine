@@ -11,7 +11,15 @@ import {withoutClearSelectionOnMouseDownClassName} from "~/client/web/styles/sty
  * with `user-select: none`.
  */
 export function registerAlwaysClearSelectionOnMouseDown() {
-    document.documentElement.addEventListener("pointerdown", event => {
+    // Must be on `window` (not `document.documentElement`) so if a React
+    // `onPointerDown` handler calls `event.preventDefault()` (like
+    // `useOutOfBoundsClickSelection()`) then we see the default was prevented
+    // in this function.
+    window.addEventListener("pointerdown", event => {
+        // Fixes triple clicking empty space in a task title input (managed by
+        // `useOutOfBoundsClickSelection()`) deselecting the task title.
+        if (event.defaultPrevented) return;
+
         if (!(event.target instanceof Element)) return;
 
         // We haven't considered whether this is the right behavior for touch events.
@@ -37,6 +45,11 @@ export function registerAlwaysClearSelectionOnMouseDown() {
 
         // Class you can use to disable this behavior. We use it for pointer toolbar
         // components. Where you'll click buttons to interact with the selection.
+        //
+        // TODO(calebmer): I think it could be better if everywhere we use
+        // `withoutClearSelectionOnMouseDownClassName` we instead call
+        // `event.preventDefault()`. Use the natural semantics of the browser instead
+        // of a random one-off CSS class.
         if (event.target.closest(`.${withoutClearSelectionOnMouseDownClassName}`)) return;
 
         selection.removeAllRanges();
