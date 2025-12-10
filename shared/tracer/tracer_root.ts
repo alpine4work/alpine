@@ -52,8 +52,12 @@ import {
  *   individual cores within our `TaskRealtimeService` fleet.
  */
 export type TracerServiceName =
-    | "Adhoc"
+    // Generic name for admin scripts in the `admin` directory.
+    | "Admin"
+    // Generic name for Jest unit tests and Playwright integration tests.
     | "Test"
+
+    // Our actual services:
     | "MigrationService"
     | "DeployService"
     | "OpensearchDeployScript"

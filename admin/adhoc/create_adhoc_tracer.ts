@@ -5,7 +5,7 @@ const env = parseDotenv();
 
 export function createAdhocTracer() {
     return createServerTracer({
-        serviceName: "Adhoc",
+        serviceName: "Admin",
         jsHost: "Node",
         // TODO(calebmer): If we are running an adhoc script against our production
         // database then events should go to our production Honeycomb environment?

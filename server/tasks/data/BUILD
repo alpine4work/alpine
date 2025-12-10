@@ -42,7 +42,7 @@ ts_project(
         },
     },
     visibility = [
-        "//admin/crawl:__pkg__",
+        "//admin:__subpackages__",
         "//admin/opensearch/deploy_script:__pkg__",
         "//app:__pkg__",
         "//server:__subpackages__",

@@ -16,7 +16,7 @@ import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
  * Services that may perform an action against our system.
  */
 export type ActorServiceName =
-    | "Adhoc"
+    | "Admin"
     | "Test"
     | "AppClient"
     | TokenServiceName

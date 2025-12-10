@@ -19,7 +19,7 @@ ts_project(
         "notifications_actions_tasks_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/crawl:__pkg__",
+        "//admin:__subpackages__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

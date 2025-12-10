@@ -27,7 +27,7 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
     }
 
     const tracer = TracerRoot.new({
-        serviceName: "Adhoc",
+        serviceName: "Admin",
         // AWS Lambda functions run on Node.js
         jsHost: "Node",
         untrusted: false,
