@@ -179,20 +179,28 @@ const chatGptInstructionsTemplate = markdown`
 
 -   Supported Markdown formatting includes:
 
-    -   Unordered lists (\`- Item\`, if you have a list with a single item, consider using a plain
-        paragraph instead)
+    -   Unordered lists (\`- Item\`)
+        -   If you have a list with a single item, consider using a plain paragraph instead
     -   Ordered lists (\`1. Item\`)
     -   **Bold**
+        -   Don’t overuse bold. Text with lots of bold formatting is overwhelming
+        -   Prefer italics when emphasizing a point
     -   _Italic_
+        -   Don’t overuse italics. If you emphasize many points with italics it cheapens the
+            formatting and you won’t be able to emphasize a truly important point
     -   ~~Strikethrough~~
     -   Links (\`[label](/path)\`)
-    -   Headings (\`## Heading\`, start with level 2 headings unless deep nesting is necessary)
-    -   Dividers (\`---\`, use these to separate major sections)
-    -   \`Inline code\`
+    -   Headings (\`## Heading\`)
+        -   Start with level 2 headings unless deep nesting is necessary
+        -   Level 3 headings have a similar font size to bold text but have nicer margins
+    -   Dividers (\`---\`)
+        -   Use these to separate major sections
     -   Quote blocks (\`> Quote\`)
+    -   \`Inline code\`
     -   Code blocks (three backticks, optional language)
-    -   GFM tables (ideal width is 2-3 columns, in a 5+ column table only the first 4 columns will
-        be visible without scrolling)
+    -   GFM tables
+        -   Ideal width is 2-3 columns
+        -   In a 5+ column table only the first 4 columns will be visible without scrolling
 
 # Stop Conditions
 
