@@ -1,6 +1,7 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
+import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {
@@ -27,7 +28,6 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
 export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${string}`> = {
     "/documents/{id}": {
@@ -73,6 +73,14 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                 getDocumentContent(context, pathParameters.id, options),
             ]);
 
+            const firstCommentAuthor = commentThread.firstCommentAuthorId
+                ? await getApiAccount(
+                      context.dynamo.unexpectStrongReadConsistency(),
+                      commentThread.spaceId,
+                      commentThread.firstCommentAuthorId,
+                  )
+                : null;
+
             const contentSnippetByCommentThreadId = createDocumentCommentThreadSnippetCollector([
                 pathParameters.threadId,
             ])(documentContent.content);
@@ -101,9 +109,7 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                         createdTime: serializeDateString(commentThread.createdTime),
                         isResolved: commentThread.isResolved,
                         commentCount: commentThread.commentCount,
-                        firstCommentAuthor: commentThread.firstCommentAuthor
-                            ? intoApiAccount(commentThread.firstCommentAuthor.initialData)
-                            : null,
+                        firstCommentAuthor,
                         documentContentSnippet: contentSnippet ?? {elements: []},
                     },
                 },

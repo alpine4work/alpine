@@ -527,6 +527,4 @@ describe("comment threads", () => {
             },
         });
     });
-
-    test.todo("returns empty content if snippet is empty");
 });

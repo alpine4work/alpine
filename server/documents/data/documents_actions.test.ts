@@ -32,6 +32,7 @@ import {
     getDocumentCommentThread,
     getDocumentCommentThreadAndInitialComments,
     getDocumentCommentThreadAndInitialCommentsIfExists,
+    getDocumentCommentThreadContent,
     getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentCommentsFromEnd,
@@ -5246,6 +5247,35 @@ test("getting document with comments requires comment access level", async () =>
         ).rejects.toThrow("Actor doesn’t have `Comment` access level");
         await expect(
             getDocumentCommentThread(otherSession.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).rejects.toThrow("Account doesn’t have access to space");
+    }
+
+    {
+        await getDocumentCommentThreadContent(session1.action(), {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+        });
+        await getDocumentCommentThreadContent(session2.action(), {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+        });
+        await expect(
+            getDocumentCommentThreadContent(session3.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        await expect(
+            getDocumentCommentThreadContent(session4.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).rejects.toThrow("Actor doesn’t have `Comment` access level");
+        await expect(
+            getDocumentCommentThreadContent(otherSession.action(), {
                 documentId: document.id,
                 commentThreadId: commentThread.id,
             }),
@@ -16696,6 +16726,34 @@ describe("Comments", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
+    test("can’t get comment thread content if you don’t have access to the space", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const otherSpace = await TestSpace.create(context);
+        const otherSession = await otherSpace.createSession();
+
+        const document = await TestDocument.create(session);
+        await document.access.grantDefault(session, "Manage");
+
+        const {range} = await document.type(session, "Hello");
+        await document.type(session, ", world!");
+
+        const commentThread = await document.createCommentThread(session, range, "test1");
+
+        await expect(
+            getDocumentCommentThreadContent(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).resolves.not.toBeNull();
+        await expect(
+            getDocumentCommentThreadContent(otherSession.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
     test("can’t get comment thread for a comment which doesn’t exist", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
@@ -16709,6 +16767,25 @@ describe("Comments", () => {
 
         await expect(
             getDocumentCommentThread(session.action(), {
+                documentId: document.id,
+                commentThreadId: generateId(),
+            }),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    test("can’t get comment thread contentfor a comment which doesn’t exist", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+
+        const {range} = await document.type(session, "Hello");
+        await document.type(session, ", world!");
+
+        await document.createCommentThread(session, range, "test1");
+
+        await expect(
+            getDocumentCommentThreadContent(session.action(), {
                 documentId: document.id,
                 commentThreadId: generateId(),
             }),
@@ -16743,6 +16820,33 @@ describe("Comments", () => {
                 firstCommentAuthor: await session.get(),
             }),
         );
+    });
+
+    test("can get comment thread content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+
+        const {range} = await document.type(session, "Hello");
+        await document.type(session, ", world!");
+
+        const commentThread = await document.createCommentThread(session, range, "test1");
+
+        expect(
+            await getDocumentCommentThreadContent(session.action(), {
+                documentId: document.id,
+                commentThreadId: commentThread.id,
+            }),
+        ).toEqual({
+            id: commentThread.id,
+            firstCommentAuthorId: session.account.id,
+            isResolved: false,
+            commentCount: 1,
+            fallbackContentSnippet: null,
+            spaceId: space.id,
+            createdTime: expect.any(Date),
+        });
     });
 
     test("can get resolved comment thread ranges", async () => {

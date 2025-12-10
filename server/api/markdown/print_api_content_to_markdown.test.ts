@@ -8973,7 +8973,7 @@ Next, something outrageous happened. <comment>The Eagles sought to defend \
                 `\
 Next, something outrageous happened. <comment>The Eagles sought to defend \
 [their title](https://example.com) (and honor) in the 2025-2026 season. They promoted a *mere* \
-**squire** to the ~~captain~~ of their </comment><comment><comment>army</comment></comment><comment>.</comment>
+**squire** to the ~~captain~~ of their <comment>army</comment>.</comment>
 `,
             );
         });

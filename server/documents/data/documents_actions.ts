@@ -1702,23 +1702,14 @@ export async function getDocumentCommentThreadContent(
     },
     {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
 ) {
-    const [commentThreadItem, documentContent] = await runAllPromises([
+    const [{spaceId}, commentThreadItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
-        getDocumentContent(context, documentId, {consistency}),
     ]);
-
-    const spaceId = documentContent.spaceId;
 
     const firstCommentAuthorId = iterableFirst(
         commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
     );
-    const firstCommentAuthor = firstCommentAuthorId
-        ? await getAccount(
-              context.dynamo.unexpectStrongReadConsistency(),
-              spaceId,
-              firstCommentAuthorId,
-          )
-        : null;
 
     const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
         ? assertDocumentWithOptionalTitleContent(
@@ -1734,7 +1725,7 @@ export async function getDocumentCommentThreadContent(
         createdTime: commentThreadItem.createdTime,
         isResolved: commentThreadItem.resolutionState.type === "Resolved",
         commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
-        firstCommentAuthor,
+        firstCommentAuthorId,
         fallbackContentSnippet,
     };
 }
