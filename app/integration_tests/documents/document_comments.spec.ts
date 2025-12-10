@@ -51,8 +51,10 @@ test("can comment on a document and use the comment thread sidebar", async ({
 
     // Make pages a bit wider so comment thread decorations show up even when the
     // comment sidebar is open.
-    await page1.setViewportSize({width: viewport.width + 120, height: viewport.height});
-    await page2.setViewportSize({width: viewport.width + 120, height: viewport.height});
+    if (!isMobile) {
+        await page1.setViewportSize({width: viewport.width + 240, height: viewport.height});
+        await page2.setViewportSize({width: viewport.width + 240, height: viewport.height});
+    }
 
     const canPrimaryInputHover = await page1.evaluate(
         () => !window.matchMedia("(hover: none)").matches,
