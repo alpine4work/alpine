@@ -157,8 +157,6 @@ describe("searchAlpineForAgent", () => {
         );
 
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Test Document](/document/test-document)
@@ -302,8 +300,6 @@ The following search results matched the keyword search but did not match any sp
         );
 
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Test Document](/document/test-document)
@@ -416,8 +412,6 @@ The following search results matched the keyword search but did not match any sp
 
         // Should only include results from other chat, not current chat
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Other Chat](/chat/other-chat)
@@ -480,8 +474,6 @@ The following search results matched the keyword search but did not match any sp
 
         // Should only include results from other post, not current post
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Other Post](/post/other-post)
@@ -544,8 +536,6 @@ The following search results matched the keyword search but did not match any sp
 
         // Should include task entities (not filtered) but only comments from other task
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Current Task (Open)](/task/current-task)
@@ -616,8 +606,6 @@ The following search results matched the keyword search but did not match any sp
 
         // Should include both documents (not message rooms) and messages from other thread
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Current Document](/document/current-document)
@@ -774,8 +762,6 @@ The following search results matched the keyword search but did not match any sp
         );
 
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Jane: **Important** document comment **keyword** with a really long](/document-thread/jane-important-document-comment-keyword-with-a-rea) body match that will be displayed outside of the link itself
@@ -837,8 +823,6 @@ The following search results matched the keyword search but did not match any sp
 
         // All non-message-room entities should be included regardless of current room
         expect(result).toEqual(`\
-# Other results
-
 The following search results matched the keyword search but did not match any specific filters.
 
 1. [Test Account](/account/test-account)

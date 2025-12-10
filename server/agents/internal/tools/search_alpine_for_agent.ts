@@ -113,12 +113,15 @@ export async function searchAlpineForAgent(
                 ? joinPrettyConjunctionList(Array.from(matchedFilterToResults.keys()), "or")
                 : null;
 
-        sections.push(
-            {
+        if (matchedFilterToResults.size > 0) {
+            sections.push({
                 type: "heading",
                 depth: 1,
                 children: [{type: "text", value: "Other results"}],
-            },
+            });
+        }
+
+        sections.push(
             {
                 type: "paragraph",
                 children: [
