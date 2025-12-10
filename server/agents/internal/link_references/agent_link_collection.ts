@@ -1,4 +1,4 @@
-import {defaultAgentMessagePageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {agentMessageFirstPageTokenLimit} from "~/server/agents/internal/agent_limits.js";
 import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
@@ -143,7 +143,7 @@ export async function createAgentLink(
                 label: options.name,
                 rootMessage: null,
                 ...getMessagesListPageInfo(0),
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "ChatMessage": {
@@ -153,7 +153,7 @@ export async function createAgentLink(
                 ...getMessagesListPageInfo(options.messageIndex),
                 label: options.preview,
                 rootMessage: null,
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "Channel": {
@@ -179,7 +179,7 @@ export async function createAgentLink(
                 ...getMessagesListPageInfo(options.commentIndex),
                 label: options.preview,
                 rootMessage: null,
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "Post": {
@@ -189,7 +189,7 @@ export async function createAgentLink(
                 ...getMessagesListPageInfo(0),
                 label: options.post.contentPreview ?? "Unknown",
                 rootMessage: null,
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "PostComment": {
@@ -199,7 +199,7 @@ export async function createAgentLink(
                 ...getMessagesListPageInfo(options.commentIndex),
                 label: options.preview,
                 rootMessage: null,
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "Task": {
@@ -217,7 +217,7 @@ export async function createAgentLink(
                 ...getMessagesListPageInfo(options.commentIndex),
                 label: options.preview,
                 rootMessage: null,
-                tokenLimitForPage: defaultAgentMessagePageTokenLimitCount,
+                tokenLimitForPage: agentMessageFirstPageTokenLimit,
             });
         }
         case "TaskCollection": {

@@ -151,9 +151,9 @@ describe("createDocumentPagesAndGetFirstPage", () => {
     test("creates multiple pages for long document with exponential page size growth", async () => {
         const content: ApiContentResponse = {
             elements: [
-                createParagraphElement("a".repeat(12000)), // Page 1
-                createParagraphElement("a".repeat(12000)), // Page 2
-                createParagraphElement("a".repeat(12000)), // Page 2
+                createParagraphElement("a".repeat(6000)), // Page 1
+                createParagraphElement("a".repeat(6000)), // Page 2
+                createParagraphElement("a".repeat(6000)), // Page 3
             ],
         };
 

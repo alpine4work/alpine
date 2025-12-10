@@ -1,5 +1,5 @@
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {agentInitializeMessagesTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {agentInitializeMessagesTokenLimit} from "~/server/agents/internal/agent_limits.js";
 import {AgentConversationStore} from "~/server/agents/internal/conversation/agent_conversation_store.js";
 import {loadAgentMessagesListLinkContent} from "~/server/agents/internal/link_references/load_agent_messages_list_link_content.js";
 import {loadAgentPostCommentsLinkContent} from "~/server/agents/internal/link_references/load_agent_post_comments_link_content.js";
@@ -36,7 +36,7 @@ export async function loadMessagesListLinkContent(options: {
         paginationType: "page",
         pageNumber: 1,
         pageInfo: {from: "End", cursor: options.request.event.index + 1},
-        tokenLimitForPage: agentInitializeMessagesTokenLimitCount,
+        tokenLimitForPage: agentInitializeMessagesTokenLimit,
         rootMessage: null,
         isMessageRoomPage: true,
     } as const;

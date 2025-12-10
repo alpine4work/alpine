@@ -1,6 +1,6 @@
 import {Link, ListItem, Paragraph, PhrasingContent} from "mdast";
 import {AgentWebhookRequest} from "~/server/agents/internal/agent_durable_object_base.js";
-import {agentSearchAlpineResultLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {agentSearchResultLimit} from "~/server/agents/internal/agent_limits.js";
 import {AgentLink} from "~/server/agents/internal/link_references/agent_link.js";
 import {createAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {
@@ -44,7 +44,7 @@ export async function searchAlpineForAgent(
     const {data} = await request.apiClient.get(tracer, `/spaces/{id}/search`, {
         params: {
             path: {id: request.spaceId},
-            query: {query, limit: agentSearchAlpineResultLimitCount},
+            query: {query, limit: agentSearchResultLimit},
         },
     });
     if (!data || data.results.length === 0) return "No results found";

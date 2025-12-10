@@ -1,5 +1,5 @@
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
-import {agentInitialDocumentPageTokenLimitCount} from "~/server/agents/internal/agent_tool_page_sizing.js";
+import {agentDocumentFirstPageTokenLimit} from "~/server/agents/internal/agent_limits.js";
 import {DurableObjectStorageInterface} from "~/server/agents/internal/durable_object_storage_collection.js";
 import {
     AgentDocumentPageLink,
@@ -92,7 +92,7 @@ export async function createAgentDocumentPagesAndReturnFirstPage(
     let currentPageStartIndex = 0;
     let currentPageTokenCount = 0;
     let currentPageNumber = 1;
-    let tokenLimitForPage = agentInitialDocumentPageTokenLimitCount;
+    let tokenLimitForPage = agentDocumentFirstPageTokenLimit;
 
     for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;

@@ -236,10 +236,13 @@ export const chatGptReadLinkTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy
 const chatGptSearchAlpineToolDescription = markdown`
 Search for documents, tasks, forum posts, chat messages, and more within the current Alpine space.
 
-Will return a Markdown list of search results. Each result will include a link you can use with
-\`read_link\` to read the full content, and a short preview (any matched keywords are bolded).
+Will return a Markdown list of search results. Each result will include:
 
-Write search queries like you would when searching Google.
+1. A link you can use with \`read_link\` to read the full content
+2. A short preview (any matched keywords are bolded).
+
+Write search queries like you would when searching Google. (Though Google search operators aren’t
+supported, always search using plain English.)
 `;
 
 export const chatGptSearchAlpineTool: Lazy<OpenAi.Responses.FunctionTool> = new Lazy(() => ({

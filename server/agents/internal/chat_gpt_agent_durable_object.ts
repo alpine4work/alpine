@@ -1,3 +1,4 @@
+import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
 import OpenAi from "openai";
 import {
     completeApiMessageStream,
@@ -12,6 +13,7 @@ import {
     AgentDurableObjectBase,
     AgentWebhookRequest,
 } from "~/server/agents/internal/agent_durable_object_base.js";
+import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/internal/agent_limits.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {
     chatGptReadLinkTool,
@@ -311,6 +313,8 @@ type ChatGptAgentMessageState = {
     pushText(text: string): void;
     pushToolCall(call: ApiMessageStreamToolCallPartPayloadCall): void;
     pushReasoningSummary(summary: string): void;
+    updateFunctionCallOutputTokenCount(functionCallOutput: string): void;
+    getFunctionCallOutputTokenCount(): number;
 };
 
 async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebhookRequest) {
@@ -395,6 +399,8 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         });
     };
 
+    let functionCallOutputTokenCount = 0;
+
     const messageState: ChatGptAgentMessageState = {
         pushText: text => {
             content.pushText(text);
@@ -422,6 +428,12 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
                     content: parseApiContentFromMarkdown(summary, {spaceId: request.spaceId}),
                 },
             ]);
+        },
+        updateFunctionCallOutputTokenCount: (functionCallOutput: string) => {
+            functionCallOutputTokenCount += countO200kBaseTokens(functionCallOutput);
+        },
+        getFunctionCallOutputTokenCount: () => {
+            return functionCallOutputTokenCount;
         },
     };
 
@@ -784,6 +796,8 @@ async function callChatGptAgentFunction({
 
     switch (functionCall.name) {
         case "read_link": {
+            checkChatGptFunctionCallOutputTokenCount(messageState);
+
             if (
                 !isObject(functionCallArguments) ||
                 typeof functionCallArguments.path !== "string"
@@ -792,6 +806,7 @@ async function callChatGptAgentFunction({
                     displayMessage: errorDisplayMessage`The function call’s arguments must be an object with the \`path\` string.`,
                 });
             }
+
             const {path} = functionCallArguments;
 
             const link = await getAgentLink(transaction, path);
@@ -826,9 +841,14 @@ async function callChatGptAgentFunction({
                 link,
                 conversationState,
             });
-            return printAgentContentMarkdownTree(markdownTree);
+
+            const output = printAgentContentMarkdownTree(markdownTree);
+            messageState.updateFunctionCallOutputTokenCount(output);
+            return output;
         }
         case "search_alpine": {
+            checkChatGptFunctionCallOutputTokenCount(messageState);
+
             if (
                 !isObject(functionCallArguments) ||
                 typeof functionCallArguments.query !== "string"
@@ -846,13 +866,28 @@ async function callChatGptAgentFunction({
                 query: functionCallArguments.query,
             });
 
-            return searchAlpineForAgent(tracer, transaction, request, functionCallArguments.query);
+            const output = await searchAlpineForAgent(
+                tracer,
+                transaction,
+                request,
+                functionCallArguments.query,
+            );
+            messageState.updateFunctionCallOutputTokenCount(output);
+            return output;
         }
         default: {
             throw new InvalidArgumentError("Unrecognized function name", {
                 displayMessage: errorDisplayMessage`\`${functionCall.name}\` isn’t a function name we recognize.`,
             });
         }
+    }
+}
+
+function checkChatGptFunctionCallOutputTokenCount(messageState: ChatGptAgentMessageState) {
+    if (messageState.getFunctionCallOutputTokenCount() > agentMaxTokenCountPerWebhookCall) {
+        throw new FailedPreconditionError("Function call output token limit exceeded", {
+            displayMessage: errorDisplayMessage`Read limit reached. You (ChatGPT) can’t call the \`read_link\` or \`search_alpine\` tools until the user sends another message. Use the information you have to respond to the user. At the end of your response, if there’s more work you’d like to do then let the user know without mentioning read limits. For example: “I might not have found everything you’re looking for, would you like me to search for XYZ?”`,
+        });
     }
 }
 
