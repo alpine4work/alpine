@@ -6,7 +6,7 @@ import {
     getGlobalDocumentContentCacheForUpdateForTest,
 } from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityDependentsJob,
@@ -17,6 +17,7 @@ import {
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";

@@ -19,6 +19,16 @@ ts_project(
     ],
 )
 
+# Broader visibility if you're using the model data only for tests.
+alias(
+    name = "all_mini_lm_l6_v2_data_testonly",
+    testonly = True,
+    actual = ":all_mini_lm_l6_v2_data",
+    visibility = [
+        "//server/search:__subpackages__",
+    ],
+)
+
 # This model's file size is pretty big! I mean, it's small enough to make
 # running locally reasonable but large enough that you should avoid including
 # it in a production container since it'll slow down the container download
@@ -45,15 +55,5 @@ js_library(
         "//admin/dev:__pkg__",
         "//app/integration_tests:__pkg__",
         "//server/api/internal/test_helpers:__pkg__",
-    ],
-)
-
-# Broader visibility if you're using the model data only for tests.
-alias(
-    name = "all_mini_lm_l6_v2_data_testonly",
-    testonly = True,
-    actual = ":all_mini_lm_l6_v2_data",
-    visibility = [
-        "//server/search:__subpackages__",
     ],
 )

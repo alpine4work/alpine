@@ -1,5 +1,4 @@
 import {ServerSessionActionContextWithEmail} from "~/server/context/server_action_context.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {
     acceptSpaceAccountInvite,
@@ -11,6 +10,7 @@ import {
     removeSpaceAccount,
 } from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {SystemTokenPayload} from "~/server/tokens/token_payload.js";

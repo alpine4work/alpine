@@ -3,10 +3,10 @@ import {
     createScopedApiKeyForTest,
     createUnscopedApiKeyForTest,
 } from "~/server/bots/bots_table.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";

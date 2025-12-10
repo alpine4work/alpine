@@ -1,14 +1,5 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-alias(
-    name = "data_testonly",
-    testonly = True,
-    actual = ":data",
-    visibility = [
-        "//server:__subpackages__",
-    ],
-)
-
 ts_project(
     name = "data",
     test_deps = [
@@ -18,7 +9,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/test_helpers",
-        "//server/messaging/test_helpers",
+        "//server/messaging/test_helpers/suite",
         "//server/spaces/test_helpers",
         "//shared/content",
     ],
@@ -43,7 +34,6 @@ ts_project(
         "//server/files/data",
         "//server/helpers",
         "//server/jobs/core",
-        "//server/messaging",
         "//server/messaging/helpers",
         "//server/notifications/core",
         "//server/search/data/table",

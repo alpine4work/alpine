@@ -9,13 +9,7 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
-import {
-    TestAccountActionContext,
-    TestActionContext,
-    TestBotActionContext,
-    TestContext,
-    TestSessionActionContext,
-} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestActualContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestPushContextModules} from "~/server/dynamo/test_helpers/create_test_push_context_modules.js";
 import {
     TestSessionItem,
@@ -32,6 +26,12 @@ import {
     messagingEventExpirationDays,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {
+    TestAccountActionContext,
+    TestActionContext,
+    TestBotActionContext,
+    TestSessionActionContext,
+} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
@@ -546,7 +546,7 @@ function textSlice(text: string) {
 }
 
 export function testMessagingImplementation<RoomKey extends string>(
-    context: TestContext,
+    context: TestActualContext,
     {
         createRoom: actuallyCreateRoom,
         createPrivateRoom: actuallyCreatePrivateRoom,

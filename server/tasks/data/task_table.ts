@@ -48,6 +48,10 @@ import {
     messageStreamIndexSearchEntityDelaySeconds,
     shouldScheduleMessageStreamIndexSearchEntityJob,
 } from "~/server/messaging/helpers/message_stream_index_search_entity_delay_seconds.js";
+import {
+    MessageStreamAttributesSchema,
+    MessageStreamPartSchema,
+} from "~/server/messaging/helpers/message_stream_schema.js";
 import {hasMessageStreamDefinitelyTimedOut} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
@@ -56,10 +60,6 @@ import {
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
 import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js";
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
-import {
-    MessageStreamAttributesSchema,
-    MessageStreamPartSchema,
-} from "~/server/messaging/message_stream_schema.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";

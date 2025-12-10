@@ -1,23 +1,19 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "test_helpers",
+    name = "suite",
     testonly = True,
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@types/jest",
         "//:node_modules/@types/node",
-        "//server/cloudflare",
-        "//server/cloudflare/test_helpers",
-        "//server/documents/test_helpers",
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
+        "//server/files/test_helpers",
         "//server/messaging/helpers",
-        "//server/messaging/realtime",
-        "//server/messaging/test_helpers/suite",
-        "//server/rpc:rpc_testonly",
+        "//server/messaging/test_helpers",
         "//shared/content",
         "//shared/context",
         "//shared/helpers",
-        "//shared/test_helpers",
     ],
 )

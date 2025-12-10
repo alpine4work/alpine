@@ -56,6 +56,10 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
         return true;
     }
 
+    public isEmptyForTest() {
+        return false;
+    }
+
     private _getBucket(bucketName: string | undefined): miniflareTypes.R2Bucket {
         if (!bucketName) throw new InvalidArgumentError("R2 bucket name is undefined");
         const bucket = this._bucketByName.get(bucketName);

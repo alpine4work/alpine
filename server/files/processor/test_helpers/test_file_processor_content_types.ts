@@ -9,7 +9,7 @@ import sharp from "sharp";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestActualContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {uploadFile} from "~/server/edge/upload_file.js";
 import {getFileAsUploader} from "~/server/files/data/files_actions.js";
@@ -92,7 +92,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
 }>;
 
 export function testFileProcessorContentTypes(
-    context: TestContext,
+    context: TestActualContext,
     testCases: {
         [key: string]: FileProcessorContentTypeTestCase;
     },
@@ -491,7 +491,7 @@ export function testFileProcessorContentTypes(
 }
 
 async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
-    context: TestContext,
+    context: TestActualContext,
     {
         r2Bucket,
         path,

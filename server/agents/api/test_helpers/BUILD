@@ -9,8 +9,8 @@ ts_project(
     deps = [
         "//:node_modules/openapi-typescript-helpers",
         "//server/agents/api",
-        "//shared/api",
         "//shared/accounts",
+        "//shared/api",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

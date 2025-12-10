@@ -4,7 +4,6 @@ import {
     ApnsAlertNotificationOptions,
 } from "~/server/context/apns_alert_notification.js";
 import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 export class ApnsContextModule extends ApnsContextModuleBase {
     private readonly _connectionPool: ApnsConnectionPool;
@@ -51,23 +50,5 @@ export class ApnsContextModule extends ApnsContextModuleBase {
         ) => Promise<Value>,
     ): Promise<Value> {
         return this._connectionPool.withSendAlert(this._context, action);
-    }
-}
-
-export class TestApnsContextModule extends ApnsContextModuleBase {
-    constructor() {
-        super();
-        assert(process.env.NODE_ENV === "test");
-    }
-
-    public async sendAlert() {
-        // Noop in tests...
-        return {wasDeviceTokenUnregistered: false};
-    }
-
-    public withSendAlert<Value>(
-        action: (sendAlert: () => Promise<{wasDeviceTokenUnregistered: boolean}>) => Promise<Value>,
-    ): Promise<Value> {
-        return action((...args) => this.sendAlert(...args));
     }
 }

@@ -19,6 +19,7 @@ import {
     waitForIndexActionTransactionsWithoutClearingActionHistory,
 } from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -35,7 +36,6 @@ import {
     defaultTaskQueryNormalizedSorts,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const context = createTestContext({
     shouldStartOpensearch: true,
@@ -3784,7 +3784,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
     const pausePromise = indexTaskActionTransactionBeforeUpdateTestCheckpoint.pauseForTest(
         space.id,
     );
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     const updatePromise = task2.updatePriority(session, "High", {time: updatedTime});
     const {unpause} = await pausePromise;
     await server.waitForApplyActionTransactions();
@@ -3943,7 +3943,7 @@ test("task updates in query after change", async () => {
         ]),
     });
 
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -3995,7 +3995,7 @@ test("task updates in query after change and is hidden", async () => {
         ]),
     });
 
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4047,7 +4047,7 @@ test("task updates in query after change and is shown", async () => {
         tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
     });
 
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4112,7 +4112,7 @@ test("task updates in query after change and is shown when task is loaded", asyn
         tasks: await runAllPromises([task1.getIndexDoc(), task3.getIndexDoc()]),
     });
 
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     await task2.updatePriority(session, "High", {time: updatedTime});
 
     await server.wait();
@@ -4170,7 +4170,7 @@ test("task updates in query after change and is moved", async () => {
         ]),
     });
 
-    const updatedTime = testClock.nowLogical();
+    const updatedTime = testTaskClock.now();
     await task2.updatePriority(session, "Low", {time: updatedTime});
 
     await server.wait();

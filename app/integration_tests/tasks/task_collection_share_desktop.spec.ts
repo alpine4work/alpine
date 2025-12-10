@@ -4,6 +4,7 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -14,7 +15,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const {context, services} = createTestServices();
 
@@ -1827,8 +1827,8 @@ test("as anonymous actor can filter by assignee, filter by collection, scroll to
     const mutexes = createArrayWithLength(5, () => new Mutex());
 
     for (let i = 0; i < 185; i++) {
-        const time1 = testClock.nowLogical();
-        const time2 = testClock.nowLogical();
+        const time1 = testTaskClock.now();
+        const time2 = testTaskClock.now();
 
         taskPromises.push(
             mutexes[i % mutexes.length]!.withLock(async () => {

@@ -4,7 +4,7 @@ import {join as joinPath} from "path";
 import supertest from "supertest";
 import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {createApiServiceRequestListener} from "~/server/api/internal/shared/api_service_server.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestActualContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentJobQueueServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
@@ -35,7 +35,10 @@ export type TestApiServer = {
     readonly apiTokenAgent: TokenAgent;
 };
 
-export function createTestApiServer(context: TestContext, paths: ApiPathsBase): TestApiServer {
+export function createTestApiServer(
+    context: TestActualContext,
+    paths: ApiPathsBase,
+): TestApiServer {
     let jobQueueTokenAgent: TokenAgent<TokenAgentJobQueueServicePrivateSide> | undefined;
     let apiTokenAgent: TokenAgent | undefined;
     let server: ((req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void) | undefined;

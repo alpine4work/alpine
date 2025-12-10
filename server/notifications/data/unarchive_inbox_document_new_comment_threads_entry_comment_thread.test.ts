@@ -1,4 +1,4 @@
-import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";

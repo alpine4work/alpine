@@ -5,7 +5,7 @@ ts_project(
     test_deps = [
         "//server/cloudflare/test_helpers",
         "//server/dynamo/test_helpers",
-        "//server/forum/data:data_testonly",
+        "//server/forum/data",
         "//server/messaging/realtime/test_helpers",
     ],
     visibility = ["//server/edge:__subpackages__"],

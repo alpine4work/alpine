@@ -7,7 +7,6 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const defaultTestTaskAccountId = assertId<AccountId>("ne9xp93dwgcwccj661x3ntdb9w");
 
@@ -28,7 +27,7 @@ export function createTestTaskModel({
     spaceId = generateId<SpaceId>(),
     taskId = generateId<TaskId>(),
     creatorId = defaultTestTaskAccountId,
-    createdTime = testClock.nowLogical(),
+    createdTime = [Date.now(), 0],
     getActionReferencedSortableAccount = getActionReferencedSortableAccountDefault,
 }: {
     spaceId?: SpaceId;
@@ -82,7 +81,7 @@ export function updateTestTaskWithTitle({
         {
             type: "UpdateTask",
             taskId: task.id,
-            time: testClock.nowLogical(),
+            time: [Date.now(), 0],
             taskAction: {type: "UpdateTitle", titleUpdate: createTaskTitleFromText(title)},
         },
         getActionReferencedSortableAccount,
@@ -98,18 +97,20 @@ export function updateTestTaskWithStatus({
     displayStatus: "Open" | "Closed";
     getActionReferencedSortableAccount?: (accountId: AccountId) => TaskSortableAccount;
 }): TaskModel {
+    const time: HybridLogicalTime = [Date.now(), 0];
+
     return task.applyAction(
         {
             type: "UpdateTask",
             taskId: task.id,
-            time: testClock.nowLogical(),
+            time,
             taskAction: {
                 type: "UpdateStatus",
                 status: {
                     type: displayStatus,
                     closerId: task.getCreator().accountId,
                     closedTime: new TaskFilterableTime({
-                        absoluteTime: testClock.nowLogical(),
+                        absoluteTime: time,
                         setterTimeZone: defaultTimeZone,
                     }),
                 },

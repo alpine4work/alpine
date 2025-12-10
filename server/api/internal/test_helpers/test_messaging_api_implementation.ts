@@ -2,9 +2,9 @@ import {TestApiServer} from "~/server/api/internal/test_helpers/create_test_api_
 import {printApiContentToMarkdown} from "~/server/api/markdown/print_api_content_to_markdown.js";
 import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {SearchInjection} from "~/server/context/injection_context_module.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";

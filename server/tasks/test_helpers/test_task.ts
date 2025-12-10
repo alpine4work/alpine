@@ -3,17 +3,17 @@ import {Fragment, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
-import {
-    TestAccountActionContext,
-    TestBotActionContext,
-    TestContext,
-    TestSessionActionContext,
-} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {
+    TestAccountActionContext,
+    TestBotActionContext,
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -34,6 +34,7 @@ import {
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -65,7 +66,6 @@ import {
     createTaskTitleFromText,
     emptyTaskTitle,
 } from "~/shared/tasks/title/task_title.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
 
@@ -101,7 +101,7 @@ export class TestTask extends TestCommentRoomBase {
     public static async create(
         session: TestSpaceSession,
         {
-            time = testClock.nowLogical(),
+            time = testTaskClock.now(),
             title: titleText = "",
         }: {
             time?: HybridLogicalTime;
@@ -132,7 +132,7 @@ export class TestTask extends TestCommentRoomBase {
 
             actions.push({
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: id,
                 taskAction: {
                     type: "UpdateTitle",
@@ -320,7 +320,7 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     public async delete(session: TestSpaceSession) {
-        const time = testClock.nowLogical();
+        const time = testTaskClock.now();
 
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -336,7 +336,7 @@ export class TestTask extends TestCommentRoomBase {
 
     public async undelete(
         session: TestSpaceSession,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -353,7 +353,7 @@ export class TestTask extends TestCommentRoomBase {
     public async updateStatus(
         session: TestSpaceSession,
         statusType: TaskStatus["type"],
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         const status: TaskStatus =
             statusType === "Open"
@@ -384,7 +384,7 @@ export class TestTask extends TestCommentRoomBase {
         assignee: TestAccount | TestSession | null,
         {assigneeStatus}: {assigneeStatus?: "Inactive" | "Active"} = {},
     ) {
-        const time = testClock.nowLogical();
+        const time = testTaskClock.now();
 
         if (assignee instanceof TestSession) assignee = assignee.account;
 
@@ -422,7 +422,7 @@ export class TestTask extends TestCommentRoomBase {
         session: TestSpaceSession,
         assigneeStatus: "Inactive" | "Active",
     ) {
-        const time = testClock.nowLogical();
+        const time = testTaskClock.now();
 
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -443,7 +443,7 @@ export class TestTask extends TestCommentRoomBase {
     public async updatePriority(
         session: TestSpaceSession,
         priority: TaskPriority | null,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -461,7 +461,7 @@ export class TestTask extends TestCommentRoomBase {
     public async updateDueDate(
         session: TestSpaceSession,
         dueDate: CalendarDate | null,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -479,7 +479,7 @@ export class TestTask extends TestCommentRoomBase {
     public async addCollection(
         session: TestSpaceSession,
         collection: TestTaskCollection,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -501,7 +501,7 @@ export class TestTask extends TestCommentRoomBase {
         session: TestSpaceSession,
         collection: TestTaskCollection,
         position: TaskPosition,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -520,7 +520,7 @@ export class TestTask extends TestCommentRoomBase {
     }
 
     public async removeCollection(session: TestSpaceSession, collection: TestTaskCollection) {
-        const time = testClock.nowLogical();
+        const time = testTaskClock.now();
 
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -538,7 +538,7 @@ export class TestTask extends TestCommentRoomBase {
     public async updateParentTask(
         session: TestSpaceSession,
         task: TestTask | null,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {time = testTaskClock.now()}: {time?: HybridLogicalTime} = {},
     ) {
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {
@@ -560,7 +560,7 @@ export class TestTask extends TestCommentRoomBase {
             await commitTaskActionTransaction(session.action(), session.space.id, [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: this.id,
                     taskAction: {
                         type: "UpdateTitle",

@@ -28,27 +28,13 @@ import {
     TasksInjectionContextModule,
 } from "~/server/context/injection_context_module.js";
 import {PushContextModules} from "~/server/context/push_context_modules.js";
-import {
-    ServerAccountActionContextModules,
-    ServerActionContextModules,
-    ServerAnonymousActionContextModules,
-    ServerBotActionContextModules,
-    ServerImpersonatedAccountActionContextModules,
-    ServerSessionActionContextModules,
-    ServerSystemActionContextModules,
-    ServerUnknownActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {incrementLocalDynamoTableSchemaGenerationForTest} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {TraceOnlyEmailContextModule} from "~/server/emails/trace_only_email_context_module.js";
 import {
@@ -70,6 +56,17 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {
+    TestAnonymousActionContext,
+    TestBotActionContext,
+    TestContextHelpers,
+    TestContextModules,
+    TestImpersonatedAccountActionContext,
+    TestSessionActionContext,
+    TestSystemActionContext,
+    TestSystemActionContextModules,
+    TestUnknownActionContext,
+} from "~/server/spaces/test_helpers/test_context.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -104,59 +101,14 @@ const env = parseDotenv();
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
-type TestContextExtraModules = {
-    email: EmailContextModuleBase;
-};
-
-export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
-
-export type TestContext = Context<TestContextModules> & TestContextHelpers<TestContextModules>;
-
-export type TestActionContextModules = ServerActionContextModules & TestContextExtraModules;
-
-export type TestActionContext = Context<TestActionContextModules>;
-
-export type TestSessionActionContextModules = ServerSessionActionContextModules &
-    TestContextExtraModules & {
-        fork: ForkActionContextModule;
-    };
-
-export type TestSessionActionContext = Context<TestSessionActionContextModules>;
-
-export type TestSystemActionContextModules = ServerSystemActionContextModules &
-    TestContextExtraModules;
-
-export type TestSystemActionContext = Context<TestSystemActionContextModules>;
-
-export type TestAnonymousActionContextModules = ServerAnonymousActionContextModules &
-    TestContextExtraModules;
-
-export type TestAnonymousActionContext = Context<TestAnonymousActionContextModules>;
-
-export type TestImpersonatedAccountActionContextModules =
-    ServerImpersonatedAccountActionContextModules & TestContextExtraModules;
-
-export type TestImpersonatedAccountActionContext =
-    Context<TestImpersonatedAccountActionContextModules>;
-
-export type TestBotActionContextModules = ServerBotActionContextModules & TestContextExtraModules;
-
-export type TestBotActionContext = Context<TestBotActionContextModules>;
-
-export type TestAccountActionContext = Context<TestAccountActionContextModules>;
-
-export type TestAccountActionContextModules = ServerAccountActionContextModules &
-    TestContextExtraModules;
-
-export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
-    TestContextExtraModules;
-
-export type TestUnknownActionContext = Context<TestUnknownActionContextModules>;
+export type TestActualContext = Context<TestContextModules> &
+    TestContextHelpers &
+    TestContextAdditionalHelpers<TestContextModules>;
 
 type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
-    ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
+    ContextWithDestroy<Modules> & TestContextHelpers & TestContextAdditionalHelpers<Modules>;
 
-type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
+type TestContextAdditionalHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     getTemporaryDirectoryPath(): string;
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
@@ -170,57 +122,6 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     resetDynamoLocal(): Promise<void>;
 
     /**
-     * An action with an authenticated session.
-     */
-    action(
-        session:
-            | {id: SessionId; account: {id: AccountId}}
-            | {sessionId: SessionId; accountId: AccountId},
-        options?: {serviceName?: ActorServiceName},
-    ): TestSessionActionContext;
-
-    /**
-     * An authenticated system action.
-     */
-    systemAction(
-        spaceId: SpaceId,
-        options?: {serviceName?: ActorServiceName},
-    ): TestSystemActionContext;
-
-    /**
-     * An anonymous action.
-     */
-    anonymousAction(options?: {serviceName?: ActorServiceName}): TestAnonymousActionContext;
-
-    /**
-     * An authenticated impersonated account action.
-     */
-    impersonatedAccountAction(
-        spaceId: SpaceId,
-        accountId: AccountId,
-        options?: {serviceName?: ActorServiceName},
-    ): TestImpersonatedAccountActionContext;
-
-    /**
-     * An action for a bot in some specified scope.
-     *
-     * This function assumes you've already validated that `botAccountId` is
-     * actually an `AccountId` for a bot account.
-     */
-    botAction(
-        spaceId: SpaceId,
-        botAccountId: AccountId,
-        scope?: BotTokenPayloadScope,
-        options?: {serviceName?: ActorServiceName},
-    ): TestBotActionContext;
-
-    /**
-     * An action where we don't know whether we're authenticated or not. When
-     * authenticated it'll be an anonymous actor.
-     */
-    unknownAnonymousAction(): TestUnknownActionContext;
-
-    /**
      * Add a `CacheContextModule` to our test context. Each time you call
      * `withCache()` we create a new cache for the returned context object.
      */
@@ -230,20 +131,6 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
             batch: BatchContextModule;
         }
     >;
-
-    /**
-     * Escalate one of our existing test contexts to a system context.
-     */
-    readonly escalateToSystemContext: <Value>(
-        context: Context<{
-            tracer: TracerContextModule;
-            actor?: ActorContextModule;
-            cache: CacheContextModule;
-            batch: BatchContextModule;
-        }>,
-        spaceId: SpaceId,
-        action: (context: TestSystemActionContext) => Promise<Value>,
-    ) => Promise<Value>;
 
     /**
      * `Context.clone()` but preserves `TestContext`'s helper functions like
@@ -313,7 +200,7 @@ export function createTestContext(
               ) => Promise<void>;
           }
     ) = {},
-): TestContext {
+): TestActualContext {
     const {shouldStartOpensearch = false, shouldSendJobsToSqs = false} = options;
     let {processJob} = options;
 
@@ -680,7 +567,7 @@ export function createTestContext(
         }),
     });
 
-    const helpers: TestContextHelpers<any> = {
+    const helpers: TestContextHelpers & TestContextAdditionalHelpers<TestContextModules> = {
         getTemporaryDirectoryPath,
         getDynamoLocalPort,
         getOpensearchLocalPort,

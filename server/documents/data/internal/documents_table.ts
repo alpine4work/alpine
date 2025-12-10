@@ -5,7 +5,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     MessageStreamAttributesSchema,
     MessageStreamPartSchema,
-} from "~/server/messaging/message_stream_schema.js";
+} from "~/server/messaging/helpers/message_stream_schema.js";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {
     DocumentContentSchema,

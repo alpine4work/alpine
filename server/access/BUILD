@@ -5,7 +5,8 @@ ts_project(
     test_deps = [
         "//server/bots/test_helpers",
         "//server/chat/test_helpers",
-        "//server/forum/data:data_testonly",
+        "//server/dynamo/test_helpers",
+        "//server/forum/data",
         "//server/forum/test_helpers",
     ],
     tests = {

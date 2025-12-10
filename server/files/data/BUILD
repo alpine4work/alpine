@@ -4,9 +4,9 @@ ts_project(
     name = "data",
     test_deps = [
         "//server/bots/test_helpers",
-        "//server/chat/data:data_testonly",
+        "//server/chat/data",
         "//server/dynamo/test_helpers",
-        "//server/forum/data:data_testonly",
+        "//server/forum/data",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
     ],

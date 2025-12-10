@@ -33,7 +33,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";

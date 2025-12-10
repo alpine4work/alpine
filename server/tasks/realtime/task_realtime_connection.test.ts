@@ -28,6 +28,7 @@ import {
 import {taskRealtimeStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {
     WebSocketServer,
@@ -88,7 +89,6 @@ import {
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 const context = createTestContext({
@@ -167,7 +167,7 @@ function query(
     const evaluationContext: TaskQueryEvaluationContext = {
         currentAccountId: session.account.id,
         currentDate: toCalendarDate(
-            parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+            parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
         ),
     };
 
@@ -180,7 +180,7 @@ function query(
     assert(filters.type !== "Impossible");
 
     return {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         filters: filters.normalizedFilters,
         sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
         limit: options?.limit ?? 100,
@@ -514,7 +514,7 @@ test("can paginate a query with many tasks", async () => {
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -540,7 +540,7 @@ test("can paginate a query with many tasks", async () => {
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -836,7 +836,7 @@ test("two subscriptions with identical queries use the same underlying query", a
 
     expect(
         await testLoadMoreQueryTasks(connection1, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -2528,7 +2528,7 @@ test("can update a referenced task in one query and remove the same referenced t
     await commitTaskActionTransaction(creatorSession.action(), space.id, [
         {
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId: task2.id,
             taskAction: {
                 type: "UpdateParentTaskId",
@@ -2537,7 +2537,7 @@ test("can update a referenced task in one query and remove the same referenced t
         },
         {
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId: task1.id,
             taskAction: {
                 type: "UpdatePriority",
@@ -3655,7 +3655,7 @@ test("loading tasks with zero limit is fine", async () => {
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 0,
         }),
@@ -3703,7 +3703,7 @@ test("loading tasks with zero limit when there are no tasks", async () => {
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 0,
         }),
@@ -3819,7 +3819,7 @@ test("all referenced collections will be backfilled in the query when loaded", a
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -4232,7 +4232,7 @@ test("if a collection is referenced then the connection will receive actions for
         },
     ]);
 
-    const newCollectionOrderTime = testClock.nowLogical();
+    const newCollectionOrderTime = testTaskClock.now();
 
     await task1.updateCollectionPosition(session, collection1, {
         orderTime: newCollectionOrderTime,
@@ -4962,7 +4962,7 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -5744,7 +5744,7 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -6695,7 +6695,7 @@ test("collections of parent tasks are backfilled when more is loaded from query"
 
     expect(
         await testLoadMoreQueryTasks(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -10165,7 +10165,7 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateCollectionPosition(session2, collection1, {
-        orderTime: testClock.nowLogical(),
+        orderTime: testTaskClock.now(),
         orderKey: initialOrderKey,
     });
     await server.wait();
@@ -12500,8 +12500,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     server.pauseApplyActionTransactions();
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
 
     await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
         new FailedPreconditionError(
@@ -12540,7 +12540,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     // Apply action transaction out of order temporarily creating a cycle...
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions2,
     });
 
@@ -12591,7 +12591,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     expect(testTakeEvents(connection2)).toEqual([]);
 
-    const time3 = testClock.nowLogical();
+    const time3 = testTaskClock.now();
 
     await task3.updatePriority(session, "Low", {time: time3});
     await server.waitForIndexActionTransactions();
@@ -12610,7 +12610,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions3,
     });
 
@@ -12636,7 +12636,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         },
     ]);
 
-    const time4 = testClock.nowLogical();
+    const time4 = testTaskClock.now();
 
     await task2.updatePriority(session, "High", {time: time4});
     await server.waitForIndexActionTransactions();
@@ -12655,7 +12655,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions4,
     });
 
@@ -12677,7 +12677,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions1,
     });
 
@@ -12796,8 +12796,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     server.pauseApplyActionTransactions();
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
 
     await expect(task3.updateParentTask(session, task1, {time: time2})).rejects.toThrow(
         new FailedPreconditionError(
@@ -12836,7 +12836,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     // Apply action transaction out of order temporarily creating a cycle...
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions2,
     });
 
@@ -12889,7 +12889,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     expect(testTakeEvents(connection2)).toEqual([]);
 
-    const time3 = testClock.nowLogical();
+    const time3 = testTaskClock.now();
 
     await task5.updatePriority(session, "Low", {time: time3});
     await server.waitForIndexActionTransactions();
@@ -12908,7 +12908,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions3,
     });
 
@@ -12934,7 +12934,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         },
     ]);
 
-    const time4 = testClock.nowLogical();
+    const time4 = testTaskClock.now();
 
     await task5.updatePriority(session, "High", {time: time4});
     await server.waitForIndexActionTransactions();
@@ -12953,7 +12953,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions4,
     });
 
@@ -12977,7 +12977,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions1,
     });
 
@@ -13124,9 +13124,9 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     server.pauseApplyActionTransactions();
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
-    const time3 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
+    const time3 = testTaskClock.now();
 
     await task1.updateParentTask(session, task2, {time: time1});
 
@@ -13180,7 +13180,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const applyActions1Promise = server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions1,
     });
 
@@ -13189,7 +13189,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     // Apply action transaction out of order temporarily creating a cycle...
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions3,
     });
 
@@ -13248,7 +13248,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions2,
     });
 });
@@ -13315,9 +13315,9 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     server.pauseApplyActionTransactions();
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
-    const time3 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
+    const time3 = testTaskClock.now();
 
     await task1.updateParentTask(session, task2, {time: time1});
 
@@ -13371,7 +13371,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const applyActions1Promise = server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions1,
     });
 
@@ -13380,7 +13380,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     // Apply action transaction out of order temporarily creating a cycle...
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions3,
     });
 
@@ -13413,7 +13413,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     const {unpause: unpause2} = await pause2Promise;
     unpause2();
 
-    const time4 = testClock.nowLogical();
+    const time4 = testTaskClock.now();
 
     await task5.updatePriority(session, "Low", {time: time4});
     await server.waitForIndexActionTransactions();
@@ -13434,7 +13434,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const applyActions4Promise = server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions4,
     });
 
@@ -13490,7 +13490,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     await server.applyActionTransaction({
         spaceId: space.id,
-        committedTime: testClock.nowDate(),
+        committedTime: new Date(testTaskClock.now()[0]),
         actions: actions2,
     });
 });
@@ -13513,7 +13513,7 @@ test("can subscribe to task", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task1.id,
     });
 
@@ -13578,7 +13578,7 @@ test("can’t subscribe to task that doesn’t exist", async () => {
 
     await expect(
         testSubscribeToTask(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             taskId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
@@ -13603,7 +13603,7 @@ test("can’t subscribe to task that you don’t have access to", async () => {
 
     await expect(
         testSubscribeToTask(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             taskId: task1.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
@@ -13630,7 +13630,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task1.id,
     });
 
@@ -13733,7 +13733,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task1.id,
     });
 
@@ -13839,7 +13839,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {updateEvent} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task2.id,
     });
 
@@ -14302,7 +14302,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
 
     const {taskSubscriptionId: taskSubscription1Id, updateEvent: updateEvent1} =
         await testSubscribeToTask(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             taskId: task1.id,
         });
 
@@ -14344,7 +14344,7 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
     ]);
 
     const {updateEvent: updateEvent2} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task2.id,
     });
 
@@ -14399,7 +14399,7 @@ test("can subscribe to collection", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {collectionSubscriptionId, updateEvent} = await testSubscribeToCollection(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         collectionId: collection1.id,
     });
 
@@ -14466,7 +14466,7 @@ test("can’t subscribe to collection that doesn’t exist", async () => {
 
     await expect(
         testSubscribeToCollection(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             collectionId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
@@ -14491,7 +14491,7 @@ test("can’t subscribe to collection that you don’t have access to", async ()
 
     await expect(
         testSubscribeToCollection(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             collectionId: collection1.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
@@ -14516,7 +14516,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {collectionSubscriptionId, updateEvent} = await testSubscribeToCollection(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         collectionId: collection1.id,
     });
 
@@ -14656,7 +14656,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     const {collectionSubscriptionId, updateEvent: updateEvent1} = await testSubscribeToCollection(
         connection,
         {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             collectionId: collection2.id,
         },
     );
@@ -14674,7 +14674,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {updateEvent: updateEvent2} = await testSubscribeToTask(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         taskId: task1.id,
     });
 
@@ -14765,7 +14765,7 @@ test("deleting task and all children when subscribed to task and its children", 
     expect(testTakeEvents(connection)).toEqual([]);
 
     const {updateEvent} = await testSubscribe(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         queries: [
             {
                 limit: 100,
@@ -14810,7 +14810,7 @@ test("deleting task and all children when subscribed to task and its children", 
         referencedAccounts: [await session.get()],
     });
 
-    await deleteTaskAndAllChildren(session.action(), task1.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session.action(), task1.id, testTaskClock.now());
 
     await server.wait();
 });
@@ -15543,7 +15543,7 @@ test("race condition: extra query task ids includes task from action that happen
     );
 
     const subscribePromise = testSubscribe(connection, {
-        clientTime: testClock.nowLogical(),
+        clientTime: testTaskClock.now(),
         queries: [
             {
                 ...highPriorityQuery,
@@ -15997,7 +15997,7 @@ test("private collections aren’t visible in task subscription", async () => {
 
     expect(
         await testSubscribeToTask(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             taskId: task1.id,
         }),
     ).toEqual({
@@ -16015,7 +16015,7 @@ test("private collections aren’t visible in task subscription", async () => {
 
     expect(
         await testSubscribeToTask(connection, {
-            clientTime: testClock.nowLogical(),
+            clientTime: testTaskClock.now(),
             taskId: task2.id,
         }),
     ).toEqual({
@@ -16271,7 +16271,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
 
         expect(
             await testSubscribeToTask(connection, {
-                clientTime: testClock.nowLogical(),
+                clientTime: testTaskClock.now(),
                 taskId: task.id,
             }),
         ).toEqual({

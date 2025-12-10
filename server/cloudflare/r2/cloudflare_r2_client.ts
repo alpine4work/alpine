@@ -33,6 +33,12 @@ export interface CloudflareR2ClientBase {
     isMiniflare(): boolean;
 
     /**
+     * Is this `TestEmptyCloudflareR2Client`? Used in unit tests without Cloudflare
+     * R2 access.
+     */
+    isEmptyForTest(): boolean;
+
+    /**
      * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
      * notes][2].
      *
@@ -150,6 +156,10 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
     }
 
     public isMiniflare() {
+        return false;
+    }
+
+    public isEmptyForTest() {
         return false;
     }
 

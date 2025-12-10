@@ -16,16 +16,16 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
-    TestAccountActionContext,
-    TestBotActionContext,
-    TestContext,
-    TestSessionActionContext,
-} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {
     TestCommentRoomBase,
     TestMessage,
 } from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {
+    TestAccountActionContext,
+    TestBotActionContext,
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";

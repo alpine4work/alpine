@@ -47,6 +47,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {
     AccessLevel,
@@ -106,7 +107,6 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 let jobs: Array<JobDescription> = [];
@@ -137,7 +137,7 @@ function testAuthorizeTaskQueryAccess(
     const evaluationContext: TaskQueryEvaluationContext = {
         currentAccountId: context.actor.type === "Session" ? context.actor.getAccountId() : null,
         currentDate: toCalendarDate(
-            parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+            parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
         ),
     };
 
@@ -14981,7 +14981,7 @@ test("can delete a task and all its children when it has no children", async () 
 
     expect((await task.getItem()).deletedTime).toEqual(null);
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
 
     expect(await deleteTaskAndAllChildren(session.action(), task.id, actionTime)).toEqual({
         spaceId: space.id,
@@ -15002,7 +15002,7 @@ test("can’t delete a task and all its children when the task doesn’t exist",
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
 
     await expect(
         deleteTaskAndAllChildren(session.action(), generateId(), actionTime),
@@ -15018,7 +15018,7 @@ test("can’t delete a task and all its children when you don’t have access to
 
     expect((await task.getItem()).deletedTime).toEqual(null);
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
 
     await expect(deleteTaskAndAllChildren(session2.action(), task.id, actionTime)).rejects.toThrow(
         PermissionDeniedError,
@@ -15048,7 +15048,7 @@ test("can delete a task and all its children when you have access to the task th
 
     expect((await task.getItem()).deletedTime).toEqual(null);
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
 
     await expect(deleteTaskAndAllChildren(session2.action(), task.id, actionTime)).rejects.toThrow(
         PermissionDeniedError,
@@ -15112,7 +15112,7 @@ test("can delete a task and all its children", async () => {
     expect((await task9.getItem()).deletedTime).toEqual(null);
     expect((await task10.getItem()).deletedTime).toEqual(null);
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
 
     expect(
         (await deleteTaskAndAllChildren(session.action(), task1.id, actionTime)).actions
@@ -15280,7 +15280,7 @@ test("can handle race conditions when deleting a task and all of it’s children
         session.account.id,
     );
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
     const deletePromise = deleteTaskAndAllChildren(session.action(), parentTask1.id, actionTime);
 
     const {unpause} = await pausePromise;
@@ -15395,7 +15395,7 @@ test("can handle race conditions when deleting a task with parent and all of it�
         session.account.id,
     );
 
-    const actionTime = testClock.nowLogical();
+    const actionTime = testTaskClock.now();
     const deletePromise = deleteTaskAndAllChildren(session.action(), parentTask1.id, actionTime);
 
     const {unpause} = await pausePromise;
@@ -15491,7 +15491,7 @@ test("the delete a task with all its children function has the same effect as co
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const createdTime = testClock.nowLogical();
+    const createdTime = testTaskClock.now();
 
     const task1 = await TestTask.create(session, {time: createdTime});
     const task2 = await TestTask.create(session, {time: createdTime});
@@ -15503,7 +15503,7 @@ test("the delete a task with all its children function has the same effect as co
 
     expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
 
-    const deletedTime = testClock.nowLogical();
+    const deletedTime = testTaskClock.now();
 
     const actions1: Array<TaskAction> = [
         {
@@ -15537,8 +15537,8 @@ test("the delete a task with all its children function has the same effect as co
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const createdTime = testClock.nowLogical();
-    const parentUpdatedTime = testClock.nowLogical();
+    const createdTime = testTaskClock.now();
+    const parentUpdatedTime = testTaskClock.now();
 
     const parentTask1 = await TestTask.create(session, {time: createdTime});
     const parentTask2 = await TestTask.create(session, {time: createdTime});
@@ -15588,7 +15588,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await parentTask1.getItem())).toEqual(await parentTask2.getItem());
     expect(replaceTaskIds(await task1.getItem())).toEqual(await task2.getItem());
 
-    const deletedTime = testClock.nowLogical();
+    const deletedTime = testTaskClock.now();
 
     const actions1: Array<TaskAction> = [
         {
@@ -15623,8 +15623,8 @@ test("the delete a task with all its children function has the same effect as co
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const createdTime = testClock.nowLogical();
-    const parentUpdatedTime = testClock.nowLogical();
+    const createdTime = testTaskClock.now();
+    const parentUpdatedTime = testTaskClock.now();
 
     const task1 = await TestTask.create(session, {time: createdTime});
     const task1a = await TestTask.create(session, {time: createdTime});
@@ -15688,7 +15688,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
     expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
 
-    const deletedTime = testClock.nowLogical();
+    const deletedTime = testTaskClock.now();
 
     const actions1: Array<TaskAction> = [
         {
@@ -15746,8 +15746,8 @@ test("the delete a task with all its children function has the same effect as co
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const createdTime = testClock.nowLogical();
-    const parentUpdatedTime = testClock.nowLogical();
+    const createdTime = testTaskClock.now();
+    const parentUpdatedTime = testTaskClock.now();
 
     const parentTask1 = await TestTask.create(session, {time: createdTime});
     const parentTask2 = await TestTask.create(session, {time: createdTime});
@@ -15828,7 +15828,7 @@ test("the delete a task with all its children function has the same effect as co
     expect(replaceTaskIds(await task1a.getItem())).toEqual(await task2a.getItem());
     expect(replaceTaskIds(await task1b.getItem())).toEqual(await task2b.getItem());
 
-    const deletedTime = testClock.nowLogical();
+    const deletedTime = testTaskClock.now();
 
     const actions1: Array<TaskAction> = [
         {
@@ -16314,7 +16314,7 @@ test("commits an update name action when the account’s name updates", async ()
     const newAccountName1 = generateId();
     const newAccountName2 = generateId();
 
-    const startTime = testClock.nowDate();
+    const startTime = new Date(testTaskClock.now()[0]);
 
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
@@ -16390,7 +16390,7 @@ test("doesn’t an update name action when the account is in no spaces", async (
     const newAccountName1 = generateId();
     const newAccountName2 = generateId();
 
-    const startTime = testClock.nowDate();
+    const startTime = new Date(testTaskClock.now()[0]);
 
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
@@ -16424,7 +16424,7 @@ test("commits an update name action when the account’s name updates to every s
 
     const newAccountName = generateId();
 
-    const startTime = testClock.nowDate();
+    const startTime = new Date(testTaskClock.now()[0]);
 
     expect(
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
@@ -16482,7 +16482,7 @@ test("commits an update name action when the account’s name updates to every s
 
     const newAccountName = generateId();
 
-    const startTime = testClock.nowDate();
+    const startTime = new Date(testTaskClock.now()[0]);
 
     expect(
         await backfillTaskActionTransactionHistory(space1.systemAction(), space1.id, startTime),
@@ -16581,7 +16581,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task1.addCollection(session, collection1, {time: time1});
 
     expect(await collection1.getItem()).toEqual(
@@ -16599,7 +16599,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await task2.addCollection(session, collection2, {time: time2});
 
     expect(await collection1.getItem()).toEqual(
@@ -16617,7 +16617,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time3 = testClock.nowLogical();
+    const time3 = testTaskClock.now();
     await task3.addCollection(session, collection2, {time: time3});
 
     expect(await collection1.getItem()).toEqual(
@@ -16652,7 +16652,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time4 = testClock.nowLogical();
+    const time4 = testTaskClock.now();
     await task4.addCollection(session, collection1, {time: time4});
 
     expect(await collection1.getItem()).toEqual(
@@ -16670,7 +16670,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time5 = testClock.nowLogical();
+    const time5 = testTaskClock.now();
     await task3.addCollection(session, collection1, {time: time5});
 
     expect(await collection1.getItem()).toEqual(
@@ -16756,7 +16756,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time6 = testClock.nowLogical();
+    const time6 = testTaskClock.now();
     await task2.undelete(session, {time: time6});
 
     expect(await collection1.getItem()).toEqual(
@@ -16808,7 +16808,7 @@ test("correctly updates collection task counts on collection for any task action
         }),
     );
 
-    const time7 = testClock.nowLogical();
+    const time7 = testTaskClock.now();
     await task3.undelete(session, {time: time7});
 
     expect(await collection1.getItem()).toEqual(
@@ -16872,12 +16872,12 @@ test("correctly updates collection task counts when deleting task and all childr
         TestTaskCollection.create(session),
     ]);
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
-    const time3 = testClock.nowLogical();
-    const time4 = testClock.nowLogical();
-    const time5 = testClock.nowLogical();
-    const time6 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
+    const time3 = testTaskClock.now();
+    const time4 = testTaskClock.now();
+    const time5 = testTaskClock.now();
+    const time6 = testTaskClock.now();
 
     await runAllPromises([
         task2.updateParentTask(session, task1),
@@ -16926,7 +16926,7 @@ test("correctly updates collection task counts when deleting task and all childr
         }),
     );
 
-    await deleteTaskAndAllChildren(session.action(), task2.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session.action(), task2.id, testTaskClock.now());
 
     expect(await collection1.getItem()).toEqual(
         expect.objectContaining({
@@ -16993,7 +16993,7 @@ test("race condition: update collection task count is recognized if it conflicts
         }),
     );
 
-    const time = testClock.nowLogical();
+    const time = testTaskClock.now();
     await task.addCollection(session1, collection, {time});
 
     expect(await collection.getItem()).toEqual(
@@ -17040,7 +17040,7 @@ test("race condition: update collection task count is recognized if it conflicts
         session1.account.id,
     );
 
-    const time = testClock.nowLogical();
+    const time = testTaskClock.now();
     const updatePromise = task.addCollection(session1, collection, {time});
     const {unpause} = await pausePromise;
 
@@ -17098,7 +17098,7 @@ test("multiple actions that update collection item count in one transaction", as
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task1.addCollection(session, collection, {time: time1});
 
     expect(await collection.getItem()).toEqual(
@@ -17109,7 +17109,7 @@ test("multiple actions that update collection item count in one transaction", as
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
@@ -17176,7 +17176,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task1.addCollection(session, collection, {time: time1});
 
     expect(await collection.getItem()).toEqual(
@@ -17187,7 +17187,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
@@ -17269,7 +17269,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task1.addCollection(session, collection, {time: time1});
 
     expect(await collection.getItem()).toEqual(
@@ -17280,7 +17280,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateCollection",
@@ -17362,7 +17362,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task1.addCollection(session, collection, {time: time1});
 
     expect(await collection.getItem()).toEqual(
@@ -17373,7 +17373,7 @@ test("multiple actions that update collection item count in one transaction and 
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
@@ -17450,7 +17450,7 @@ test("a collection action and an action that indirectly updates collection task 
         }),
     );
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await task.addCollection(session, collection, {time: time1});
 
     expect(await collection.getItem()).toEqual(
@@ -17461,7 +17461,7 @@ test("a collection action and an action that indirectly updates collection task 
         }),
     );
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateTask",
@@ -17504,7 +17504,7 @@ test("a collection action and an action that indirectly updates collection task 
         }),
     );
 
-    const time3 = testClock.nowLogical();
+    const time3 = testTaskClock.now();
     await commitTaskActionTransaction(session.action(), space.id, [
         {
             type: "UpdateCollection",
@@ -17563,7 +17563,7 @@ test("account can remove access from itself", async () => {
     await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId: task1.id,
             taskAction: {
                 type: "RemoveCollection",
@@ -17583,7 +17583,7 @@ test("account can remove access from itself", async () => {
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -17678,7 +17678,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
     await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId: task1.id,
             taskAction: {
                 type: "RemoveCollection",
@@ -17751,7 +17751,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -17850,7 +17850,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -17864,7 +17864,7 @@ test("account can remove access from itself then grant it back with lease", asyn
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -17888,7 +17888,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -17912,7 +17912,7 @@ test("account can remove access from itself then grant it back with lease", asyn
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -17957,7 +17957,7 @@ test("account can remove access from itself but can’t grant it back with an in
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -17971,7 +17971,7 @@ test("account can remove access from itself but can’t grant it back with an in
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -17995,7 +17995,7 @@ test("account can remove access from itself but can’t grant it back with an in
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18020,7 +18020,7 @@ test("account can remove access from itself but can’t grant it back with an in
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18069,7 +18069,7 @@ test("account can remove access from itself but can’t use another account’s 
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -18083,7 +18083,7 @@ test("account can remove access from itself but can’t use another account’s 
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18107,7 +18107,7 @@ test("account can remove access from itself but can’t use another account’s 
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18132,7 +18132,7 @@ test("account can remove access from itself but can’t use another account’s 
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18181,7 +18181,7 @@ test("account can remove access from itself but can’t grant itself access back
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -18195,7 +18195,7 @@ test("account can remove access from itself but can’t grant itself access back
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18219,7 +18219,7 @@ test("account can remove access from itself but can’t grant itself access back
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18244,7 +18244,7 @@ test("account can remove access from itself but can’t grant itself access back
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18268,7 +18268,7 @@ test("account can remove access from itself but can’t grant itself access back
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdatePriority",
@@ -18319,7 +18319,7 @@ test("account can remove access from itself but can’t grant itself access back
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -18333,7 +18333,7 @@ test("account can remove access from itself but can’t grant itself access back
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18357,7 +18357,7 @@ test("account can remove access from itself but can’t grant itself access back
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18436,7 +18436,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "UpdatePriority",
@@ -18450,7 +18450,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18471,7 +18471,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     await commitTaskActionTransaction(session1.action(), space.id, [
         {
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId: task1.id,
             taskAction: {
                 type: "RemoveCollection",
@@ -18491,7 +18491,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18516,7 +18516,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18563,7 +18563,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task2.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18581,7 +18581,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "RemoveCollection",
@@ -18595,7 +18595,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
                     actions: [
                         {
                             type: "UpdateTask",
-                            time: testClock.nowLogical(),
+                            time: testTaskClock.now(),
                             taskId: task2.id,
                             taskAction: {
                                 type: "AddCollection",
@@ -18641,7 +18641,7 @@ test("account can’t remove access from itself then grant it back with lease th
         true,
     );
 
-    const initialOrderTime = testClock.nowLogical();
+    const initialOrderTime = testTaskClock.now();
 
     await commitTaskActionTransaction(
         session1.action(),
@@ -18649,7 +18649,7 @@ test("account can’t remove access from itself then grant it back with lease th
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "UpdateCollectionPosition",
@@ -18659,7 +18659,7 @@ test("account can’t remove access from itself then grant it back with lease th
             },
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -18673,7 +18673,7 @@ test("account can’t remove access from itself then grant it back with lease th
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18683,7 +18683,7 @@ test("account can’t remove access from itself then grant it back with lease th
                     },
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "UpdateCollectionPosition",
@@ -18710,7 +18710,7 @@ test("account can’t remove access from itself then grant it back with lease th
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18725,7 +18725,7 @@ test("account can’t remove access from itself then grant it back with lease th
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18735,7 +18735,7 @@ test("account can’t remove access from itself then grant it back with lease th
             },
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "UpdateCollectionPosition",
@@ -18763,7 +18763,7 @@ test("account can’t remove access from itself then grant it back with lease th
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18787,7 +18787,7 @@ test("account can’t remove access from itself then grant it back with lease th
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateCollectionPosition",
@@ -18814,7 +18814,7 @@ test("account can’t remove access from itself then grant it back with lease th
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "UpdateCollectionPosition",
@@ -18827,7 +18827,7 @@ test("account can’t remove access from itself then grant it back with lease th
                 },
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -18857,7 +18857,7 @@ test("account can’t remove access from itself then grant it back with lease th
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18867,7 +18867,7 @@ test("account can’t remove access from itself then grant it back with lease th
             },
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "UpdateCollectionPosition",
@@ -18915,7 +18915,7 @@ test("account can remove access from itself but can’t grant it back if another
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -18929,7 +18929,7 @@ test("account can remove access from itself but can’t grant it back if another
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -18953,7 +18953,7 @@ test("account can remove access from itself but can’t grant it back if another
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -18980,7 +18980,7 @@ test("account can remove access from itself but can’t grant it back if another
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -19028,7 +19028,7 @@ test("account can remove access from itself but can’t grant it back if another
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -19042,7 +19042,7 @@ test("account can remove access from itself but can’t grant it back if another
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -19066,7 +19066,7 @@ test("account can remove access from itself but can’t grant it back if another
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -19084,7 +19084,7 @@ test("account can remove access from itself but can’t grant it back if another
         false,
     );
 
-    await deleteTaskAndAllChildren(session2.action(), task1.id, testClock.nowLogical());
+    await deleteTaskAndAllChildren(session2.action(), task1.id, testTaskClock.now());
 
     await expect(
         commitTaskActionTransaction(
@@ -19093,7 +19093,7 @@ test("account can remove access from itself but can’t grant it back if another
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -19141,7 +19141,7 @@ test("account can remove access from itself but can’t grant it back if another
         [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "RemoveCollection",
@@ -19155,7 +19155,7 @@ test("account can remove access from itself but can’t grant it back if another
                 actions: [
                     {
                         type: "UpdateTask",
-                        time: testClock.nowLogical(),
+                        time: testTaskClock.now(),
                         taskId: task1.id,
                         taskAction: {
                             type: "AddCollection",
@@ -19179,7 +19179,7 @@ test("account can remove access from itself but can’t grant it back if another
         commitTaskActionTransaction(session1.action(), space.id, [
             {
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId: task1.id,
                 taskAction: {
                     type: "AddCollection",
@@ -19211,7 +19211,7 @@ test("account can remove access from itself but can’t grant it back if another
             [
                 {
                     type: "UpdateTask",
-                    time: testClock.nowLogical(),
+                    time: testTaskClock.now(),
                     taskId: task1.id,
                     taskAction: {
                         type: "AddCollection",
@@ -21136,7 +21136,7 @@ test("can only send share notifications when committing an update access policy 
 
     expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
 
-    const time1 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
     await expect(
         commitTaskActionTransaction(
             session1.action(),
@@ -21177,7 +21177,7 @@ test("can only send share notifications when committing an update access policy 
 
     expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
 
-    const time2 = testClock.nowLogical();
+    const time2 = testTaskClock.now();
     await expect(
         commitTaskActionTransaction(
             session1.action(),
@@ -21211,7 +21211,7 @@ test("can only send share notifications when committing an update access policy 
 
     expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
 
-    const time3 = testClock.nowLogical();
+    const time3 = testTaskClock.now();
     await commitTaskActionTransaction(
         session1.action(),
         space.id,

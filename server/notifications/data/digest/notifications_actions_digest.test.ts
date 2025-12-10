@@ -1,8 +1,8 @@
 import {ZonedDateTime, fromDate, parseDateTime, toZoned} from "@internationalized/date";
 import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
-import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {TestWebPushContextModule} from "~/server/context/web_push_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import * as EmailContextModule from "~/server/emails/noop_email_context_module.js";

@@ -15,6 +15,7 @@ import {
 } from "~/server/tasks/data/task_index.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
@@ -27,7 +28,6 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const context = createTestContext({
     shouldStartOpensearch: true,
@@ -696,7 +696,7 @@ test("processing account name update action only updates one space", async () =>
         [
             {
                 type: "UpdateAccountName",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 accountId: account.id,
                 accountName: newAccountName1,
                 accountNameVersion: 1,
@@ -732,7 +732,7 @@ test("processing account name update action only updates one space", async () =>
         [
             {
                 type: "UpdateAccountName",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 accountId: account.id,
                 accountName: newAccountName2,
                 accountNameVersion: 2,
@@ -768,7 +768,7 @@ test("processing account name update action only updates one space", async () =>
         [
             {
                 type: "UpdateAccountName",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 accountId: account.id,
                 accountName: newAccountName2,
                 accountNameVersion: 2,
@@ -804,7 +804,7 @@ test("processing account name update action only updates one space", async () =>
         [
             {
                 type: "UpdateAccountName",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 accountId: account.id,
                 accountName: newAccountName1,
                 accountNameVersion: 1,
@@ -1345,8 +1345,8 @@ test("updates approximate action counts", async () => {
         ]),
     );
 
-    const time1 = testClock.nowLogical();
-    const time2 = testClock.nowLogical();
+    const time1 = testTaskClock.now();
+    const time2 = testTaskClock.now();
 
     await task3.updatePriority(session3, "Low", {time: time2});
     await ProcessContextModule.waitForTestTasks();

@@ -4,6 +4,7 @@ import {
 } from "~/server/context/apns_alert_notification.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActionContextModules> {
     /**
@@ -48,4 +49,22 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
             ) => Promise<{wasDeviceTokenUnregistered: boolean}>,
         ) => Promise<Value>,
     ): Promise<Value>;
+}
+
+export class TestApnsContextModule extends ApnsContextModuleBase {
+    constructor() {
+        super();
+        assert(process.env.NODE_ENV === "test");
+    }
+
+    public async sendAlert() {
+        // Noop in tests...
+        return {wasDeviceTokenUnregistered: false};
+    }
+
+    public withSendAlert<Value>(
+        action: (sendAlert: () => Promise<{wasDeviceTokenUnregistered: boolean}>) => Promise<Value>,
+    ): Promise<Value> {
+        return action((...args) => this.sendAlert(...args));
+    }
 }

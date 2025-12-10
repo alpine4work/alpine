@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
@@ -16,6 +16,7 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";

@@ -5,10 +5,10 @@ import {duplicateTaskAndAllChildren, getTaskNotesContent} from "~/server/tasks/d
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const context = createTestContext({
     shouldStartOpensearch: true,
@@ -28,7 +28,7 @@ test("can duplicate a task", async () => {
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(session),
         task.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -58,7 +58,7 @@ test("can duplicate a task with subtasks", async () => {
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(session),
         task.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -100,7 +100,7 @@ test("can duplicate a task with notes attached", async () => {
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(session),
         task.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -146,7 +146,7 @@ test("can duplicate a task with nested children and some notes attached", async 
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(session),
         task.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -229,7 +229,7 @@ test("cannot duplicate a task without permission", async () => {
         duplicateTaskAndAllChildren(
             server.action(nonOwnerSession),
             task.id,
-            testClock.nowLogical(),
+            testTaskClock.now(),
             defaultTimeZone,
         ),
     ).rejects.toThrow(/Actor doesn’t have `Edit` access level/);
@@ -238,7 +238,7 @@ test("cannot duplicate a task without permission", async () => {
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(ownerSession),
         task.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -273,7 +273,7 @@ test(
             duplicateTaskAndAllChildren(
                 server.action(session),
                 parentTask.id,
-                testClock.nowLogical(),
+                testTaskClock.now(),
                 defaultTimeZone,
             ),
         ).rejects.toThrow(/Child task limit exceeded/);
@@ -311,7 +311,7 @@ test(
             duplicateTaskAndAllChildren(
                 server.action(session),
                 parentTask.id,
-                testClock.nowLogical(),
+                testTaskClock.now(),
                 defaultTimeZone,
             ),
         ).rejects.toThrow(/Child task limit exceeded/);
@@ -339,7 +339,7 @@ test("cannot duplicate a task with too many children + notes", async () => {
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
         server.action(session),
         parentTask.id,
-        testClock.nowLogical(),
+        testTaskClock.now(),
         defaultTimeZone,
     );
 
@@ -359,7 +359,7 @@ test("cannot duplicate a task with too many children + notes", async () => {
         duplicateTaskAndAllChildren(
             server.action(session),
             parentTask.id,
-            testClock.nowLogical(),
+            testTaskClock.now(),
             defaultTimeZone,
         ),
     ).rejects.toThrow(/Child task limit exceeded/);

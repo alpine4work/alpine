@@ -1,4 +1,4 @@
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

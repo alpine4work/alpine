@@ -1106,7 +1106,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file1Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1118,7 +1118,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file2Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1166,7 +1166,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file1Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1178,7 +1178,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file2Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1253,7 +1253,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file1Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1265,7 +1265,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file2Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1313,7 +1313,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file1Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),
@@ -1325,7 +1325,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             file: new FileModel({
                                 id: file2Id,
                                 contentType: "image/png",
-                                contentLength: 100,
+                                contentLength: 5232,
                                 isUploading: false,
                                 alternative: null,
                                 preview: expect.any(Object),

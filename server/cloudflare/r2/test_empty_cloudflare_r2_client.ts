@@ -12,6 +12,10 @@ export class TestEmptyCloudflareR2Client implements CloudflareR2ClientBase {
         return false;
     }
 
+    public isEmptyForTest() {
+        return true;
+    }
+
     public GetObject(): Promise<never> {
         throw new NotFoundError("R2 object not found", {
             // Make sure `isCloudflareR2NoSuchKeyError()` returns true for this error.

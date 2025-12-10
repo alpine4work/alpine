@@ -6844,7 +6844,7 @@ test("will attach referenced files to post when creating from draft", async () =
         new FileModel({
             id: file.id,
             contentType: "image/png",
-            contentLength: 100,
+            contentLength: 5232,
             isUploading: false,
             alternative: null,
             preview: expect.any(Object),

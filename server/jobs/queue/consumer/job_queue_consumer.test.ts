@@ -1,13 +1,11 @@
-import {
-    TestContextModules,
-    createTestContext,
-} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     JobQueueConsumer,
     changeMessageVisibilityBatchTestCounter,
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
 } from "~/server/jobs/queue/consumer/job_queue_consumer.js";
+import {TestContextModules} from "~/server/spaces/test_helpers/test_context.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";

@@ -25,7 +25,7 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {
     assertDocumentContent,

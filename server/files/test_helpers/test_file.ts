@@ -1,7 +1,3 @@
-import {
-    TestContext,
-    TestSessionActionContext,
-} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {
     attachFileAsUploader,
@@ -12,6 +8,9 @@ import {
     getFileUploaderAsUploader,
     startUploadingFile,
 } from "~/server/files/data/files_actions.js";
+import {testFileContent} from "~/server/files/test_helpers/internal/test_file_content.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
+import {TestContext, TestSessionActionContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -19,7 +18,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
-const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
+const testFileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
         {r: 255, g: 0, b: 0},
         {r: 255, g: 0, b: 0},
@@ -41,8 +40,18 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
     const {fileId} = await startUploadingFile(context, {
         spaceId,
         contentType: "image/png",
-        contentLength: 100,
+        contentLength: testFileContent.length,
     });
+
+    // If we're not using `TestEmptyCloudflareR2Client` then actually upload a file
+    // to Cloudflare R2 matching the file in DynamoDB.
+    if (!context.r2.isEmptyForTest()) {
+        await context.r2.PutObject({
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}`,
+            Body: testFileContent,
+        });
+    }
 
     await finishUploadingAndStartProcessingFile(context, {
         spaceId,
@@ -62,7 +71,7 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
         context,
-        fileImagePreviewPlaceholder,
+        testFileImagePreviewPlaceholder,
     );
 
     return {fileId};

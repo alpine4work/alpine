@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestActualContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
@@ -10,7 +10,7 @@ import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_a
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export async function createTestTokenAgent(
-    context: TestContext,
+    context: TestActualContext,
     serviceName: TokenServiceName,
 ): Promise<TokenAgent> {
     return (await createTestTokenAgents(context, [serviceName]))[0];
@@ -19,7 +19,7 @@ export async function createTestTokenAgent(
 export async function createTestTokenAgents<
     const ServiceNames extends ReadonlyArray<TokenServiceName>,
 >(
-    context: TestContext,
+    context: TestActualContext,
     serviceNames: ServiceNames,
 ): Promise<{[Key in keyof ServiceNames]: TokenAgent}> {
     const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");

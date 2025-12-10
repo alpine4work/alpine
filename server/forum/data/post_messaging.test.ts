@@ -23,7 +23,7 @@ import {
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
-import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

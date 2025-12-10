@@ -1,6 +1,6 @@
 import {createSessionForTest} from "~/server/accounts/accounts_actions.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {generateId} from "~/shared/id/id.js";
 import {SessionId} from "~/shared/id/types/id_types.js";

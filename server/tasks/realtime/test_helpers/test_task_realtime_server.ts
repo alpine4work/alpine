@@ -7,8 +7,9 @@ import {
 import {TestTaskContextModule} from "~/server/context/task_context_module_base.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestActualContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
@@ -19,6 +20,7 @@ import {getTaskCollectionForRealtime} from "~/server/tasks/realtime/get_task_col
 import {getTaskWithoutDependenciesForRealtime} from "~/server/tasks/realtime/get_task_without_dependencies_for_realtime.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -57,7 +59,6 @@ import {
     TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesOutput,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 /**
  * Wait for OpenSearch to have indexed all our action transactions.
@@ -221,7 +222,7 @@ export class TestTaskRealtimeServer {
         const evaluationContext: TaskQueryEvaluationContext = {
             currentAccountId: session.account.id,
             currentDate: toCalendarDate(
-                parseAbsolute(testClock.nowDate().toISOString(), defaultTimeZone),
+                parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
             ),
         };
 
@@ -267,7 +268,7 @@ export class TestTaskRealtimeServer {
     /**
      * Modify `TestContext` so `context.tasks` references a `TestTaskRealtimeServer`.
      */
-    public static with(context: TestContext): TestContext & {
+    public static with(context: TestActualContext): TestActualContext & {
         getTaskRealtimeServer(): TestTaskRealtimeServer;
     } {
         let server: TestTaskRealtimeServer | undefined;

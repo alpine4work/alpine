@@ -26,6 +26,7 @@ ts_project(
         "//server/jobs/core",
         "//server/opensearch",
         "//server/spaces",
+        "//server/spaces/test_helpers",
         "//server/tokens",
         "//shared/accounts",
         "//shared/context",

@@ -3,9 +3,9 @@ import {
     createAccountForTest,
     dangerouslyGetAccountIfExistsWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -20,8 +20,6 @@ export class TestAccount {
     public readonly context: TestContext;
     public readonly id: AccountId;
     public readonly initialName: string;
-
-    private _emailAddressCount = 0;
 
     protected constructor(context: TestContext, id: AccountId, initialName: string) {
         this.context = context;

@@ -18,7 +18,7 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
     messagingRealtimeUpdateMessageContentBeforeSendTestCheckpoint,
 } from "~/server/messaging/realtime/messaging_realtime_connection.js";
-import {RoomInterface} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {RoomInterface} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ContentMention} from "~/shared/content/content_mention.js";

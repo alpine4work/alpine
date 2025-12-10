@@ -4,6 +4,7 @@ import {expectTaskRowViewPriority} from "~/app/integration_tests/tasks/helpers/e
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/task_table.js";
+import {testTaskClock} from "~/server/tasks/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -16,7 +17,6 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {createTaskTitleFromText} from "~/shared/tasks/title/task_title.js";
-import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const {context, services} = createTestServices();
 
@@ -51,7 +51,7 @@ test.beforeAll(async () => {
 
         actions.push({
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId,
             taskAction: {
                 type: "Create",
@@ -62,7 +62,7 @@ test.beforeAll(async () => {
 
         actions.push({
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId,
             taskAction: {
                 type: "UpdateTitle",
@@ -72,7 +72,7 @@ test.beforeAll(async () => {
 
         actions.push({
             type: "UpdateTask",
-            time: testClock.nowLogical(),
+            time: testTaskClock.now(),
             taskId,
             taskAction: {
                 type: "AddCollection",
@@ -84,7 +84,7 @@ test.beforeAll(async () => {
         if (taskIndex < 5) {
             actions.push({
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId,
                 taskAction: {
                     type: "UpdatePriority",
@@ -94,7 +94,7 @@ test.beforeAll(async () => {
         } else {
             actions.push({
                 type: "UpdateTask",
-                time: testClock.nowLogical(),
+                time: testTaskClock.now(),
                 taskId,
                 taskAction: {
                     type: "UpdatePriority",

@@ -3,7 +3,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     MessageStreamAttributesSchema,
     MessageStreamPartSchema,
-} from "~/server/messaging/message_stream_schema.js";
+} from "~/server/messaging/helpers/message_stream_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";

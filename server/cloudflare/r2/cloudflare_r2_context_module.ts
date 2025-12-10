@@ -28,6 +28,10 @@ export class CloudflareR2ContextModule
         return this._client.isMiniflare();
     }
 
+    public isEmptyForTest() {
+        return this._client.isEmptyForTest();
+    }
+
     /**
      * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
      * notes][2].

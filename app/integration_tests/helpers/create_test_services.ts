@@ -9,7 +9,10 @@ import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestActualContext,
+    createTestContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
@@ -66,7 +69,10 @@ export type TestServices = {
 /**
  * Runs a test server for Playwright tests using the test context's DynamoDB. Also sets that server as the base URL for future tests.
  */
-export function createTestServices(): {context: TestContext; services: TestServices} {
+export function createTestServices(): {
+    context: TestActualContext;
+    services: TestServices;
+} {
     // Important that this comes before `createTestContext()`! We want all our
     // services to finish shutting down before we kill the database services we start
     // in `createTestContext()`.

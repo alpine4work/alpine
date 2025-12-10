@@ -7,13 +7,15 @@ import {
     WorkerSystemActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {
-    TestBotActionContextModules,
-    TestContext,
-    TestSessionActionContextModules,
-    TestSystemActionContextModules,
+    TestActualContext,
     createTestContext,
 } from "~/server/dynamo/test_helpers/create_test_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {
+    TestBotActionContextModules,
+    TestSessionActionContextModules,
+    TestSystemActionContextModules,
+} from "~/server/spaces/test_helpers/test_context.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -35,19 +37,19 @@ type TestWorkerBotActionContextModules = TestBotActionContextModules &
     Omit<WorkerBotActionContextModules, keyof TestBotActionContextModules>;
 
 export type TestWorkerContext = Replace<
-    TestContext,
+    TestActualContext,
     {
-        action(...args: Parameters<TestContext["action"]>): TestWorkerSessionActionContext;
+        action(...args: Parameters<TestActualContext["action"]>): TestWorkerSessionActionContext;
 
         systemAction(
-            ...args: Parameters<TestContext["systemAction"]>
+            ...args: Parameters<TestActualContext["systemAction"]>
         ): TestWorkerSystemActionContext;
 
-        botAction(...args: Parameters<TestContext["botAction"]>): TestWorkerBotActionContext;
+        botAction(...args: Parameters<TestActualContext["botAction"]>): TestWorkerBotActionContext;
     }
 >;
 
-assertAssignableTypes<TestWorkerContext, TestContext>();
+assertAssignableTypes<TestWorkerContext, TestActualContext>();
 assertAssignableTypes<TestWorkerSessionActionContext, WorkerSessionActionContext>();
 assertAssignableTypes<TestWorkerSystemActionContext, WorkerSystemActionContext>();
 assertAssignableTypes<TestWorkerBotActionContext, WorkerBotActionContext>();

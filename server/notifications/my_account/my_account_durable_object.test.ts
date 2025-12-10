@@ -1,9 +1,9 @@
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 
 const baseContext = createTestWorkerContext();
