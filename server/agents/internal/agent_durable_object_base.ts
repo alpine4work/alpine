@@ -1,5 +1,14 @@
 import {addHours, subHours} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
+import {
+    AgentDurableObjectScheduleEvent,
+    AgentDurableObjectScheduleEventRequest,
+    deleteAgentDurableObjectScheduleEvent,
+    getAgentDurableObjectScheduleEvents,
+    getAgentDurableObjectScheduleEventsBeforeDate,
+    getNextAgentDurableObjectScheduleEvent,
+    putAgentDurableObjectScheduleEvent,
+} from "~/server/agents/internal/agent_durable_object_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
@@ -13,13 +22,15 @@ import {
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {createInterval} from "~/shared/helpers/async/interval.js";
+import {DataLossError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -44,6 +55,12 @@ export type AgentWebhookRequest = {
 export type ConversationStateRequest = {
     readonly storage: DurableObjectStorage;
 };
+
+/**
+ * Storage interface exposed to agent subclasses. Excludes `setAlarm` to ensure
+ * alarm scheduling is controlled only by the base class.
+ */
+export type AgentDurableObjectStorageInterface = Omit<DurableObjectStorage, "setAlarm">;
 
 /**
  * Delete the agent's storage after 6 hours of inactivity. So the agent resets
@@ -75,7 +92,9 @@ export abstract class AgentDurableObjectBase<Route> {
     private readonly _processContext: Lazy<AgentContext>;
     private readonly _openAiClient: Lazy<OpenAiClient>;
 
-    private readonly _alarmTimeMutex: MutexValue<Date | null> = new MutexValue(null);
+    private readonly _alarmTimeMutex: MutexValue<
+        (AgentDurableObjectScheduleEvent & {type: "ClearStorage"}) | null
+    > = new MutexValue(null);
 
     constructor(serviceName: TracerServiceName, state: DurableObjectState, env: AgentServiceEnv) {
         this._state = state;
@@ -116,7 +135,7 @@ export abstract class AgentDurableObjectBase<Route> {
         });
     }
 
-    public getStorage(): DurableObjectStorage {
+    public getStorage(): AgentDurableObjectStorageInterface {
         return this._state.storage;
     }
 
@@ -145,29 +164,11 @@ export abstract class AgentDurableObjectBase<Route> {
     public async fetch(request: Request): Promise<Response> {
         // When the Durable Object's alarm is triggered, we delete all storage
         // associated with the Durable Object.
-        await this._maybeResetAlarm();
+        await this._maybeResetDurableObjectTimeToLive();
 
         const url = new URL(request.url);
 
-        let route: string;
-        let routeObject: Route | "Webhook" | "KeepAlive";
-
-        switch (url.pathname) {
-            case "/webhook": {
-                route = "/webhook";
-                routeObject = "Webhook";
-                break;
-            }
-            case "/keep-alive": {
-                route = "/keep-alive";
-                routeObject = "KeepAlive";
-                break;
-            }
-            default: {
-                [route, routeObject] = this._parseRoute(url);
-                break;
-            }
-        }
+        const [route, routeObject] = this._parseRoute(url);
 
         return traceServerResponse(
             this._tracer.get(),
@@ -183,19 +184,10 @@ export abstract class AgentDurableObjectBase<Route> {
                             tracer: new TracerContextModule(span),
                         },
                         async actionContext => {
-                            switch (routeObject) {
-                                case "Webhook": {
-                                    return this._fetchWebhook(actionContext, request, url);
-                                }
-                                case "KeepAlive": {
-                                    return new Response("200 OK", {
-                                        status: 200,
-                                        headers: {"content-type": "text/plain"},
-                                    });
-                                }
-                                default: {
-                                    return this._fetch(actionContext, request, routeObject, span);
-                                }
+                            if (routeObject === "Webhook") {
+                                return this._fetchWebhook(actionContext, request, span);
+                            } else {
+                                return this._fetch(actionContext, request, routeObject, span);
                             }
                         },
                     );
@@ -211,7 +203,7 @@ export abstract class AgentDurableObjectBase<Route> {
     private async _fetchWebhook(
         context: AgentContext,
         request: Request,
-        url: URL,
+        span: TracerSpan,
     ): Promise<Response> {
         if (request.method !== "POST") {
             return new Response("405 Method Not Allowed", {
@@ -220,69 +212,46 @@ export abstract class AgentDurableObjectBase<Route> {
             });
         }
 
-        const {accessToken, spaceId, accountId, event}: ApiBotWebhookRequestBody =
-            await request.json();
+        const requestBody: ApiBotWebhookRequestBody = await request.json();
 
-        // We immediately return 200 to Alpine so the request isn't retried and we
-        // process the webhook in the background. This is also important since
-        // long-running webhooks will cause the request to timeout and Alpine to send
-        // a retry.
-        void context.tracer.getTracer().withSpan("Process agent webhook", async span => {
-            // HACK(calebmer, 2025-12-09): We were running into an issue where our Durable
-            // Object would die with the error message "IoContext timed out due to
-            // inactivity, waitUntil tasks were cancelled without completing" after ~90
-            // seconds of work. I reached out to an old coworker ([@sunilpai][1]) who's
-            // working at Cloudflare on Durable Objects who suspected this may be a bug in
-            // Durable Objects. After some investigation he provided this response:
-            //
-            // > ok I have a workaround for you, tldr -
-            // >
-            // > - there's a 70-140 second timeout for a DO's own loop
-            // > - immediate workaround for your problem: you can restart this timer by
-            // >   sending the DO a request again, even from itself
-            // > - be careful you terminate this self calling request or you'll get a
-            // >   proper big bill haha
-            // > - long term solution: an alarm also resets the timer, so you should plan
-            // >   on refactoring your timeouts/intervals to alarms
-            // >
-            // > happy to walk through details with you tomorrow if you'd like, and even
-            // > look at code, but that's the basic plan (edited)
-            // >
-            // > alarms last for a max of 15 mins which is why it's a good idea
-            // >
-            // > and you can run timeouts/intervals inside it of course
-            //
-            // Hence this keep alive interval. By sending the Durable Object a request
-            // every 30 seconds (even from within itself!) while we're generating the LLM
-            // response we continually extend the Durable Object's lifespan until all
-            // webhook activity has completed.
-            //
-            // [1]: https://x.com/threepointone
-            const keepAliveInterval = createInterval(() => {
-                const agentServiceBasePath = url.pathname.slice(1).split("/", 2)[0]!;
+        // TODO(ifitzsimmons): If this works, we'll probably want to execute the
+        // following logic before scheduling the event:
+        // 1. Determine whether the agent needs to respond
+        // 2. If yes, create the message stream message and send its index
+        //    with the event payload.
+        await this.schedule(context, {
+            type: "ProcessWebhook",
+            // Schedule the event for immediate execution.
+            date: new Date(),
+            payload: requestBody,
+            tracerPropagationContext: span.getPropagationContext(),
+        });
 
-                void fetchWithTracer(
-                    span,
-                    new URL(
-                        `/${agentServiceBasePath}/keep-alive?id=${this._state.id.toString()}`,
-                        request.url,
-                    ),
-                    {
-                        serviceName: "AgentService",
-                        route: `/${agentServiceBasePath}/keep-alive`,
-                    },
-                    async response => {
-                        if (!response.ok) {
-                            throw new UnknownError(
-                                `Keep alive request failed with status ${response.status}`,
-                            );
-                        }
+        return new Response(null, {status: 200});
+    }
 
-                        // Drain the response body...
-                        await response.text();
-                    },
-                );
-            }, 30_000);
+    /**
+     * Schedule an event to be executed at a future date. Uses `alarm()` under the hood
+     * to execute the event.
+     */
+    public async schedule(
+        context: AgentContext,
+        event: AgentDurableObjectScheduleEventRequest,
+    ): Promise<void> {
+        await context.tracer
+            .getTracer()
+            .withSpan(quote`Scheduling event ${event.type}`, async () => {
+                await putAgentDurableObjectScheduleEvent(this._state.storage, event);
+                await this._scheduleNextAlarm();
+            });
+    }
+
+    private async _processScheduledWebhookEvent(
+        parentSpan: TracerSpan,
+        payload: ApiBotWebhookRequestBody,
+    ) {
+        await parentSpan.withSpan("Process agent webhook", async span => {
+            const {accessToken, spaceId, accountId, event} = payload;
 
             try {
                 const context: AgentWebhookRequest = {
@@ -315,52 +284,194 @@ export abstract class AgentDurableObjectBase<Route> {
                 }
 
                 span.addException(error);
-            } finally {
-                keepAliveInterval.clear();
             }
         });
-
-        return new Response(null, {status: 200});
     }
 
     /**
-     * Alarm has run! Delete all storage associated with the Durable Object.
+     * Alarm has run! Get all scheduled events before `time = now` and execute them.
+     *
+     * If `alarm()` were to throw an uncaught error, it'll retry the process up to
+     * 6 times with exponential backoff [1]. We don't want to retry the entire process
+     * because that would cause us to process a message multiple times. If the alarm process
+     * fails due to any of the following, we'll emit a DataLossError.
+     *
+     * 1. We fail to delete the scheduled event from storage. If this fails, the event will
+     *    be retried indefinitely (or until the Durable Object is deleted / has its state
+     *    cleared).
+     * 2. We fail to schedule the next alarm. If this fails the "event loop" will die (until
+     *    a new request is made to the Durable Object).
      */
     public async alarm() {
-        await this._state.storage.deleteAll();
+        try {
+            const scheduledEvents = await getAgentDurableObjectScheduleEventsBeforeDate(
+                this._state.storage,
+                new Date(),
+            );
+
+            let clearStorageEvent:
+                | (AgentDurableObjectScheduleEvent & {type: "ClearStorage"})
+                | undefined;
+
+            for (const scheduledEvent of scheduledEvents) {
+                if (scheduledEvent.type === "ClearStorage") {
+                    // Execute all other events before clearing storage. There should only ever
+                    // be one `ClearStorage` event, but even if there are multiple, we will only
+                    // execute the first one.
+                    clearStorageEvent ??= scheduledEvent;
+                    continue;
+                }
+
+                const withSpan = async <T>(
+                    callback: (span: TracerSpan) => Promise<T>,
+                ): Promise<T> => {
+                    if (scheduledEvent.tracerPropagationContext) {
+                        return this._tracer
+                            .get()
+                            .withSpanFromPropagationContext(
+                                quote`Executing scheduled event ${scheduledEvent.type}`,
+                                scheduledEvent.tracerPropagationContext,
+                                callback,
+                            );
+                    } else {
+                        return this._tracer
+                            .get()
+                            .withSpan(
+                                quote`Executing scheduled event ${scheduledEvent.type}`,
+                                callback,
+                            );
+                    }
+                };
+
+                await runAllPromises([
+                    deleteAgentDurableObjectScheduleEvent(this._state.storage, scheduledEvent.id),
+                    withSpan(async span => {
+                        try {
+                            // TODO(ifitzsimmons): If this approach works, we should log some span data
+                            // here that explains how early or late the event began executing based on
+                            // time now and the event's scheduled `date`.
+
+                            switch (scheduledEvent.type) {
+                                case "ProcessWebhook":
+                                    return this._processScheduledWebhookEvent(
+                                        span,
+                                        scheduledEvent.payload,
+                                    );
+                                default:
+                                    throw exhaustive(scheduledEvent);
+                            }
+                        } catch (error) {
+                            // Log errors in development since webhook errors aren't shown to the user in
+                            // the UI. So we need to show webhook errors in our logs.
+                            if (process.env.NODE_ENV !== "production") {
+                                // eslint-disable-next-line no-console
+                                console.error(
+                                    quote`Agent scheduled event ${scheduledEvent.type} failed:`,
+                                    error,
+                                );
+                            }
+
+                            span.addException(error);
+                        }
+                    }),
+                ]);
+            }
+
+            if (clearStorageEvent) {
+                // NOTE(ifitzsimmons): There's a race condition where we receive a request as the
+                // `ClearStorage` event is running, in which case the message will not be responded
+                // to.
+                //
+                // If this becomes a problem later, I think we could check to see if there are any
+                // scheduled events left and, if there are, ignore this `ClearStorage` event and
+                // schedule a new one for after the last event. That could potentially extend the
+                // durable object's lifespan indefinitely, so I don't think we should do that
+                // without a good reason.
+                //
+                // Until then, I think it's fair to assume that any event you schedule is at the
+                // mercy of the durable object's state.
+                await this._state.storage.deleteAll();
+            }
+
+            await this._scheduleNextAlarm();
+        } catch (error) {
+            // Log errors in development since event scheduling errors aren't shown to the user in
+            // the UI. So we need to show event scheduling errors in our logs.
+            if (process.env.NODE_ENV !== "production") {
+                // eslint-disable-next-line no-console
+                console.error("Agent scheduled event failed:", error);
+            }
+
+            this._tracer
+                .get()
+                .getRoot()
+                .logException(
+                    "Agent scheduled event failed",
+                    new DataLossError("Failed to execute scheduled events", {cause: error}),
+                );
+        }
     }
 
     /**
-     * We maintain an alarm that'll run a month from now that deletes all storage
+     * We maintain an alarm that'll run a 6 hours from now that deletes all storage
      * associated with the Durable Object. This function checks if the alarm will
      * run soon and if so resets the alarm to a point later in the future.
      */
-    private async _maybeResetAlarm() {
+    private async _maybeResetDurableObjectTimeToLive() {
         const currentTime = new Date();
 
         await this._alarmTimeMutex.withLock(async alarmTimeRef => {
             // If no alarm time is set, read the alarm time from storage. If there's no
             // alarm time in storage then set an alarm to cleanup the durable object.
             if (alarmTimeRef.current === null) {
-                const alarmTimeFromStorage = await this._state.storage.getAlarm();
+                const scheduleEvents = await getAgentDurableObjectScheduleEvents(
+                    this._state.storage,
+                );
+                const clearStorageEvent = scheduleEvents.find(
+                    event => event.type === "ClearStorage",
+                );
 
-                if (alarmTimeFromStorage !== null) {
-                    alarmTimeRef.current = new Date(alarmTimeFromStorage);
+                if (clearStorageEvent) {
+                    alarmTimeRef.current = clearStorageEvent;
                 } else {
-                    alarmTimeRef.current = addHours(currentTime, agentDeleteAllStorageAlarmHours);
-                    await this._state.storage.setAlarm(alarmTimeRef.current);
+                    alarmTimeRef.current = await putAgentDurableObjectScheduleEvent(
+                        this._state.storage,
+                        {
+                            type: "ClearStorage",
+                            date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
+                        },
+                    );
                 }
             }
 
+            assert(alarmTimeRef.current);
             if (
                 shouldResetAgentDeleteAllStorageAlarm({
                     currentTime,
-                    alarmTime: alarmTimeRef.current,
+                    alarmTime: alarmTimeRef.current.date,
                 })
             ) {
-                alarmTimeRef.current = addHours(currentTime, agentDeleteAllStorageAlarmHours);
-                await this._state.storage.setAlarm(alarmTimeRef.current);
+                const [newClearStorageEvent] = await runAllPromises([
+                    putAgentDurableObjectScheduleEvent(this._state.storage, {
+                        type: "ClearStorage",
+                        date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
+                    }),
+                    deleteAgentDurableObjectScheduleEvent(
+                        this._state.storage,
+                        alarmTimeRef.current.id,
+                    ),
+                ]);
+
+                alarmTimeRef.current = newClearStorageEvent;
             }
         });
+    }
+
+    private async _scheduleNextAlarm() {
+        const nextEvent = await getNextAgentDurableObjectScheduleEvent(this._state.storage);
+
+        if (!nextEvent) return;
+
+        await this._state.storage.setAlarm(nextEvent.date);
     }
 }

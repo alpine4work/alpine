@@ -88,8 +88,12 @@ export class DurableObjectStorageCollection<Key extends string, Value> {
         return storage.delete(`${this.prefix}_${key}`, {allowConcurrency: true});
     }
 
-    public async list(storage: DurableObjectStorageInterface): Promise<Map<Key, Value>> {
+    public async list(
+        storage: DurableObjectStorageInterface,
+        options: Omit<DurableObjectListOptions, "prefix" | "allowConcurrency"> = {},
+    ): Promise<Map<Key, Value>> {
         const actualMap = await storage.list<Value>({
+            ...options,
             prefix: `${this.prefix}_`,
             allowConcurrency: true,
         });
