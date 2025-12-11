@@ -1,5 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {differenceInDays} from "date-fns/differenceInDays";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -37,20 +38,5 @@ export function formatMessageViewTimestampDividerDate(
         }
     }
 
-    const isCurrentYear = currentDate.year === date.year;
-
-    const formatter = getIntlDateTimeFormat({
-        locale,
-        timeZone,
-        year: !isCurrentYear ? "numeric" : undefined,
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
-
-    return formatter
-        .format(time)
-        .replace(/, (\d+:\d+)/, " at $1")
-        .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+    return formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentDate, time);
 }

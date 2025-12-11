@@ -67,11 +67,12 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
     const formatter = isCurrentYear ? formatterWithoutYear : formatterWithYear;
 
     const dateStringParts = formatter.formatToParts(time);
+
     const dateString = dateStringParts
         .map(({type, value}) => {
             switch (type) {
                 case "day":
-                    return formatNumberWithOrdinal(Number(value));
+                    return formatNumberWithOrdinal(parseInt(value, 10));
                 default:
                     return value;
             }
@@ -79,6 +80,7 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
         .join("")
         .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase())
         .replace(/, (\d+:\d+)/, " at $1");
+
     return dateString;
 }
 
