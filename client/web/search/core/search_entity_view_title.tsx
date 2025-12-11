@@ -191,6 +191,8 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
             );
         }
         case "TaskCollectionColor": {
+            if (media.color === null) return null;
+
             return (
                 <Box
                     display="inline-flex"

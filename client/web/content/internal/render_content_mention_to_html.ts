@@ -246,6 +246,8 @@ export function renderContentMentionToHtml(
                 break;
             }
             case "TaskCollectionColor": {
+                if (media.color === null) break;
+
                 const colorContainerHtml = new HtmlElementGenerator("span");
 
                 colorContainerHtml.setAttribute(
