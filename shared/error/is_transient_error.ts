@@ -1,4 +1,4 @@
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorBase, InternalError, getErrorCode} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
@@ -142,9 +142,13 @@ function isTransientErrorCode(code: ErrorCode, hasDisplayMessage: boolean): bool
  * immediately.
  */
 export function isTransientError(error: unknown): boolean {
-    if (!(error instanceof ErrorBase)) {
-        return isTransientErrorCode(ErrorCode.Unknown, false);
-    } else {
-        return isTransientErrorCode(error.code, !!error.displayMessage);
+    // If this is an `AggregateError`, every error must be transient for the
+    // aggregate error to be considered transient. If one error isn't transient
+    // then retrying won't help.
+    if (error instanceof AggregateError) {
+        return error.errors.every(isTransientError);
     }
+
+    const code = getErrorCode(error);
+    return isTransientErrorCode(code, error instanceof ErrorBase && !!error.displayMessage);
 }

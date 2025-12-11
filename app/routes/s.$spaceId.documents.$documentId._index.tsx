@@ -77,11 +77,11 @@ export async function loader({params, context: unauthenticatedContext, request}:
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
-    const [document, commentThreadResult, isFavorite, spellCheckIgnoredLintsResult] =
+    const [document, commentThreadResultResult, isFavorite, spellCheckIgnoredLintsResult] =
         await runAllPromises([
             getDocumentWithOptionalCommentsIfExists(context, documentId),
             commentThreadId
-                ? (async () => {
+                ? captureResultPromise(async () => {
                       // Generate checkpoint before we start loading data. So when we backfill we
                       // include any realtime events that happened while loading data.
                       const checkpoint = generateServerSynchronizationCheckpoint();
@@ -93,7 +93,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                       });
 
                       return {checkpoint, ...output};
-                  })()
+                  })
                 : null,
             isSearchFavoriteEntity(context, {
                 spaceId,
@@ -101,6 +101,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
             }),
             captureResultPromise(getSpellCheckIgnoredLints(context, `Document:${documentId}`)),
         ]);
+
+    // Don't throw a "actor doesn't have comment" permission error if the actor
+    // doesn't have view access to the document.
+    const commentThreadResult = commentThreadResultResult
+        ? unwrapResult(commentThreadResultResult)
+        : null;
 
     let spellCheckIgnoredLints: DynamoGeneralRealtimeQueryResult<SpellCheckIgnoredLintModel>;
 
@@ -125,7 +131,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     return jsonWithSchema(
         LoaderSchema,
-        {document, commentThreadResult, isFavorite, spellCheckIgnoredLints},
+        {
+            document,
+            commentThreadResult,
+            isFavorite,
+            spellCheckIgnoredLints,
+        },
         {propagateEventData},
     );
 }

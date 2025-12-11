@@ -928,10 +928,13 @@ async function actuallyHandleFetch(
     if (!response.ok && (await shouldRetryRequest(request, url, response))) {
         response = await retryWithExponentialBackoff(
             async retry => {
-                const retriedResponse = await span.withSpan("Retry request", () =>
+                const retriedResponse = await span.withSpan("Retry request", span => {
+                    const retryHeaders = new Headers(request.headers);
+                    addTracerPropagationContextHeader(retryHeaders, span);
+
                     // eslint-disable-next-line no-global-fetch
-                    fetch(request, {headers}),
-                );
+                    return fetch(request, {headers: retryHeaders});
+                });
 
                 // If the retried request also has a transient error, then try again!
                 if (

@@ -97,6 +97,13 @@ type TracerEventHttpHeaderNameMap = {
     "apns-topic": true;
     "apns-collapse-id": true;
     "apns-unique-id": true;
+    // Remix headers
+    "x-remix-catch": true;
+    "x-remix-error": true;
+    "x-remix-redirect": true;
+    "x-remix-reload-document": true;
+    "x-remix-revalidate": true;
+    "x-remix-status": true;
     // Cyberworlds custom headers
     "cyberworlds-durable-object-id-name": true;
     "cyberworlds-durable-object-if-initialized": true;
@@ -177,6 +184,12 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "apns-topic": true,
     "apns-collapse-id": true,
     "apns-unique-id": true,
+    "x-remix-catch": true,
+    "x-remix-error": true,
+    "x-remix-redirect": true,
+    "x-remix-reload-document": true,
+    "x-remix-revalidate": true,
+    "x-remix-status": true,
     "cyberworlds-durable-object-id-name": true,
     "cyberworlds-durable-object-if-initialized": true,
     "cyberworlds-space-id-hint": true,
