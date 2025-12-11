@@ -1,14 +1,11 @@
+import "~/server/helpers/node/register_noop_react_refresh.js";
+
 import {ComponentType, createElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import sharp from "sharp";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 async function main() {
-    // Globals expected by the `react-refresh` transform applied by SWC.
-    // `react-refresh` functions noop in this generator script.
-    (globalThis as any).$RefreshReg$ = () => {};
-    (globalThis as any).$RefreshSig$ = () => (value: any) => value;
-
     // Can only import icons after installing the `$RefreshReg$` global.
     const [{ChatBrandIcon}, {DocumentBrandIcon}, {PostBrandIcon}, {TaskBrandIcon}, {LogoWordmark}] =
         await runAllPromises([

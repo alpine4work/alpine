@@ -9553,6 +9553,7 @@ describe("getChannelAndMetadata", () => {
 
                 for (const session of alternatedSessions) {
                     await channel.createPost(session, "Test Post");
+                    await ProcessContextModule.waitForTestTasks();
                 }
 
                 for (const session of removedSessions) {

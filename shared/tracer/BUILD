@@ -5,7 +5,6 @@ ts_project(
     test_deps = ["//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
-        "//:node_modules/@types/cookie",
         "//:node_modules/@types/set-cookie-parser",
         "//:node_modules/@types/tough-cookie",
         "//:node_modules/cookie",

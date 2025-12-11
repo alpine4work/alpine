@@ -100,7 +100,7 @@ export class TaskFilterableTime {
      * Otherwise you need to provide a real time zone.
      */
     public static test(absoluteTime: HybridLogicalTime) {
-        assert(process.env.NODE_ENV === "test");
+        assert(process.env.NODE_ENV !== "production");
         return new TaskFilterableTime({absoluteTime, setterTimeZone: defaultTimeZone});
     }
 

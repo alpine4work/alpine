@@ -57,7 +57,6 @@ ts_project(
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
-        "//:node_modules/@types/cookie",
         "//:node_modules/@types/etag",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/prettier",

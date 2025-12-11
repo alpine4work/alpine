@@ -86,7 +86,7 @@ export class LoaderContextModule extends ContextModuleBase {
     // Context modules can't directly mutate `this` so we need an
     // intermediate object.
     private readonly _state: {
-        parsedCookieHeader: {[key: string]: string} | null;
+        parsedCookieHeader: {[key: string]: string | undefined} | null;
         browserId: BrowserId | null;
         clientInfo: ClientInfo | null;
         addResponseHeaders: Array<(headers: Headers) => void> | null;

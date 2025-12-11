@@ -7,6 +7,7 @@ import {SearchInjectionContextModule} from "~/server/context/injection_context_m
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountSpacesItem,
@@ -295,7 +296,7 @@ export async function getAddSpaceAccountTransactionEntries(
 
         if (accountInput.type === "Existing" && accountInput.withoutInviteForTest) {
             // Make sure we only use this code path in test environments!
-            assert(process.env.NODE_ENV === "test");
+            assert(isTestNodeEnvOrAdminScenariosScript);
 
             state = {type: "Active"};
         } else if (role === "Owner") {

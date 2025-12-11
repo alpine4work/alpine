@@ -127,6 +127,13 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
+     * Are we talking to a local DynamoDB instance?
+     */
+    public isLocal() {
+        return this._client.getInternalClient().isLocal();
+    }
+
+    /**
      * Creates a retry loop for expected transaction errors. You can not nest two
      * retry transaction loops.
      *

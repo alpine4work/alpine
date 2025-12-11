@@ -43,7 +43,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -101,14 +101,30 @@ export class TestTask extends TestCommentRoomBase {
     public static async create(
         session: TestSpaceSession,
         {
-            time = testTaskClock.now(),
+            time,
             title: titleText = "",
+            parent,
+            assignee,
+            priority,
+            dueDate,
+            collections,
         }: {
             time?: HybridLogicalTime;
             title?: string;
+            parent?: TestTask;
+            assignee?: TestAccount | TestSession | null;
+            priority?: TaskPriority;
+            dueDate?: CalendarDate | null;
+            collections?: TestTaskCollection | ReadonlyArray<TestTaskCollection>;
         } = {},
     ) {
         const id = generateId<TaskId>();
+
+        if (time) {
+            testTaskClock.tick(time);
+        } else {
+            time = testTaskClock.now();
+        }
 
         const actions: Array<TaskAction> = [
             {
@@ -141,6 +157,81 @@ export class TestTask extends TestCommentRoomBase {
             });
 
             titleState = new MutexValue(title);
+        }
+
+        if (parent) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parent.id,
+                },
+            });
+        }
+
+        if (assignee) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: assignee
+                        ? {
+                              assigneeId:
+                                  assignee instanceof TestSession
+                                      ? assignee.account.id
+                                      : assignee.id,
+                              assignerId: session.account.id,
+                              assignedTime: TaskFilterableTime.test(time),
+                          }
+                        : null,
+                },
+            });
+        }
+
+        if (priority) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority,
+                },
+            });
+        }
+
+        if (dueDate) {
+            actions.push({
+                type: "UpdateTask",
+                time: testTaskClock.now(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate,
+                },
+            });
+        }
+
+        if (collections) {
+            const collectionsArray = isReadonlyArray(collections) ? collections : [collections];
+            const orderKeys = generateOrderKeysBetween(null, null, collectionsArray.length);
+
+            for (let i = 0; i < collectionsArray.length; i++) {
+                actions.push({
+                    type: "UpdateTask",
+                    time: testTaskClock.now(),
+                    taskId: id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collectionsArray[i]!.id,
+                        orderKey: orderKeys[i]!,
+                    },
+                });
+            }
         }
 
         await commitTaskActionTransaction(session.action(), session.space.id, actions);

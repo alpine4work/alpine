@@ -63,6 +63,8 @@ import {
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
@@ -121,7 +123,10 @@ const taskRealtimeServiceLocalPort = assertPort(env.TASK_REALTIME_DEV_PORT);
  * and lets you use our test helpers like `TestDocument` with the context.
  */
 export async function withDevContext<Value>(
-    action: (context: TestContext) => Promise<Value>,
+    action: (
+        context: TestContext,
+        options: {tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>},
+    ) => Promise<Value>,
 ): Promise<Value> {
     const promiseWaiter = new PromiseWaiter();
 
@@ -137,10 +142,10 @@ export async function withDevContext<Value>(
         waitUntil: promiseWaiter.waitUntil,
     });
 
-    // Use `ApiService` for signing tokens. It doesn't have particularly elevated
-    // access. So seems reasonable for arbitrary development mode scripts.
+    // Use `AppService` for signing tokens so we can sign session cookies.
     const tokenAgent = await createServiceTokenAgent({
-        serviceName: "ApiService",
+        serviceName: "AppService",
+        privateSide: TokenAgentAppServicePrivateSide,
         options: {
             appServicePublicKey: keyDirectoryPath("app_service_rsa.pub"),
             edgeServiceFamilyPublicKey: keyDirectoryPath("edge_service_family_rsa.pub"),
@@ -149,7 +154,7 @@ export async function withDevContext<Value>(
             fileProcessorServicePublicKey: keyDirectoryPath("file_processor_service_rsa.pub"),
             apiServicePublicKey: keyDirectoryPath("api_service_rsa.pub"),
             resourceServicePublicKey: keyDirectoryPath("resource_service_rsa.pub"),
-            servicePrivateKey: keyDirectoryPath("api_service_rsa"),
+            servicePrivateKey: keyDirectoryPath("app_service_rsa"),
             tokenAgentSecret: keyDirectoryPath("token_agent_secret"),
         },
     });
@@ -365,7 +370,7 @@ export async function withDevContext<Value>(
 
     const context: TestContext = Object.assign(processContext, helpers);
 
-    const valueResult = await captureResultPromise(() => action(context));
+    const valueResult = await captureResultPromise(() => action(context, {tokenAgent}));
 
     try {
         // Wait for all `waitUntil()` promises to resolve before destroying the context

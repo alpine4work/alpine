@@ -8,7 +8,6 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@types/cookie",
         "//:node_modules/cookie",
         "//:node_modules/jose",
         "//shared/context",

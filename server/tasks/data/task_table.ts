@@ -36,6 +36,7 @@ import {addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileFromAttachment} from "~/server/files/data/files_actions.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -1275,7 +1276,7 @@ export async function getTaskCollectionItemForTest(
     context: DynamoContext,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionEssentialAttributesItem> {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     return TaskTable.getItem(context, {
         partitionType: "TaskCollection",

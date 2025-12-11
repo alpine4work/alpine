@@ -6,7 +6,6 @@ ts_project(
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//:node_modules/@lezer/json",
-        "//:node_modules/@types/cookie",
         "//:node_modules/@types/escape-html",
         "//:node_modules/@types/negotiator",
         "//:node_modules/@types/node",

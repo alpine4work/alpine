@@ -188,7 +188,11 @@ export async function createSpaceForTest(
     context: DynamoContext,
     {id = generateId<SpaceId>(), name}: {id?: SpaceId; name: string},
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(
+        process.env.NODE_ENV === "test" ||
+            // Allow calling this function in `//admin/scenarios`.
+            (process.env.NODE_ENV === "development" && context.dynamo.isLocal()),
+    );
 
     await SpacesTable.createItem(context, {
         partitionType: "Space",
@@ -214,18 +218,24 @@ export async function addSpaceAccountForTest(
         role?: SpaceRole;
     },
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(
+        process.env.NODE_ENV === "test" ||
+            // Allow calling this function in `//admin/scenarios`.
+            (process.env.NODE_ENV === "development" && context.dynamo.isLocal()),
+    );
 
     await addSpaceAccountWithoutAuthorization(
-        context.clone({
-            cache: CacheContextModule.new(),
-            searchInjection: context.searchInjection.cloneForTest({
-                // Don't add `TaskPersonal` favorite search entity in our test environment.
-                // That would require all server tests taking a dependency on
-                // `//server/search/data`.
-                dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
-            }),
-        }),
+        process.env.NODE_ENV === "development"
+            ? context.clone({cache: CacheContextModule.new()})
+            : context.clone({
+                  cache: CacheContextModule.new(),
+                  searchInjection: context.searchInjection.cloneForTest({
+                      // Don't add `TaskPersonal` favorite search entity in our test environment.
+                      // That would require all server tests taking a dependency on
+                      // `//server/search/data`.
+                      dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
+                  }),
+              }),
         {
             spaceId,
             accountId,

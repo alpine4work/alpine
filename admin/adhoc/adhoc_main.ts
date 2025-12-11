@@ -1,19 +1,13 @@
 /// <reference types="@types/node" />
 
+import "~/server/helpers/node/register_noop_react_refresh.js";
+
 import {InternalError} from "~/shared/error/error.js";
 
 // Make our adhoc process easy to find in process managers so we can hunt down
 // runaway scripts. We include "cyberworlds" and "node" so you can grep by
 // those strings.
 process.title = "adhoc (cyberworlds, node)";
-
-// Globals expected by the `react-refresh` transform applied by SWC.
-// `react-refresh` functions noop in tests.
-//
-// If you want to render some React components to HTML in `adhoc_local.ts`
-// you'll need these.
-(globalThis as any).$RefreshReg$ = () => {};
-(globalThis as any).$RefreshSig$ = () => (value: any) => value;
 
 async function main() {
     // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error

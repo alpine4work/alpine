@@ -8,6 +8,7 @@ runService({
         // `react-refresh` transform.
         (globalThis as any).$RefreshReg$ = () => {};
         (globalThis as any).$RefreshSig$ = () => (value: unknown) => value;
+
         return import("~/server/jobs/queue/job_queue_service.js");
     },
 });

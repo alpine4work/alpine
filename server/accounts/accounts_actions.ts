@@ -26,6 +26,7 @@ import {
     ActorContextModule,
     SessionActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {
@@ -250,7 +251,7 @@ export async function createAccountForTest(
         observedTimeZone?: TimeZone | null;
     },
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     await AccountsTable.createItem(context, {
         partitionType: "Account",
@@ -290,7 +291,7 @@ export async function createAccountEmailAddressForTest(
         isEmailAddressVerified: boolean;
     },
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     // This is a test. We assume the `AccountId` exists and that it's not a bot.
 
@@ -313,7 +314,7 @@ export async function createSessionForTest(
     context: DynamoContext,
     {id = generateId<SessionId>(), accountId}: {id?: SessionId; accountId: AccountId},
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     const createdTime = new Date();
 

@@ -10,7 +10,6 @@ ts_project(
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
-        "//:node_modules/@types/cookie",
         "//:node_modules/cookie",
         "//:node_modules/date-fns",
         "//:node_modules/react-router",
