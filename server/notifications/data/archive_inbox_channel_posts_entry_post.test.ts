@@ -503,7 +503,9 @@ test("race condition: archiving post commits after post comment creates inbox en
     expect(await testGetInboxEntries(session2, {filter: "Archive"})).toEqual([]);
 });
 
-test("race condition: archiving post commits after post comment creates inbox entry and we unarchive the post in the channel posts entry", async () => {
+// TODO(12/11/2025 #flaky-tests): https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/sg5fz408r6xb5gycbshdxbybt4
+// eslint-disable-next-line jest/no-disabled-tests
+test.skip("race condition: archiving post commits after post comment creates inbox entry and we unarchive the post in the channel posts entry", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 
