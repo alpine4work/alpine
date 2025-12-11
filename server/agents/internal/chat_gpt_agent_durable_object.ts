@@ -445,6 +445,20 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
         await createChatGptAgentResponse(tracer, request, messageState);
     } catch (error) {
         content.pushText(defaultAgentErrorDisplayMessage);
+
+        if (error instanceof OpenAi.BadRequestError || error instanceof OpenAi.NotFoundError) {
+            // NOTE(ifitzsimmons, 2025-12-04): We observed an issue [1] where a request persisted
+            // some bad state (a corrupt reasoning ID) into local storage and threw a 400 error
+            // (`BadRequestError`). Every subsequent request failed with a 404 (`NotFoundError`)
+            // as a result until the durable object was eventually cleared (after 8 hours).
+            // If the response API returns a 400 or 404 even after retrying with backoff, then we
+            // should clear the durable object state so that subsequent requests will not be impacted
+            // by any potentially corrupted state.
+            //
+            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t6adyjshd5qaq256ks12yp395w
+            await request.storage.deleteAll();
+        }
+
         throw error;
     } finally {
         isCompleted = true;
