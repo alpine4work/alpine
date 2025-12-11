@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
+import {Ref, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
@@ -25,10 +25,7 @@ export type MessageViewEditorRef = {
     focus(): void;
 };
 
-const MessageViewEditorForwardRef = forwardRef(MessageViewEditor) as typeof MessageViewEditor;
-export {MessageViewEditorForwardRef as MessageViewEditor};
-
-function MessageViewEditor<RoomKey extends string>({
+export function MessageViewEditor<RoomKey extends string>({
     ref,
     messageStartOfSentenceNoun,
     isLastMessage,

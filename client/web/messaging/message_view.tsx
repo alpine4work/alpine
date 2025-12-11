@@ -137,6 +137,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
@@ -244,7 +245,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const messageAuthor = useAccountModel(message.author);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const parentMessageRef = useRef<HTMLDivElement>(null);
+    const parentMessageRef = useRef<HTMLDivElement>(null!);
     const accountAvatarContainerRef = useRef<HTMLDivElement>(null);
     const contentContainerRef = useRef<HTMLDivElement>(null);
     const touchReplyIconRef = useRef<HTMLDivElement>(null);
@@ -495,6 +496,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             }
 
             const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
+            const menuActions: Array<MenuAction> = [];
 
             // Don't allow replying if the message payload is empty. The UI shouldn't
             // normally allow saving an empty message payload. We allow empty message
@@ -535,59 +537,63 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             events.onReplyToMessage();
                         },
                     },
-                    {
-                        withCustomLayout: true,
-                        // Don't close the context menu on press. Instead we want to open the reaction
-                        // radial picker.
-                        onPress: () => ({withoutClose: true}),
-                        renderWithStructure: ({isPressed, renderStructure}) => {
-                            let pos: number;
+                ]);
 
-                            // The context menu will add a reaction to the end of the message. Find the
-                            // position at the end of the message.
-                            if (message.stream === null) {
-                                pos = payload.content.doc.content.size;
-                            } else {
-                                pos = 0;
+                menuActions.push({
+                    withCustomLayout: true,
+                    // Don't close the context menu on press. Instead we want to open the reaction
+                    // radial picker.
+                    onPress: () => ({withoutClose: true}),
+                    renderWithStructure: ({isPressed, renderStructure}) => {
+                        let pos: number;
 
-                                if (!isContentEmpty(payload.content.doc)) {
-                                    pos += payload.content.doc.content.size;
-                                }
+                        // The context menu will add a reaction to the end of the message. Find the
+                        // position at the end of the message.
+                        // TODO(imjoshin): Handle Files here, next PR
+                        if (message.stream === null) {
+                            pos = payload.content.doc.content.size;
+                        } else {
+                            pos = 0;
 
-                                const usableStreamPartCount =
-                                    message.stream.parts.length -
-                                    // If the stream is incomplete then we can't react to the last part. Since the
-                                    // last part may still be receiving updates.
-                                    (message.stream.completedTime === null ? 1 : 0);
-
-                                for (let i = 0; i < usableStreamPartCount; i++) {
-                                    const part = message.stream.parts[i]!;
-                                    if (part.payload.type !== "Content") continue;
-                                    pos += part.payload.content.content.size;
-                                }
+                            if (!isContentEmpty(payload.content.doc)) {
+                                pos += payload.content.doc.content.size;
                             }
 
-                            const reactions = payload.reactionsByPos.get(pos) ?? emptyReactionSet;
+                            const usableStreamPartCount =
+                                message.stream.parts.length -
+                                // If the stream is incomplete then we can't react to the last part. Since the
+                                // last part may still be receiving updates.
+                                (message.stream.completedTime === null ? 1 : 0);
 
-                            return (
-                                <MessageViewContextMenuReactionButton
-                                    isPressed={isPressed}
-                                    renderStructure={renderStructure}
-                                    messageNoun={messageNoun}
-                                    roomKey={message.getRoomKey()}
-                                    messageIndex={message.index}
-                                    contentVersion={payload.contentUpdate?.mappings.length ?? 0}
-                                    pos={pos}
-                                    reactions={reactions}
-                                    onSetMessageReaction={onSetMessageReaction}
-                                    onDeleteMessageReaction={onDeleteMessageReaction}
-                                    onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
-                                    inboxContext={inboxContext}
-                                />
-                            );
-                        },
+                            for (let i = 0; i < usableStreamPartCount; i++) {
+                                const part = message.stream.parts[i]!;
+                                if (part.payload.type !== "Content") continue;
+                                pos += part.payload.content.content.size;
+                            }
+                        }
+
+                        const reactions = payload.reactionsByPos.get(pos) ?? emptyReactionSet;
+
+                        return (
+                            <MessageViewContextMenuReactionButton
+                                isPressed={isPressed}
+                                renderStructure={renderStructure}
+                                messageNoun={messageNoun}
+                                roomKey={message.getRoomKey()}
+                                messageIndex={message.index}
+                                contentVersion={payload.contentUpdate?.mappings.length ?? 0}
+                                pos={pos}
+                                reactions={reactions}
+                                onSetMessageReaction={onSetMessageReaction}
+                                onDeleteMessageReaction={onDeleteMessageReaction}
+                                onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
+                                inboxContext={inboxContext}
+                            />
+                        );
                     },
-                ]);
+                });
+
+                contextMenuActions.push(menuActions);
             }
 
             contextMenuActions.push([
@@ -959,6 +965,24 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return {from, to, startTime: jumpState.animation.startTime};
     }, [jumpState, message.payload]);
 
+    const reactionsByPos = useMemo(() => {
+        if (message.payload.type !== "Content") return emptyMap;
+
+        // If this is the last message in a messaging view and the message doesn't have
+        // any reactions then we want to render the add reaction button so the user can
+        // quickly add a reaction (dismissing the notification if they're in the
+        // inbox).
+        if (
+            isLastMessage &&
+            message.author.id !== currentAccountId &&
+            message.payload.reactionsByPos.size === 0
+        ) {
+            return new Map([[message.payload.content.doc.content.size, emptyReactionSet]]);
+        }
+
+        return message.payload.reactionsByPos;
+    }, [message.payload, message.author.id, isLastMessage, currentAccountId]);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -1051,7 +1075,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             );
         }
 
-        if (message.payload.reactionsByPos.size === 0) {
+        if (reactionsByPos.size === 0) {
             return (
                 <ContentView
                     data-room={!message.isOptimistic ? message.getRoomKey() : undefined}
@@ -1081,7 +1105,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     withUserSelectNone={!canPrimaryInputHover}
                     getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
                     jumpAnimation={jumpAnimation}
-                    reactionsByPos={message.payload.reactionsByPos}
+                    reactionsByPos={reactionsByPos}
                     onSetReaction={(pos, reaction) => {
                         if (message.isOptimistic) return;
                         if (!currentAccountId) return;
@@ -1134,6 +1158,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [
         message,
         messageTextForBigEmojiMessage,
+        reactionsByPos,
         canPrimaryInputHover,
         events.getClipboardSerializerPrefix,
         jumpAnimation,
@@ -1663,7 +1688,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     onJumpToMessageRange,
     onJumpToPostRange,
 }: {
-    parentMessageRef: RefObject<HTMLDivElement | null>;
+    parentMessageRef: RefObject<HTMLDivElement>;
     messageNoun: string;
     parent: MessageContentPayloadParentWithMessages<RoomKey, Message>;
     onJumpToMessageRange: Memo<(options: JumpToMessageRangeOptions<RoomKey>) => void>;
