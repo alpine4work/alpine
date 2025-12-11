@@ -419,20 +419,6 @@ exports[`sendAlertToAlpine Honeycomb event alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                },
-              ],
-              "text": "View Trigger",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
                   "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
                 },
               ],
@@ -494,20 +480,6 @@ exports[`sendAlertToAlpine Honeycomb event alert with custom emoji 1`] = `
         },
         {
           "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                },
-              ],
-              "text": "View Trigger",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
             {
               "marks": [
                 {
@@ -577,20 +549,6 @@ exports[`sendAlertToAlpine Honeycomb resolved alert 1`] = `
               "marks": [
                 {
                   "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                },
-              ],
-              "text": "View Trigger",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
-            {
-              "marks": [
-                {
-                  "type": "Link",
                   "url": "https://ui.honeycomb.io/cyberworlds/results/db-error-result",
                 },
               ],
@@ -653,20 +611,6 @@ exports[`sendAlertToAlpine Honeycomb staging environment alert 1`] = `
         },
         {
           "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                },
-              ],
-              "text": "View Trigger",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
             {
               "marks": [
                 {
@@ -745,20 +689,6 @@ exports[`sendAlertToAlpine Honeycomb triggered alert 1`] = `
         },
         {
           "elements": [
-            {
-              "marks": [
-                {
-                  "type": "Link",
-                  "url": "https://ui.honeycomb.io/cyberworlds/triggers/db-error-trigger",
-                },
-              ],
-              "text": "View Trigger",
-              "type": "Text",
-            },
-            {
-              "text": " • ",
-              "type": "Text",
-            },
             {
               "marks": [
                 {

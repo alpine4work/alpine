@@ -482,7 +482,6 @@ export async function sendHoneycombAlertToAlpine(
 
     const header = `${emoji} ${isEvent ? "Event" : "Trigger"}: ${data.name}`;
     const elements: Array<ApiContentElement> = createHeaderElements(header, [
-        {label: "View Trigger", url: data.links.trigger},
         {label: "View Result", url: data.links.result},
     ]);
 
