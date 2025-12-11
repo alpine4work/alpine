@@ -1666,7 +1666,15 @@ function* parseApiContentInlineElementFromMarkdown(
             break;
         }
         case "text": {
-            yield {type: "Text", text: content.value, marks: markStack.getMarks()};
+            yield {
+                type: "Text",
+                // `mdast` preserves single newlines in text. Presumably so we keep the
+                // newlines when printing the text back out. However, we don't allow
+                // newlines in `Text` elements (they're ultimately not supported by
+                // ProseMirror) so convert consecutive newlines into a single space.
+                text: content.value.replaceAll(/\n+/g, " "),
+                marks: markStack.getMarks(),
+            };
             break;
         }
         case "break": {

@@ -3341,3 +3341,83 @@ test("`parseMarkdownTree()` parses link reference in curly quotes without valid 
         ],
     });
 });
+
+test("single newlines are turned into spaces", () => {
+    expect(
+        parseApiContentFromMarkdown("This is\na test\ncool.", {
+            spaceId: generateId(),
+        }),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "This is a test cool."}],
+            },
+        ],
+    });
+});
+
+test("double newlines create new paragraphs", () => {
+    expect(
+        parseApiContentFromMarkdown("This is\n\na test\n\ncool.", {
+            spaceId: generateId(),
+        }),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "This is"}],
+            },
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "a test"}],
+            },
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "cool."}],
+            },
+        ],
+    });
+});
+
+test("triple newlines create new paragraphs", () => {
+    expect(
+        parseApiContentFromMarkdown("This is\n\n\na test\n\n\ncool.", {
+            spaceId: generateId(),
+        }),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "This is"}],
+            },
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "a test"}],
+            },
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "cool."}],
+            },
+        ],
+    });
+});
+
+test("escaped newlines are turned into a break", () => {
+    expect(
+        parseApiContentFromMarkdown("A paragraph\\\nwith a break!", {
+            spaceId: generateId(),
+        }),
+    ).toEqual({
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [
+                    {type: "Text", text: "A paragraph"},
+                    {type: "Break"},
+                    {type: "Text", text: "with a break!"},
+                ],
+            },
+        ],
+    });
+});
