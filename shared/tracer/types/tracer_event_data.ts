@@ -1624,6 +1624,17 @@ export type TracerEventData = {
             };
         };
     };
+
+    readonly agents?: {
+        schedule: {
+            event: {
+                time?: DateString;
+                executionTime?: DateString;
+                queueDurationMs?: number;
+                type?: string;
+            };
+        };
+    };
 };
 
 /**

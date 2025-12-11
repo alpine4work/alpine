@@ -1,14 +1,14 @@
 import {addHours, subHours} from "date-fns";
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.js";
 import {
-    AgentDurableObjectScheduleEvent,
-    AgentDurableObjectScheduleEventRequest,
-    deleteAgentDurableObjectScheduleEvent,
-    getAgentDurableObjectScheduleEvents,
-    getAgentDurableObjectScheduleEventsBeforeDate,
-    getNextAgentDurableObjectScheduleEvent,
-    putAgentDurableObjectScheduleEvent,
-} from "~/server/agents/internal/agent_durable_object_schedule_events_collection.js";
+    AgentScheduleEvent,
+    AgentScheduleEventRequest,
+    deleteAgentScheduleEvent,
+    getAgentScheduleEvents,
+    getAgentScheduleEventsBeforeDate,
+    getNextAgentScheduleEvent,
+    putAgentScheduleEvent,
+} from "~/server/agents/internal/agent_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
@@ -23,12 +23,14 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -93,8 +95,10 @@ export abstract class AgentDurableObjectBase<Route> {
     private readonly _openAiClient: Lazy<OpenAiClient>;
 
     private readonly _alarmTimeMutex: MutexValue<
-        (AgentDurableObjectScheduleEvent & {type: "ClearStorage"}) | null
+        (AgentScheduleEvent & {type: "ClearStorage"}) | null
     > = new MutexValue(null);
+
+    private readonly _scheduledEventsMutex = new Mutex();
 
     constructor(serviceName: TracerServiceName, state: DurableObjectState, env: AgentServiceEnv) {
         this._state = state;
@@ -234,14 +238,11 @@ export abstract class AgentDurableObjectBase<Route> {
      * Schedule an event to be executed at a future date. Uses `alarm()` under the hood
      * to execute the event.
      */
-    public async schedule(
-        context: AgentContext,
-        event: AgentDurableObjectScheduleEventRequest,
-    ): Promise<void> {
+    public async schedule(context: AgentContext, event: AgentScheduleEventRequest): Promise<void> {
         await context.tracer
             .getTracer()
             .withSpan(quote`Scheduling event ${event.type}`, async () => {
-                await putAgentDurableObjectScheduleEvent(this._state.storage, event);
+                await putAgentScheduleEvent(this._state.storage, event);
                 await this._scheduleNextAlarm();
             });
     }
@@ -303,15 +304,31 @@ export abstract class AgentDurableObjectBase<Route> {
      *    a new request is made to the Durable Object).
      */
     public async alarm() {
-        try {
-            const scheduledEvents = await getAgentDurableObjectScheduleEventsBeforeDate(
+        // Acquire a lock as we remove the events scheduled for execution in this alarm
+        // cycle. This prevents concurrent alarm cycles from processing the same events.
+        //
+        // This also prevents us from scheduling the next alarm while we "dequeue"
+        // the events scheduled for execution right now. So let's say we have events [T1, T2, T3]
+        // scheduled for execution in this alarm cycle.
+        // If we call `_scheduleNextAlarm()` *before* we remove these events from storage,
+        // it will schedule a new alarm at time T1. This adds an extra, unnecessary alarm cycle.
+        const scheduledEvents = await this._scheduledEventsMutex.withLock(async () => {
+            const _scheduleEvents = await getAgentScheduleEventsBeforeDate(
                 this._state.storage,
                 new Date(),
             );
 
-            let clearStorageEvent:
-                | (AgentDurableObjectScheduleEvent & {type: "ClearStorage"})
-                | undefined;
+            await runAllPromises(
+                _scheduleEvents.map(event =>
+                    deleteAgentScheduleEvent(this._state.storage, event.id),
+                ),
+            );
+
+            return _scheduleEvents;
+        });
+
+        try {
+            let clearStorageEvent: (AgentScheduleEvent & {type: "ClearStorage"}) | undefined;
 
             for (const scheduledEvent of scheduledEvents) {
                 if (scheduledEvent.type === "ClearStorage") {
@@ -343,38 +360,47 @@ export abstract class AgentDurableObjectBase<Route> {
                     }
                 };
 
-                await runAllPromises([
-                    deleteAgentDurableObjectScheduleEvent(this._state.storage, scheduledEvent.id),
-                    withSpan(async span => {
-                        try {
-                            // TODO(ifitzsimmons): If this approach works, we should log some span data
-                            // here that explains how early or late the event began executing based on
-                            // time now and the event's scheduled `date`.
+                await withSpan(async span => {
+                    try {
+                        const currentTime = new Date();
 
-                            switch (scheduledEvent.type) {
-                                case "ProcessWebhook":
-                                    return this._processScheduledWebhookEvent(
-                                        span,
-                                        scheduledEvent.payload,
-                                    );
-                                default:
-                                    throw exhaustive(scheduledEvent);
-                            }
-                        } catch (error) {
-                            // Log errors in development since webhook errors aren't shown to the user in
-                            // the UI. So we need to show webhook errors in our logs.
-                            if (process.env.NODE_ENV !== "production") {
-                                // eslint-disable-next-line no-console
-                                console.error(
-                                    quote`Agent scheduled event ${scheduledEvent.type} failed:`,
-                                    error,
+                        span.addData({
+                            agents: {
+                                schedule: {
+                                    event: {
+                                        type: scheduledEvent.type,
+                                        time: serializeDateString(scheduledEvent.date),
+                                        executionTime: serializeDateString(currentTime),
+                                        queueDurationMs:
+                                            currentTime.getTime() - scheduledEvent.date.getTime(),
+                                    },
+                                },
+                            },
+                        });
+
+                        switch (scheduledEvent.type) {
+                            case "ProcessWebhook":
+                                return this._processScheduledWebhookEvent(
+                                    span,
+                                    scheduledEvent.payload,
                                 );
-                            }
-
-                            span.addException(error);
+                            default:
+                                throw exhaustive(scheduledEvent);
                         }
-                    }),
-                ]);
+                    } catch (error) {
+                        // Log errors in development since webhook errors aren't shown to the user in
+                        // the UI. So we need to show webhook errors in our logs.
+                        if (process.env.NODE_ENV !== "production") {
+                            // eslint-disable-next-line no-console
+                            console.error(
+                                quote`Agent scheduled event ${scheduledEvent.type} failed:`,
+                                error,
+                            );
+                        }
+
+                        span.addException(error);
+                    }
+                });
             }
 
             if (clearStorageEvent) {
@@ -424,9 +450,7 @@ export abstract class AgentDurableObjectBase<Route> {
             // If no alarm time is set, read the alarm time from storage. If there's no
             // alarm time in storage then set an alarm to cleanup the durable object.
             if (alarmTimeRef.current === null) {
-                const scheduleEvents = await getAgentDurableObjectScheduleEvents(
-                    this._state.storage,
-                );
+                const scheduleEvents = await getAgentScheduleEvents(this._state.storage);
                 const clearStorageEvent = scheduleEvents.find(
                     event => event.type === "ClearStorage",
                 );
@@ -434,13 +458,10 @@ export abstract class AgentDurableObjectBase<Route> {
                 if (clearStorageEvent) {
                     alarmTimeRef.current = clearStorageEvent;
                 } else {
-                    alarmTimeRef.current = await putAgentDurableObjectScheduleEvent(
-                        this._state.storage,
-                        {
-                            type: "ClearStorage",
-                            date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
-                        },
-                    );
+                    alarmTimeRef.current = await putAgentScheduleEvent(this._state.storage, {
+                        type: "ClearStorage",
+                        date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
+                    });
                 }
             }
 
@@ -452,26 +473,28 @@ export abstract class AgentDurableObjectBase<Route> {
                 })
             ) {
                 const [newClearStorageEvent] = await runAllPromises([
-                    putAgentDurableObjectScheduleEvent(this._state.storage, {
+                    putAgentScheduleEvent(this._state.storage, {
                         type: "ClearStorage",
                         date: addHours(currentTime, agentDeleteAllStorageAlarmHours),
                     }),
-                    deleteAgentDurableObjectScheduleEvent(
-                        this._state.storage,
-                        alarmTimeRef.current.id,
-                    ),
+                    deleteAgentScheduleEvent(this._state.storage, alarmTimeRef.current.id),
                 ]);
 
                 alarmTimeRef.current = newClearStorageEvent;
             }
         });
+
+        await this._scheduleNextAlarm();
     }
 
     private async _scheduleNextAlarm() {
-        const nextEvent = await getNextAgentDurableObjectScheduleEvent(this._state.storage);
+        // Don't schedule the next alarm while we are "dequeing" scheduled events.
+        await this._scheduledEventsMutex.withLock(async () => {
+            const nextEvent = await getNextAgentScheduleEvent(this._state.storage);
 
-        if (!nextEvent) return;
+            if (!nextEvent) return;
 
-        await this._state.storage.setAlarm(nextEvent.date);
+            await this._state.storage.setAlarm(nextEvent.date);
+        });
     }
 }

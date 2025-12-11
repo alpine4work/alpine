@@ -553,6 +553,16 @@ const TracerEventDataSchema = {
             },
         },
     },
+    agents: {
+        schedule: {
+            event: {
+                time: DateStringSchema,
+                executionTime: DateStringSchema,
+                queueDurationMs: Schema.float,
+                type: Schema.string,
+            },
+        },
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**
