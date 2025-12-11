@@ -86,7 +86,7 @@ async function main() {
 
     attachDevConsoleNotInProduction();
 
-    registerAppServiceWorker(context).catch(error => {
+    registerAppServiceWorker().catch(error => {
         tracer.logException("Failed to register service worker", error);
     });
 }

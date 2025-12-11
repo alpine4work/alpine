@@ -42,6 +42,7 @@
         "@img/sharp-libvips-linux-x64": "file:admin/vendor/libvips/libvips-linux-x86_64",
         "@inquirer/prompts": "^5.3.8",
         "@internationalized/date": "^3.5.0",
+        "@jest/globals": "^29.4.0",
         "@juggle/resize-observer": "^3.4.0",
         "@lezer/common": "^1.2.1",
         "@lezer/cpp": "^1.1.2",

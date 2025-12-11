@@ -134,7 +134,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     //
     // Any new duplicate packages please try to add a section above with a comment
     // explaining why. npm packages man. Tough time.
-    ["@jridgewell/gen-mapping", ["0.1.1", "0.3.13"]],
     ["@npmcli/fs", ["1.1.1", "3.1.1"]],
     ["@tootallnate/once", ["1.1.2", "2.0.0"]],
     ["@types/mdast", ["3.0.10", "4.0.3"]],
@@ -185,7 +184,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["is-plain-obj", ["3.0.0", "4.1.0"]],
     ["is-stream", ["2.0.1", "3.0.0"]],
     ["isarray", ["1.0.0", "2.0.5"]],
-    ["istanbul-lib-instrument", ["5.2.0", "6.0.0"]],
+    ["istanbul-lib-instrument", ["5.2.0", "6.0.3"]],
     ["js-yaml", ["3.14.1", "4.1.0"]],
     ["json-parse-even-better-errors", ["2.3.1", "3.0.2"]],
     ["json5", ["1.0.1", "2.2.3"]],
@@ -230,12 +229,12 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["pretty-format", ["27.5.1", "29.6.3"]],
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
-    ["react-is", ["16.13.1", "17.0.2", "18.2.0"]],
+    ["react-is", ["16.13.1", "17.0.2", "18.3.1"]],
     ["readable-stream", ["2.3.7", "3.6.0", "4.7.0"]],
     ["resolve-from", ["4.0.0", "5.0.0"]],
     ["resolve", ["1.22.8", "2.0.0-next.5"]],
     ["safe-buffer", ["5.1.2", "5.2.1"]],
-    ["semver", ["6.3.1", "7.7.1"]],
+    ["semver", ["6.3.1", "7.7.3"]],
     ["signal-exit", ["3.0.7", "4.1.0"]],
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],

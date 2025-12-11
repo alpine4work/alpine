@@ -1,7 +1,7 @@
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
+import {deregisterWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/deregister_web_push_subscription_without_authorization.js";
 import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_if_exists_without_authorization.js";
-import {removeWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/remove_web_push_subscription_without_authorization.js";
 import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
@@ -76,7 +76,7 @@ export async function sendWebPushNotificationToSubscription(
                 // will not be successful. Deregister it so we don't try to send to it again.
                 if (error instanceof InternalError) {
                     span.logException("Received non-transient error from web push service", error);
-                    await removeWebPushSubscriptionWithoutAuthorization(context, {
+                    await deregisterWebPushSubscriptionWithoutAuthorization(context, {
                         accountId,
                         browserId,
                     });

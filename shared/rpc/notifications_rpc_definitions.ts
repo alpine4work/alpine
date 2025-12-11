@@ -228,8 +228,7 @@ export const deregisterAccountWebPushSubscription = defineRpc({
     name: "deregisterAccountWebPushSubscription",
     isIdempotent: true,
     input: {
-        spaceId: Schema.id<SpaceId>(),
-        endpoint: Schema.string,
+        accountId: Schema.id<AccountId>(),
         browserId: Schema.id<BrowserId>(),
     },
     output: {},

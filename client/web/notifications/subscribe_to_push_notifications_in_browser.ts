@@ -1,4 +1,4 @@
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 
 /**
  * Gets or creates a push subscription on the browser.
@@ -44,31 +44,4 @@ export async function subscribeToPushNotificationsInBrowser(
     }
 
     return await registration.pushManager.subscribe(subscriptionOptions);
-}
-
-/**
- * Unsubscribes from push notifications.
- */
-export async function unsubscribeFromPushNotifications(): Promise<PushSubscription | null> {
-    if (typeof window === "undefined" || typeof navigator === "undefined") {
-        return null;
-    }
-
-    // Do nothing if push notifications are not supported in this browser
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        return null;
-    }
-
-    // Wait until the service worker is ready
-    const registration = await navigator.serviceWorker.ready;
-
-    try {
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-            await subscription.unsubscribe();
-        }
-        return subscription;
-    } catch (error) {
-        throw new InternalError("Failed to unsubscribe from push notifications", {cause: error});
-    }
 }

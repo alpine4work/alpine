@@ -86,6 +86,24 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
     event.waitUntil(promiseChain);
 });
 
+self.addEventListener("fetch", (event: FetchEvent) => {
+    const url = new URL(event.request.url);
+    if (url.pathname.startsWith("/sign-out")) {
+        // This only deregisters the push subscription on the client. We deregister the subscription
+        // on the server separately in the `sign-out` route loader.
+        const deregisterPushSubscription = async () => {
+            // Wait for the sign out request to finish successfully.
+            await event.handled;
+
+            const subscription = await self.registration.pushManager.getSubscription();
+            if (subscription) {
+                await subscription.unsubscribe();
+            }
+        };
+        event.waitUntil(deregisterPushSubscription());
+    }
+});
+
 function isClientFocused() {
     return self.clients
         .matchAll({
