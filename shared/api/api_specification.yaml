@@ -2298,15 +2298,13 @@ components:
 
         MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, target, title]
+            required: [type, target]
             additionalProperties: false
             properties:
                 type:
                     const: Read
                 target:
                     $ref: "#/components/schemas/MentionTarget"
-                title:
-                    type: string
 
         MessageStreamToolCallPartPayloadSearchCall:
             type: object

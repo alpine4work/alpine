@@ -143,7 +143,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
                     "4",
                 )} / 2)`,
                 height: markHeight,
-                opacity: isPressed ? 0.75 : undefined,
+                opacity: isPressed ? "60" : undefined,
             }}
             {...pressProps}
         >

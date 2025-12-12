@@ -6,7 +6,7 @@ import {ContentFileEntityRenderers} from "~/client/web/content/content_file_enti
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {renderContentFileEntityPreview} from "~/client/web/content/internal/content_file_entity_preview.js";
 import {renderContentFilePreview} from "~/client/web/content/internal/content_file_preview.js";
-import {renderContentMentionToHtml} from "~/client/web/content/internal/render_content_mention_to_html.js";
+import {renderContentMentionToHtml} from "~/client/web/content/render_content_mention_to_html.js";
 import {
     layoutContentFile,
     layoutContentFileParent,

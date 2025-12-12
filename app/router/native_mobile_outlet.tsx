@@ -311,14 +311,7 @@ export function NativeMobileOutlet({
             //
             // [1]: https://react.dev/blog/2022/03/29/react-v18
             // [2]: https://caniuse.com/?search=inert
-            //
-            // TypeScript doesn't know about this property yet. True is the [empty string
-            // and false is null][3].
-            //
-            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
-            //
-            // @ts-expect-error
-            inert={isInert ? "" : null}
+            inert={isInert ? true : undefined}
             // Make sure inert content is not in the accessibility tree.
             aria-hidden={isInert ? "true" : undefined}
         >

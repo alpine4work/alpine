@@ -90,7 +90,7 @@ globalStyle(darkColorSchemeSelector, {
     vars: assignVars(baseColorSchemeVars, invertedColorsWithShade),
 });
 
-const selectionColorSchemeVars: {
+export const selectionColorSchemeVars: {
     [K in keyof typeof selectionColors]: CssVarFunction;
 } = createGlobalTheme(":root", selectionColors);
 
@@ -333,8 +333,6 @@ export const colorSchemeVars = {
     // as a constant here.
     ...colors,
     ...baseColorSchemeVars,
-    ...selectionColorSchemeVars,
-    ...invertedSelectionColorSchemeVars,
     ...constantColors,
     ...themeColorSchemeVars,
     ...specialGreyColorVars,

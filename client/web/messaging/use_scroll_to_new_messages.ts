@@ -7,6 +7,7 @@ import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
@@ -52,8 +53,10 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         const hasTypingIndicatorsItem = messages.hasTypingIndicatorsItem();
         lastHasTypingIndicatorsItemRef.current = hasTypingIndicatorsItem;
 
+        const finalMessage = messages.getLastLoadedMessageIfExists();
+
         const lastFinalMessageHasEndingReactions = lastFinalMessageHasEndingReactionsRef.current;
-        const finalMessageHasEndingReactions = getFinalMessageHasEndingReactions(messages);
+        const finalMessageHasEndingReactions = getFinalMessageHasEndingReactions(finalMessage);
         lastFinalMessageHasEndingReactionsRef.current = finalMessageHasEndingReactions;
 
         // No new item changes, don't perform a scroll adjustment.
@@ -97,6 +100,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             // perform a scroll adjustment.
             if (!firstNewItemPosition) return;
 
+            const spacingScale = getSpacingScaleWithoutListening();
+
             const lastNewItemViewIndex =
                 firstNewItemPosition.getIndex() + (messages.getItemCount() - firstNewItemIndex) - 1;
             const lastNewItemPosition = view.getPositionByIndex(lastNewItemViewIndex);
@@ -105,6 +110,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const inputRect = input.getBoundingClientRect();
 
             const newItemsOffset = firstNewItemPosition.offset;
+
             const newItemsHeight =
                 lastNewItemPosition.offset +
                 lastNewItemPosition.height -
@@ -150,14 +156,12 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 scrollDelta = -0.1;
             }
 
-            const spacingScale = getSpacingScaleWithoutListening();
-
             const newScrollOffset = view.getScrollOffset() + scrollDelta;
 
             // Only scroll if we're near the bottom. If we'd have to scroll more than ~4
             // message views then don't do it since messages would jump unexpectedly and
             // the user might be disturbed while reading.
-            if (scrollDelta <= newItemsHeight + messageViewMinHeightPx[spacingScale] * 4) {
+            if (scrollDelta <= newItemsHeight + getScrollToNewMessagesMargin(spacingScale)) {
                 view.setScrollOffset(newScrollOffset);
                 flushNavigationBarScrollEventEmitter.emit(view.getElement());
             }
@@ -176,19 +180,20 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     }, [getItemKey, inputRef, isInputStickyPositioned, messages, viewRef]);
 }
 
+export function getScrollToNewMessagesMargin(spacingScale: SpacingScale) {
+    return messageViewMinHeightPx[spacingScale] * 4;
+}
+
 function getFinalMessageHasEndingReactions<Message extends MessageModel>(
-    messages: MessageList<Message> | null,
+    finalMessage: Message | null,
 ): boolean {
-    if (!messages) return false;
+    if (!finalMessage) return false;
 
-    const lastMessage = messages.getLastLoadedMessageIfExists();
-    if (!lastMessage) return false;
+    if (finalMessage.payload.type !== "Content") return false;
+    if (finalMessage.payload.reactionsByPos.size === 0) return false;
 
-    if (lastMessage.payload.type !== "Content") return false;
-    if (lastMessage.payload.reactionsByPos.size === 0) return false;
-
-    const reactions = lastMessage.payload.reactionsByPos.get(
-        lastMessage.payload.content.doc.content.size,
+    const reactions = finalMessage.payload.reactionsByPos.get(
+        finalMessage.payload.content.doc.content.size,
     );
     if (!reactions) return false;
 

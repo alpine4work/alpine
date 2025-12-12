@@ -29,10 +29,7 @@ import {convertApiContentToProperQuotes} from "~/server/agents/internal/convert_
 import {getAgentLink} from "~/server/agents/internal/link_references/agent_link_collection.js";
 import {createAgentLinkNotFoundError} from "~/server/agents/internal/link_references/create_agent_link_not_found_error.js";
 import {loadAgentLinkContent} from "~/server/agents/internal/link_references/load_agent_link_content.js";
-import {
-    printAgentPlainTextLabel,
-    printApiPathForAgentLink,
-} from "~/server/agents/internal/link_references/print_agent_link_path.js";
+import {printApiPathForAgentLink} from "~/server/agents/internal/link_references/print_agent_link_path.js";
 import {initializeMessagesInAgentConversation} from "~/server/agents/internal/messages/initialize_messages_in_agent_conversation.js";
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
@@ -854,7 +851,6 @@ async function callChatGptAgentFunction({
                 messageState.pushToolCall({
                     type: "Read",
                     target: {path: mentionApiPath},
-                    title: printAgentPlainTextLabel(link),
                 });
             }
 

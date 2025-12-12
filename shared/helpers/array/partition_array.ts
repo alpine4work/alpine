@@ -7,6 +7,14 @@
  *
  * [1]: https://lodash.com/docs/4.17.15#partition
  */
+export function partitionArray<Value, TrueValue extends Value>(
+    array: ReadonlyArray<Value>,
+    predicate: (value: Value, index: number) => value is TrueValue,
+): [Array<TrueValue>, Array<Exclude<Value, TrueValue>>];
+export function partitionArray<Value>(
+    array: ReadonlyArray<Value>,
+    predicate: (value: Value, index: number) => boolean,
+): [Array<Value>, Array<Value>];
 export function partitionArray<Value>(
     array: ReadonlyArray<Value>,
     predicate: (value: Value, index: number) => boolean,

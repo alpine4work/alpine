@@ -1897,12 +1897,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "type": "String"
                                                                                         },
                                                                                         "optional": false
-                                                                                    },
-                                                                                    "title": {
-                                                                                        "valueSchema": {
-                                                                                            "type": "String"
-                                                                                        },
-                                                                                        "optional": false
                                                                                     }
                                                                                 }
                                                                             },

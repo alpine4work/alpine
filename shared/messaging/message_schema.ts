@@ -258,7 +258,6 @@ const MessageStreamToolCallPartPayloadCallSchema = Schema.union({
     Read: Schema.object({
         type: Schema.value("Read"),
         targetPath: Schema.string as Schema<ApiMentionPath>,
-        title: Schema.string,
     }),
     Search: Schema.object({
         type: Schema.value("Search"),

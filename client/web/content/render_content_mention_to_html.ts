@@ -373,22 +373,22 @@ function renderContentMentionIcon({
     // We need to be careful about the number of spaces we add since this needs to
     // look good in monospace fonts too.
     {
-        const space1Html = iconContainerHtml.appendChild(new HtmlElementGenerator("span"));
-        space1Html.setAttribute("class", contentStyles.mentionIconMonospaceSpaceClassName);
+        const spaceHtml = iconContainerHtml.appendChild(new HtmlElementGenerator("span"));
+        spaceHtml.setAttribute("class", contentStyles.mentionIconMonospaceSpaceClassName);
 
         switch (width) {
             case "narrow": {
-                space1Html.appendChild(new HtmlTextGenerator("\u00A0"));
+                spaceHtml.appendChild(new HtmlTextGenerator("\u00A0"));
                 iconContainerHtml.appendChild(new HtmlTextGenerator("\u00A0"));
                 break;
             }
             case "normal": {
-                space1Html.appendChild(new HtmlTextGenerator("\u00A0\u00A0"));
+                spaceHtml.appendChild(new HtmlTextGenerator("\u00A0\u00A0"));
                 iconContainerHtml.appendChild(new HtmlTextGenerator("\u202F"));
                 break;
             }
             case "wide": {
-                space1Html.appendChild(new HtmlTextGenerator("\u00A0\u00A0"));
+                spaceHtml.appendChild(new HtmlTextGenerator("\u00A0\u00A0"));
                 iconContainerHtml.appendChild(new HtmlTextGenerator("\u00A0"));
                 break;
             }

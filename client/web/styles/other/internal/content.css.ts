@@ -24,6 +24,7 @@ import {
     lightColorSchemeSelector,
     mediumSpacingScaleSelector,
     mobilePlatformSelector,
+    selectionColorSchemeVars,
     selectorBySpacingScale,
 } from "~/client/web/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/web/styles/other/internal/button.css.js";
@@ -1336,7 +1337,7 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
                 bottom: "0",
                 left: "0",
                 right: "0",
-                backgroundColor: colorSchemeVars[`${color}-selection`],
+                backgroundColor: selectionColorSchemeVars[`${color}-selection`],
                 opacity: 0.8,
             },
             [`${fileClassName}${fileEntityClassName}&::after`]: {

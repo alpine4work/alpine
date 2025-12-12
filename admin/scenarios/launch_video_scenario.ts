@@ -6,8 +6,9 @@ import {
     encode as encodeO200kBaseTokens,
 } from "gpt-tokenizer/esm/encoding/o200k_base";
 import {join as joinPath} from "path";
+import {putMockAgentRecording} from "~/admin/scenarios/internal/put_mock_agent_recording.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
-import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
@@ -24,15 +25,10 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {
-    MockAgentRecording,
-    MockAgentRecordingAction,
-} from "~/shared/agents/mock_agent_recording.js";
-import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
+import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
 import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {
     PostContentProsemirrorSchema,
@@ -1173,8 +1169,6 @@ field when they receive them. Comment on ideas you like!
                     call: {
                         type: "Read",
                         target: {path: `/documents/${brainstormDocument.id}`},
-                        // TODO(calebmer): This gets removed in the next PR.
-                        title: "",
                     },
                 },
             });
@@ -1350,7 +1344,7 @@ field when they receive them. Comment on ideas you like!
                 },
             });
 
-            await setMockAgentRecording(chatGpt, `/posts/${brainstormPost.id}`, recording);
+            await putMockAgentRecording(chatGpt, `/posts/${brainstormPost.id}`, recording);
         }
     }
 
@@ -1545,38 +1539,6 @@ big one! You got this!
         fundraisingChannel,
         brainstormDocument,
     };
-}
-
-async function setMockAgentRecording(
-    chatGpt: TestBotAccount,
-    roomPath: ApiMessageRoomPath,
-    recording: MockAgentRecording,
-) {
-    const botItem = await chatGpt.bot.getItem();
-
-    const url = new URL("/mock/recording", assertExists(botItem.webhookUrl));
-
-    url.searchParams.set("accountId", chatGpt.id);
-    url.searchParams.set("roomPath", roomPath);
-
-    await fetchWithTracer(
-        chatGpt.context.tracer.getTracer(),
-        url,
-        {
-            serviceName: "AgentService",
-            route: "/mock/recording",
-            method: "PUT",
-            headers: {"content-type": "application/json"},
-            body: JSON.stringify(recording),
-        },
-        async request => {
-            if (!request.ok) {
-                throw new UnknownError(
-                    `Failed to put mock agent recording with status code ${request.status}`,
-                );
-            }
-        },
-    );
 }
 
 async function createLaunchVideoDocuments({

@@ -989,18 +989,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
 
-        if (message.stream) {
-            return (
-                <MessageStreamView
-                    message={message}
-                    content={message.payload.content}
-                    stream={message.stream}
-                    withUserSelectNone={!canPrimaryInputHover}
-                    getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
-                    jumpAnimation={jumpAnimation}
-                />
-            );
-        }
+        // Will be rendered by `streamNode` if the message has a stream.
+        if (message.stream) return null;
 
         // If there's no content then don't render anything. This is mainly for file
         // rendering. You could have a message with empty content and just a file. In
@@ -1156,21 +1146,44 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             );
         }
     }, [
-        message,
-        messageTextForBigEmojiMessage,
-        reactionsByPos,
         canPrimaryInputHover,
-        events.getClipboardSerializerPrefix,
-        jumpAnimation,
         currentAccountId,
-        reporter,
+        events.getClipboardSerializerPrefix,
+        inboxContext,
+        jumpAnimation,
+        message,
         messageNoun,
+        messageTextForBigEmojiMessage,
+        navigate,
+        onDeleteMessageReaction,
         onSetMessageReaction,
         onUpdateMessagesOptimistically,
-        inboxContext,
-        onDeleteMessageReaction,
-        navigate,
+        reactionsByPos,
+        reporter,
         space.id,
+    ]);
+
+    const streamNode = useMemo(() => {
+        if (message.payload.type !== "Content") return null;
+        if (!message.stream) return null;
+
+        return (
+            <MessageStreamView
+                message={message}
+                isLastMessage={isLastMessage}
+                content={message.payload.content}
+                stream={message.stream}
+                withUserSelectNone={!canPrimaryInputHover}
+                getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                jumpAnimation={jumpAnimation}
+            />
+        );
+    }, [
+        canPrimaryInputHover,
+        events.getClipboardSerializerPrefix,
+        isLastMessage,
+        jumpAnimation,
+        message,
     ]);
 
     const deletedPayloadNode = useMemo(() => {
@@ -1547,7 +1560,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 )}
                                 {message.payload.type === "Content" ? (
                                     !isEditingThisMessage ? (
-                                        contentPayloadNode
+                                        contentPayloadNode ?? streamNode
                                     ) : (
                                         <>
                                             <MessageViewEditor

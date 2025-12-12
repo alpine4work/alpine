@@ -20,7 +20,6 @@ export async function intoApiMessageStreamPartPayload(
                         call: {
                             type: "Read",
                             target: printApiMentionTargetResponse(payload.call.targetPath),
-                            title: payload.call.title,
                         },
                     };
                 }

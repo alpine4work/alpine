@@ -360,13 +360,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                 visibility: isCompletelyHidden ? "hidden" : undefined,
                 pointerEvents: isCompletelyHidden ? "none" : undefined,
             }}
-            // TypeScript doesn't know about this property yet. True is the [empty string
-            // and false is null][3].
-            //
-            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
-            //
-            // @ts-expect-error
-            inert={isCompletelyHidden ? "" : null}
+            inert={isCompletelyHidden ? true : undefined}
             aria-hidden={isCompletelyHidden ? "true" : undefined}
             // Suppress React hydration warnings in our native mobile app. The native
             // mobile app sets the `transform` property on this element. Sometimes before

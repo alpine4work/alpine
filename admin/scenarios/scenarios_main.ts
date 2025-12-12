@@ -5,6 +5,7 @@ import chalk from "chalk";
 import {inspect} from "util";
 import {withDevContext} from "~/admin/dev/helpers/with_dev_context.js";
 import {createLaunchVideoScenario} from "~/admin/scenarios/launch_video_scenario.js";
+import {createMockAgentPlaygroundScenario} from "~/admin/scenarios/mock_agent_playground_scenario.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -19,6 +20,7 @@ type ScenarioFunction = (
 
 const allScenarios: Record<string, ScenarioFunction> = {
     LaunchVideo: createLaunchVideoScenario,
+    MockAgentPlayground: createMockAgentPlaygroundScenario,
 };
 
 async function main() {

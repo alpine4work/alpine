@@ -2022,7 +2022,6 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Read";
                 readonly target: components["schemas"]["MentionTarget"];
-                readonly title: string;
             };
             readonly MessageStreamToolCallPartPayloadSearchCall: {
                 /**
@@ -2225,7 +2224,6 @@ export namespace ApiSpecification {
                  */
                 readonly type: "Read";
                 readonly target: components["schemas"]["MentionTarget_Response"];
-                readonly title: string;
             };
             readonly ContentParagraphBlockElement_Response: {
                 /**

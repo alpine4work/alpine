@@ -29,7 +29,6 @@ export function fromApiMessageStreamPartPayload(
                             targetPath: hasOwnProperty(payload.call.target, "path")
                                 ? payload.call.target.path
                                 : printApiMentionPath(payload.call.target),
-                            title: payload.call.title,
                         },
                     };
                 }

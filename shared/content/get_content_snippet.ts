@@ -29,6 +29,30 @@ import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max
 export function getContentSnippet(
     resolvedPos: ResolvedPos,
     lines: {linesAbove: number; linesBelow: number} | number,
+    options?: {
+        maxLineGraphemeCount?: number;
+
+        /**
+         * Don't consider a node that creates a line break (e.g. `paragraph` or
+         * `heading`) to be the end of a line. This is useful if you want to print your
+         * content snippet with `printContentSingleLineTextSnippet()`. Since
+         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want
+         * your snippet to also consider newlines as "collapsed".
+         */
+        ignoreLineBreaks?: boolean;
+    },
+): Node {
+    const {from, to} = getContentSnippetPos(resolvedPos, lines, options);
+    return cutContent(resolvedPos.doc, from, to);
+}
+
+/**
+ * Same as `getContentSnippet()` but returns the `from` and `to` positions we
+ * use to cut the content and produce a snippet.
+ */
+export function getContentSnippetPos(
+    resolvedPos: ResolvedPos,
+    lines: {linesAbove: number; linesBelow: number} | number,
     {
         maxLineGraphemeCount = defaultMaxLineGraphemeCount,
         ignoreLineBreaks = false,
@@ -44,7 +68,7 @@ export function getContentSnippet(
          */
         ignoreLineBreaks?: boolean;
     } = {},
-): Node {
+): {from: number; to: number} {
     const options = {maxLineGraphemeCount, ignoreLineBreaks};
 
     // So our target number of lines is `1 + linesAroundCount * 2`. We want the
@@ -394,7 +418,7 @@ export function getContentSnippet(
         }
     }
 
-    return cutContent(resolvedPos.doc, from, to);
+    return {from, to};
 }
 
 type IterateChildNodesValue =

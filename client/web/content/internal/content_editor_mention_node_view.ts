@@ -3,7 +3,7 @@ import {NodeViewConstructor} from "prosemirror-view";
 import {To} from "react-router";
 import {getAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {handleContentLinkClick} from "~/client/web/content/internal/handle_content_link_click.js";
-import {renderContentMentionToHtml} from "~/client/web/content/internal/render_content_mention_to_html.js";
+import {renderContentMentionToHtml} from "~/client/web/content/render_content_mention_to_html.js";
 import {getContentEditorReferences} from "~/client/web/content/state/content_editor_state.js";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/web/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";

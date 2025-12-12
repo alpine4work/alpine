@@ -148,7 +148,11 @@ import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {useIdlyPreloadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useAddGlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/space_context.js";
-import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/web/styles/styles.js";
+import {
+    contentEditorStyles,
+    contentStyles,
+    selectionColorSchemeVars,
+} from "~/client/web/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
@@ -5647,7 +5651,7 @@ function createPhantomSelectionDecorations(doc: Node, selection: Selection, colo
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
             class: contentStyles.phantomSelectionClassName,
-            style: `background-color:${colorSchemeVars[`${color}-selection`]}`,
+            style: `background-color:${selectionColorSchemeVars[`${color}-selection`]}`,
         }),
     ];
 
@@ -5683,7 +5687,7 @@ function createPhantomSelectionDecorations(doc: Node, selection: Selection, colo
                     newlineIndicatorElement.textContent = " ";
                     newlineIndicatorElement.className = contentStyles.phantomSelectionClassName;
                     newlineIndicatorElement.style.backgroundColor =
-                        colorSchemeVars[`${color}-selection`];
+                        selectionColorSchemeVars[`${color}-selection`];
                     newlineIndicatorElement.style.userSelect = "none";
                     // In Safari `user-select` is behind a vendor prefix.
                     newlineIndicatorElement.style.webkitUserSelect = "none";

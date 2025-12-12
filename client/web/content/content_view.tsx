@@ -21,6 +21,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
+import {addContentViewLinkBehavior} from "~/client/web/content/add_content_view_link_behavior.js";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
 import {ContentFileEntityRenderersContext} from "~/client/web/content/content_file_entity_renderers_context.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
@@ -32,7 +33,6 @@ import {ContentEditorDomParser} from "~/client/web/content/internal/content_edit
 import {contentEditorTextClipboardSerializer} from "~/client/web/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFileEntityPreviewBehavior} from "~/client/web/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/web/content/internal/content_file_preview.js";
-import {handleContentLinkClick} from "~/client/web/content/internal/handle_content_link_click.js";
 import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/web/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {renderContentFragmentToHtmlGeneratorStore} from "~/client/web/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/web/content/state/add_unfocusable_button_behavior_to_element.js";
@@ -52,12 +52,11 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/web/design/tooltip.js";
 import {getColorSchemeWithoutListeningIfBrowser} from "~/client/web/helpers/color_scheme.js";
 import {isModifiedPointerEvent} from "~/client/web/helpers/events/is_modified_pointer_event.js";
-import {isOpenLinkInSeparateTabPointerEvent} from "~/client/web/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
+import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
@@ -778,126 +777,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     element.classList.contains(contentStyles.mentionContainerClassName)) &&
                 element instanceof HTMLAnchorElement
             ) {
-                const isLink = element.classList.contains(linkClassName);
-                const isMention = element.classList.contains(
-                    contentStyles.mentionContainerClassName,
-                );
-
-                let isPointerDownAndOver = false;
-
-                const maybeUpdateStyle = () => {
-                    if (isLink) {
-                        if (isPointerDownAndOver) {
-                            element.classList.add(contentStyles.linkPressedClassName);
-                        } else {
-                            element.classList.remove(contentStyles.linkPressedClassName);
-                        }
-                    }
-
-                    if (isMention) {
-                        if (isPointerDownAndOver) {
-                            element.classList.add(contentStyles.mentionPressedClassName);
-                        } else {
-                            element.classList.remove(contentStyles.mentionPressedClassName);
-                        }
-                    }
-                };
-
-                const handleClick = (event: MouseEvent) => {
-                    const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
-                        event,
-                        getClientInfo(),
-                    );
-
-                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                    // modifier. Unless the click was meant to open the link in a separate tab. We
-                    // need to implement that manually here given the text is editable.
-                    if (
-                        (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                        !isOpenLinkInSeparateTabEvent
-                    ) {
-                        return;
-                    }
-
-                    // Must call prevent default here in addition to `pointerdown` to stop mobile
-                    // WebKit from following a link after click.
-                    event.preventDefault();
-                };
-
-                const handlePointerDown = (event: MouseEvent) => {
-                    isPointerDownAndOver =
-                        event.button === 0 &&
-                        (!isModifiedPointerEvent(event) ||
-                            isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
-
-                    maybeUpdateStyle();
-
-                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                    // modifier. Unless the click was meant to open the link in a separate tab. We
-                    // need to implement that manually here given the text is editable.
-                    if (
-                        (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())
-                    ) {
-                        return;
-                    }
-
-                    // This will be a navigation click if the pointer stays over our element. Don't
-                    // select the editable text.
-                    event.preventDefault();
-                };
-
-                const handlePointerUp = (event: MouseEvent) => {
-                    const wasPointerDownAndOver = isPointerDownAndOver;
-                    isPointerDownAndOver = false;
-                    maybeUpdateStyle();
-
-                    // Only process pointer up events that started on our element.
-                    if (!wasPointerDownAndOver) {
-                        return;
-                    }
-
-                    assert(event.currentTarget instanceof HTMLAnchorElement);
-
-                    handleContentLinkClick(event, event.currentTarget.href, navigate);
-                };
-
-                const handlePointerLeave = () => {
-                    isPointerDownAndOver = false;
-                    maybeUpdateStyle();
-                };
-
-                const handleDragStart = () => {
-                    isPointerDownAndOver = false;
-                    maybeUpdateStyle();
-                };
-
-                const handleParentScrollWhenPointerDownAndOver = () => {
-                    isPointerDownAndOver = false;
-                    maybeUpdateStyle();
-                };
-
-                element.addEventListener("click", handleClick);
-                element.addEventListener("pointerdown", handlePointerDown);
-                element.addEventListener("pointerup", handlePointerUp);
-                element.addEventListener("pointerleave", handlePointerLeave);
-                element.addEventListener("dragstart", handleDragStart);
-                addParentScrollWhenPointerDownAndOverListener(
-                    element,
-                    handleParentScrollWhenPointerDownAndOver,
-                );
-
-                cleanupFunctions.push(() => {
-                    element.removeEventListener("click", handleClick);
-                    element.removeEventListener("pointerdown", handlePointerDown);
-                    element.removeEventListener("pointerup", handlePointerUp);
-                    element.removeEventListener("pointerleave", handlePointerLeave);
-                    element.removeEventListener("dragstart", handleDragStart);
-                    removeParentScrollWhenPointerDownAndOverListener(
-                        element,
-                        handleParentScrollWhenPointerDownAndOver,
-                    );
-                });
+                cleanupFunctions.push(addContentViewLinkBehavior(element, navigate));
             }
 
             if (!isInert && element.classList.contains(contentViewStyles.seeButtonClassName)) {
