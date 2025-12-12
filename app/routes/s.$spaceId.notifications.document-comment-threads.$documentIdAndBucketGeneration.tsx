@@ -216,6 +216,7 @@ function DocumentNewCommentThreadsRouteInner2({
     assert(
         originalInboxEntry.model instanceof InboxDocumentNewCommentThreadsEntryModel ||
             originalInboxEntry.model instanceof InboxDocumentCommentThreadEntryModel,
+        "This route should only render an `InboxDocumentNewCommentThreadsEntryModel` or `InboxDocumentCommentThreadEntryModel`",
     );
 
     const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<

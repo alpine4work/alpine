@@ -13,7 +13,7 @@ import {
 } from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
-export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData>) {
+export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData> = {}) {
     return new AccountModel({
         version: 0,
         nameVersion: 0,

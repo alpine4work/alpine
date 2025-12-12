@@ -14,6 +14,7 @@ import {
 } from "~/client/web/inbox/archive_inbox_channel_posts_entry_post_optimistically.js";
 import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {shouldRenderPostAsArchivedInInboxChannelPostsEntry} from "~/client/web/inbox/should_render_post_as_archived_in_inbox_channel_posts_entry.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
@@ -46,6 +47,7 @@ import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
 import {
     InboxChannelPostsEntryModel,
     InboxEntryModelSchema,
+    InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {
     archiveInboxChannelPostsEntryPost,
@@ -214,8 +216,16 @@ function ChannelPostsRoute({
 
     const inboxContext = assertExists(useInboxContext());
     const originalInboxEntry = assertExists(inboxContext.entry);
-    assert(originalInboxEntry.model instanceof InboxChannelPostsEntryModel);
-    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<InboxChannelPostsEntryModel>;
+
+    assert(
+        originalInboxEntry.model instanceof InboxChannelPostsEntryModel ||
+            originalInboxEntry.model instanceof InboxPostCommentsEntryModel,
+        "This route should only render an `InboxChannelPostsEntryModel` or `InboxPostCommentsEntryModel`",
+    );
+
+    const inboxEntry = originalInboxEntry as DynamoGeneralRealtimeItem<
+        InboxChannelPostsEntryModel | InboxPostCommentsEntryModel
+    >;
 
     const {
         channel: initialChannel,
@@ -250,7 +260,7 @@ function ChannelPostsRoute({
         const archivedPostIds = new Set<PostId>();
 
         for (const postId of posts.iteratePostIds()) {
-            if (!inboxEntry.model.postIds.has(postId)) {
+            if (shouldRenderPostAsArchivedInInboxChannelPostsEntry(inboxEntry.model, postId)) {
                 archivedPostIds.add(postId);
             }
         }
@@ -260,9 +270,11 @@ function ChannelPostsRoute({
 
     const expectedArchivedPostIds = useMemo<ReadonlySet<PostId>>(() => {
         return new Set(
-            filterIterable(posts.iteratePostIds(), postId => !inboxEntry.model.postIds.has(postId)),
+            filterIterable(posts.iteratePostIds(), postId =>
+                shouldRenderPostAsArchivedInInboxChannelPostsEntry(inboxEntry.model, postId),
+            ),
         );
-    }, [inboxEntry.model.postIds, posts]);
+    }, [inboxEntry.model, posts]);
 
     const waitForExpectedArchivedPostIds = useWaitForState(expectedArchivedPostIds);
 
@@ -333,8 +345,9 @@ function ChannelPostsRoute({
             // all posts in the entry then navigate to the next entry.
             if (
                 parentNavigation?.filter === "New" &&
-                inboxEntry.model.postIds.size === 1 &&
-                inboxEntry.model.postIds.has(postId)
+                (inboxEntry.model instanceof InboxPostCommentsEntryModel
+                    ? inboxEntry.model.postId === postId
+                    : inboxEntry.model.postIds.size === 1 && inboxEntry.model.postIds.has(postId))
             ) {
                 if (parentNavigation.nextEntry) {
                     await parentNavigation.selectEntry(parentNavigation.nextEntry);

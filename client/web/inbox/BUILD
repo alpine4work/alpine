@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "inbox",
+    test_deps = ["//shared/spaces/test_helpers"],
     visibility = [
         "//app:__subpackages__",
         "//client/web:__subpackages__",
