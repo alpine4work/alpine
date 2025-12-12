@@ -5192,7 +5192,7 @@ test("searching mentions excludes accounts and chats even if keywords match", as
                 score: expect.any(Number),
                 model: new SearchEntityModel({
                     id: `Chat:${chat.id}`,
-                    title: "bar, foo, and qux",
+                    title: expect.stringMatching(/^(bar and qux|qux and bar)$/),
                     titleVersion: null,
                     media: {
                         type: "AccountPile",

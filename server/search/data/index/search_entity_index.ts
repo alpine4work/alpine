@@ -106,6 +106,7 @@ import {
     AccessPolicyDefaultGrantWithoutGeneration,
     AccessPolicyUrlGrant,
 } from "~/shared/access/access_policy.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
@@ -140,12 +141,14 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
@@ -1595,7 +1598,11 @@ export async function searchByKeywords(
             } else {
                 model = new SearchEntityModel({
                     id: entityId,
-                    title: hit.fields.title?.[0] ?? null,
+                    title: prepareSearchEntityTitleForResult(
+                        entityId,
+                        hit.fields.title?.[0] ?? null,
+                        media,
+                    ),
                     titleVersion: hit.fields.titleVersion?.[0] ?? null,
                     media,
                 });
@@ -2063,7 +2070,11 @@ export async function searchBySemantics(
             } else {
                 model = new SearchEntityModel({
                     id: entityId,
-                    title: hit.fields["entity.title"]?.[0] ?? null,
+                    title: prepareSearchEntityTitleForResult(
+                        entityId,
+                        hit.fields["entity.title"]?.[0] ?? null,
+                        media,
+                    ),
                     titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
                     media,
                 });
@@ -2136,6 +2147,38 @@ async function prepareSearchEntityMediaForResult(
         default:
             throw exhaustive(media);
     }
+}
+
+/**
+ * The title of chat search entities is pretty ugly. It's the concatenation of
+ * the full names of all accounts in the chat. When presenting a search result for
+ * a chat use a nicer name which is a concatenation of short names excluding the
+ * actor. We use the short names of the accounts in the chat's `AccountPile` media.
+ */
+function prepareSearchEntityTitleForResult(
+    entityId: SearchDynamicEntityId,
+    title: string | null,
+    media: SearchEntityMediaModel | null,
+): string | null {
+    if (title === null) return null;
+
+    if (media?.type !== "AccountPile" || !entityId.startsWith("Chat:")) return title;
+
+    const accountNames = media.previewAccounts.map(account =>
+        getAccountShortNameWithoutFullNameTooltip(account.initialData),
+    );
+
+    if (media.accountCount > media.previewAccounts.length) {
+        accountNames.push(
+            printPrettyNumber(
+                defaultLocale,
+                media.accountCount - media.previewAccounts.length,
+                "other",
+            ),
+        );
+    }
+
+    return joinPrettyConjunctionList(accountNames);
 }
 
 type SearchEntityModelBaseResult =
@@ -2565,7 +2608,7 @@ async function getSearchEntityBaseIfPossible(
     return {
         isPrivate: false,
         id: entityId,
-        title,
+        title: prepareSearchEntityTitleForResult(entityId, title, media),
         titleVersion,
         media,
     };
@@ -2976,7 +3019,7 @@ export async function searchMentionByKeywords(
                 score: hit.score,
                 model: new SearchEntityModel({
                     id: hit.id,
-                    title,
+                    title: prepareSearchEntityTitleForResult(hit.id, title, media),
                     titleVersion,
                     media,
                 }),
