@@ -86,6 +86,13 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         super("ChatGptAgentService", state, env);
     }
 
+    protected override _getApiKey() {
+        return assertExists(
+            this._env.CHAT_GPT_API_SERVICE_KEY,
+            "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
+        );
+    }
+
     protected override _parseRoute(url: URL): [string, ChatGptAgentRoute] {
         if (url.pathname === "/webhook") {
             return ["/webhook", "Webhook"];

@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/@internationalized/date",
         "//:node_modules/chalk",
         "//:node_modules/cookie",
+        "//:node_modules/gpt-tokenizer",
         "//admin/dev/helpers",
         "//admin/helpers",
         "//server/chat/test_helpers",

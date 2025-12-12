@@ -100,6 +100,20 @@ export abstract class AgentDurableObjectBase<Route> {
 
     private readonly _scheduledEventsMutex = new Mutex();
 
+    /**
+     * Allow subclasses to disable the scheduled event which resets the Durable
+     * Object's storage after some amount of inactivity.
+     *
+     * Throws an error if this is set to `true` in a production environment.
+     *
+     * This is only used by `MockAgentDurableObject` right now for testing
+     * purposes. When a recording is saved for `MockAgentDurableObject` its stored
+     * in the durable object's storage. We don't want to delete
+     * `MockAgentDurableObject`'s recording after 6 hours of inactivity, that would
+     * break any scenarios environments that use `MockAgentDurableObject`.
+     */
+    protected readonly _withoutStorageTimeToLiveForTest = false;
+
     constructor(serviceName: TracerServiceName, state: DurableObjectState, env: AgentServiceEnv) {
         this._state = state;
         this._env = env;
@@ -143,6 +157,8 @@ export abstract class AgentDurableObjectBase<Route> {
         return this._state.storage;
     }
 
+    protected abstract _getApiKey(): string;
+
     /**
      * Parse the route from a URL. We include the route in the tracer span for this
      * request which helps since we can search our logs for all requests to a
@@ -168,7 +184,7 @@ export abstract class AgentDurableObjectBase<Route> {
     public async fetch(request: Request): Promise<Response> {
         // When the Durable Object's alarm is triggered, we delete all storage
         // associated with the Durable Object.
-        await this._maybeResetDurableObjectTimeToLive();
+        await this._maybeResetTimeToLive();
 
         const url = new URL(request.url);
 
@@ -255,7 +271,7 @@ export abstract class AgentDurableObjectBase<Route> {
             const {accessToken, spaceId, accountId, event} = payload;
 
             try {
-                const context: AgentWebhookRequest = {
+                const request: AgentWebhookRequest = {
                     storage: this._state.storage,
                     spaceId,
                     accountId,
@@ -266,16 +282,13 @@ export abstract class AgentDurableObjectBase<Route> {
                             this._env.API_SERVICE_URL,
                             "Missing `API_SERVICE_URL` environment variable",
                         ),
-                        apiKey: assertExists(
-                            this._env.CHAT_GPT_API_SERVICE_KEY,
-                            "Missing `CHAT_GPT_API_SERVICE_KEY` environment variable",
-                        ),
+                        apiKey: this._getApiKey(),
                         accessToken,
                     }),
                     openAiClient: this._openAiClient,
                 };
 
-                await this._webhook(span, context);
+                await this._webhook(span, request);
             } catch (error) {
                 // Log errors in development since webhook errors aren't shown to the user in
                 // the UI. So we need to show webhook errors in our logs.
@@ -404,19 +417,23 @@ export abstract class AgentDurableObjectBase<Route> {
             }
 
             if (clearStorageEvent) {
-                // NOTE(ifitzsimmons): There's a race condition where we receive a request as the
-                // `ClearStorage` event is running, in which case the message will not be responded
-                // to.
-                //
-                // If this becomes a problem later, I think we could check to see if there are any
-                // scheduled events left and, if there are, ignore this `ClearStorage` event and
-                // schedule a new one for after the last event. That could potentially extend the
-                // durable object's lifespan indefinitely, so I don't think we should do that
-                // without a good reason.
-                //
-                // Until then, I think it's fair to assume that any event you schedule is at the
-                // mercy of the durable object's state.
-                await this._state.storage.deleteAll();
+                if (this._withoutStorageTimeToLiveForTest) {
+                    assert(process.env.NODE_ENV !== "production");
+                } else {
+                    // NOTE(ifitzsimmons): There's a race condition where we receive a request as the
+                    // `ClearStorage` event is running, in which case the message will not be responded
+                    // to.
+                    //
+                    // If this becomes a problem later, I think we could check to see if there are any
+                    // scheduled events left and, if there are, ignore this `ClearStorage` event and
+                    // schedule a new one for after the last event. That could potentially extend the
+                    // durable object's lifespan indefinitely, so I don't think we should do that
+                    // without a good reason.
+                    //
+                    // Until then, I think it's fair to assume that any event you schedule is at the
+                    // mercy of the durable object's state.
+                    await this._state.storage.deleteAll();
+                }
             }
 
             await this._scheduleNextAlarm();
@@ -443,7 +460,12 @@ export abstract class AgentDurableObjectBase<Route> {
      * associated with the Durable Object. This function checks if the alarm will
      * run soon and if so resets the alarm to a point later in the future.
      */
-    private async _maybeResetDurableObjectTimeToLive() {
+    private async _maybeResetTimeToLive() {
+        if (this._withoutStorageTimeToLiveForTest) {
+            assert(process.env.NODE_ENV !== "production");
+            return;
+        }
+
         const currentTime = new Date();
 
         await this._alarmTimeMutex.withLock(async alarmTimeRef => {

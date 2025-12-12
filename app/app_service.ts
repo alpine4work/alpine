@@ -163,10 +163,18 @@ async function createAppService({
                       ),
                   );
 
+                  const mockChatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
+                      assertExists(
+                          options.mockChatGptLocalUnscopedApiKey,
+                          "Missing `mockChatGptLocalUnscopedApiKey` option in development",
+                      ),
+                  );
+
                   return {
                       agentServiceLocalPort,
                       chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
                       chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
+                      mockChatGptLocalUnscopedApiKey: mockChatGptLocalUnscopedApiKey.trim(),
                   };
               })()
             : null,

@@ -125,6 +125,8 @@ const BotsTable = DynamoTableSchema.new({
     ],
 });
 
+type BotItem = DynamoTableItemType<typeof BotsTable, "Bot", "Attributes">;
+
 // NOTE(calebmer, 2025-08-21): We don't currently use this index but something
 // we'll definitely someday is the ability to list all of a bot's API keys.
 // Since it's hard to add an index to an existing table right now, we're
@@ -212,19 +214,27 @@ export async function seedTestBots(
         agentServiceLocalPort,
         chatGptLocalUnscopedApiKey,
         chatGptLocalScopedApiKey,
+        mockChatGptLocalUnscopedApiKey,
     }: {
         agentServiceLocalPort: string;
         chatGptLocalUnscopedApiKey: string;
         chatGptLocalScopedApiKey: string;
+        mockChatGptLocalUnscopedApiKey: string;
     },
 ) {
     assert(process.env.NODE_ENV !== "production");
-    const {adminAccountId, defaultSpaceId, chatGptBotId, chatGptBotAccountIdForDefaultSpace} =
-        getDynamoSeedConstants();
+    const {
+        adminAccountId,
+        defaultSpaceId,
+        chatGptBotId,
+        chatGptBotAccountIdForDefaultSpace,
+        mockChatGptBotId,
+    } = getDynamoSeedConstants();
 
     const currentTime = new Date();
 
     await runAllPromises([
+        // Seed the ChatGPT bot.
         BotsTable.updateItem(
             context,
             {
@@ -271,6 +281,44 @@ export async function seedTestBots(
                 accountId: chatGptBotAccountIdForDefaultSpace,
                 scope: {type: "Account", accountId: adminAccountId},
             },
+            createdTime: currentTime,
+        }),
+
+        // Seed the mock ChatGPT bot.
+        BotsTable.updateItem(
+            context,
+            {
+                partitionType: "Bot",
+                sortRangeType: "Attributes",
+                botId: mockChatGptBotId,
+            },
+            item => {
+                const webhookUrl = `http://localhost:${agentServiceLocalPort}/mock/webhook`;
+
+                // Noop if the webhook URL is correct.
+                if (item?.webhookUrl === webhookUrl) return item;
+
+                if (item) {
+                    return {...item, webhookUrl};
+                } else {
+                    return {
+                        partitionType: "Bot",
+                        sortRangeType: "Attributes",
+                        botId: mockChatGptBotId,
+                        createdTime: currentTime,
+                        name: "ChatGPT",
+                        webhookUrl,
+                    };
+                }
+            },
+        ),
+        BotsTable.createItemIfNoneExists(context, {
+            partitionType: "ApiKey",
+            sortRangeType: "Attributes",
+            apiKey: assertApiKey(mockChatGptLocalUnscopedApiKey),
+            botId: mockChatGptBotId,
+            spaceId: null,
+            space: null,
             createdTime: currentTime,
         }),
     ]);
@@ -371,6 +419,21 @@ export async function getBot(context: DynamoContext, botId: BotId) {
         name: botItem.name,
         hasWebhookUrl: !!botItem.webhookUrl,
     };
+}
+
+/**
+ * Allow loading the full bot item in tests.
+ */
+export async function getBotItemForTest(context: DynamoContext, botId: BotId): Promise<BotItem> {
+    assert(isTestNodeEnvOrAdminScenariosScript);
+
+    const botItem = await BotsTable.getItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "Attributes",
+        botId,
+    });
+
+    return botItem;
 }
 
 let isProcessCallBotWebhookJobCrashSimulatedForTest = false;

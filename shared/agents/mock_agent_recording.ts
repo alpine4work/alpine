@@ -1,0 +1,17 @@
+import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
+
+export type MockAgentRecording = ReadonlyArray<MockAgentRecordingAction>;
+
+export type MockAgentRecordingAction =
+    | {
+          readonly type: "Wait";
+          readonly milliseconds: number;
+      }
+    | {
+          readonly type: "Ping";
+      }
+    | {
+          readonly type: "PutPart";
+          readonly index: number;
+          readonly payload: ApiMessageStreamPartPayload;
+      };

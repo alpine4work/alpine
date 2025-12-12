@@ -10,6 +10,7 @@ const seedConstants = {
     testChannelId: assertId<ChannelId>("qk8jepk9epmb48b3fbaykw4vk0"),
     chatGptBotId: assertId<BotId>("mfkbwdhjr9bj344wrm7gfq79e0"),
     chatGptBotAccountIdForDefaultSpace: assertId<AccountId>("kfh2j418vqjtr2hx4k4xhdpqhm"),
+    mockChatGptBotId: assertId<BotId>("c1n6d78hn6rmn7xnx8y3h4hj7c"),
 };
 
 /**

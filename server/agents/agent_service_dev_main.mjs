@@ -31,6 +31,7 @@ async function main() {
             durableObjectsLocalDataPath,
             apiServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
+            mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
             honeycombApiKey,
             openAiDevApiKey,
             inspectorPort: inspectorPortString,
@@ -42,6 +43,7 @@ async function main() {
             durableObjectsLocalDataPath: {type: "string"},
             apiServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
+            mockChatGptApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
             openAiDevApiKey: {type: "string"},
             inspectorPort: {type: "string"},
@@ -57,8 +59,12 @@ async function main() {
         throw new Error("Missing `durableObjectsLocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
     if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
+    if (!mockChatGptApiServiceKeyPath) throw new Error("Missing `mockChatGptApiServiceKey` option");
 
     const chatGptApiServiceKey = (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim();
+    const mockChatGptApiServiceKey = (
+        await fs.readFile(mockChatGptApiServiceKeyPath, "utf8")
+    ).trim();
 
     if (!portString) throw new Error("Missing `port` option");
     const port = parseInt(portString, 10);
@@ -81,6 +87,7 @@ async function main() {
         bindings: {
             API_SERVICE_URL: apiServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
+            MOCK_CHAT_GPT_API_SERVICE_KEY: mockChatGptApiServiceKey,
             OPEN_AI_API_KEY: openAiDevApiKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },

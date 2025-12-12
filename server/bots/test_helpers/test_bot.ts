@@ -2,6 +2,8 @@ import {
     createBotForTest,
     createScopedApiKeyForTest,
     createUnscopedApiKeyForTest,
+    getBot,
+    getBotItemForTest,
 } from "~/server/bots/bots_table.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
@@ -52,6 +54,19 @@ export class TestBot {
         });
 
         return new TestBot(context, id, initialName);
+    }
+
+    /**
+     * Get a `TestBot` instance for an existing bot instead of creating a new bot.
+     */
+    public static async get(context: TestContext, botId: BotId) {
+        const bot = await getBot(context, botId);
+
+        return new TestBot(context, botId, bot.name);
+    }
+
+    public getItem() {
+        return getBotItemForTest(this.context, this.id);
     }
 
     public async instantiate(

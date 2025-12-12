@@ -38,7 +38,11 @@ export async function ensureServiceKeys(directoryPath: string) {
 
                 await fs.writeFile(joinPath(directoryPath, "token_agent_secret"), secret + "\n");
             })(),
-            ...["chat_gpt_unscoped_api_key", "chat_gpt_scoped_api_key"].map(async apiKeyName => {
+            ...[
+                "chat_gpt_unscoped_api_key",
+                "chat_gpt_scoped_api_key",
+                "mock_chat_gpt_unscoped_api_key",
+            ].map(async apiKeyName => {
                 if (await fs.pathExists(joinPath(directoryPath, apiKeyName))) return;
 
                 const apiKey = generateApiKey();

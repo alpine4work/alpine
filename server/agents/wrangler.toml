@@ -13,6 +13,14 @@ head_sampling_rate = 1
 name = "ChatGptAgentDurableObjectNamespace"
 class_name = "ChatGptAgentDurableObject"
 
+[[durable_objects.bindings]]
+name = "MockAgentDurableObjectNamespace"
+class_name = "MockAgentDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["ChatGptAgentDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["MockAgentDurableObject"]

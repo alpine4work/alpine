@@ -1,10 +1,16 @@
 import {CalendarDateTime, today as getToday, today} from "@internationalized/date";
 import {stringifyCookie} from "cookie";
 import fs from "fs/promises";
+import {
+    decode as decodeO200kBaseTokens,
+    encode as encodeO200kBaseTokens,
+} from "gpt-tokenizer/esm/encoding/o200k_base";
 import {join as joinPath} from "path";
-import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
+import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
@@ -18,9 +24,15 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {
+    MockAgentRecording,
+    MockAgentRecordingAction,
+} from "~/shared/agents/mock_agent_recording.js";
+import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
 import {
     PostContentProsemirrorSchema,
@@ -441,7 +453,11 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
 
         // AI
         chatGpt: (async () => {
-            const bot = await TestBot.create(space.context, {name: "ChatGPT"});
+            // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
+            // There's a file in `scenario_chatgpt_avatar.png` that we're not currently
+            // using. We need to figure out a way to get avatars uploaded for bots for test
+            // scenarios.
+            const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
 
             const roseCompas = await roseCompasPromise;
 
@@ -947,6 +963,7 @@ async function actuallyCreateLaunchVideoFeed(
         mattRHorn,
         hollyEvergreen,
         cliffWeathers,
+        chatGpt,
     }: FictionalAmbrookAccounts,
 ) {
     const {space} = roseCompas;
@@ -1137,6 +1154,204 @@ field when they receive them. Comment on ideas you like!
 
         await brainstormPost.setReaction(masonClay, "Celebrate");
         await brainstormPost.setReaction(mattRHorn, "Happy");
+
+        // Add a fixed ChatGPT recording that'll be replayed whenever invoking ChatGPT
+        // on this post.
+        {
+            const recording: Array<MockAgentRecordingAction> = [];
+
+            recording.push({
+                type: "Wait",
+                milliseconds: 200,
+            });
+
+            recording.push({
+                type: "PutPart",
+                index: 0,
+                payload: {
+                    type: "ToolCall",
+                    call: {
+                        type: "Read",
+                        target: {path: `/documents/${brainstormDocument.id}`},
+                        // TODO(calebmer): This gets removed in the next PR.
+                        title: "",
+                    },
+                },
+            });
+
+            const chunkArray = <Value>(array: Array<Value>, n: number): Array<Array<Value>> => {
+                const chunks: Array<Array<Value>> = [];
+
+                for (let i = 0; i < array.length; i += n) {
+                    chunks.push(array.slice(i, i + n));
+                }
+
+                return chunks;
+            };
+
+            {
+                const part1Text =
+                    "Can do! Summarizing the comments and creating follow‑up tasks now.";
+
+                const part1Tokens = chunkArray(encodeO200kBaseTokens(part1Text), 4).map(tokens =>
+                    decodeO200kBaseTokens(tokens),
+                );
+
+                let incrementalPart1Text = "";
+
+                let hadFirstToken = false;
+
+                for (const part1Token of part1Tokens) {
+                    const isFirstToken = !hadFirstToken;
+                    hadFirstToken = true;
+
+                    incrementalPart1Text += part1Token;
+
+                    if (isFirstToken) {
+                        recording.push({
+                            type: "Wait",
+                            milliseconds: 500,
+                        });
+                    }
+
+                    recording.push({
+                        type: "PutPart",
+                        index: 1,
+                        payload: {
+                            type: "Content",
+                            content: parseApiContentFromMarkdown(incrementalPart1Text, {
+                                spaceId: space.id,
+                            }),
+                        },
+                    });
+                }
+            }
+
+            {
+                const part2Text =
+                    "Highlights from the comments: The group aligned on an MVP centered on offline‑first capture, real‑time OCR highlighting of totals/dates, and a simple share extension. Commenters emphasized guardrails—duplicate detection, privacy blurring, and a lightweight review queue—plus quick wins on sync status and accessibility.";
+
+                const part2Tokens = chunkArray(encodeO200kBaseTokens(part2Text), 4).map(tokens =>
+                    decodeO200kBaseTokens(tokens),
+                );
+
+                let incrementalPart2Text = "";
+
+                for (const part2Token of part2Tokens) {
+                    incrementalPart2Text += part2Token;
+
+                    recording.push({
+                        type: "PutPart",
+                        index: 2,
+                        payload: {
+                            type: "Content",
+                            content: parseApiContentFromMarkdown(incrementalPart2Text, {
+                                spaceId: space.id,
+                            }),
+                        },
+                    });
+                }
+            }
+
+            const [followupTask1, followupTask2, followupTask3, followupTask4, followupTask5] =
+                await runAllPromises([
+                    TestTask.create(roseCompas, {title: "Receipt mobile scanner offline capture"}),
+                    TestTask.create(roseCompas, {
+                        title: "Vendor alias learning using text + location signals",
+                    }),
+                    TestTask.create(roseCompas, {
+                        title: "Duplicate detection and merge flow with privacy blur rules",
+                    }),
+                    TestTask.create(roseCompas, {
+                        title: "Support review queue and remediation SLA for low‑confidence OCR",
+                    }),
+                    TestTask.create(roseCompas, {
+                        title: "Sync status panel and capture UI accessibility improvements",
+                    }),
+                ]);
+
+            recording.push({
+                type: "PutPart",
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: parseApiContentFromMarkdown(
+                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask1.id}?mention)`,
+                        {spaceId: space.id},
+                    ),
+                },
+            });
+
+            recording.push({
+                type: "Wait",
+                milliseconds: 20,
+            });
+
+            recording.push({
+                type: "PutPart",
+                index: 4,
+                payload: {
+                    type: "Content",
+                    content: parseApiContentFromMarkdown(
+                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask2.id}?mention)`,
+                        {spaceId: space.id},
+                    ),
+                },
+            });
+
+            recording.push({
+                type: "Wait",
+                milliseconds: 20,
+            });
+
+            recording.push({
+                type: "PutPart",
+                index: 5,
+                payload: {
+                    type: "Content",
+                    content: parseApiContentFromMarkdown(
+                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask3.id}?mention)`,
+                        {spaceId: space.id},
+                    ),
+                },
+            });
+
+            recording.push({
+                type: "Wait",
+                milliseconds: 20,
+            });
+
+            recording.push({
+                type: "PutPart",
+                index: 6,
+                payload: {
+                    type: "Content",
+                    content: parseApiContentFromMarkdown(
+                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask4.id}?mention)`,
+                        {spaceId: space.id},
+                    ),
+                },
+            });
+
+            recording.push({
+                type: "Wait",
+                milliseconds: 20,
+            });
+
+            recording.push({
+                type: "PutPart",
+                index: 7,
+                payload: {
+                    type: "Content",
+                    content: parseApiContentFromMarkdown(
+                        `- [](https://alpine.inc/s/${space.id}/tasks/${followupTask5.id}?mention)`,
+                        {spaceId: space.id},
+                    ),
+                },
+            });
+
+            await setMockAgentRecording(chatGpt, `/posts/${brainstormPost.id}`, recording);
+        }
     }
 
     // Wait for post feed candidate entry to be added.
@@ -1330,6 +1545,38 @@ big one! You got this!
         fundraisingChannel,
         brainstormDocument,
     };
+}
+
+async function setMockAgentRecording(
+    chatGpt: TestBotAccount,
+    roomPath: ApiMessageRoomPath,
+    recording: MockAgentRecording,
+) {
+    const botItem = await chatGpt.bot.getItem();
+
+    const url = new URL("/mock/recording", assertExists(botItem.webhookUrl));
+
+    url.searchParams.set("accountId", chatGpt.id);
+    url.searchParams.set("roomPath", roomPath);
+
+    await fetchWithTracer(
+        chatGpt.context.tracer.getTracer(),
+        url,
+        {
+            serviceName: "AgentService",
+            route: "/mock/recording",
+            method: "PUT",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify(recording),
+        },
+        async request => {
+            if (!request.ok) {
+                throw new UnknownError(
+                    `Failed to put mock agent recording with status code ${request.status}`,
+                );
+            }
+        },
+    );
 }
 
 async function createLaunchVideoDocuments({
