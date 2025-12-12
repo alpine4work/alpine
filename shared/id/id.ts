@@ -164,7 +164,7 @@ export function encodeId<Value extends Id>(bytes: Uint8Array, byteOffset: number
 }
 
 /**
- * Decodes an `Id` into 128 bytes (16 bytes).
+ * Decodes an `Id` into 128 bits (16 bytes).
  */
 export function decodeId(id: Id): Uint8Array {
     const bytes = new Uint8Array(idByteLength);
@@ -173,7 +173,7 @@ export function decodeId(id: Id): Uint8Array {
 }
 
 /**
- * Decodes an `Id` into 128 bytes (16 bytes) by mutating an existing typed
+ * Decodes an `Id` into 128 bits (16 bytes) by mutating an existing typed
  * array. Useful if you want to decode an `Id` into an existing buffer.
  */
 export function decodeIdInto(id: Id, bytes: Uint8Array, byteOffset: number = 0): void {

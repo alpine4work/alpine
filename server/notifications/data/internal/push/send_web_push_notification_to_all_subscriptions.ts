@@ -20,6 +20,12 @@ function validateWebPushPayload(payload: string) {
     assert(sizeInKB <= maxWebPushPayloadSizeKb, "Web push payload must be less than 4KB");
 }
 
+function validateWebPushOptions(options?: SendWebPushNotificationOptions) {
+    if (options?.topic) {
+        assert(options.topic.length <= 32, "Topic must be 32 characters or less");
+    }
+}
+
 export async function sendWebPushNotificationToAllSubscriptions(
     context: Context<ServerActionContextModules & {webPush: WebPushContextModuleBase}>,
     {
@@ -37,6 +43,7 @@ export async function sendWebPushNotificationToAllSubscriptions(
     },
 ): Promise<void> {
     validateWebPushPayload(notificationContent.body);
+    validateWebPushOptions(options);
 
     await runAllPromises(
         subscriptions.map(({browserId}) =>
