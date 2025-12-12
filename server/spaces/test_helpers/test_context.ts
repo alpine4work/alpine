@@ -14,9 +14,11 @@ import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_conte
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 type TestContextExtraModules = {
@@ -25,7 +27,7 @@ type TestContextExtraModules = {
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
 
-export type TestContext = Context<TestContextModules> & TestContextHelpers;
+export type TestContext = Context<TestContextModules> & TestContextHelpers<TestContextModules>;
 
 export type TestActionContextModules = ServerActionContextModules & TestContextExtraModules;
 
@@ -68,7 +70,10 @@ export type TestUnknownActionContextModules = ServerUnknownActionContextModules 
 
 export type TestUnknownActionContext = Context<TestUnknownActionContextModules>;
 
-export type TestContextHelpers = {
+export type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
+    ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
+
+export type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     /**
      * An action with an authenticated session.
      */
@@ -133,4 +138,12 @@ export type TestContextHelpers = {
         spaceId: SpaceId,
         action: (context: TestSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
+
+    /**
+     * `Context.clone()` but preserves `TestContext`'s helper functions like
+     * `context.action()` on the cloned context.
+     */
+    cloneWithHelpers<NewModules extends {[key: string]: ContextModuleBase}>(
+        newModules: NewModules,
+    ): TestContextWithDestroy<Replace<Modules, NewModules>>;
 };

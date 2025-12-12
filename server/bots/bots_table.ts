@@ -6,6 +6,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
@@ -279,7 +280,7 @@ export async function createBotForTest(
     context: DynamoContext,
     {name, webhookUrl}: {name: string; webhookUrl: string},
 ) {
-    assert(process.env.NODE_ENV === "test");
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     const botId = generateId<BotId>();
 

@@ -358,7 +358,7 @@ export async function withDevContext<Value>(
         });
     };
 
-    const helpers: TestContextHelpers = {
+    const helpers: TestContextHelpers<TestContextModules> = {
         action: createSessionContext,
         systemAction: createSystemContext,
         anonymousAction: createAnonymousContext,
@@ -366,6 +366,9 @@ export async function withDevContext<Value>(
         botAction: createBotContext,
         unknownAnonymousAction: createUnknownAnonymousContext,
         escalateToSystemContext,
+        cloneWithHelpers(modules) {
+            return Object.assign((this as any).clone(modules), helpers);
+        },
     };
 
     const context: TestContext = Object.assign(processContext, helpers);

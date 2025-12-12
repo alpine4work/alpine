@@ -18,6 +18,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
     TestCommentRoomBase,
     TestMessage,
+    parseTestMessageContent,
 } from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {
@@ -34,11 +35,7 @@ import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent, assertMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -112,7 +109,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
                         commentThreadId: id,
                         initialCommentContent:
                             typeof content === "string"
-                                ? createSimpleMessageContent(content)
+                                ? parseTestMessageContent(document.space.id, content)
                                 : assertMessageContent(content),
                         initialCommentFileIds: [],
                         createdTime,

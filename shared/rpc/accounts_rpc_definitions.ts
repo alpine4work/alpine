@@ -99,6 +99,7 @@ export const finishUploadingAccountAvatar = defineRpc({
     isIdempotent: true,
     input: {
         avatarContent: Schema.bytes,
+        accountId: Schema.id<AccountId>(),
         avatarId: Schema.id<AvatarId>(),
     },
     output: {

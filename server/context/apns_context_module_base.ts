@@ -3,6 +3,7 @@ import {
     ApnsAlertNotificationOptions,
 } from "~/server/context/apns_alert_notification.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -54,7 +55,7 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
 export class TestApnsContextModule extends ApnsContextModuleBase {
     constructor() {
         super();
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     public async sendAlert() {

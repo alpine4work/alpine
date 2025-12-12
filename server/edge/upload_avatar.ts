@@ -18,6 +18,7 @@ import {
 } from "~/shared/avatar/avatar_constants.js";
 import {
     AvatarEntityPath,
+    AvatarEntityPathObject,
     parseAvatarEntityPath,
     printAvatarEntityPathIntoCloudflareR2Key,
 } from "~/shared/avatar/avatar_entity_path.js";
@@ -28,7 +29,7 @@ import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {FileImageContentType, isFileImageContentType} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -73,6 +74,17 @@ export async function uploadAvatar(
 
         const sessionCookieToken = await authorizeRequestAndGetSessionToken(tokenAgent, request);
         const context = createContext(sessionCookieToken);
+
+        const avatarEntityPathObject = parseAvatarEntityPath(avatarEntityPath);
+
+        if (
+            avatarEntityPathObject.type === "account" &&
+            avatarEntityPathObject.accountId !== sessionCookieToken.accountId
+        ) {
+            throw new PermissionDeniedError(
+                "Can’t upload account avatar for account that’s not the session’s account",
+            );
+        }
 
         if (contentLength > maxAvatarUploadContentLength) {
             throw new InvalidArgumentError(
@@ -128,7 +140,7 @@ export async function uploadAvatar(
         const [response] = await runAllPromises([
             finishUploadingAvatar(context, {
                 avatarId,
-                avatarEntityPath,
+                avatarEntityPathObject,
                 avatarContent: avatarImageContent,
                 themeColor,
             }),
@@ -180,29 +192,31 @@ async function finishUploadingAvatar(
     context: Context<{rpc: RpcContextModuleBase}>,
     {
         avatarId,
-        avatarEntityPath,
+        avatarEntityPathObject,
         avatarContent,
         themeColor,
     }: {
         avatarId: AvatarId;
-        avatarEntityPath: AvatarEntityPath;
+        avatarEntityPathObject: AvatarEntityPathObject;
         avatarContent: Uint8Array;
         themeColor: AvatarTheme | null;
     },
 ) {
-    const avatarEntityPathObject = parseAvatarEntityPath(avatarEntityPath);
     switch (avatarEntityPathObject.type) {
-        case "account":
+        case "account": {
             const {account} = await finishUploadingAccountAvatar(context, {
                 avatarContent,
+                accountId: avatarEntityPathObject.accountId,
                 avatarId,
             });
+
             return UploadAvatarResponseSchema.serialize({
                 ok: true,
                 type: "UploadAccountAvatar",
                 account,
             });
-        case "space":
+        }
+        case "space": {
             const {space} = await finishUploadingSpaceAvatar(context, {
                 avatarContent,
                 avatarId,
@@ -215,6 +229,7 @@ async function finishUploadingAvatar(
                 type: "UploadSpaceAvatar",
                 space,
             });
+        }
         default:
             throw exhaustive(avatarEntityPathObject);
     }

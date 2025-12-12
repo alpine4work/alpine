@@ -7,6 +7,7 @@ import {withDevContext} from "~/admin/dev/helpers/with_dev_context.js";
 import {createLaunchVideoScenario} from "~/admin/scenarios/launch_video_scenario.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
@@ -24,6 +25,7 @@ async function main() {
     await withDevContext(async (context, options) => {
         const scenarioNameArg = process.argv[2] ?? "";
 
+        let scenarioName: string;
         let createScenario: ScenarioFunction;
 
         if (scenarioNameArg.length > 0) {
@@ -33,18 +35,27 @@ async function main() {
                 throw new NotFoundError(quote`Scenario ${scenarioNameArg} not found`);
             }
 
+            scenarioName = scenarioNameArg;
             createScenario = createScenarioArg;
         } else {
-            createScenario = await inquirer.select({
+            ({scenarioName, createScenario} = await inquirer.select({
                 message: "Which scenario would you like to create?",
                 choices: Object.entries(allScenarios).map(([scenarioName, createScenario]) => ({
                     name: scenarioName,
-                    value: createScenario,
+                    value: {scenarioName, createScenario},
                 })),
-            });
+            }));
         }
 
-        const output = await createScenario(context, options);
+        const output = await context.tracer
+            .getTracer()
+            .withSpan(`Create ${scenarioName} scenario`, async span => {
+                const contextWithSpan = context.cloneWithHelpers({
+                    tracer: new TracerContextModule(span),
+                });
+
+                return createScenario(contextWithSpan, options);
+            });
 
         // eslint-disable-next-line no-console
         console.log(
@@ -60,11 +71,18 @@ async function main() {
 
 main().then(
     () => {
-        process.exitCode = 0;
+        // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
+        // keeping the process alive. `withDevContext()` will wait for all
+        // `waitUntil()` calls to complete before resolving.
+        process.exit(0);
     },
     error => {
         // eslint-disable-next-line no-console
         console.error(error);
-        process.exitCode = 1;
+
+        // Immediately exit once `main()` finishes. Don't wait for any pending timeouts
+        // keeping the process alive. `withDevContext()` will wait for all
+        // `waitUntil()` calls to complete before resolving.
+        process.exit(1);
     },
 );

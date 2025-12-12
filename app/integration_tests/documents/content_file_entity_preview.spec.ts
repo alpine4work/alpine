@@ -504,7 +504,7 @@ test("can paste URL to add file entity to document with blobs cover", async ({
 
     const document1 = await TestDocument.create(session, {
         title: "foo",
-        initialCover: {
+        cover: {
             type: "Blobs",
             seed: "a",
             themeColor: "blue",
@@ -517,7 +517,7 @@ test("can paste URL to add file entity to document with blobs cover", async ({
 
     const document2 = await TestDocument.create(session, {
         title: "bar",
-        initialCover: {
+        cover: {
             type: "Blobs",
             seed: "b",
             themeColor: "red",

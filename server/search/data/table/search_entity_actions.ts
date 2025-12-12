@@ -13,6 +13,7 @@ import {
     ActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     AccountSearchAffinityEntitiesIndex,
@@ -1106,6 +1107,31 @@ async function addSearchAffinityEntityPoints(
               )
             : null,
     ]);
+}
+
+/**
+ * Allow tests to directly add some number of points.
+ */
+export async function addSearchAffinityEntityPointsForTest(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        batch: BatchContextModule;
+        dynamo: DynamoContextModule;
+        actor: ActorContextModule;
+    }>,
+    options: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        entityId: SearchAffinityEntityId;
+        points: number;
+        erosion?: number;
+    },
+) {
+    assert(isTestNodeEnvOrAdminScenariosScript);
+
+    await addSearchAffinityEntityPoints(context, {...options, isViewInteraction: false});
 }
 
 /**

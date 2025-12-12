@@ -1,7 +1,7 @@
 import {
+    finishUploadingAccountAvatar,
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    updateAccountAvatar,
     updateAccountReactionCharacter,
     updateOurAccountName,
 } from "~/server/accounts/accounts_actions.js";
@@ -121,8 +121,9 @@ export default implementRpcs(definitions, {
     finishUploadingAccountAvatar: {
         visibility: ["EdgeService"],
         execute: async (context, input) => {
-            const account = await updateAccountAvatar(context.actor.authorizeSession(), {
+            const account = await finishUploadingAccountAvatar(context.actor.authorizeSession(), {
                 avatarContent: input.avatarContent,
+                accountId: input.accountId,
                 avatarId: input.avatarId,
             });
             return {account};

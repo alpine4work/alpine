@@ -24,6 +24,7 @@ import {
     getPostItemWithContentForAuthorization,
 } from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {computeUpdateMessageContent} from "~/server/messaging/helpers/compute_update_message_content.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {
@@ -106,6 +107,7 @@ export async function createPostComment(
         parent,
         content,
         createdTimeZone,
+        overrideCreatedTimeForTest,
         fileIds,
         isStream,
         consistency = "Eventual",
@@ -114,6 +116,7 @@ export async function createPostComment(
         parent: MessageContentPayloadParent | null;
         content: MessageContent;
         createdTimeZone: TimeZone;
+        overrideCreatedTimeForTest?: Date;
         fileIds: ReadonlyArray<FileId | FileEntityId>;
         isStream?: boolean;
         consistency?: DynamoCacheReadConsistency;
@@ -123,6 +126,10 @@ export async function createPostComment(
     index: number;
     createdTime: Date;
 }> {
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     return context.dynamo.retryTransaction(async context => {
         const postItemPromise = getPostItemForAuthorizationIfExists(context, postId, {consistency});
 
@@ -206,7 +213,9 @@ export async function createPostComment(
 
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
-        const createdTime = new Date(Date.now());
+        const currentTime = new Date(Date.now());
+
+        const createdTime = overrideCreatedTimeForTest ?? currentTime;
 
         const commentIndex = postItem.commentsSummary.nextCommentIndex;
         const authorId = context.actor.getPossiblyBotAccountId();
@@ -282,7 +291,7 @@ export async function createPostComment(
                           lastPartCreatedTime: null,
                           lastPingTime: null,
                           lastIndexSearchEntityJob: {
-                              sendTime: createdTime,
+                              sendTime: currentTime,
                               delaySeconds: messageStreamIndexSearchEntityDelaySeconds,
                           },
                       }),

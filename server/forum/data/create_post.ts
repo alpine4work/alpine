@@ -27,6 +27,7 @@ import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_content_file_ids.js";
 import {PostItemAuthorizationCache} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {getNotificationPostContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
@@ -39,6 +40,7 @@ import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
@@ -62,6 +64,7 @@ export async function createPost(
         content,
         createdTimeZone,
         consistency,
+        overrideCreatedTimeForTest,
     }: {
         id?: PostId;
         channelId: ChannelId;
@@ -69,6 +72,7 @@ export async function createPost(
         content: PostContent;
         createdTimeZone: TimeZone;
         consistency?: DynamoCacheReadConsistency;
+        overrideCreatedTimeForTest?: Date;
     },
 ): Promise<{
     id: PostId;
@@ -80,6 +84,12 @@ export async function createPost(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>>;
 }> {
+    // You can only manually set a created time when building scenarios or
+    // in tests.
+    if (overrideCreatedTimeForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     const {spaceId, channelName} = await authorizeChannelAccess(context, channelId, "Edit", {
         consistency,
     });
@@ -92,10 +102,12 @@ export async function createPost(
         postId,
         spaceId,
         channelId,
-        // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
-        // this slightly awkward form to let tests mock different times for post
-        // creation.
-        createdTime: new Date(Date.now()),
+        createdTime:
+            overrideCreatedTimeForTest ??
+            // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
+            // this slightly awkward form to let tests mock different times for post
+            // creation.
+            new Date(Date.now()),
         createdTimeZone,
         authorId: context.actor.getPossiblyBotAccountId(),
         content,

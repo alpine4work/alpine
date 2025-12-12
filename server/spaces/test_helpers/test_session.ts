@@ -18,6 +18,10 @@ export class TestSession {
         this.createdTime = createdTime;
     }
 
+    public withContext(context: TestContext) {
+        return new TestSession(this.account.withContext(context), this.id, this.createdTime);
+    }
+
     public static async create(account: TestAccount) {
         const id = generateId<SessionId>();
 
@@ -42,5 +46,12 @@ export class TestSession {
      */
     public get() {
         return this.account.get();
+    }
+
+    /**
+     * Get the `ReactionCharacter` for this session's account.
+     */
+    public getReactionCharacter() {
+        return this.account.getReactionCharacter();
     }
 }

@@ -28,6 +28,10 @@ export class TestBot {
         this.initialName = initialName;
     }
 
+    public withContext(context: TestContext) {
+        return new TestBot(context, this.id, this.initialName);
+    }
+
     public static async create(
         context: TestContext,
         {
@@ -84,6 +88,15 @@ export class TestBotAccount extends TestAccount {
         super(bot.context, id, initialName);
         this.bot = bot;
         this.space = space;
+    }
+
+    public override withContext(context: TestContext): TestAccount {
+        return new TestBotAccount(
+            this.bot.withContext(context),
+            this.space.withContext(context),
+            this.id,
+            this.initialName,
+        );
     }
 
     // Should only be called by `TestBot`.

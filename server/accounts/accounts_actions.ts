@@ -243,12 +243,14 @@ export async function createAccountForTest(
         hasInternalAccess = false,
         createdTime = new Date(),
         observedTimeZone = defaultTimeZone,
+        reactionCharacter = pickRandomReactionCharacterForAccount(),
     }: {
         id?: AccountId;
         name: string;
         hasInternalAccess?: boolean;
         createdTime?: Date;
         observedTimeZone?: TimeZone | null;
+        reactionCharacter?: ReactionCharacter;
     },
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
@@ -262,7 +264,7 @@ export async function createAccountForTest(
         createdTime,
         hasInternalAccess,
         observedTimeZone,
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter,
     });
 
     await AccountsTable.createItem(context, {
@@ -1184,21 +1186,21 @@ export async function updateOurAccountName(
     });
 }
 
-export async function updateAccountAvatar(
-    context: Context<
-        DynamoContextModules & {cache: CacheContextModule; actor: SessionActorContextModule}
-    >,
+export async function finishUploadingAccountAvatar(
+    context: ServerSessionActionContext,
     {
         avatarContent,
+        accountId,
         avatarId,
     }: {
         avatarContent: Uint8Array;
+        accountId: AccountId;
         avatarId: AvatarId;
     },
 ): Promise<AccountModelWithoutSpace> {
-    context.actor.authorizeSession();
-
-    const accountId = context.actor.getAccountId();
+    if (context.actor.getAccountId() !== accountId) {
+        throw new PermissionDeniedError("Can’t access account that’s not the actor’s");
+    }
 
     return context.dynamo.retryTransaction(async context => {
         const oldAccountItem = await getAccountItem(context, accountId);

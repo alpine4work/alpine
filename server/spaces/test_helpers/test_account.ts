@@ -13,6 +13,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
+import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 let testAccountCount = 1;
 
@@ -27,6 +29,10 @@ export class TestAccount {
         this.initialName = initialName;
     }
 
+    public withContext(context: TestContext) {
+        return new TestAccount(context, this.id, this.initialName);
+    }
+
     public static getNewName() {
         return `Test Account ${testAccountCount++}`;
     }
@@ -38,11 +44,13 @@ export class TestAccount {
             name = TestAccount.getNewName(),
             hasInternalAccess = false,
             observedTimeZone = defaultTimeZone,
+            reactionCharacter,
         }: {
             id?: AccountId;
             name?: string;
             hasInternalAccess?: boolean;
             observedTimeZone?: TimeZone | null;
+            reactionCharacter?: ReactionCharacter;
         } = {},
     ) {
         await createAccountForTest(context, {
@@ -50,6 +58,7 @@ export class TestAccount {
             name,
             hasInternalAccess,
             observedTimeZone,
+            reactionCharacter,
         });
 
         return new TestAccount(context, id, name);
@@ -94,6 +103,14 @@ export class TestAccount {
                 this.context.clone({cache: CacheContextModule.new()}),
                 this.id,
             ),
+        );
+    }
+
+    public async getReactionCharacter(): Promise<ReactionCharacter> {
+        const account = await this.get();
+        return (
+            account.initialData.reactionCharacter ??
+            getLegacyFallbackReactionCharacterForId(this.id)
         );
     }
 }

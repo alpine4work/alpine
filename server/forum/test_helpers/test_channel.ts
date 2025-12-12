@@ -7,6 +7,7 @@ import {subscribeToChannel} from "~/server/forum/data/subscribe_to_channel.js";
 import {unsubscribeFromChannel} from "~/server/forum/data/unsubscribe_from_channel.js";
 import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_access_policy.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
+import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -14,10 +15,7 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
-import {
-    MessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 
 let testChannelCount = 1;
 
@@ -79,7 +77,7 @@ export class TestChannel {
             name,
             description:
                 typeof description === "string"
-                    ? createSimpleMessageContent(description)
+                    ? parseTestMessageContent(session.space.id, description)
                     : description,
             accessPolicy,
         });

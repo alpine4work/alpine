@@ -1,6 +1,8 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {DocAttrStep, ReplaceStep, Step} from "prosemirror-transform";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {fromApiContentBlockElements} from "~/server/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
@@ -27,7 +29,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentContentProsemirrorSchema;
 
@@ -74,7 +76,8 @@ export class TestDocument {
         session: TestSpaceSession,
         options: {
             id?: DocumentId;
-            initialCover?: DocumentContentCover;
+            hasPresentShortcut?: boolean;
+            cover?: DocumentContentCover;
         } & (
             | {
                   title?: string;
@@ -143,17 +146,20 @@ export class TestDocument {
             }
 
             content = assertDocumentContent(
-                schema.node("doc", {accessPolicy, cover: options.initialCover}, [
-                    schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
-                    ...(options.body
-                        ? options.body
-                              .trimEnd()
-                              .split("\n")
-                              .map(bodyLine =>
-                                  schema.node("paragraph", {}, [schema.text(bodyLine)]),
-                              )
-                        : [schema.node("paragraph", {}, [])]),
-                ]),
+                schema.node(
+                    "doc",
+                    {
+                        accessPolicy,
+                        hasPresentShortcut: options.hasPresentShortcut,
+                        cover: options.cover,
+                    },
+                    [
+                        schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
+                        ...(options.body
+                            ? parseDocumentTestContent(session.space.id, options.body)
+                            : [schema.node("paragraph", {}, [])]),
+                    ],
+                ),
             );
         }
 
@@ -344,4 +350,12 @@ export class TestDocument {
     ) {
         return TestDocumentCommentThread._create(this, session, range, content);
     }
+}
+
+function parseDocumentTestContent(spaceId: SpaceId, content: string) {
+    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+
+    return Array.from(
+        fromApiContentBlockElements(DocumentContentProsemirrorSchema, apiContent.elements),
+    );
 }

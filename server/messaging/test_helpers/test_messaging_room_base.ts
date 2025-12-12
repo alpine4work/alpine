@@ -1,5 +1,7 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
@@ -21,10 +23,12 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
+    MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
@@ -34,7 +38,7 @@ import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 const testMessageCountByConstructor = new DefaultMap<
     typeof TestMessagingRoomBase,
@@ -45,6 +49,7 @@ type TestMessagingRoomCreateMessageOptions = {
     parent?: TestMessage | MessageContentPayloadParent;
     files?: Iterable<TestFile | FileId>;
     createdTimeZone?: TimeZone;
+    overrideCreatedTime?: Date;
     isStream?: boolean;
 };
 
@@ -71,6 +76,7 @@ export abstract class TestMessagingRoomBase {
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
+            overrideCreatedTimeForTest?: Date;
             isStream?: boolean;
         },
     ): Promise<{index: number; createdTime: Date}>;
@@ -166,7 +172,13 @@ export abstract class TestMessagingRoomBase {
         content: string | Node | {isStream: true} = (
             this.constructor as typeof TestMessagingRoomBase
         ).createDefaultMessageContent(),
-        {parent, files, createdTimeZone, isStream}: TestMessagingRoomCreateMessageOptions = {},
+        {
+            parent,
+            files,
+            createdTimeZone,
+            overrideCreatedTime,
+            isStream,
+        }: TestMessagingRoomCreateMessageOptions = {},
     ): Promise<TestMessage<this>> {
         if (parent instanceof TestMessage) {
             const roomKey = this._getRoomKey();
@@ -188,7 +200,7 @@ export abstract class TestMessagingRoomBase {
                         : parent ?? null,
                 content:
                     typeof content === "string"
-                        ? createSimpleMessageContent(content)
+                        ? parseTestMessageContent(this.space.id, content)
                         : content instanceof Node
                         ? assertMessageContent(content)
                         : createSimpleMessageContent(""),
@@ -196,6 +208,7 @@ export abstract class TestMessagingRoomBase {
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
                 createdTimeZone,
+                overrideCreatedTimeForTest: overrideCreatedTime,
                 isStream:
                     isStream ||
                     (typeof content !== "string" &&
@@ -299,7 +312,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                     message.payload.content.doc.content.size,
                     new Slice(
                         (typeof content === "string"
-                            ? createSimpleMessageContent(content)
+                            ? parseTestMessageContent(this.space.id, content)
                             : assertMessageContent(content)
                         ).content,
                         0,
@@ -324,7 +337,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             partIndex,
             payload:
                 typeof payload === "string"
-                    ? {type: "Content", content: createSimpleMessageContent(payload)}
+                    ? {type: "Content", content: parseTestMessageContent(this.space.id, payload)}
                     : payload instanceof Node
                     ? {type: "Content", content: assertMessageContent(payload)}
                     : payload,
@@ -337,7 +350,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
 
     public async setReaction(
         session: TestSession,
-        reaction: Reaction | "GenericLike" = "GenericLike",
+        reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
     ) {
         const message = await this.room._getMessage(
             // Use a system action since if there's a `PermissionDeniedError` we want it
@@ -357,7 +370,13 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                 messageIndex: this.index,
                 contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
                 pos: message.payload.content.doc.content.size,
-                reaction,
+                reaction:
+                    reaction === "GenericLike" || isObject(reaction)
+                        ? reaction
+                        : {
+                              character: await session.getReactionCharacter(),
+                              emotion: reaction,
+                          },
             },
         );
     }
@@ -378,4 +397,9 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             pos: message.payload.content.doc.content.size,
         });
     }
+}
+
+export function parseTestMessageContent(spaceId: SpaceId, content: string): MessageContent {
+    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+    return assertMessageContent(fromApiContent(MessageContentProsemirrorSchema, apiContent));
 }

@@ -35,6 +35,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -188,11 +189,7 @@ export async function createSpaceForTest(
     context: DynamoContext,
     {id = generateId<SpaceId>(), name}: {id?: SpaceId; name: string},
 ) {
-    assert(
-        process.env.NODE_ENV === "test" ||
-            // Allow calling this function in `//admin/scenarios`.
-            (process.env.NODE_ENV === "development" && context.dynamo.isLocal()),
-    );
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     await SpacesTable.createItem(context, {
         partitionType: "Space",
@@ -218,11 +215,7 @@ export async function addSpaceAccountForTest(
         role?: SpaceRole;
     },
 ) {
-    assert(
-        process.env.NODE_ENV === "test" ||
-            // Allow calling this function in `//admin/scenarios`.
-            (process.env.NODE_ENV === "development" && context.dynamo.isLocal()),
-    );
+    assert(isTestNodeEnvOrAdminScenariosScript);
 
     await addSpaceAccountWithoutAuthorization(
         process.env.NODE_ENV === "development"

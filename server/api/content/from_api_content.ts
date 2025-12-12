@@ -29,7 +29,7 @@ export function fromApiContent(schema: ProsemirrorSchema, content: ApiContent): 
     );
 }
 
-function* fromApiContentBlockElements(
+export function* fromApiContentBlockElements(
     schema: ProsemirrorSchema,
     elements: Iterable<ApiContentBlockElement>,
 ): IterableIterator<Node> {

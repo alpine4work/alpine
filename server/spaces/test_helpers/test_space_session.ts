@@ -5,6 +5,7 @@ import {
     getAccount,
 } from "~/server/spaces/spaces_actions.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -22,6 +23,15 @@ export class TestSpaceSession extends TestSession {
         super(account, id, createdTime);
 
         this.space = space;
+    }
+
+    public override withContext(context: TestContext) {
+        return new TestSpaceSession(
+            this.space.withContext(context),
+            this.account.withContext(context),
+            this.id,
+            this.createdTime,
+        );
     }
 
     // Starts with an underscore since you should prefer calling

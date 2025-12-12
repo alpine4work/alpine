@@ -1,5 +1,9 @@
 /* eslint-disable string-quotes */
 
+// TODO(calebmer): Update this lint rule so if it looks like we're in the
+// middle of an HTML string we don't warn if you're using regular quotes for
+// HTML attributes.
+
 "use strict";
 
 module.exports = {

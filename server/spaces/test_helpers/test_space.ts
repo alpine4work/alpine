@@ -21,6 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
@@ -52,6 +53,10 @@ export class TestSpace {
     private constructor(context: TestContext, spaceId: SpaceId) {
         this.context = context;
         this.id = spaceId;
+    }
+
+    public withContext(context: TestContext) {
+        return new TestSpace(context, this.id);
     }
 
     public static async create(
@@ -113,6 +118,7 @@ export class TestSpace {
                   name?: string;
                   hasInternalAccess?: boolean;
                   role?: SpaceRole;
+                  reactionCharacter?: ReactionCharacter;
               },
     ): Promise<TestSpaceSession> {
         let role: SpaceRole | undefined;

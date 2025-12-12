@@ -59,6 +59,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {
     TestAnonymousActionContext,
     TestBotActionContext,
+    TestContext,
     TestContextHelpers,
     TestContextModules,
     TestImpersonatedAccountActionContext,
@@ -82,6 +83,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -102,13 +104,20 @@ process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
 export type TestActualContext = Context<TestContextModules> &
-    TestContextHelpers &
-    TestContextAdditionalHelpers<TestContextModules>;
+    TestActualContextHelpers<TestContextModules>;
 
-type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
-    ContextWithDestroy<Modules> & TestContextHelpers & TestContextAdditionalHelpers<Modules>;
+assertAssignableTypes<TestActualContext, TestContext>();
 
-type TestContextAdditionalHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
+type TestActualContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
+    ContextWithDestroy<Modules> & TestActualContextHelpers<Modules>;
+
+type TestActualContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = Omit<
+    TestContextHelpers<Modules>,
+    "cloneWithHelpers"
+> &
+    TestActualContextAdditionalHelpers<Modules>;
+
+type TestActualContextAdditionalHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     getTemporaryDirectoryPath(): string;
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
@@ -138,7 +147,7 @@ type TestContextAdditionalHelpers<Modules extends {[key: string]: ContextModuleB
      */
     cloneWithHelpers<NewModules extends {[key: string]: ContextModuleBase}>(
         newModules: NewModules,
-    ): TestContextWithDestroy<Replace<Modules, NewModules>>;
+    ): TestActualContextWithDestroy<Replace<Modules, NewModules>>;
 
     /**
      * Set the job processing function for this context. Throws an error if the
@@ -567,7 +576,7 @@ export function createTestContext(
         }),
     });
 
-    const helpers: TestContextHelpers & TestContextAdditionalHelpers<TestContextModules> = {
+    const helpers: TestActualContextHelpers<TestContextModules> = {
         getTemporaryDirectoryPath,
         getDynamoLocalPort,
         getOpensearchLocalPort,

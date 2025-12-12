@@ -1,5 +1,7 @@
 import {Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
+import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
@@ -38,23 +40,24 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
+    PostContent,
     PostContentProsemirrorSchema,
     assertPostContent,
-    createSimplePostContent,
     emptyPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {FileId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionEmotion} from "~/shared/reactions/reaction.js";
 
 let testPostCount = 1;
 
@@ -62,6 +65,7 @@ export type TestPostCreateOptions = {
     id?: PostId;
     files?: ReadonlyArray<TestFile>;
     attachFiles?: ReadonlyArray<TestFile>;
+    overrideCreatedTime?: Date;
 };
 
 export class TestPost extends TestCommentRoomBase {
@@ -127,7 +131,7 @@ export class TestPost extends TestCommentRoomBase {
         {};
 
         if (typeof content === "string") {
-            content = createSimplePostContent(content);
+            content = parsePostTestContent(session.space.id, content);
         }
 
         const attachFiles =
@@ -203,6 +207,7 @@ export class TestPost extends TestCommentRoomBase {
             createdTimeZone: defaultTimeZone,
             draftId,
             content: assertPostContent(content),
+            overrideCreatedTimeForTest: options?.overrideCreatedTime,
         });
 
         return new TestPost(
@@ -237,12 +242,14 @@ export class TestPost extends TestCommentRoomBase {
             content,
             fileIds,
             createdTimeZone,
+            overrideCreatedTimeForTest,
             isStream,
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
             fileIds: ReadonlyArray<FileId>;
             createdTimeZone?: TimeZone;
+            overrideCreatedTimeForTest?: Date;
             isStream?: boolean;
         },
     ) {
@@ -253,6 +260,7 @@ export class TestPost extends TestCommentRoomBase {
             fileIds,
             isStream,
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
+            overrideCreatedTimeForTest,
         });
     }
 
@@ -395,7 +403,7 @@ export class TestPost extends TestCommentRoomBase {
         );
 
         if (typeof content === "string") {
-            content = createSimplePostContent(content);
+            content = parsePostTestContent(this.space.id, content);
         }
 
         const attachFiles =
@@ -458,7 +466,7 @@ export class TestPost extends TestCommentRoomBase {
 
     public async setReaction(
         session: TestSession,
-        reaction: Reaction | "GenericLike" = "GenericLike",
+        reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
     ) {
         return setPostReaction(
             session.action().clone({
@@ -466,11 +474,21 @@ export class TestPost extends TestCommentRoomBase {
                 webPush: new TestWebPushContextModule(),
             }),
             this.id,
-            reaction,
+            reaction === "GenericLike" || isObject(reaction)
+                ? reaction
+                : {
+                      character: await session.getReactionCharacter(),
+                      emotion: reaction,
+                  },
         );
     }
 
     public async deleteReaction(session: TestSession) {
         return deletePostReaction(session.action(), this.id);
     }
+}
+
+function parsePostTestContent(spaceId: SpaceId, content: string): PostContent {
+    const apiContent = parseApiContentFromMarkdown(content, {spaceId});
+    return assertPostContent(fromApiContent(PostContentProsemirrorSchema, apiContent));
 }
