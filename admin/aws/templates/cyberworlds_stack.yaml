@@ -3768,7 +3768,7 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /api/internal/healthcheck
-            HealthCheckTimeoutSeconds: 3
+            HealthCheckTimeoutSeconds: 2
             HealthyThresholdCount: 2
             Name: cyberworlds-app-target-group
             Port: 4000
@@ -3783,6 +3783,7 @@ Resources:
                 - Key: stickiness.lb_cookie.duration_seconds
                   Value: "86400"
             TargetType: instance
+            UnhealthyThresholdCount: 1
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
@@ -4761,7 +4762,7 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /healthcheck
-            HealthCheckTimeoutSeconds: 3
+            HealthCheckTimeoutSeconds: 2
             HealthyThresholdCount: 2
             Name: cyberworlds-api-target-group
             Port: 4000
@@ -4772,6 +4773,7 @@ Resources:
                 - Key: stickiness.enabled
                   Value: "false"
             TargetType: instance
+            UnhealthyThresholdCount: 1
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
@@ -7590,8 +7592,8 @@ Resources:
         Properties:
             HealthCheckIntervalSeconds: 5
             HealthCheckPath: /healthcheck
-            HealthCheckTimeoutSeconds: 3
-            HealthyThresholdCount: 3
+            HealthCheckTimeoutSeconds: 2
+            HealthyThresholdCount: 2
             Name: legacy-files-target-group
             Port: 4000
             Protocol: HTTP
@@ -7601,6 +7603,7 @@ Resources:
                 - Key: stickiness.enabled
                   Value: "false"
             TargetType: instance
+            UnhealthyThresholdCount: 1
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:

@@ -404,8 +404,9 @@ export function createAwsAppOrApiService(
             // ~10 seconds to consider the service healthy.
             // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
             interval: Duration.seconds(5),
-            timeout: Duration.seconds(3),
+            timeout: Duration.seconds(2),
             healthyThresholdCount: 2,
+            unhealthyThresholdCount: 1,
         },
         // Break connections after 5 seconds when EC2 instances are being
         // deregistered. Any long lived connections longer than 5 seconds will be
