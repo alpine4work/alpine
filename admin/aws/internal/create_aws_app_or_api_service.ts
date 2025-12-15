@@ -406,7 +406,7 @@ export function createAwsAppOrApiService(
             interval: Duration.seconds(5),
             timeout: Duration.seconds(2),
             healthyThresholdCount: 2,
-            unhealthyThresholdCount: 1,
+            unhealthyThresholdCount: 2,
         },
         // Break connections after 5 seconds when EC2 instances are being
         // deregistered. Any long lived connections longer than 5 seconds will be

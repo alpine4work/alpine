@@ -467,7 +467,7 @@ export class AwsFileProcessorService extends Construct {
                     interval: Duration.seconds(5),
                     timeout: Duration.seconds(2),
                     healthyThresholdCount: 2,
-                    unhealthyThresholdCount: 1,
+                    unhealthyThresholdCount: 2,
                 },
                 // See our comment on `stopTimeout`. File upload processing is potentially quite
                 // slow so we need to increase the deregistration delay to make sure we don't
