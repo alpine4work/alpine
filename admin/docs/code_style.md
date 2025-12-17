@@ -852,6 +852,60 @@ function myFunction() {
 
 ## TypeScript
 
+### Avoid unsafe operators
+
+Avoid operators that introduce type unsafety. This includes:
+
+-   `x!`: The null suppression operator turns type `T | null | undefined` into `T`. If your type
+    includes null it means you need to handle null. Otherwise you may get null pointer exceptions at
+    runtime. For example `const x: string | null = null; x!.toLowerCase()` is valid TypeScript but
+    since null isn’t a string the function `toLowerCase()` this throws at runtime.
+
+-   `x as T`: The cast operator allows you to turn `T | U` into simply `T` ignoring `U`. If your
+    type includes `U` it means you need to handle that case. Otherwise you may get errors at runtime
+    because you didn’t handle `U`. For example
+    `const x: string | number = 42; (x as string).toLowerCase()` is valid TypeScript but since 42
+    doesn’t support the function `toLowerCase()` this throws at runtime.
+
+-   `any`: Completely turns off type checking for a variable. Should go without saying this is
+    unsafe.
+
+Alternatives to use instead:
+
+-   Instead of `x!.p`:
+
+    -   Use optional chaining: `x?.p`. this get property `p` if `x` isn’t `undefined` or `null` and
+        will return `undefined` if `x` is `undefined` or `null`.
+
+    -   Use nullable coalescing: `(x ?? y).p`. If `x` is `undefined` or `null` then instead `x` will
+        be replaced with the variable `y` and you’ll access property `p` on `y` instead of `x`.
+
+        Prefer nullable coalescing to `||` (don’t do this `(x || y).p`) which was the convention
+        before the nullable coalescing operator was introduced.
+
+    -   `assertExists(x)` immediately throws an error if `x` is `undefined` or `null` which is
+        better than getting a nullable pointer exception later down the road when you try to access
+        property `p` (or anything else) on `undefined` or `null`. You catch the error right where it
+        happens instead of later on.
+
+-   Instead of `x as T`:
+
+    -   `cast<T>(x)` is a way to make sure `x` is type `T` in a type safe way.
+
+    -   `x satisfies T` is very similar to `cast<T>(x)`. It checks that `x` is valid for type `T`
+        without changing the type of `x`.
+
+    -   `x as const` is type safe and encouraged. It switches TypeScript’s literal type inference
+        into read-only mode which can be quite useful.
+
+We don’t have an ESLint warning that warns when you try to use these unsafe operators. Because
+they’re sometimes genuinely useful given JavaScript is fundamentally a dynamically typed language
+and TypeScript can’t express everything JavaScript supports. Therefore it’s on you the developer to
+avoid known unsafe language features whenever possible.
+
+**💡 Why?** Maintaining a type safe codebase helps us reduce bugs shipped to production and makes
+refactoring large parts of the application easier.
+
 ### Helper functions should be in individual modules
 
 Avoid files with many unrelated helper functions. Instead, create a separate file for each helper.
