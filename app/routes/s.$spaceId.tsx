@@ -118,7 +118,6 @@ import {
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
-    isOptedOutOfWebPushForSpace,
     registerAccountWebPushSubscription,
     registerOurAccountAppleDeviceToken,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
@@ -145,7 +144,6 @@ export const LoaderSchema = Schema.union({
         currentAccount: AccountModel.schema,
         inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
         webPushVapidPublicKey: Schema.string,
-        isOptedOutOfWebPush: Schema.boolean,
     }),
     WithoutAccess: Schema.object({
         type: Schema.value("WithoutAccess"),
@@ -268,34 +266,23 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
             try {
                 // Await on data that we absolutely need first
-                const [currentAccount, currentSpace, inboxResult, webPushOptOutStatusResult] =
-                    await runAllPromises([
-                        getOwnAccountIfExists(
-                            sessionContext,
-                            spaceId,
-                            sessionContext.actor.getAccountId(),
-                        ),
+                const [currentAccount, currentSpace, inboxResult] = await runAllPromises([
+                    getOwnAccountIfExists(
+                        sessionContext,
+                        spaceId,
+                        sessionContext.actor.getAccountId(),
+                    ),
 
-                        // If we're in an `InvitePending` state, we need to return the space
-                        // data for the invite screen.
-                        getSpace(sessionContext, spaceId, {allowInvitePending: true}),
+                    // If we're in an `InvitePending` state, we need to return the space
+                    // data for the invite screen.
+                    getSpace(sessionContext, spaceId, {allowInvitePending: true}),
 
-                        // If `getInbox()` throws because we don't have space access, that's fine. This
-                        // might be a user with a pending invite. We want to load the inbox item here in
-                        // parallel with our other data in case we need it. If there's an error, catch
-                        // the error and throw later after we know we have space access.
-                        captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
-
-                        // Get the web push subscription for the current browser if it exists. We allow
-                        // this to throw if we don't have space access just like `getInbox()` above
-                        // and handle it later once we know if we have space access.
-                        captureResultPromise(
-                            isOptedOutOfWebPushForSpace(context.actor.authorizeSession(), {
-                                spaceId,
-                                browserId: context.loader.getBrowserId(),
-                            }),
-                        ),
-                    ]);
+                    // If `getInbox()` throws because we don't have space access, that's fine. This
+                    // might be a user with a pending invite. We want to load the inbox item here in
+                    // parallel with our other data in case we need it. If there's an error, catch
+                    // the error and throw later after we know we have space access.
+                    captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
+                ]);
 
                 space = currentSpace;
 
@@ -326,7 +313,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 }
 
                 const inbox = unwrapResult(inboxResult);
-                const {optedOut: isOptedOutOfWebPush} = unwrapResult(webPushOptOutStatusResult);
 
                 const propagateEventData: TracerEventData = {
                     context: {
@@ -343,7 +329,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         currentAccount,
                         inbox,
                         webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
-                        isOptedOutOfWebPush,
                     },
                     {propagateEventData},
                 );
@@ -656,7 +641,6 @@ export default function SpaceLayoutRoute() {
 
     useEffect(() => {
         if (loaderData.type !== "WithAccess" || !loaderData.webPushVapidPublicKey) return;
-        if (loaderData.isOptedOutOfWebPush) return;
         if (hasPromptedForBrowserPushNotificationPermissionRef.current) return;
         hasPromptedForBrowserPushNotificationPermissionRef.current = true;
 
