@@ -166,8 +166,10 @@ export function SpaceLayoutSideBarInboxButton({
 
     // Update the favicon when the notification type changes.
     useEffect(() => {
-        // eslint-disable-next-line string-quotes
-        const icon = assertExists(document.querySelector("link[rel~='icon']"));
+        const icon = assertExists(
+            // eslint-disable-next-line string-quotes
+            document.querySelector("link[rel~='icon'][type='image/svg+xml']"),
+        );
 
         const currentHref = icon.getAttribute("href");
         const newHref = {

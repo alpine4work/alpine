@@ -193,12 +193,7 @@ const constantRootHead = (
             crossOrigin="anonymous"
         />
         <link rel="stylesheet" href={stylesUrl} />
-        <link
-            // Recommend the SVG favicon so it can render in light and dark mode.
-            rel="icon"
-            href="/favicon.svg"
-            sizes="any"
-        />
+        <link rel="icon" href="/favicon.ico" sizes="128x128" />
         <link
             rel="apple-touch-icon"
             sizes="512x512"
@@ -208,6 +203,14 @@ const constantRootHead = (
             rel="apple-touch-icon"
             sizes="1024x1024"
             href={`${resourceServiceUrl}/app-icons/app-icon-1024x1024.png`}
+        />
+        <link
+            // Recommend the SVG favicon so it can render in light and dark mode.
+            // Ensure this icon is last so it gets preference over any other icon types.
+            rel="icon"
+            href="/favicon.svg"
+            type="image/svg+xml"
+            sizes="any"
         />
         <link rel="manifest" href="/manifest.json" />
 
