@@ -22,7 +22,6 @@ export default function MoreRoute() {
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
-    const withSpaceSettings = process.env.NODE_ENV !== "production";
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -108,19 +107,16 @@ export default function MoreRoute() {
                     </Box>
                 </Box>
                 <Spacer space="20" />
-                {withSpaceSettings && (
-                    <MobileSettingsRow
-                        withBorderTop
-                        icon={<Gear />}
-                        label="Settings"
-                        pressErrorTitle="Couldn’t open space settings"
-                        onPress={async () => {
-                            await rootNavigate(`/s/${space.id}/more/settings`);
-                        }}
-                    />
-                )}
                 <MobileSettingsRow
-                    withBorderTop={!withSpaceSettings}
+                    withBorderTop
+                    icon={<Gear />}
+                    label="Settings"
+                    pressErrorTitle="Couldn’t open space settings"
+                    onPress={async () => {
+                        await rootNavigate(`/s/${space.id}/more/settings`);
+                    }}
+                />
+                <MobileSettingsRow
                     icon={<SignOut />}
                     label="Sign out"
                     pressErrorTitle="Couldn’t sign out"
