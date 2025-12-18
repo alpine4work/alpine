@@ -45,18 +45,12 @@ self.addEventListener("push", (event: PushEvent) => {
         };
     }
 
-    const promiseChain = isClientFocused().then(isFocused => {
-        // Don't show push notifications if the user is currently in the app.
-        if (isFocused) {
-            return;
-        }
-        return self.registration.showNotification(title, {
+    event.waitUntil(
+        self.registration.showNotification(title, {
             body: notificationData.body,
             data: notificationData.data,
-        });
-    });
-
-    event.waitUntil(promiseChain);
+        }),
+    );
 });
 
 // Notification click event - fired when user clicks on a notification
@@ -103,23 +97,3 @@ self.addEventListener("fetch", (event: FetchEvent) => {
         event.waitUntil(deregisterPushSubscription());
     }
 });
-
-function isClientFocused() {
-    return self.clients
-        .matchAll({
-            type: "window",
-            includeUncontrolled: true,
-        })
-        .then(windowClients => {
-            let clientIsFocused = false;
-
-            for (let i = 0; i < windowClients.length; i++) {
-                const windowClient = windowClients[i];
-                if (windowClient?.focused) {
-                    clientIsFocused = true;
-                    break;
-                }
-            }
-            return clientIsFocused;
-        });
-}
