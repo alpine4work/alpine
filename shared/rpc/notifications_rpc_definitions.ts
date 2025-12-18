@@ -224,8 +224,8 @@ export const registerAccountWebPushSubscriptionAndOptInToSpace = defineRpc({
     output: {},
 });
 
-export const registerAccountWebPushSubscription = defineRpc({
-    name: "registerAccountWebPushSubscription",
+export const registerOurAccountWebPushSubscription = defineRpc({
+    name: "registerOurAccountWebPushSubscription",
     isIdempotent: true,
     input: {
         subscription: WebPushSubscriptionSchema,
@@ -239,6 +239,15 @@ export const deregisterAccountWebPushSubscription = defineRpc({
     isIdempotent: true,
     input: {
         accountId: Schema.id<AccountId>(),
+        browserId: Schema.id<BrowserId>(),
+    },
+    output: {},
+});
+
+export const deregisterOurAccountWebPushSubscription = defineRpc({
+    name: "deregisterOurAccountWebPushSubscription",
+    isIdempotent: true,
+    input: {
         browserId: Schema.id<BrowserId>(),
     },
     output: {},

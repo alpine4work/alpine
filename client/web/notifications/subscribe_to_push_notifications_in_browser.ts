@@ -1,5 +1,9 @@
-import {validateWebPushSubscription} from "~/client/web/notifications/validate_web_push_subscription.js";
+import {serializeWebPushSubscription} from "~/client/web/notifications/serialize_web_push_subscription.js";
+import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
@@ -10,7 +14,7 @@ import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.
  * subscription if one doesn't already exist.
  */
 export async function subscribeToPushNotificationsInBrowser(
-    vapidPublicKey: PushSubscriptionOptionsInit["applicationServerKey"],
+    browserId: BrowserId,
     unsubscribeExistingSubscription: boolean = false,
 ): Promise<WebPushSubscription | null> {
     // Must be running in a browser
@@ -19,18 +23,28 @@ export async function subscribeToPushNotificationsInBrowser(
     }
 
     // Do nothing if push notifications are not supported in this browser
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window) ||
+        !("Notification" in window)
+    ) {
         return null;
     }
+
+    const {getVapidCredentials, putWebPushSubscription} = getWebPushStore();
+
+    const [vapidCredentials, registration] = await runAllPromises([
+        getVapidCredentials(),
+        // Wait until the service worker is ready
+        navigator.serviceWorker.ready,
+    ]);
+    assert(vapidCredentials, "Missing vapid credentials");
 
     // `userVisibleOnly` *must* be set to true for Chrome to receive push notifications.
     const subscriptionOptions: PushSubscriptionOptionsInit = {
         userVisibleOnly: true,
-        applicationServerKey: vapidPublicKey,
+        applicationServerKey: vapidCredentials.vapidPublicKey,
     };
-
-    // Wait until the service worker is ready
-    const registration = await navigator.serviceWorker.ready;
 
     const notificationPermissions = Notification.permission;
 
@@ -40,15 +54,20 @@ export async function subscribeToPushNotificationsInBrowser(
             "User has not granted browser permission to receive push notifications",
         );
     }
-
-    const existingSubscription = await registration.pushManager.getSubscription();
-
-    if (existingSubscription && !unsubscribeExistingSubscription) {
-        return validateWebPushSubscription(existingSubscription);
-    } else if (existingSubscription && unsubscribeExistingSubscription) {
-        await existingSubscription.unsubscribe();
+    if (unsubscribeExistingSubscription) {
+        const oldSubscription = await registration.pushManager.getSubscription();
+        if (oldSubscription) {
+            await oldSubscription.unsubscribe();
+        }
     }
 
-    const subscription = await registration.pushManager.subscribe(subscriptionOptions);
-    return validateWebPushSubscription(subscription);
+    const newSubscription = await registration.pushManager.subscribe(subscriptionOptions);
+    const subscription = serializeWebPushSubscription(newSubscription);
+
+    await putWebPushSubscription({
+        browserId,
+        subscription,
+        options: subscriptionOptions,
+    });
+    return subscription;
 }

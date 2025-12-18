@@ -33,7 +33,6 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     browserId: Schema.id<BrowserId>(),
-    webPushVapidPublicKey: Schema.string,
     inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
     isOptedOutOfWebPush: Schema.boolean,
 });
@@ -51,12 +50,9 @@ export async function loader({context, params}: LoaderArgs) {
         }),
     ]);
 
-    const webPushVapidPublicKey = context.loader.webPushVapidPublicKey;
-
     return jsonWithSchema(LoaderSchema, {
         browserId,
         inbox,
-        webPushVapidPublicKey,
         isOptedOutOfWebPush: optedOut,
     });
 }
@@ -67,7 +63,6 @@ export default function SpaceNotificationSettingsRoute() {
     const {
         browserId,
         inbox: initialInbox,
-        webPushVapidPublicKey,
         isOptedOutOfWebPush,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
@@ -88,7 +83,6 @@ export default function SpaceNotificationSettingsRoute() {
     return (
         <Box display="flex" flexDirection="column" gap="6">
             <PushNotificationsSection
-                webPushVapidPublicKey={webPushVapidPublicKey}
                 browserId={browserId}
                 isOptedOutOfWebPush={isOptedOutOfWebPush}
             />
@@ -139,11 +133,9 @@ function DigestNotificationsSection({inbox}: {inbox: DynamoGeneralRealtimeItem<I
 }
 
 function PushNotificationsSection({
-    webPushVapidPublicKey,
     browserId,
     isOptedOutOfWebPush,
 }: {
-    webPushVapidPublicKey: string;
     browserId: BrowserId;
     isOptedOutOfWebPush: boolean;
 }) {
@@ -204,9 +196,7 @@ function PushNotificationsSection({
                     return;
                 }
 
-                const subscription = await subscribeToPushNotificationsInBrowser(
-                    webPushVapidPublicKey,
-                );
+                const subscription = await subscribeToPushNotificationsInBrowser(browserId);
 
                 if (!subscription) {
                     throw new FailedPreconditionError(

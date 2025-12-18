@@ -7,7 +7,7 @@ import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.
  * Registers a web push subscription for an account to the database and does not change the opt out
  * status for any spaces. By default, all of an account's spaces begin opted in.
  */
-export async function registerAccountWebPushSubscription(
+export async function registerOurAccountWebPushSubscription(
     context: ServerSessionActionContext,
     {
         subscription,

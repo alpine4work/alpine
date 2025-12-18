@@ -117,8 +117,8 @@ import {
     updateOurLastOpenedSpaceId,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
-    registerAccountWebPushSubscription,
     registerOurAccountAppleDeviceToken,
+    registerOurAccountWebPushSubscription,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
@@ -142,7 +142,6 @@ export const LoaderSchema = Schema.union({
         space: SpaceModel.schema(),
         currentAccount: AccountModel.schema,
         inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
-        webPushVapidPublicKey: Schema.string,
     }),
     WithoutAccess: Schema.object({
         type: Schema.value("WithoutAccess"),
@@ -327,7 +326,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         space,
                         currentAccount,
                         inbox,
-                        webPushVapidPublicKey: context.loader.webPushVapidPublicKey,
                     },
                     {propagateEventData},
                 );
@@ -639,7 +637,7 @@ export default function SpaceLayoutRoute() {
     const hasPromptedForBrowserPushNotificationPermissionRef = useRef<boolean>(false);
 
     useEffect(() => {
-        if (loaderData.type !== "WithAccess" || !loaderData.webPushVapidPublicKey) return;
+        if (loaderData.type !== "WithAccess") return;
         if (hasPromptedForBrowserPushNotificationPermissionRef.current) return;
         hasPromptedForBrowserPushNotificationPermissionRef.current = true;
 
@@ -648,13 +646,11 @@ export default function SpaceLayoutRoute() {
             // Safari users must instead enable push notifications in Notifications settings.
             const permission = await getOrPromptForBrowserPushNotificationPermission();
             if (permission === "granted") {
-                const subscription = await subscribeToPushNotificationsInBrowser(
-                    loaderData.webPushVapidPublicKey,
-                );
+                const subscription = await subscribeToPushNotificationsInBrowser(browserId);
 
                 if (!subscription) return;
 
-                await registerAccountWebPushSubscription(context, {
+                await registerOurAccountWebPushSubscription(context, {
                     browserId,
                     subscription,
                 });

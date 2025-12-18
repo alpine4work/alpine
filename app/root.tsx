@@ -42,6 +42,7 @@ import {GlobalKeyDownRootContextProvider} from "~/client/web/helpers/global_key_
 import {useAppInitialRenderContextProvider} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
+import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {useClientInfoContextProvider} from "~/client/web/remix/client_info_context.js";
 import {CurrentTimeContextProvider} from "~/client/web/remix/current_time_context_provider.js";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
@@ -608,6 +609,21 @@ export default function Root() {
             htmlElement.removeEventListener("dragstart", handleDragStart);
         };
     }, []);
+
+    const webPushStoreInitializedRef = useRef(false);
+
+    useEffect(() => {
+        if (webPushStoreInitializedRef.current) return;
+        // Initialize the web push store with the vapid public key so it can be used later to
+        // subscribe to web push notifications.
+        const webPushStore = getWebPushStore();
+        webPushStore
+            .setVapidCredentials(loaderData.webPushVapidPublicKey)
+            .then(() => (webPushStoreInitializedRef.current = true))
+            .catch(error => {
+                context.tracer.getRoot().logException("Error initializing web push store", error);
+            });
+    }, [loaderData, context.tracer]);
 
     return (
         <html

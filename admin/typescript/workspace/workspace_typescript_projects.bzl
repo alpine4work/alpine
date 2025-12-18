@@ -23,6 +23,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//app:app_lib",
     "//app:app_wrapper_lib",
     "//app/integration_tests:integration_tests_lib",
+    "//app/service_worker:service_worker_lib",
     "//app/static:static_lib",
     "//client/web/accounts:accounts",
     "//client/web/avatar:avatar",

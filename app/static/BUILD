@@ -1,8 +1,8 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("//admin/typescript:typescript.bzl", "ts_project")
-load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 
 filegroup(
     name = "static",
@@ -12,9 +12,15 @@ filegroup(
         "files/fonts/inter-italic.v1.woff2",
         ":files",
         ":icon_pngs",
-        ":service_worker_file"
+        ":static_service_worker_file"
     ],
     visibility = ["//app:__subpackages__"],
+)
+
+copy_file(
+    name = "static_service_worker_file",
+    src = "//app/service_worker:service_worker_bundle_file",
+    out = "files/service-worker.js",
 )
 
 copy_to_bin(
@@ -217,14 +223,3 @@ js_run_binary(
 )
 
 
-esbuild(
-    name = "service_worker_file",
-    srcs = [
-        "service_worker.js",
-    ],
-    config = "service_worker_esbuild_config.cjs",
-    minify = True,
-    output = "files/service-worker.js",
-    entry_point = "service_worker.js",
-    sourcemap = False
-)

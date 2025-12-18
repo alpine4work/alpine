@@ -4,7 +4,7 @@ import {
     WebPushSubscriptionSchema,
 } from "~/shared/notifications/web_push_subscription.js";
 
-export function validateWebPushSubscription(subscription: PushSubscription): WebPushSubscription {
+export function serializeWebPushSubscription(subscription: PushSubscription): WebPushSubscription {
     const subscriptionJson = subscription.toJSON();
     assert(subscriptionJson.endpoint, "Subscription endpoint is required");
     assert(

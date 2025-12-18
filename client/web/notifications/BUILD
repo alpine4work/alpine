@@ -10,6 +10,8 @@ ts_project(
         "//:node_modules/@types/web-push",
         "//:node_modules/web-push",
         "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
         "//shared/notifications",
     ],
 )
