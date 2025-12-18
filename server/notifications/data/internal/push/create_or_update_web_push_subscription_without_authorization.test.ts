@@ -22,7 +22,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -48,7 +47,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -73,14 +71,12 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription: null,
         });
 
@@ -108,14 +104,12 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription: subscription1,
         });
 
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription: subscription2,
         });
 
@@ -143,7 +137,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription: subscription1,
         });
 
@@ -159,7 +152,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription: subscription2,
         });
 
@@ -186,7 +178,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -216,7 +207,7 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
+            spaceIdToOptIn: space.id,
             subscription,
         });
 
@@ -243,7 +234,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space1.id,
             subscription,
         });
 
@@ -266,7 +256,7 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space1.id,
+            spaceIdToOptIn: space1.id,
             subscription,
         });
 
@@ -292,7 +282,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -309,7 +298,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -335,7 +323,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -367,8 +354,8 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId,
-            spaceId: space.id,
             subscription,
+            spaceIdToOptIn: space.id,
         });
 
         const itemAfter = await NotificationsTable.getItemIfExists(session.action(), {
@@ -395,14 +382,12 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId: oldBrowserId,
-            spaceId: space.id,
             subscription,
         });
 
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId: newBrowserId,
-            spaceId: space.id,
             subscription: null,
         });
 
@@ -427,7 +412,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId: oldBrowserId,
-            spaceId: space.id,
             subscription,
         });
 
@@ -443,7 +427,6 @@ describe("createOrUpdateAccountWebPushSubscriptionWithoutAuthorization", () => {
         await createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(session.action(), {
             accountId: session.account.id,
             browserId: newBrowserId,
-            spaceId: space.id,
             subscription,
         });
 

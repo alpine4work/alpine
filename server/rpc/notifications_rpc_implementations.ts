@@ -14,6 +14,7 @@ import {deregisterAccountWebPushSubscription} from "~/server/notifications/data/
 import {isOptedOutOfWebPushForSpace} from "~/server/notifications/data/push/is_opted_out_of_web_push_for_space.js";
 import {optOutOfWebPushForSpace} from "~/server/notifications/data/push/opt_out_of_web_push_for_space.js";
 import {registerAccountWebPushSubscription} from "~/server/notifications/data/push/register_account_web_push_subscription.js";
+import {registerAccountWebPushSubscriptionAndOptInToSpace} from "~/server/notifications/data/push/register_account_web_push_subscription_and_opt_in_to_space.js";
 import {registerOurAccountAppleDeviceToken} from "~/server/notifications/data/push/register_our_account_apple_device_token.js";
 import {unarchiveInboxChannelPostsEntryPost} from "~/server/notifications/data/unarchive_inbox_channel_posts_entry_post.js";
 import {unarchiveInboxDocumentNewCommentThreadsEntryCommentThread} from "~/server/notifications/data/unarchive_inbox_document_new_comment_threads_entry_comment_thread.js";
@@ -168,6 +169,16 @@ export default implementRpcs(definitions, {
                 input,
             );
             return {optedOut};
+        },
+    },
+    registerAccountWebPushSubscriptionAndOptInToSpace: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await registerAccountWebPushSubscriptionAndOptInToSpace(
+                context.actor.authorizeSession(),
+                input,
+            );
+            return {};
         },
     },
     optOutOfWebPushForSpace: {

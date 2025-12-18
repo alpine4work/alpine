@@ -6,7 +6,6 @@ import {Switch} from "~/client/web/design/switch.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/web/dynamo/use_dynamo_general_realtime_item.js";
 import {getOrPromptForBrowserPushNotificationPermission} from "~/client/web/notifications/get_or_prompt_for_browser_push_notification_permission.js";
 import {subscribeToPushNotificationsInBrowser} from "~/client/web/notifications/subscribe_to_push_notifications_in_browser.js";
-import {validateWebPushSubscription} from "~/client/web/notifications/validate_web_push_subscription.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {
     useMyAccountWebSocket,
@@ -26,7 +25,7 @@ import {
     getInboxWithStrongReadConsistency,
     isOptedOutOfWebPushForSpace,
     optOutOfWebPushForSpace,
-    registerAccountWebPushSubscription,
+    registerAccountWebPushSubscriptionAndOptInToSpace,
     subscribeToDigestNotificationsEmail,
     unsubscribeFromDigestNotificationsEmail,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
@@ -212,9 +211,9 @@ function PushNotificationsSection({
                         "Couldn’t subscribe to push notifications in browser",
                     );
                 }
-                await registerAccountWebPushSubscription(context, {
+                await registerAccountWebPushSubscriptionAndOptInToSpace(context, {
                     browserId,
-                    subscription: validateWebPushSubscription(subscription),
+                    subscription,
                     spaceId: space.id,
                 });
             } catch (error) {

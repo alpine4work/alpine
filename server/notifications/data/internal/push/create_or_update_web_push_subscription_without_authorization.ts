@@ -13,25 +13,27 @@ import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Create or update a web push subscription for an account and `browserId` pair.
+ * Create or update a web push subscription for an account and `browserId` pair. Optionally accepts
+ * a `spaceIdToOptIn` to remove a space from an existing subscription's `optedOutSpaceIds` set. This
+ * is useful for updating a subscription and opting back in to a space at the same time. If a space
+ * has not been opted out of previously, it is not necessary to opt in as all spaces begin opted in
+ * by default.
  *
- * If the given `spaceId` was previously opted out of web push notifications, it will be opted in again.
- *
- * Performs no authorization, you should use `createOrUpdateAccountWebPushSubscription()` or ensure you check
- * authorization before calling this function.
+ * Performs no authorization, you should use `createOrUpdateAccountWebPushSubscription()` or ensure
+ * you check authorization before calling this function.
  */
 export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorization(
     context: ServerActionContext,
     {
         accountId,
         browserId,
-        spaceId,
         subscription,
+        spaceIdToOptIn,
     }: {
         accountId: AccountId;
         browserId: BrowserId;
-        spaceId: SpaceId;
         subscription: WebPushSubscription | null;
+        spaceIdToOptIn?: SpaceId;
     },
 ): Promise<void> {
     return context.dynamo.retryTransaction(async context => {
@@ -45,13 +47,13 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
             {accountId, browserId},
             {consistency: "Strong"},
         );
-
         // Optimization: skip updating if the subscription is the same and we're not opted out of
-        // notifications for this space.
+        // notifications for the space we're opting in to.
         if (
             existingSubscriptionItem &&
             isDeepEqual(existingSubscriptionItem.subscription, subscription) &&
-            !existingSubscriptionItem.optedOutSpaceIds.has(spaceId)
+            // Check if we're opted out of the space we're opting in to.
+            (!spaceIdToOptIn || !existingSubscriptionItem.optedOutSpaceIds.has(spaceIdToOptIn))
         ) {
             return;
         }
@@ -94,9 +96,13 @@ export async function createOrUpdateAccountWebPushSubscriptionWithoutAuthorizati
                 ...newSubscriptionItem,
                 subscription,
                 lastUpdatedTime: currentTime,
-                optedOutSpaceIds: new Set(
-                    [...newSubscriptionItem.optedOutSpaceIds].filter(id => id !== spaceId),
-                ),
+                optedOutSpaceIds: spaceIdToOptIn
+                    ? new Set(
+                          [...newSubscriptionItem.optedOutSpaceIds].filter(
+                              spaceId => spaceId !== spaceIdToOptIn,
+                          ),
+                      )
+                    : newSubscriptionItem.optedOutSpaceIds,
             }),
         );
 

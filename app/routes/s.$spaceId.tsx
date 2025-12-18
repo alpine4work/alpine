@@ -45,7 +45,6 @@ import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_
 import {useLocalStorage} from "~/client/web/helpers/use_local_storage.js";
 import {getOrPromptForBrowserPushNotificationPermission} from "~/client/web/notifications/get_or_prompt_for_browser_push_notification_permission.js";
 import {subscribeToPushNotificationsInBrowser} from "~/client/web/notifications/subscribe_to_push_notifications_in_browser.js";
-import {validateWebPushSubscription} from "~/client/web/notifications/validate_web_push_subscription.js";
 import {
     PeekStackContextProvider,
     PeekStackContextProviderRef,
@@ -657,8 +656,7 @@ export default function SpaceLayoutRoute() {
 
                 await registerAccountWebPushSubscription(context, {
                     browserId,
-                    subscription: validateWebPushSubscription(subscription),
-                    spaceId,
+                    subscription,
                 });
             }
         };

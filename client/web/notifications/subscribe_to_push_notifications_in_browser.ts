@@ -1,12 +1,18 @@
+import {validateWebPushSubscription} from "~/client/web/notifications/validate_web_push_subscription.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**
- * Gets or creates a push subscription on the browser.
+ * Gets or creates a push subscription on the browser and returns a validated web push subscription.
+ *
+ * If `unsubscribeExistingSubscription` is true, this will first unsubscribe from the existing
+ * subscription if it exists then create a new subscription instead of only creating a new
+ * subscription if one doesn't already exist.
  */
 export async function subscribeToPushNotificationsInBrowser(
     vapidPublicKey: PushSubscriptionOptionsInit["applicationServerKey"],
     unsubscribeExistingSubscription: boolean = false,
-): Promise<PushSubscription | null> {
+): Promise<WebPushSubscription | null> {
     // Must be running in a browser
     if (typeof window === "undefined" || typeof navigator === "undefined") {
         return null;
@@ -38,10 +44,11 @@ export async function subscribeToPushNotificationsInBrowser(
     const existingSubscription = await registration.pushManager.getSubscription();
 
     if (existingSubscription && !unsubscribeExistingSubscription) {
-        return existingSubscription;
+        return validateWebPushSubscription(existingSubscription);
     } else if (existingSubscription && unsubscribeExistingSubscription) {
         await existingSubscription.unsubscribe();
     }
 
-    return await registration.pushManager.subscribe(subscriptionOptions);
+    const subscription = await registration.pushManager.subscribe(subscriptionOptions);
+    return validateWebPushSubscription(subscription);
 }
