@@ -1,6 +1,11 @@
 import {addDays} from "date-fns";
+import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
 import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+    ServerSystemActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -14,16 +19,28 @@ import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
+import {Bot, BotForAdmin} from "~/shared/bots/bot_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {DeadlineExceededError, UnknownError} from "~/shared/error/error.js";
+import {DeadlineExceededError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {ApiKey, assertApiKey, generateApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId, BotWebhookEventId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    AvatarId,
+    BotId,
+    BotWebhookEventId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
@@ -60,6 +77,22 @@ const BotsTable = DynamoTableSchema.new({
                          */
                         webhookUrl: Schema.string.nullable(),
                     }),
+                },
+                /**
+                 * The avatar for the bot. For normal (non-bot) accounts, the Avatar is stored with
+                 * the Account data in the Accounts table, because Accounts are space-agnostic.
+                 *
+                 * Bots are a little different. The Bot item in the Bots table is space-agnostic,
+                 * but the Account item for a bot is space dependent. Data that is singular and
+                 * unique to a bot should be defined here within the Bot table (name, avatar,
+                 * etc.). This means that the Bot table is the source of truth for bot data.
+                 *
+                 * Bot Account items will be eventually consistent with the data in the Bot table.
+                 */
+                {
+                    name: "Avatar",
+                    sortKeyAttributes: {},
+                    attributes: AvatarSchema,
                 },
             ],
         },
@@ -115,6 +148,11 @@ const BotsTable = DynamoTableSchema.new({
                          * When was the API key created?
                          */
                         createdTime: Schema.date,
+
+                        /**
+                         * What is the API key used for?
+                         */
+                        name: LabelStringSchema.nullable().default(null),
                     }).validation(
                         "If `spaceId` is non-null then `space` is also non-null",
                         item => (item.spaceId === null) === (item.space === null),
@@ -126,12 +164,19 @@ const BotsTable = DynamoTableSchema.new({
 });
 
 type BotItem = DynamoTableItemType<typeof BotsTable, "Bot", "Attributes">;
+type BotAvatarItem = DynamoTableItemType<typeof BotsTable, "Bot", "Avatar">;
+
+type BotWithAvatarItem = {
+    readonly id: BotId;
+    readonly name: string;
+    readonly hasWebhookUrl: boolean;
+    readonly avatar: BotAvatarItem | null;
+};
 
 // NOTE(calebmer, 2025-08-21): We don't currently use this index but something
 // we'll definitely someday is the ability to list all of a bot's API keys.
 // Since it's hard to add an index to an existing table right now, we're
 // setting up this index on table creation.
-//
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const BotApiKeysIndex = BotsTable.addIndex({
     name: "BotApiKeys",
@@ -270,6 +315,7 @@ export async function seedTestBots(
             spaceId: null,
             space: null,
             createdTime: currentTime,
+            name: "Unscoped API Key",
         }),
         BotsTable.createItemIfNoneExists(context, {
             partitionType: "ApiKey",
@@ -282,6 +328,7 @@ export async function seedTestBots(
                 scope: {type: "Account", accountId: adminAccountId},
             },
             createdTime: currentTime,
+            name: "Scoped API Key",
         }),
 
         // Seed the mock ChatGPT bot.
@@ -320,6 +367,7 @@ export async function seedTestBots(
             spaceId: null,
             space: null,
             createdTime: currentTime,
+            name: "Unscoped API Key",
         }),
     ]);
 }
@@ -363,6 +411,7 @@ export async function createUnscopedApiKeyForTest(
         spaceId: null,
         space: null,
         createdTime: new Date(),
+        name: null,
     });
 
     return apiKey;
@@ -398,6 +447,7 @@ export async function createScopedApiKeyForTest(
         spaceId,
         space: {accountId, scope},
         createdTime: new Date(),
+        name: null,
     });
 
     return apiKey;
@@ -419,6 +469,78 @@ export async function getBot(context: DynamoContext, botId: BotId) {
         name: botItem.name,
         hasWebhookUrl: !!botItem.webhookUrl,
     };
+}
+
+/**
+ * Get the information associated with a bot. Currently, basic information
+ * about a bot is public globally (e.g. its name, presence of a webhook URL,
+ * and avatar)! Importantly, excludes protected information like the
+ * webhook URL and API keys.
+ */
+async function getBotWithAvatarItemIfExists(
+    context: DynamoContext,
+    botId: BotId,
+    {consistency}: {consistency?: DynamoReadConsistency} = {},
+): Promise<BotWithAvatarItem | null> {
+    const items = await arrayFromAsyncIterable(
+        BotsTable.query(context, {
+            limit: 2,
+            partitionKey: {
+                partitionType: "Bot",
+                botId,
+            },
+            startSortKey: {sortRangeType: "Attributes"},
+            endSortKey: {sortRangeType: "Avatar"},
+            consistency,
+        }),
+    );
+
+    const attributesItem = findMapIterable(items, item =>
+        item.sortRangeType === "Attributes" ? item : undefined,
+    );
+    if (!attributesItem) return null;
+
+    const avatarItem = findMapIterable(items, item =>
+        item.sortRangeType === "Avatar" ? item : undefined,
+    );
+
+    return {
+        id: attributesItem.botId,
+        name: attributesItem.name,
+        hasWebhookUrl: !!attributesItem.webhookUrl,
+        avatar: avatarItem ?? null,
+    };
+}
+
+/**
+ * Get the information associated with a bot. Currently, basic information
+ * about a bot is public globally (e.g. its name, presence of a webhook URL,
+ * and avatar)! Importantly, excludes protected information like the
+ * webhook URL and API keys.
+ */
+async function getBotWithAvatarItem(
+    context: DynamoContext,
+    botId: BotId,
+    {consistency}: {consistency?: DynamoReadConsistency} = {},
+): Promise<BotWithAvatarItem> {
+    const item = await getBotWithAvatarItemIfExists(context, botId, {consistency});
+    if (!item) throw new NotFoundError("Bot not found");
+    return item;
+}
+
+/**
+ * Get the information associated with a bot. Currently, basic information
+ * about a bot is public globally (e.g. its name, presence of a webhook URL,
+ * and avatar)! Importantly, excludes protected information like the
+ * webhook URL and API keys.
+ */
+export async function getBotWithAvatar(
+    context: DynamoContext,
+    botId: BotId,
+    {consistency}: {consistency?: DynamoReadConsistency} = {},
+): Promise<Bot> {
+    const item = await getBotWithAvatarItem(context, botId, {consistency});
+    return createBotFromItem(item);
 }
 
 /**
@@ -821,4 +943,129 @@ export async function getApiKeyAttributesIfExists(
                   }
                 : null,
     };
+}
+
+function createBotFromItem(botItem: BotWithAvatarItem): Bot {
+    return {
+        id: botItem.id,
+        name: botItem.name,
+        avatar: createAvatarModelFromItem(botItem.avatar),
+    };
+}
+
+export async function finishUploadingBotAvatar(
+    context: ServerSessionActionContext,
+    {botId, avatarContent, avatarId}: {botId: BotId; avatarContent: Uint8Array; avatarId: AvatarId},
+): Promise<Bot> {
+    await authorizeInternalAccess(context);
+
+    return context.dynamo.retryTransaction(async context => {
+        const oldBotItem = await getBotWithAvatarItem(context, botId);
+        const oldBotAvatar = oldBotItem.avatar;
+
+        // NOTE(ifitzsimmons, #2025-12-15): When we update a Bot's avatar, we create an
+        // async job to update the// `Account#Avatar` item for each Account associated with
+        // the bot. This operation needs to be idempotent. When the job runs, it fetches
+        // the most recent Avatar from the `Bot#Avatar` item and copies it into the
+        // `Account#Avatar` item for every bot `Account`. If a user were to change the
+        // bot's avatar twice in quick succession, we would end up with two async jobs
+        // running in parallel. Without this check, it's possible that the job associated
+        // with the second update runs first for some or all accounts. This would result in
+        // the second update being lost.
+        //
+        // Since we guarantee idempotency when copying a bot's avatar into the
+        // `Account#Avatar` item, we need to make sure that we don't overwrite new bot
+        // avatars with old ones.
+        if (oldBotAvatar?.avatarId && oldBotAvatar.avatarId >= avatarId) {
+            return createBotFromItem(oldBotItem);
+        }
+
+        const botAvatarItem = await BotsTable.directlyUpdateItem(context, {
+            ...oldBotAvatar,
+            partitionType: "Bot",
+            sortRangeType: "Avatar",
+            botId,
+            avatarId,
+            content: avatarContent,
+        });
+
+        await context.jobs.dangerouslySendMaintenance({
+            type: "UpdateBotAccounts",
+            botId,
+            update: {
+                type: "Avatar",
+            },
+        });
+
+        return createBotFromItem({
+            ...oldBotItem,
+            avatar: botAvatarItem,
+        });
+    });
+}
+
+// NOTE(ifitzsimmons, #bots): In order to support an internal bot management page, we need to
+// load all bots (with their avatars). Eventually, we should introduce an ownership model for
+// bots that enables indexing bots by owner. However, we don't have a really strong product
+// use case for bot "ownership" yet. Since the only bots are the ones that we've created, it's
+// okay to just get all the bots in the table with their avatars and API keys.
+export async function expensivelyGetAllBotsForAdminSettingsPage(
+    context: ServerActionContext,
+): Promise<Array<BotForAdmin>> {
+    // NOTE(ifitzsimmons, #bots): For now, only internal accounts (alpine engineers)
+    // can update bot avatars. Eventually, we'll need to decide on some type of
+    // "ownership" model when it comes to bots.
+    await authorizeInternalAccess(context);
+
+    const botIdsToBotData: Map<
+        BotId,
+        {
+            item?: BotItem;
+            avatar?: BotAvatarItem | null;
+            apiKeys?: Array<{
+                apiKey: ApiKey;
+                name: string | null;
+            }>;
+        }
+    > = new Map();
+
+    for await (const item of BotsTable.expensiveScan(context, {})) {
+        const botData = botIdsToBotData.get(item.botId);
+
+        if (item.partitionType === "Bot" && item.sortRangeType === "Attributes") {
+            botIdsToBotData.set(item.botId, {
+                ...botData,
+                item,
+            });
+        }
+
+        if (item.partitionType === "Bot" && item.sortRangeType === "Avatar") {
+            botIdsToBotData.set(item.botId, {
+                ...botData,
+                avatar: item ?? null,
+            });
+        }
+
+        if (item.partitionType === "ApiKey" && item.sortRangeType === "Attributes") {
+            botIdsToBotData.set(item.botId, {
+                ...botData,
+                apiKeys: [...(botData?.apiKeys ?? []), {apiKey: item.apiKey, name: item.name}],
+            });
+        }
+    }
+
+    return Array.from(botIdsToBotData.values()).map(botData => {
+        assert(botData.item, "Bot item was not found");
+
+        return {
+            ...createBotFromItem({
+                id: botData.item.botId,
+                name: botData.item.name,
+                hasWebhookUrl: !!botData.item.webhookUrl,
+                avatar: botData.avatar ?? null,
+            }),
+            webhookUrl: botData.item.webhookUrl ?? null,
+            apiKeys: botData.apiKeys ?? [],
+        };
+    });
 }

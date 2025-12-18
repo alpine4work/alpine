@@ -20,6 +20,7 @@ ts_project(
         "//server/accounts",
         "//server/context",
         "//server/dynamo/core",
+        "//shared/bots",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

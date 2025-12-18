@@ -1,14 +1,14 @@
 import _Fuse from "fuse.js";
 import {
     checkAccountVersionConditionCheck,
-    createAccountTransactionEntry,
+    createAccountTransactionEntries,
     createAccountWithEmailAddressTransactionEntries,
     dangerouslyGetAccountIfExistsWithoutAuthorization,
     dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthorization,
     getAccountIdByEmailAddressIfExists,
     internalGetLatestEmailAddressByAccountIdWithoutAuthorization,
 } from "~/server/accounts/accounts_actions.js";
-import {getBot} from "~/server/bots/bots_table.js";
+import {getBotWithAvatar} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {
     ServerActionContext,
@@ -318,7 +318,7 @@ export async function seedTestBotAccounts(
         // code once we have a proper onboarding flow for the product and run that
         // process instead.
         await DynamoTableSchema.executeTransaction(context, [
-            createAccountTransactionEntry({
+            ...createAccountTransactionEntries({
                 id: chatGptBotAccountIdForDefaultSpace,
                 currentTime,
                 name: "ChatGPT",
@@ -444,19 +444,26 @@ export async function instantiateBotSpaceAccount(
 ): Promise<{accountId: AccountId; name: string}> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
 
-    const bot = await getBot(context, botId);
+    const bot = await getBotWithAvatar(context, botId, {consistency: "Strong"});
 
     const currentTime = new Date();
 
     try {
         await DynamoTableSchema.executeTransaction(context, [
-            createAccountTransactionEntry({
+            ...createAccountTransactionEntries({
                 id: accountId,
                 currentTime,
                 name: bot.name,
                 dangerouslyInstantiateBot: {
                     botId,
                     spaceId,
+                    avatar:
+                        bot.avatar && bot.avatar.avatarId && bot.avatar.content
+                            ? {
+                                  avatarId: bot.avatar.avatarId,
+                                  content: bot.avatar.content,
+                              }
+                            : null,
                 },
             }),
 
@@ -3227,4 +3234,29 @@ async function dangerouslyFinishUploadingSpaceAvatarLightTheme(
             lightTheme: updatedAvatarItem,
         },
     });
+}
+
+/**
+ * Get's all of the AccountIds for a given Bot (which spaces are the bot instantiated in?).
+ *
+ * We don't check that the actor is authorized to perform this action! For right now,
+ * there aren't many reasons for you to call this function. If you *do* need to call
+ * this function, you should make sure that the actor has internal access somewhere
+ * along the call chain.
+ */
+export async function* dangerouslyGetAllAccountIdsForBot(
+    context: Context<DynamoContextModules>,
+    botId: BotId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+) {
+    for await (const item of SpacesTable.query(context, {
+        limit: "All",
+        partitionKey: {
+            partitionType: "Bot",
+            botId,
+        },
+        consistency,
+    })) {
+        yield item.accountId;
+    }
 }

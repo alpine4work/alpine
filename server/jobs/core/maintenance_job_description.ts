@@ -1,3 +1,4 @@
+import {BotId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -60,5 +61,18 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
 
     EnqueueScheduledNotificationDigests: Schema.object({
         type: Schema.value("EnqueueScheduledNotificationDigests"),
+    }),
+
+    UpdateBotAccounts: Schema.object({
+        type: Schema.value("UpdateBotAccounts"),
+        botId: Schema.id<BotId>(),
+        update: Schema.union({
+            Name: Schema.object({
+                type: Schema.value("Name"),
+            }),
+            Avatar: Schema.object({
+                type: Schema.value("Avatar"),
+            }),
+        }),
     }),
 });

@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//shared/accounts",
         "//shared/avatar",
+        "//shared/bots",
         "//shared/error",
         "//shared/files",
         "//shared/id",

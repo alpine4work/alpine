@@ -7,16 +7,17 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}`;
+export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}` | `bot/${BotId}`;
 
 export const AvatarEntityPathSchema = Schema.string as Schema<AvatarEntityPath>;
 
 export type AvatarEntityPathObject =
     | {readonly type: "account"; readonly accountId: AccountId}
-    | {readonly type: "space"; readonly spaceId: SpaceId};
+    | {readonly type: "space"; readonly spaceId: SpaceId}
+    | {readonly type: "bot"; readonly botId: BotId};
 
 export function parseAvatarEntityPath(entityPath: AvatarEntityPath): AvatarEntityPathObject {
     const [idType, idPayload] = entityPath.split("/");
@@ -26,6 +27,8 @@ export function parseAvatarEntityPath(entityPath: AvatarEntityPath): AvatarEntit
             return {type: "account", accountId: idPayload as AccountId};
         case "space":
             return {type: "space", spaceId: idPayload as SpaceId};
+        case "bot":
+            return {type: "bot", botId: idPayload as BotId};
         default:
             throw new InternalError(quote`Unrecognized \`AvatarEntityPath\` type ${idType ?? ""}`);
     }
@@ -42,6 +45,7 @@ type GetAvatarEntityPathTestMapType<Id extends string> = MergeObjectIntersection
 const avatarEntityPathTestMap: GetAvatarEntityPathTestMapType<AvatarEntityPath> = {
     account: isId,
     space: isId,
+    bot: isId,
 };
 
 assertEqualTypes<keyof typeof avatarEntityPathTestMap, AvatarEntityPathObject["type"]>();
@@ -87,6 +91,8 @@ export function printAvatarEntityObjectIntoPath(
             return `account/${pathObject.accountId}`;
         case "space":
             return `space/${pathObject.spaceId}`;
+        case "bot":
+            return `bot/${pathObject.botId}`;
         default:
             throw exhaustive(pathObject);
     }
@@ -94,13 +100,15 @@ export function printAvatarEntityObjectIntoPath(
 
 export function printAvatarEntityObjectIntoTracerRoute(
     path: AvatarEntityPath,
-): "account/:accountId" | "space/:spaceId" {
+): "account/:accountId" | "space/:spaceId" | "bot/:botId" {
     const pathObject = parseAvatarEntityPath(path);
     switch (pathObject.type) {
         case "account":
             return `account/:accountId`;
         case "space":
             return `space/:spaceId`;
+        case "bot":
+            return `bot/:botId`;
         default:
             throw exhaustive(pathObject);
     }

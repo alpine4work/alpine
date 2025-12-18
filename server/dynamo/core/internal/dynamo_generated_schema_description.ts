@@ -660,6 +660,37 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             },
                             "childSortRangeByType": {}
+                        },
+                        "Avatar": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "avatarId": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "57a6329c"
+                                        },
+                                        "optional": true
+                                    },
+                                    "content": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "011b24e2"
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },
@@ -721,6 +752,15 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Date"
                                         },
                                         "optional": false
+                                    },
+                                    "name": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "String"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

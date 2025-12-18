@@ -1,6 +1,6 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {
     Reaction,
@@ -31,7 +31,7 @@ const backgroundColorsByReactionCharacter: ReactionCharacterMap<ReadonlyArray<Th
 };
 
 export function getAvatarDefaultDesign(
-    id: AccountId | SpaceId,
+    id: AccountId | SpaceId | BotId,
     overrideReactionCharacter: ReactionCharacter | null,
 ): {
     reaction: Reaction;

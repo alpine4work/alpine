@@ -46,6 +46,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
+import {BotId} from "~/shared/id/types/id_types.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export async function createLaunchVideoScenario(
@@ -59,7 +60,7 @@ export async function createLaunchVideoScenario(
         name: "Alpine",
     });
 
-    const accounts = await createFictionalAmbrookAccounts(space);
+    const accounts = await createFictionalAmbrookAccounts(space, tokenAgent);
     const {
         cassCade,
         roseCompas,
@@ -397,13 +398,54 @@ async function uploadScenarioAccountAvatar(
     );
 }
 
+async function uploadScenarioBotAvatar(
+    tokenAgent: TokenAgent,
+    session: TestSession,
+    botId: BotId,
+    path: string,
+): Promise<void> {
+    const contentType = assertExists(getPathFileContentTypeIfExists(path));
+
+    const file = await fs.readFile(
+        joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures", path),
+    );
+
+    await fetchWithTracer(
+        session.context.tracer.getTracer(),
+        new URL(`/api/avatar/bot/${botId}`, session.context.constants.edgeServiceUrl),
+        {
+            serviceName: "EdgeService",
+            route: "/api/avatar/bot/:botId",
+            method: "POST",
+            headers: {
+                "content-type": contentType,
+                "content-length": file.length.toString(),
+                cookie: stringifyCookie({
+                    session: await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                        "EdgeService",
+                        session.getTokenPayload(),
+                    ),
+                }),
+            },
+            body: new Uint8Array(file),
+        },
+        async response => {
+            const responseData = await response.json();
+            const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
+            if (!responseBody.ok) throw responseBody.error;
+        },
+    );
+}
+
 type FictionalAmbrookAccounts = Awaited<ReturnType<typeof createFictionalAmbrookAccounts>>;
 
-async function createFictionalAmbrookAccounts(space: TestSpace) {
+async function createFictionalAmbrookAccounts(space: TestSpace, tokenAgent: TokenAgent) {
     const roseCompasPromise = space.createSession({
         name: "Rose Compás",
         role: "Owner",
         reactionCharacter: {type: "Tree", variant: "Green"},
+        // Rose will change the ChatGPT bot's avatar. Only internal accounts can do this.
+        hasInternalAccess: true,
     });
 
     return runAllObjectPromises({
@@ -449,13 +491,18 @@ async function createFictionalAmbrookAccounts(space: TestSpace) {
 
         // AI
         chatGpt: (async () => {
-            // TODO(calebmer, 2025-12-08): We don't currently have bot avatars set up yet.
-            // There's a file in `scenario_chatgpt_avatar.png` that we're not currently
-            // using. We need to figure out a way to get avatars uploaded for bots for test
-            // scenarios.
             const bot = await TestBot.get(space.context, getDynamoSeedConstants().mockChatGptBotId);
 
             const roseCompas = await roseCompasPromise;
+
+            // Has to be done before instantiating the bot account in the space or else the
+            // account will not have the bot's avatar (we copy it over on instantiation)
+            await uploadScenarioBotAvatar(
+                tokenAgent,
+                roseCompas,
+                bot.id,
+                "scenario_chatgpt_avatar.png",
+            );
 
             return bot.instantiate(roseCompas);
         })(),

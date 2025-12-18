@@ -20,7 +20,7 @@ import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_cont
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 let sharedResources: ResourceServiceSharedResources | null = null;
@@ -41,6 +41,12 @@ type ResourceServiceRoute =
       }
     | {
           type: "SpaceAvatar";
+          avatarEntityPath: AvatarEntityPath;
+          avatarId: AvatarId;
+          variant: AvatarVariant;
+      }
+    | {
+          type: "BotAvatar";
           avatarEntityPath: AvatarEntityPath;
           avatarId: AvatarId;
           variant: AvatarVariant;
@@ -118,6 +124,22 @@ const routeMap: ReadonlyArray<{
             return {
                 type: "SpaceAvatar",
                 avatarEntityPath: `space/${spaceId}`,
+                avatarId,
+                variant,
+            };
+        },
+    },
+    {
+        pattern: new URLPattern({pathname: "/avatars/bot/:botId/:avatarIdWithOptionalVariant"}),
+        getRoute: patternGroups => {
+            const {botId, avatarIdWithOptionalVariant} = patternGroups;
+            const [avatarId, variant] = avatarIdWithOptionalVariant!.split("-");
+            if (!isId<BotId>(botId!) || !isId<AvatarId>(avatarId!) || !isAvatarVariant(variant!)) {
+                return null;
+            }
+            return {
+                type: "BotAvatar",
+                avatarEntityPath: `bot/${botId}`,
                 avatarId,
                 variant,
             };
@@ -222,6 +244,7 @@ async function handleFetch(
 
         switch (route.type) {
             case "AccountAvatar":
+            case "BotAvatar":
             case "SpaceAvatar": {
                 // This header will allow no-cors requests from outside the same site as the request origin.
                 // Useful for embedding avatars in emails.
@@ -332,6 +355,7 @@ async function actuallyHandleFetch(
 
     switch (route.type) {
         case "AccountAvatar":
+        case "BotAvatar":
         case "SpaceAvatar": {
             response = await fetchAvatar(
                 executionContext,

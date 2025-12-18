@@ -38,6 +38,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
 import {finishUploadingAccountAvatar} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {finishUploadingBotAvatar} from "~/shared/rpc/bots_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {finishUploadingSpaceAvatar} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -214,6 +215,39 @@ async function finishUploadingAvatar(
                 ok: true,
                 type: "UploadAccountAvatar",
                 account,
+            });
+        }
+        case "bot": {
+            // NOTE(ifitzsimmons, #bots): When updating the avatar for a bot, it will take some time
+            // before the avatar is fanned out to all of the bot accounts (the spaces in which the
+            // bot lives). So there are a couple of important things to note for the future:
+            //
+            // 1. If we *do* build a bot management page (which I figure we will eventually), I
+            //    imagine we'll need a `BotRegistry` so that we can call the equivalent of
+            //    `accountRegistry.immediatelyUpdateAccountStoreIfExists(response.account)` after
+            //    the bot's avatar is finished uploading. This will update the bot's avatar in
+            //    a "Bot Settings" page immediately.
+            // 2. However, outside of the settings page, the Bot Avatar should and will be served
+            //    by the `Account#Avatar` item for a bot in a given space. This means that a user
+            //    will see the bot's avatar updated in the settings page, but there may be a delay
+            //    until they see the new avatar reflected in all other surfaces. We can handle this
+            //    one of two ways:
+            //    a. On the client, check the BotRegistry for every bot account and merge the avatar
+            //    from the registry into the account store's account data if they do not match.
+            //    b. Educate users that it may take some time for the avatar updates to be reflected
+            //    in the app after updating.
+            //
+            // These are both future considerations, but do impact the design of bot avatar (and
+            // bot name) updates.
+            const {bot} = await finishUploadingBotAvatar(context, {
+                avatarContent,
+                avatarId,
+                botId: avatarEntityPathObject.botId,
+            });
+            return UploadAvatarResponseSchema.serialize({
+                ok: true,
+                type: "UploadBotAvatar",
+                bot,
             });
         }
         case "space": {

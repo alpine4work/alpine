@@ -1,5 +1,6 @@
 import webPush, {WebPushError} from "web-push";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {
     InternalError,
@@ -104,7 +105,7 @@ export class WebPushContextModule extends WebPushContextModuleBase {
 export class TestWebPushContextModule extends WebPushContextModuleBase {
     constructor() {
         super();
-        assert(process.env.NODE_ENV === "test");
+        assert(isTestNodeEnvOrAdminScenariosScript);
     }
 
     public override async sendNotificationToBrowser() {

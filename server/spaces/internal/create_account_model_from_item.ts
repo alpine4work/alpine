@@ -1,4 +1,3 @@
-import {createAvatarModelFromItem} from "~/server/spaces/internal/create_avatar_model_from_item.js";
 import {
     SpaceAccountItem,
     SpaceAccountItemWithAccountAvatarOverride,
@@ -8,6 +7,7 @@ import {
     AccountModelWithoutSpaceAndAvatarData,
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
+import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {

@@ -9,6 +9,7 @@ import {
 } from "~/server/accounts/internal/accounts_table.js";
 import {
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -34,6 +35,7 @@ import {
     AccountModelWithoutSpaceData,
     unknownAccountId,
 } from "~/shared/accounts/account_model_without_space.js";
+import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -425,7 +427,7 @@ export function createAccountWithEmailAddressTransactionEntries({
     emailAddress: EmailAddress;
 }): Array<DynamoTransactionEntry> {
     return [
-        createAccountTransactionEntry({id, currentTime, name}),
+        ...createAccountTransactionEntries({id, currentTime, name}),
         AccountsTable.transactionCreateItem({
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
@@ -440,7 +442,7 @@ export function createAccountWithEmailAddressTransactionEntries({
 /**
  * Returns transaction entries for creating an account.
  */
-export function createAccountTransactionEntry({
+export function createAccountTransactionEntries({
     id,
     currentTime,
     name,
@@ -462,19 +464,36 @@ export function createAccountTransactionEntry({
     dangerouslyInstantiateBot?: {
         botId: BotId;
         spaceId: SpaceId;
+        avatar?: {
+            avatarId: AvatarId;
+            content: Uint8Array;
+        } | null;
     };
-}): DynamoTransactionEntry {
-    return AccountsTable.transactionCreateItem({
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: id,
-        name,
-        nameVersion: 0,
-        createdTime: currentTime,
-        observedTimeZone: null,
-        bot: dangerouslyInstantiateBot,
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
-    });
+}): Array<DynamoTransactionEntry> {
+    return [
+        AccountsTable.transactionCreateItem({
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: id,
+            name,
+            nameVersion: 0,
+            createdTime: currentTime,
+            observedTimeZone: null,
+            bot: dangerouslyInstantiateBot,
+            reactionCharacter: pickRandomReactionCharacterForAccount(),
+        }),
+        ...(dangerouslyInstantiateBot?.avatar
+            ? [
+                  AccountsTable.transactionCreateItem({
+                      partitionType: "Account",
+                      sortRangeType: "Avatar",
+                      accountId: id,
+                      avatarId: dangerouslyInstantiateBot.avatar.avatarId,
+                      content: dangerouslyInstantiateBot.avatar.content,
+                  }),
+              ]
+            : []),
+    ];
 }
 
 export function pickRandomReactionCharacterForAccount(): ReactionCharacter {
@@ -991,13 +1010,7 @@ function createAccountModelFromItem(accountItem: AccountItem) {
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
         reactionCharacter: accountItem.reactionCharacter,
-        avatar: accountItem.avatar
-            ? {
-                  avatarId: accountItem.avatar.avatarId,
-                  content: accountItem.avatar.content,
-                  version: accountItem.avatar.updateLockVersion ?? 0,
-              }
-            : null,
+        avatar: createAvatarModelFromItem(accountItem.avatar),
     });
 }
 
@@ -1251,6 +1264,59 @@ export async function updateAccountReactionCharacter(
         return createAccountModelFromItem({
             ...newAccountItem,
             avatar: oldAccountItem.avatar,
+        });
+    });
+}
+
+/**
+ * You should not call this function! It does not authorize that you are
+ * allowed to update the bot account's avatar. We only call this via the
+ * JobQueueService – when an admin updates a bot's avatar, we copy the avatar
+ * into the `Account#Avatar` item for each bot account.
+ */
+export async function dangerouslyUpdateBotAccountAvatarWithoutAuthorization(
+    context: Context<Omit<ServerActionContextModules, "actor">>,
+    botAccountId: AccountId,
+    {avatarId, avatarContent}: {avatarId: AvatarId; avatarContent: Uint8Array},
+) {
+    return context.dynamo.retryTransaction(async context => {
+        const oldAccountItem = await getAccountItem(context, botAccountId);
+
+        assert(oldAccountItem.bot !== undefined);
+
+        const oldAccountAvatar = oldAccountItem.avatar;
+
+        // NOTE(ifitzsimmons, #2025-12-15): When we update a Bot's avatar, we create an
+        // async job to update the `Account#Avatar` item for each Account associated with
+        // the bot. This operation needs to be idempotent. When the job runs, it fetches
+        // the most recent Avatar from the `Bot#Avatar` item and copies it into the
+        // `Account#Avatar` item for every bot `Account`. If a user were to change the
+        // bot's avatar twice in quick succession, we would end up with two async jobs
+        // running in parallel. Without this check, it's possible that the job associated
+        // with the second update runs first for some or all accounts. This would result in
+        // the second update being lost.
+        //
+        // Avatar Ids are `ChronologicalId`s. When copying a bot's avatar into the
+        // `Account#Avatar` item, we can guarantee idempotency by checking if the new
+        // avatarId is greater than the old avatarId.
+        if (oldAccountAvatar?.avatarId && oldAccountAvatar.avatarId >= avatarId) {
+            return createAccountModelFromItem(oldAccountItem);
+        }
+
+        const newAvatarItem: AccountAvatarItem = {
+            ...oldAccountAvatar,
+            partitionType: "Account",
+            sortRangeType: "Avatar",
+            accountId: botAccountId,
+            avatarId,
+            content: avatarContent,
+        };
+
+        const accountAvatarItem = await AccountsTable.directlyUpdateItem(context, newAvatarItem);
+
+        return createAccountModelFromItem({
+            ...oldAccountItem,
+            avatar: accountAvatarItem,
         });
     });
 }

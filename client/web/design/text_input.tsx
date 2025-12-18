@@ -63,7 +63,7 @@ export type TextInputProps = {
      *
      * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/inputmode
      */
-    inputMode?: "tel" | "url" | "email" | "numeric" | "decimal";
+    inputMode?: "tel" | "url" | "email" | "numeric" | "decimal" | "password" | "text";
 
     /**
      * Hint to the browser what it should allow users to auto-complete. See the
@@ -193,6 +193,8 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
             ? "url"
             : inputMode === "email" || autoComplete === "email"
             ? "email"
+            : inputMode === "password" || autoComplete === "password"
+            ? "password"
             : "text";
 
     useLayoutEffectWithoutServerSideWarning(() => {

@@ -1,9 +1,11 @@
+import {processUpdateBotAccountsJob} from "~/server/bots/jobs/process_update_bot_accounts_job.js";
 import {scheduleDeploy} from "~/server/deploy/data/deploy_actions.js";
 import {processSendEmail} from "~/server/emails/process_send_email.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {MaintenanceJobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processEnqueueScheduledNotificationDigestsJob} from "~/server/notifications/data/digest/notifications_digest_jobs.js";
 import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/task_table.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export async function processMaintenanceJob(
@@ -15,19 +17,26 @@ export async function processMaintenanceJob(
     switch (job.type) {
         case "ScheduleDeploy": {
             await scheduleDeploy(context, span, job);
-            break;
+            return;
         }
         case "RetryUnprocessedTaskActionTransactions": {
             await retryUnprocessedTaskActionTransactions(context, span);
-            break;
+            return;
         }
         case "SendEmail": {
             await processSendEmail(context, job);
-            break;
+            return;
         }
         case "EnqueueScheduledNotificationDigests": {
             await processEnqueueScheduledNotificationDigestsJob(context, jobStartTime);
-            break;
+            return;
+        }
+        case "UpdateBotAccounts": {
+            await processUpdateBotAccountsJob(context, job);
+            return;
+        }
+        default: {
+            throw exhaustive(job);
         }
     }
 }

@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//server/apns",
         "//server/bots",
+        "//server/bots/jobs",
         "//server/content/context_module",
         "//server/deploy/data",
         "//server/feed",
