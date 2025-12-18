@@ -556,7 +556,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage1Page2Link).toEqual({
                     ...chatMessage1,
                     pageNumber: 2,
-                    pageInfo: {from: "Start", index: 10},
+                    pageInfo: {from: "Start", cursor: 10},
                     rootMessage: {
                         dedupeNumber: 1,
                     },
@@ -576,7 +576,7 @@ describe("createAgentLink", () => {
                     ...chatMessage2,
                     dedupeNumber: undefined,
                     pageNumber: 2,
-                    pageInfo: {from: "Start", index: 10},
+                    pageInfo: {from: "Start", cursor: 10},
                     rootMessage: {
                         dedupeNumber: 2,
                     },
@@ -594,7 +594,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage1Page2WithNewStartIndex).toEqual({
                     ...chatMessage1,
                     pageNumber: 2,
-                    pageInfo: {from: "Start", index: 15},
+                    pageInfo: {from: "Start", cursor: 15},
                     rootMessage: {
                         dedupeNumber: 1,
                     },
@@ -613,7 +613,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage2Page2WithNewStartIndex).toEqual({
                     ...chatMessage2,
                     pageNumber: 2,
-                    pageInfo: {from: "Start", index: 15},
+                    pageInfo: {from: "Start", cursor: 15},
                     rootMessage: {
                         dedupeNumber: 2,
                     },
@@ -656,7 +656,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage1Page2Link).toEqual({
                     ...chatMessage1,
                     pageNumber: 1,
-                    pageInfo: {from: "Start", index: 10},
+                    pageInfo: {from: "Start", cursor: 10},
                     rootMessage: {
                         dedupeNumber: 1,
                     },
@@ -676,7 +676,7 @@ describe("createAgentLink", () => {
                     ...chatMessage2,
                     dedupeNumber: undefined,
                     pageNumber: 1,
-                    pageInfo: {from: "Start", index: 10},
+                    pageInfo: {from: "Start", cursor: 10},
                     rootMessage: {
                         dedupeNumber: 2,
                     },
@@ -694,7 +694,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage1Page2WithNewStartIndex).toEqual({
                     ...chatMessage1,
                     pageNumber: 1,
-                    pageInfo: {from: "Start", index: 15},
+                    pageInfo: {from: "Start", cursor: 15},
                     rootMessage: {
                         dedupeNumber: 1,
                     },
@@ -713,7 +713,7 @@ describe("createAgentLink", () => {
                 expect(chatMessage2Page2WithNewStartIndex).toEqual({
                     ...chatMessage2,
                     pageNumber: 1,
-                    pageInfo: {from: "Start", index: 15},
+                    pageInfo: {from: "Start", cursor: 15},
                     rootMessage: {
                         dedupeNumber: 2,
                     },

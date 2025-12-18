@@ -889,4 +889,41 @@ describe("printAgentPlainTextLabel", () => {
             expect(printAgentPlainTextLabel(link)).toBe("My Document");
         });
     });
+
+    describe("message room paths", () => {
+        test("returns message room path", () => {
+            const link: AgentLink = {
+                type: "ChatMessages",
+                chatId,
+                label: "Team Discussion",
+                paginationType: "page",
+                pageNumber: 1,
+                pageInfo: {
+                    from: "Start",
+                    cursor: null,
+                },
+                rootMessage: null,
+                tokenLimitForPage: 1000,
+                isMessageRoomPage: true,
+            };
+            expect(printAgentPlainTextLabel(link)).toBe("Team Discussion");
+        });
+        test("returns message room path with page", () => {
+            const link: AgentLink = {
+                type: "ChatMessages",
+                chatId,
+                label: "Team Discussion",
+                paginationType: "page",
+                pageNumber: 3,
+                pageInfo: {
+                    from: "Middle",
+                    index: 3,
+                },
+                rootMessage: null,
+                tokenLimitForPage: 1000,
+                isMessageRoomPage: true,
+            };
+            expect(printAgentPlainTextLabel(link)).toBe("Team Discussion");
+        });
+    });
 });

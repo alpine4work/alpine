@@ -269,7 +269,7 @@ export async function putAgentNextMessagesPageLink<
         pageNumber: currentPageLink.pageNumber + 1,
         pageInfo: {
             from: "Start",
-            index: nextPageStartCursor,
+            cursor: nextPageStartCursor,
         },
         // Descendents of the original page should pass down the original dedupe number
         // to their descendents. In other words, it should have the same value for all
@@ -295,17 +295,16 @@ export async function putAgentPreviousMessagesPageLink<
     return await actuallyPutAgentLink(storage, {
         ...currentPageLink,
         dedupeNumber: undefined,
-        pageNumber:
-            currentPageLink.paginationType === "page"
-                ? // When initializing messages for a conversation, we start at the end of the conversation
-                  // and load "backwards". The first page is the last page of the conversation. This the only
-                  // time that we will show a "previous page" link for "page" pagination - all other times
-                  // we are paginating forward from the first page.
-                  currentPageLink.pageNumber + 1
-                : currentPageLink.pageNumber - 1,
+        pageNumber: currentPageLink.isMessageRoomPage
+            ? // When initializing messages for a conversation, we start at the end of the conversation
+              // and load "backwards". The first page is the last page of the conversation. This the only
+              // time that we will show a "previous page" link for "page" pagination - all other times
+              // we are paginating forward from the first page.
+              currentPageLink.pageNumber + 1
+            : currentPageLink.pageNumber - 1,
         pageInfo: {
             from: "End",
-            index: previousPageEndCursor,
+            cursor: previousPageEndCursor,
         },
         // Descendents of the original page should pass down the original dedupe number
         // to their descendents. In other words, it should have the same value for all

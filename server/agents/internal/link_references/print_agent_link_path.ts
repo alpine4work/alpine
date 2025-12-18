@@ -10,7 +10,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function printAgentLinkPath(link: AgentLink) {
     if (isLinkMessageRoomPage(link)) {
-        return `/room`;
+        return `/room${printPaginationQueryString(link, link.paginationType)}`;
     }
 
     switch (link.type) {
@@ -198,7 +198,9 @@ export function printAgentPlainTextLabel(link: AgentLink): string {
     }
 }
 
-function isLinkMessageRoomPage(link: AgentLink): boolean {
+function isLinkMessageRoomPage(
+    link: AgentLink,
+): link is (AgentPaginatedMessagesListLink | AgentPostCommentsLink) & {isMessageRoomPage: true} {
     switch (link.type) {
         case "ChatMessages":
         case "DocumentCommentThreadComments":
