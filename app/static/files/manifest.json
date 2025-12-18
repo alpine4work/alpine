@@ -1,10 +1,13 @@
 {
     "id": "/",
     "name": "Alpine",
+    "short_name": "Alpine",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#ffffff",
+    "orientation": "portrait",
     "icons": [
         {
             "sizes": "512x512",

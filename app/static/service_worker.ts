@@ -24,6 +24,8 @@ self.addEventListener("push", (event: PushEvent) => {
         data: {
             url: string;
         };
+        silent?: boolean | null;
+        tag?: string;
     };
 
     try {
@@ -32,6 +34,8 @@ self.addEventListener("push", (event: PushEvent) => {
         notificationData = {
             body: payload.body,
             data: payload.data,
+            silent: payload.silent,
+            tag: payload.tag,
         };
     } catch {
         // Use text data as the title if JSON parsing fails. This is mostly here to support sending
@@ -42,13 +46,14 @@ self.addEventListener("push", (event: PushEvent) => {
             data: {
                 url: "/",
             },
+            // `null` means we use the default behavior of the platform that we're on
+            silent: null,
         };
     }
 
     event.waitUntil(
         self.registration.showNotification(title, {
-            body: notificationData.body,
-            data: notificationData.data,
+            ...notificationData,
         }),
     );
 });

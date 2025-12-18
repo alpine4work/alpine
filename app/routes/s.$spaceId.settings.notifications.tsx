@@ -152,6 +152,7 @@ function PushNotificationsSection({
 
     const [isSubscribed, setIsSubscribed] = useState<boolean>(!isOptedOutOfWebPush);
     const [permissionStatus, setPermissionStatus] = useState<PermissionStatus | null>(null);
+    const [isPushSupported, setIsPushSupported] = useState(true);
 
     const hasInitiallyMountedRef = useRef(false);
 
@@ -159,8 +160,12 @@ function PushNotificationsSection({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        if (typeof navigator === "undefined" || typeof navigator.permissions === "undefined") {
-            setPermissionStatus(null);
+        if (
+            typeof navigator === "undefined" ||
+            typeof navigator.permissions === "undefined" ||
+            typeof Notification === "undefined"
+        ) {
+            setIsPushSupported(false);
             return;
         }
 
@@ -191,12 +196,9 @@ function PushNotificationsSection({
     );
 
     const handleToggle = async (shouldSubscribe: boolean) => {
-        setIsSubscribed(shouldSubscribe);
-
         if (shouldSubscribe) {
             try {
                 const permission = await getOrPromptForBrowserPushNotificationPermission();
-
                 if (permission !== "granted") {
                     setIsSubscribed(false);
                     return;
@@ -216,8 +218,8 @@ function PushNotificationsSection({
                     subscription,
                     spaceId: space.id,
                 });
+                setIsSubscribed(true);
             } catch (error) {
-                setIsSubscribed(false);
                 throw error;
             }
         } else {
@@ -226,11 +228,17 @@ function PushNotificationsSection({
                     browserId,
                     spaceId: space.id,
                 });
+                setIsSubscribed(false);
             } catch (error) {
-                setIsSubscribed(true);
                 throw error;
             }
         }
+    };
+
+    const getDisabledMessage = () => {
+        if (!isPushSupported) return "(notifications not supported in browser)";
+        if (permissionState === "denied") return "(notifications disabled in browser)";
+        return null;
     };
 
     return (
@@ -248,10 +256,9 @@ function PushNotificationsSection({
                         isSubscribed ? "disable" : "enable"
                     } push notifications`}
                     onChange={handleToggle}
-                    isDisabled={permissionState === null || permissionState === "denied"}
+                    isDisabled={!isPushSupported || permissionState === "denied"}
                 >
-                    Receive web push notifications{" "}
-                    {permissionState === "denied" && "(notifications disabled in browser)"}
+                    Receive web push notifications {getDisabledMessage()}
                 </Switch>
             </Box>
         </Box>
