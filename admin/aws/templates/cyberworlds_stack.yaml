@@ -3256,6 +3256,36 @@ Resources:
                 - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/TaskDefinition/TaskRole/DefaultPolicy/Resource
+    AppServiceTaskDefinitionTaskRoleOverflowPolicy18D7D266A:
+        Type: AWS::IAM::ManagedPolicy
+        Properties:
+            Description: Part of the policies for CyberworldsStack/AppService/TaskDefinition/TaskRole
+            Path: /
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - dynamodb:BatchGetItem
+                          - dynamodb:ConditionCheckItem
+                          - dynamodb:GetItem
+                          - dynamodb:Query
+                          - dynamodb:Scan
+                          - dynamodb:TransactGetItems
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - BotsTable78B66B1C
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - BotsTable78B66B1C
+                                        - Arn
+                                  - /index/*
+                Version: 2012-10-17
+            Roles:
+                - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/TaskDefinition/TaskRole/OverflowPolicy1/Resource
     AppServiceTaskDefinition576A8666:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -3583,6 +3613,7 @@ Resources:
             - AppServiceLoadBalancer2AlbListenerA4254EBF
             - AppServiceLoadBalancer2AlbListenerTargetGroupGroup6A18173F
             - AppServiceTaskDefinitionTaskRoleDefaultPolicyCC6226E3
+            - AppServiceTaskDefinitionTaskRoleOverflowPolicy18D7D266A
             - AppServiceTaskDefinitionTaskRole4C9D7E3B
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Service/Service

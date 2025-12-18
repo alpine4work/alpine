@@ -57,6 +57,14 @@ export class AwsAppService extends Construct {
 
         options.ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
 
+        // TODO(ifitzsimmons, 2025-12-18): This is a temporary workaround to allow the App service
+        // to read the Bots table for the `internal/bots` page. One day, we should have better
+        // access patterns for getting all of the bots of which you are an admin. Until then,
+        // we'll scan all the bots in the table, since we (Alpine) own all the bots for now.
+        options.dynamo.grantReadDataForTable(taskDefinition.taskRole, "Bots", {
+            allowExpensiveScan: true,
+        });
+
         // This is here for historical reasons, as we used to send email from cyberworlds.dev.
         // It should be removed at some point in the future.
         taskDefinition.addToTaskRolePolicy(
