@@ -190,8 +190,19 @@ function PushNotificationsSection({
     const handleToggle = async (shouldSubscribe: boolean) => {
         if (shouldSubscribe) {
             try {
-                const permission = await getOrPromptForBrowserPushNotificationPermission();
-                if (permission !== "granted") {
+                await getOrPromptForBrowserPushNotificationPermission();
+
+                // NOTE (rmtobin 12/18/2025): We shouldn't need to re-query permissions and manually
+                // update state since we're already using `useSyncExternalStore`, but for some reason
+                // Safari does not update the old PermissionStatus object with the new state value
+                // when it changes (even though it does fire a change event for it!). So we have to
+                // re-query to get a new PermissionStatus instance with the correct state value.
+                const newPermissionStatus = await navigator.permissions.query({
+                    name: "notifications",
+                });
+                setPermissionStatus(newPermissionStatus);
+
+                if (newPermissionStatus.state !== "granted") {
                     setIsSubscribed(false);
                     return;
                 }
