@@ -5404,7 +5404,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
+            ).toEqual(await runAllPromises([post1.get(), post2.get()]));
 
             await expect(
                 testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
@@ -5442,7 +5442,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
+            ).toEqual(await runAllPromises([post1.get(), post2.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
@@ -5486,7 +5486,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
+            ).toEqual(await runAllPromises([post1.get(), post2.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
@@ -5559,7 +5559,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
+            ).toEqual(await runAllPromises([post1.get(), post2.get()]));
 
             const post4 = await channel.createPost(scenario.session1);
 
@@ -5589,7 +5589,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 0,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post2.get(), post1.get()]));
+            ).toEqual(await runAllPromises([post1.get(), post2.get()]));
 
             expect(
                 await testGetInboxChannelPostsEntryPosts(context.action(scenario.session2), {
@@ -5598,7 +5598,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     bucketGeneration: 2,
                     commentLimit: 100,
                 }),
-            ).toEqual(await runAllPromises([post4.get(), post3.get()]));
+            ).toEqual(await runAllPromises([post3.get(), post4.get()]));
         });
 
         test("account can’t backfill in a space it can’t access", async () => {

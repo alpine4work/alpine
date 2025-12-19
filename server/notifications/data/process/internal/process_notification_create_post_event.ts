@@ -123,9 +123,9 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
                                 createdTime: event.createdTime,
                             },
                         ] as const,
-                        // Make sure the posts are in reverse chronological order no matter
+                        // Make sure the posts are in chronological order no matter
                         // what order the events are processed in.
-                    ].sort(([, a], [, b]) => b.createdTime.getTime() - a.createdTime.getTime()),
+                    ].sort(([, a], [, b]) => a.createdTime.getTime() - b.createdTime.getTime()),
                 );
 
                 const postInChannelPostsItemKey: InboxPostInChannelPostsEntryItemKey = {

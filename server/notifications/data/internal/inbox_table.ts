@@ -988,7 +988,9 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
                         const [latestPostId, latestPost] = assertExists(
-                            iterableFind(item.posts, ([, post]) => !post.isArchived),
+                            Array.from(item.posts)
+                                .reverse()
+                                .find(([, post]) => !post.isArchived),
                         );
 
                         const postAuthorIds = new Set(
@@ -1128,9 +1130,10 @@ export const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 build(context, item) {
                     return protectInboxEntryModelBuilder(context, item, async context => {
                         const [firstCommentThreadId, firstCommentThread] = assertExists(
-                            Array.from(item.commentThreads)
-                                .reverse()
-                                .find(([, commentThread]) => !commentThread.isArchived),
+                            iterableFind(
+                                item.commentThreads,
+                                ([, commentThread]) => !commentThread.isArchived,
+                            ),
                         );
 
                         const commentThreadAuthorIds = new Set(
