@@ -3702,13 +3702,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
 
-                if (isMobileWebKit) {
-                    decorationSet = addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
-                        decorationSet,
-                        state,
-                    );
-                }
-
                 decorationSet = addEmojiDecorations(decorationSet, state.doc);
 
                 for (const decorationCallback of decorationCallbacks) {
@@ -5731,85 +5724,6 @@ const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(n
         );
     };
 });
-
-// NOTE(calebmer, #mobile-webkit-weirdness): This is a hack to fix a bug in
-// mobile WebKit (iOS). If you have the following in a content editor (e.g.
-// post creator) where `|` is your cursor:
-//
-// ```
-// Test.
-// Test|
-// Test.
-// ```
-//
-// ... and you want to press space twice to insert a period (the double space
-// period shortcut must be on in your device's settings) without this hack it
-// won't work!
-//
-// If your cursor is at the very end of the doc then double space to insert a
-// period will work. Like this:
-//
-// ```
-// Test.
-// Test|
-// ```
-//
-// If your cursor is in the middle of a sentence then double space to insert a
-// period will work. Like this:
-//
-// ```
-// Test. Test| Test.
-// Test.
-// ```
-//
-// For some reason, WebKit frustratingly doesn't want to insert a period at the
-// end of a paragraph that's not the last paragraph. However, since we observed
-// WebKit will insert a period in the middle of a sentence we have a workaround.
-//
-// We insert a `<span>` with a zero width space (that's hidden with:
-// `aria-hidden="true"` and `visibility: none`. `display: none` doesn't work)
-// at the end of the paragraph your selection is in. This mimics the selection
-// in middle of sentence use case and WebKit happily inserts a period after
-// pressing double space. Ridiculous.
-//
-// If we ever fork WebKit someday can we fix this properly?
-function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
-    decorations: DecorationSet,
-    state: EditorState,
-): DecorationSet {
-    const $pos = state.selection.$from;
-
-    let depth = $pos.depth;
-    let node = $pos.node(depth);
-
-    while (node.isInline) {
-        depth -= 1;
-        node = $pos.node(depth);
-    }
-
-    if (!node.isTextblock || node.type.name !== "paragraph" || node.content.size === 0)
-        return decorations;
-
-    return decorations.add(state.doc, [
-        Decoration.widget(
-            $pos.end(depth),
-            () => {
-                const sentenceBreakElement = document.createElement("span");
-                sentenceBreakElement.ariaHidden = "true";
-                sentenceBreakElement.style.visibility = "false";
-                sentenceBreakElement.style.width = "0px";
-                sentenceBreakElement.appendChild(
-                    document.createTextNode(
-                        // zero width space (https://graphemica.com/200B)
-                        "\u200B",
-                    ),
-                );
-                return sentenceBreakElement;
-            },
-            {key: "sentenceBreak"},
-        ),
-    ]);
-}
 
 class ContentEditorTripleClickDragState {
     public selection: Selection | null = null;
