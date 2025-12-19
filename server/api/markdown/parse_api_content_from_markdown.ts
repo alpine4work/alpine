@@ -103,6 +103,7 @@ export function parseMarkdownTree(
         allowAttentionWithoutClose?: boolean;
         allowCodeTextWithoutClose?: boolean;
         allowLabelWithoutClose?: boolean;
+        allowResourceWithoutClose?: boolean;
     },
 ): Root {
     return fromMarkdown(markdown, "utf-8", {
@@ -114,6 +115,7 @@ export function parseMarkdownTree(
         allowAttentionWithoutClose: options?.allowAttentionWithoutClose,
         allowCodeTextWithoutClose: options?.allowCodeTextWithoutClose,
         allowLabelWithoutClose: options?.allowLabelWithoutClose,
+        allowResourceWithoutClose: options?.allowResourceWithoutClose,
 
         extensions: [
             gfmStrikethrough({singleTilde: false}),

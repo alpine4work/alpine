@@ -1,7 +1,8 @@
 diff --git a/dev/lib/parse.js b/dev/lib/parse.js
+index aa2c637696e38b398efdc22ddd856493d740c62c..36c8b6ed33e5a62c9332a7f4628e6df97dd7dcb3 100644
 --- a/dev/lib/parse.js
 +++ b/dev/lib/parse.js
-@@ -27,6 +27,11 @@ export function parse(options) {
+@@ -27,6 +27,12 @@ export function parse(options) {
    /** @type {ParseContext} */
    const parser = {
      defined: [],
@@ -10,13 +11,15 @@ diff --git a/dev/lib/parse.js b/dev/lib/parse.js
 +    allowAttentionWithoutClose: options.allowAttentionWithoutClose || false,
 +    allowCodeTextWithoutClose: options.allowCodeTextWithoutClose || false,
 +    allowLabelWithoutClose: options.allowLabelWithoutClose || false,
++    allowResourceWithoutClose: options.allowResourceWithoutClose || false,
      lazy: {},
      constructs,
      content: create(content),
 diff --git a/lib/parse.js b/lib/parse.js
+index 4af5729cc24bb0ca1eb77a5c1cce51a23f3c43a0..7f7b7bc6331df1f314fe8541e754bb626730e07d 100644
 --- a/lib/parse.js
 +++ b/lib/parse.js
-@@ -27,6 +27,11 @@ export function parse(options) {
+@@ -27,6 +27,12 @@ export function parse(options) {
    /** @type {ParseContext} */
    const parser = {
      defined: [],
@@ -25,6 +28,7 @@ diff --git a/lib/parse.js b/lib/parse.js
 +    allowAttentionWithoutClose: options.allowAttentionWithoutClose || false,
 +    allowCodeTextWithoutClose: options.allowCodeTextWithoutClose || false,
 +    allowLabelWithoutClose: options.allowLabelWithoutClose || false,
++    allowResourceWithoutClose: options.allowResourceWithoutClose || false,
      lazy: {},
      constructs,
      content: create(content),

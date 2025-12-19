@@ -1,7 +1,8 @@
 diff --git a/dev/lib/index.d.ts b/dev/lib/index.d.ts
+index 835ce0a0f769a42ff0ee2f709b206dba5fdfa2bc..0480e7fb4ec92690076f2fbace682e3283c827b8 100644
 --- a/dev/lib/index.d.ts
 +++ b/dev/lib/index.d.ts
-@@ -156,6 +156,11 @@ export type FromMarkdownOptions = {
+@@ -156,6 +156,12 @@ export type FromMarkdownOptions = {
     * Extensions for this utility to change how tokens are turned into a tree.
     */
    mdastExtensions?: Array<Extension | Array<Extension>> | null | undefined
@@ -10,13 +11,15 @@ diff --git a/dev/lib/index.d.ts b/dev/lib/index.d.ts
 +  allowAttentionWithoutClose?: boolean
 +  allowCodeTextWithoutClose?: boolean
 +  allowLabelWithoutClose?: boolean
++  allowResourceWithoutClose?: boolean
  }
  /**
   * Configuration.
 diff --git a/lib/index.d.ts b/lib/index.d.ts
+index 835ce0a0f769a42ff0ee2f709b206dba5fdfa2bc..0480e7fb4ec92690076f2fbace682e3283c827b8 100644
 --- a/lib/index.d.ts
 +++ b/lib/index.d.ts
-@@ -156,6 +156,11 @@ export type FromMarkdownOptions = {
+@@ -156,6 +156,12 @@ export type FromMarkdownOptions = {
     * Extensions for this utility to change how tokens are turned into a tree.
     */
    mdastExtensions?: Array<Extension | Array<Extension>> | null | undefined
@@ -25,6 +28,7 @@ diff --git a/lib/index.d.ts b/lib/index.d.ts
 +  allowAttentionWithoutClose?: boolean
 +  allowCodeTextWithoutClose?: boolean
 +  allowLabelWithoutClose?: boolean
++  allowResourceWithoutClose?: boolean
  }
  /**
   * Configuration.

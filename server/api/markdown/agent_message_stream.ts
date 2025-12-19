@@ -212,6 +212,9 @@ export class AgentMessageStream {
             // Allow parsing `The quick [brown fox` and discard link characters so it's
             // interpreted as `The quick brown fox`.
             allowLabelWithoutClose: true,
+            // Allow parsing `The quick [brown fox](/some-path-` and discard link
+            // characters so it's interpreted as `The quick brown fox`.
+            allowResourceWithoutClose: true,
         });
 
         const promiseWaiter = new PromiseWaiter();

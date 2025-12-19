@@ -164,7 +164,7 @@ index 0fa226352bdf53eeedfe2eb32057915570cdd511..4042770f63ed9b4c786519af24a617a4
      }
  
 diff --git a/dev/lib/label-end.js b/dev/lib/label-end.js
-index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..56031dc112bd610e119082210893b509ad2afb18 100644
+index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..9c1d70677dc67aed4f4044a61ecfa9fd597222c2 100644
 --- a/dev/lib/label-end.js
 +++ b/dev/lib/label-end.js
 @@ -35,7 +35,7 @@ const referenceFullConstruct = {tokenize: tokenizeReferenceFull}
@@ -202,7 +202,50 @@ index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..56031dc112bd610e119082210893b509
      }
    }
  
-@@ -233,7 +246,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -160,8 +173,31 @@ function resolveToLabelEnd(events, context) {
+     ['exit', label, context]
+   ])
+ 
+-  // Reference, resource, or so.
+-  media = push(media, events.slice(close + 1))
++  // NOTE(calebmer): If `_removeForAllowResourceWithoutClose` was set then
++  // completely remove the resource from events.
++  if (
++    context.parser.allowResourceWithoutClose &&
++    events.length > close + 1 &&
++    events[close + 1][1].type === 'resource' &&
++    events[close + 1][1]._removeForAllowResourceWithoutClose
++  ) {
++    let foundExit = false
++
++    for (let index = close + 2; index < events.length; index++) {
++      const event = events[index]
++      if (event[0] === 'exit' && event[1].type === 'resource') {
++        foundExit = true
++        media = push(media, events.slice(index + 1))
++        break
++      }
++    }
++
++    if (!foundExit)
++      throw new Error('expected to find an exit event for the resource')
++  } else {
++    // Reference, resource, or so.
++    media = push(media, events.slice(close + 1))
++  }
+ 
+   // Media close.
+   media = push(media, [['exit', group, context]])
+@@ -180,6 +216,8 @@ function tokenizeLabelEnd(effects, ok, nok) {
+   let index = self.events.length
+   /** @type {Token} */
+   let labelStart
++  /** @type {Token} */
++  let labelEnd
+   /** @type {boolean} */
+   let defined
+ 
+@@ -233,12 +271,15 @@ function tokenizeLabelEnd(effects, ok, nok) {
        return labelEndNok(code)
      }
  
@@ -214,7 +257,13 @@ index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..56031dc112bd610e119082210893b509
        normalizeIdentifier(
          self.sliceSerialize({start: labelStart.end, end: self.now()})
        )
-@@ -348,6 +364,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+     )
+-    effects.enter(types.labelEnd)
++    labelEnd = effects.enter(types.labelEnd)
+     effects.enter(types.labelMarker)
+     effects.consume(code)
+     effects.exit(types.labelMarker)
+@@ -348,6 +389,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
     * @type {State}
     */
    function labelEndNok(code) {
@@ -226,7 +275,68 @@ index 4299b87e4f1897d3735877ad67b81b951d1f7f9b..56031dc112bd610e119082210893b509
      labelStart._balanced = true
      return nok(code)
    }
-@@ -564,7 +585,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+@@ -358,6 +404,9 @@ function tokenizeLabelEnd(effects, ok, nok) {
+  * @type {Tokenizer}
+  */
+ function tokenizeResource(effects, ok, nok) {
++  const self = this
++  let resource
++
+   return resourceStart
+ 
+   /**
+@@ -372,7 +421,7 @@ function tokenizeResource(effects, ok, nok) {
+    */
+   function resourceStart(code) {
+     assert(code === codes.leftParenthesis, 'expected left paren')
+-    effects.enter(types.resource)
++    resource = effects.enter(types.resource)
+     effects.enter(types.resourceMarker)
+     effects.consume(code)
+     effects.exit(types.resourceMarker)
+@@ -450,6 +499,11 @@ function tokenizeResource(effects, ok, nok) {
+    * @type {State}
+    */
+   function resourceDestinationMissing(code) {
++    // NOTE(calebmer): Allow ending the resource at EOF when is enabled so we can
++    // parse `[foo](` as simply the text `foo`.
++    if (self.parser.allowResourceWithoutClose && code === null) {
++      return resourceEnd(code)
++    }
+     return nok(code)
+   }
+ 
+@@ -509,11 +563,24 @@ function tokenizeResource(effects, ok, nok) {
+    * @type {State}
+    */
+   function resourceEnd(code) {
+-    if (code === codes.rightParenthesis) {
+-      effects.enter(types.resourceMarker)
+-      effects.consume(code)
+-      effects.exit(types.resourceMarker)
+-      effects.exit(types.resource)
++    if (
++      code === codes.rightParenthesis ||
++      // NOTE(calebmer): Allow ending the resource at EOF when is enabled so we can
++      // parse `[foo](` as simply the text `foo`.
++      (self.parser.allowResourceWithoutClose && code === null)
++    ) {
++      if (code === null) {
++        resource._removeForAllowResourceWithoutClose = true
++
++        // If we reach this point, there may be events which haven't exited yet. Make
++        // sure to exit all of them until we finally exit `resource`.
++        while (effects.exit().type !== types.resource) {}
++      } else {
++        effects.enter(types.resourceMarker)
++        effects.consume(code)
++        effects.exit(types.resourceMarker)
++        effects.exit(types.resource)
++      }
+       return ok
+     }
+ 
+@@ -564,7 +631,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
     * @type {State}
     */
    function referenceFullAfter(code) {
@@ -405,7 +515,7 @@ index dfcf0fa957cdc75b6bc7ebb11abb80ea79e93ec3..e5b3c38d47b6e7903550acb236f8ebcf
      }
      effects.consume(code)
 diff --git a/lib/label-end.js b/lib/label-end.js
-index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1767b0783 100644
+index b4a06def593cd6f6b4960b4e40426856b57985b3..3aa2a20c2e3b477fed137ee0782bb81e5565d8ce 100644
 --- a/lib/label-end.js
 +++ b/lib/label-end.js
 @@ -38,7 +38,7 @@ const referenceCollapsedConstruct = {
@@ -443,7 +553,41 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1
      }
    }
    return events
-@@ -166,8 +179,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -148,8 +161,31 @@ function resolveToLabelEnd(events, context) {
+     ['exit', label, context]
+   ])
+ 
+-  // Reference, resource, or so.
+-  media = push(media, events.slice(close + 1))
++  // NOTE(calebmer): If `_removeForAllowResourceWithoutClose` was set then
++  // completely remove the resource from events.
++  if (
++    context.parser.allowResourceWithoutClose &&
++    events.length > close + 1 &&
++    events[close + 1][1].type === 'resource' &&
++    events[close + 1][1]._removeForAllowResourceWithoutClose
++  ) {
++    let foundExit = false
++
++    for (let index = close + 2; index < events.length; index++) {
++      const event = events[index]
++      if (event[0] === 'exit' && event[1].type === 'resource') {
++        foundExit = true
++        media = push(media, events.slice(index + 1))
++        break
++      }
++    }
++
++    if (!foundExit)
++      throw new Error('expected to find an exit event for the resource')
++  } else {
++    // Reference, resource, or so.
++    media = push(media, events.slice(close + 1))
++  }
+ 
+   // Media close.
+   media = push(media, [['exit', group, context]])
+@@ -166,8 +202,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
    let index = self.events.length
    /** @type {Token} */
    let labelStart
@@ -455,7 +599,7 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1
  
    // Find an opening.
    while (index--) {
-@@ -215,7 +231,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -215,7 +254,10 @@ function tokenizeLabelEnd(effects, ok, nok) {
      if (labelStart._inactive) {
        return labelEndNok(code)
      }
@@ -467,7 +611,7 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1
        normalizeIdentifier(
          self.sliceSerialize({
            start: labelStart.end,
-@@ -223,7 +242,7 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -223,7 +265,7 @@ function tokenizeLabelEnd(effects, ok, nok) {
          })
        )
      )
@@ -476,7 +620,7 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1
      effects.enter('labelMarker')
      effects.consume(code)
      effects.exit('labelMarker')
-@@ -333,6 +352,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
+@@ -333,6 +375,11 @@ function tokenizeLabelEnd(effects, ok, nok) {
     * @type {State}
     */
    function labelEndNok(code) {
@@ -488,7 +632,67 @@ index b4a06def593cd6f6b4960b4e40426856b57985b3..8a9e5cc24c6a36265eb6874b4ad278e1
      labelStart._balanced = true
      return nok(code)
    }
-@@ -539,7 +563,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
+@@ -343,6 +390,8 @@ function tokenizeLabelEnd(effects, ok, nok) {
+  * @type {Tokenizer}
+  */
+ function tokenizeResource(effects, ok, nok) {
++  const self = this
++  let resource
+   return resourceStart
+ 
+   /**
+@@ -356,7 +405,7 @@ function tokenizeResource(effects, ok, nok) {
+    * @type {State}
+    */
+   function resourceStart(code) {
+-    effects.enter('resource')
++    resource = effects.enter('resource')
+     effects.enter('resourceMarker')
+     effects.consume(code)
+     effects.exit('resourceMarker')
+@@ -433,6 +482,11 @@ function tokenizeResource(effects, ok, nok) {
+    * @type {State}
+    */
+   function resourceDestinationMissing(code) {
++    // NOTE(calebmer): Allow ending the resource at EOF when is enabled so we can
++    // parse `[foo](` as simply the text `foo`.
++    if (self.parser.allowResourceWithoutClose && code === null) {
++      return resourceEnd(code)
++    }
+     return nok(code)
+   }
+ 
+@@ -487,11 +541,24 @@ function tokenizeResource(effects, ok, nok) {
+    * @type {State}
+    */
+   function resourceEnd(code) {
+-    if (code === 41) {
+-      effects.enter('resourceMarker')
+-      effects.consume(code)
+-      effects.exit('resourceMarker')
+-      effects.exit('resource')
++    if (
++      code === 41 ||
++      // NOTE(calebmer): Allow ending the resource at EOF when is enabled so we can
++      // parse `[foo](` as simply the text `foo`.
++      (self.parser.allowResourceWithoutClose && code === null)
++    ) {
++      if (code === null) {
++        resource._removeForAllowResourceWithoutClose = true
++        
++        // If we reach this point, there may be events which haven't exited yet. Make
++        // sure to exit all of them until we finally exit `resource`.
++        while (effects.exit().type !== 'resource') {}
++      } else {
++        effects.enter('resourceMarker')
++        effects.consume(code)
++        effects.exit('resourceMarker')
++        effects.exit('resource')
++      }
+       return ok
+     }
+     return nok(code)
+@@ -539,7 +606,10 @@ function tokenizeReferenceFull(effects, ok, nok) {
     * @type {State}
     */
    function referenceFullAfter(code) {

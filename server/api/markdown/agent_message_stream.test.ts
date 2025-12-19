@@ -3135,33 +3135,13 @@ test("streams link formatting correctly character by character (with reference)"
 
     expect(await message.update()).toEqual([]);
 
-    message.pushText("(/document/brown-fox-jumps-over-the");
+    message.pushText("(");
 
-    expect(await message.update()).toEqual([
-        {
-            index: 0,
-            payload: {
-                type: "Content",
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [
-                                {
-                                    type: "Text",
-                                    // TODO(ifitzsimmons, #ai): The link hasn't been "closed" yet, so we
-                                    // render the "link" as plain text. We'll have to patch the markdown
-                                    // parser as some point to handle this case.
-                                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/qtfnrj25qdh092rz074secyvp0
-                                    text: "The quick brown fox jumps over the(/document/brown-fox-jumps-over-the",
-                                },
-                            ],
-                        },
-                    ],
-                },
-            },
-        },
-    ]);
+    expect(await message.update()).toEqual([]);
+
+    message.pushText("/document/brown-fox-jumps-over-the");
+
+    expect(await message.update()).toEqual([]);
 
     message.pushText(")");
 
@@ -3432,58 +3412,15 @@ test("streams missing link URL formatting correctly (without reference)", async 
 
     message.pushText("(");
 
-    // TODO(calebmer): This is a bug! The output should still be `test: link`. But
-    // I'm running out of time so not fixing this edge case.
-    expect(await message.update()).toEqual([
-        {
-            index: 0,
-            payload: {
-                type: "Content",
-                content: {
-                    elements: [
-                        {type: "Paragraph", elements: [{type: "Text", text: "test: link("}]},
-                    ],
-                },
-            },
-        },
-    ]);
+    expect(await message.update()).toEqual([]);
 
     message.pushText("http");
 
-    // TODO(calebmer): This is a bug! The output should still be `test: link`. But
-    // I'm running out of time so not fixing this edge case.
-    expect(await message.update()).toEqual([
-        {
-            index: 0,
-            payload: {
-                type: "Content",
-                content: {
-                    elements: [
-                        {type: "Paragraph", elements: [{type: "Text", text: "test: link(http"}]},
-                    ],
-                },
-            },
-        },
-    ]);
+    expect(await message.update()).toEqual([]);
 
     message.pushText("s://example.com");
 
-    expect(await message.update()).toEqual([
-        {
-            index: 0,
-            payload: {
-                type: "Content",
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "test: link(https://example.com"}],
-                        },
-                    ],
-                },
-            },
-        },
-    ]);
+    expect(await message.update()).toEqual([]);
 
     message.pushText(")");
 
@@ -3895,6 +3832,47 @@ describe("headers", () => {
                                     {type: "Text", text: "my least favorite number is # 3 - yuck!"},
                                 ],
                             },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams header when a chunk is just a single #", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("#");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Heading", level: 1, elements: []}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" ");
+
+        expect(await message.update()).toEqual([]);
+
+        message.pushText("foo");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {type: "Heading", level: 1, elements: [{type: "Text", text: "foo"}]},
                         ],
                     },
                 },
