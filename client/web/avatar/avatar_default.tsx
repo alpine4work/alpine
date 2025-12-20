@@ -1,12 +1,10 @@
 import classNames from "classnames";
 import {
-    avatarDefaultCatInnerClassName,
     avatarDefaultClassName,
     avatarDefaultIconSize,
     avatarDefaultInnerClassName,
+    avatarDefaultInnerClassNameByCharacterType,
     avatarDefaultSize,
-    avatarDefaultTreeInnerClassName,
-    avatarDefaultYetiInnerClassName,
 } from "~/client/web/avatar/avatar_default_html.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
@@ -27,11 +25,7 @@ export function AvatarDefault({size, reaction}: {size: Spacing; reaction: Reacti
             <span
                 className={classNames(
                     avatarDefaultInnerClassName,
-                    {
-                        Cat: avatarDefaultCatInnerClassName,
-                        Tree: avatarDefaultTreeInnerClassName,
-                        Yeti: avatarDefaultYetiInnerClassName,
-                    }[reaction.character.type],
+                    avatarDefaultInnerClassNameByCharacterType[reaction.character.type],
                 )}
             >
                 <ReactionIcon reaction={reaction} size={avatarDefaultIconSize} />

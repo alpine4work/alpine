@@ -3,7 +3,7 @@ import {renderReactionIconHtml} from "~/client/web/reactions/icons/reaction_icon
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
+import {Reaction, ReactionCharacterType} from "~/shared/reactions/reaction.js";
 
 export const avatarDefaultSize: Spacing = "24";
 export const avatarDefaultIconSize: Spacing = "20";
@@ -24,26 +24,44 @@ export const avatarDefaultInnerClassName = sprinkles({
     padding: "2",
 });
 
-export const avatarDefaultCatInnerClassName = sprinkles({
-    position: "relative",
-    // Optically center align icon
-    top: "-1.5",
-    left: "0",
-});
-
-export const avatarDefaultTreeInnerClassName = sprinkles({
-    position: "relative",
-    // Optically center align icon
-    top: "-0.5",
-    left: "0",
-});
-
-export const avatarDefaultYetiInnerClassName = sprinkles({
-    position: "relative",
-    // Optically center align icon
-    top: "-1",
-    left: "0.5",
-});
+export const avatarDefaultInnerClassNameByCharacterType: Record<ReactionCharacterType, string> = {
+    Tree: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-0.5",
+        left: "0",
+    }),
+    Yeti: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-1",
+        left: "0.5",
+    }),
+    Cat: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-1.5",
+        left: "0",
+    }),
+    Frog: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-2.5",
+        left: "0",
+    }),
+    Pigeon: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-1.5",
+        left: "0",
+    }),
+    Tulip: sprinkles({
+        position: "relative",
+        // Optically center align icon
+        top: "-1.5",
+        left: "0",
+    }),
+};
 
 export function renderAvatarDefaultHtml({size, reaction}: {size: Spacing; reaction: Reaction}) {
     const avatarHtml = new HtmlElementGenerator("span");
@@ -62,11 +80,7 @@ export function renderAvatarDefaultHtml({size, reaction}: {size: Spacing; reacti
         "class",
         classNames(
             avatarDefaultInnerClassName,
-            {
-                Cat: avatarDefaultCatInnerClassName,
-                Tree: avatarDefaultTreeInnerClassName,
-                Yeti: avatarDefaultYetiInnerClassName,
-            }[reaction.character.type],
+            avatarDefaultInnerClassNameByCharacterType[reaction.character.type],
         ),
     );
 

@@ -19,3 +19,12 @@ test("`reactionIds` are positive integers", () => {
         expect(id).toBeLessThan(Number.MAX_SAFE_INTEGER);
     }
 });
+
+test("`reactionIds` has no gaps", () => {
+    let expectedId = 1;
+
+    for (const id of reactionIdsArray.slice().sort((a, b) => a - b)) {
+        expect(id).toEqual(expectedId);
+        expectedId++;
+    }
+});

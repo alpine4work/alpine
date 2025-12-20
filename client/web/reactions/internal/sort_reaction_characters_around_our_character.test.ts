@@ -84,13 +84,13 @@ test("works when our character is the first in the original order", () => {
 });
 
 test("works when our character is the last in the original order", () => {
-    const ourCharacter: ReactionCharacter = {type: "Tree", variant: "Pink"}; // Last in original order
+    const ourCharacter: ReactionCharacter = {type: "Tulip", variant: "Pink"}; // Last in original order
     const result = sortReactionCharactersAroundOurCharacter(ourCharacter);
 
-    // Should start with Pink Tree, then other Trees, then rest from beginning
-    expect(result[0]).toEqual({type: "Tree", variant: "Pink"});
-    expect(result[1]).toEqual({type: "Tree", variant: "Blue"});
-    expect(result[2]).toEqual({type: "Tree", variant: "Green"});
+    // Should start with Pink Tulip, then other Tulips, then rest from beginning
+    expect(result[0]).toEqual({type: "Tulip", variant: "Pink"});
+    expect(result[1]).toEqual({type: "Tulip", variant: "Yellow"});
+    expect(result[2]).toEqual({type: "Tulip", variant: "Violet"});
 
     // Then should continue with Yetis from the beginning
     expect(result[3]).toEqual({type: "Yeti", variant: "Blue"});
@@ -129,9 +129,18 @@ test("handles middle character correctly", () => {
         {type: "Cat", variant: "Yellow"},
         {type: "Cat", variant: "Pink"},
         {type: "Cat", variant: "Grey"},
-        {type: "Tree", variant: "Blue"},
         {type: "Tree", variant: "Green"},
+        {type: "Tree", variant: "Blue"},
         {type: "Tree", variant: "Pink"},
+        {type: "Frog", variant: "Green"},
+        {type: "Frog", variant: "Cyan"},
+        {type: "Frog", variant: "Yellow"},
+        {type: "Pigeon", variant: "Plain"},
+        {type: "Pigeon", variant: "Brown"},
+        {type: "Pigeon", variant: "Grey"},
+        {type: "Tulip", variant: "Yellow"},
+        {type: "Tulip", variant: "Pink"},
+        {type: "Tulip", variant: "Violet"},
         {type: "Yeti", variant: "Blue"},
         {type: "Yeti", variant: "Brown"},
         {type: "Yeti", variant: "Olive"},

@@ -29,9 +29,24 @@ export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Objec
             Grey: {type: "Cat", variant: "Grey"},
         },
         Tree: {
-            Blue: {type: "Tree", variant: "Blue"},
             Green: {type: "Tree", variant: "Green"},
+            Blue: {type: "Tree", variant: "Blue"},
             Pink: {type: "Tree", variant: "Pink"},
+        },
+        Frog: {
+            Green: {type: "Frog", variant: "Green"},
+            Cyan: {type: "Frog", variant: "Cyan"},
+            Yellow: {type: "Frog", variant: "Yellow"},
+        },
+        Pigeon: {
+            Plain: {type: "Pigeon", variant: "Plain"},
+            Brown: {type: "Pigeon", variant: "Brown"},
+            Grey: {type: "Pigeon", variant: "Grey"},
+        },
+        Tulip: {
+            Yellow: {type: "Tulip", variant: "Yellow"},
+            Pink: {type: "Tulip", variant: "Pink"},
+            Violet: {type: "Tulip", variant: "Violet"},
         },
     }),
 ).flatMap(Object.values);
@@ -44,11 +59,13 @@ export const orderedReactionEmotions: ReadonlyArray<ReactionEmotion> = getObject
         Happy: true,
         Laugh: true,
         Celebrate: true,
-        Yes: true,
-        No: true,
+        Heart: true,
         Lolsob: true,
         Shock: true,
         DeadInside: true,
         Hardship: true,
+        ThankYou: true,
+        Yes: true,
+        No: true,
     }),
 );

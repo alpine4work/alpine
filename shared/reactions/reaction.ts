@@ -30,9 +30,11 @@ export type ReactionEmotion =
     | "Happy"
     | "Laugh"
     | "Lolsob"
-    | "No"
     | "Shock"
-    | "Yes";
+    | "Heart"
+    | "Yes"
+    | "No"
+    | "ThankYou";
 
 export const allReactionEmotions: ReadonlyArray<ReactionEmotion> = getObjectKeysWithKeyofType(
     cast<Record<ReactionEmotion, true>>({
@@ -42,9 +44,11 @@ export const allReactionEmotions: ReadonlyArray<ReactionEmotion> = getObjectKeys
         Happy: true,
         Laugh: true,
         Lolsob: true,
-        No: true,
         Shock: true,
+        Heart: true,
         Yes: true,
+        No: true,
+        ThankYou: true,
     }),
 );
 
@@ -56,6 +60,12 @@ export type ReactionTreeCharacterVariant = "Blue" | "Green" | "Pink";
 
 export type ReactionYetiCharacterVariant = "Blue" | "Brown" | "Olive";
 
+export type ReactionFrogCharacterVariant = "Green" | "Cyan" | "Yellow";
+
+export type ReactionPigeonCharacterVariant = "Plain" | "Brown" | "Grey";
+
+export type ReactionTulipCharacterVariant = "Yellow" | "Pink" | "Violet";
+
 /**
  * The character used for a reaction icon. We have different character types
  * with some slight variants (basic recolors mostly).
@@ -63,12 +73,18 @@ export type ReactionYetiCharacterVariant = "Blue" | "Brown" | "Olive";
 export type ReactionCharacter =
     | {readonly type: "Cat"; readonly variant: ReactionCatCharacterVariant}
     | {readonly type: "Tree"; readonly variant: ReactionTreeCharacterVariant}
-    | {readonly type: "Yeti"; readonly variant: ReactionYetiCharacterVariant};
+    | {readonly type: "Yeti"; readonly variant: ReactionYetiCharacterVariant}
+    | {readonly type: "Frog"; readonly variant: ReactionFrogCharacterVariant}
+    | {readonly type: "Pigeon"; readonly variant: ReactionPigeonCharacterVariant}
+    | {readonly type: "Tulip"; readonly variant: ReactionTulipCharacterVariant};
 
 const allReactionCharacters: ReactionCharacterMap<true> = {
     Cat: {Grey: true, Pink: true, Yellow: true},
     Tree: {Blue: true, Green: true, Pink: true},
     Yeti: {Blue: true, Brown: true, Olive: true},
+    Frog: {Green: true, Cyan: true, Yellow: true},
+    Pigeon: {Plain: true, Brown: true, Grey: true},
+    Tulip: {Yellow: true, Pink: true, Violet: true},
 };
 
 export const allReactionCharacterTypes: ReadonlyArray<ReactionCharacterType> =

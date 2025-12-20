@@ -48,6 +48,30 @@ CHARACTERS = {
             "Olive": {"file_name": "olive"},
         },
     },
+    "Frog": {
+        "file_name": "frog",
+        "variants": {
+            "Green": {"file_name": "green"},
+            "Cyan": {"file_name": "cyan"},
+            "Yellow": {"file_name": "yellow"},
+        },
+    },
+    "Pigeon": {
+        "file_name": "pigeon",
+        "variants": {
+            "Plain": {"file_name": "plain"},
+            "Brown": {"file_name": "brown"},
+            "Grey": {"file_name": "grey"},
+        },
+    },
+    "Tulip": {
+        "file_name": "tulip",
+        "variants": {
+            "Yellow": {"file_name": "yellow"},
+            "Pink": {"file_name": "pink"},
+            "Violet": {"file_name": "violet"},
+        },
+    },
 }
 
 EMOTIONS = {
@@ -57,9 +81,11 @@ EMOTIONS = {
     "Happy": {"file_name": "happy"},
     "Laugh": {"file_name": "laugh"},
     "Lolsob": {"file_name": "lolsob"},
-    "No": {"file_name": "no"},
     "Shock": {"file_name": "shock"},
+    "Heart": {"file_name": "heart"},
     "Yes": {"file_name": "yes"},
+    "No": {"file_name": "no"},
+    "ThankYou": {"file_name": "thank_you"},
 }
 
 genrule(

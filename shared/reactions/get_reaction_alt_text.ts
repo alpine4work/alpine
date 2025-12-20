@@ -45,6 +45,40 @@ function getReactionCharacterAltText(character: ReactionCharacter): string {
                     throw exhaustive(character);
             }
         }
+        case "Frog": {
+            switch (character.variant) {
+                case "Green":
+                    return "Green frog";
+                case "Cyan":
+                    return "Cyan frog";
+                case "Yellow":
+                    return "Yellow frog";
+            }
+        }
+        case "Pigeon": {
+            switch (character.variant) {
+                case "Plain":
+                    return "Pigeon";
+                case "Brown":
+                    return "Brown pigeon";
+                case "Grey":
+                    return "Grey pigeon";
+                default:
+                    throw exhaustive(character);
+            }
+        }
+        case "Tulip": {
+            switch (character.variant) {
+                case "Yellow":
+                    return "Yellow tulip";
+                case "Pink":
+                    return "Pink tulip";
+                case "Violet":
+                    return "Violet tulip";
+                default:
+                    throw exhaustive(character);
+            }
+        }
         default:
             throw exhaustive(character);
     }
@@ -64,12 +98,16 @@ function getReactionEmotionAltText(emotion: ReactionEmotion): string {
             return "laughing";
         case "Lolsob":
             return "laughing while crying";
-        case "No":
-            return "holding a sign saying “no”";
         case "Shock":
             return "in shock";
+        case "Heart":
+            return "holding a heart";
         case "Yes":
             return "holding a sign saying “yes”";
+        case "No":
+            return "holding a sign saying “no”";
+        case "ThankYou":
+            return "holding a sign saying “thank you”";
         default:
             throw exhaustive(emotion);
     }

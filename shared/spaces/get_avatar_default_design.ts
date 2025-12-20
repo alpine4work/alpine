@@ -12,7 +12,12 @@ import {
 // NOTE(calebmer): I went through all of these color combinations manually and
 // asked myself "does this look nice?" Removing color combinations that I
 // thought didn't look nice.
-const backgroundColorsByReactionCharacter: ReactionCharacterMap<ReadonlyArray<ThemeColor>> = {
+//
+// We exclude `yellow` because it's too light and `indigo` because it's
+// too dark.
+const backgroundColorsByReactionCharacter: ReactionCharacterMap<
+    ReadonlyArray<Exclude<ThemeColor, "yellow" | "indigo">>
+> = {
     Cat: {
         Grey: ["orange", "green", "cyan", "pink"],
         Pink: ["green", "cyan", "blue"],
@@ -27,6 +32,21 @@ const backgroundColorsByReactionCharacter: ReactionCharacterMap<ReadonlyArray<Th
         Blue: ["red", "orange", "green", "cyan", "blue", "purple", "pink"],
         Brown: ["orange", "green", "cyan", "blue", "purple", "pink"],
         Olive: ["red", "orange", "green", "cyan", "blue", "purple", "pink"],
+    },
+    Frog: {
+        Green: ["red", "orange", "green", "cyan", "purple", "pink"],
+        Cyan: ["red", "orange", "green", "cyan", "purple", "pink"],
+        Yellow: ["green", "cyan"],
+    },
+    Pigeon: {
+        Plain: ["green", "cyan", "blue", "purple", "pink"],
+        Brown: ["green", "cyan", "blue", "purple", "pink"],
+        Grey: ["green", "cyan", "blue", "pink"],
+    },
+    Tulip: {
+        Yellow: ["green", "cyan", "blue", "purple"],
+        Pink: ["green", "cyan", "blue"],
+        Violet: ["orange", "green", "cyan", "blue", "pink"],
     },
 };
 

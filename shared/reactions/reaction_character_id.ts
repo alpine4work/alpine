@@ -17,6 +17,21 @@ export const reactionCharacterIds: ReactionCharacterMap<number> = {
         Brown: 8,
         Olive: 9,
     },
+    Frog: {
+        Green: 10,
+        Cyan: 11,
+        Yellow: 12,
+    },
+    Pigeon: {
+        Plain: 13,
+        Brown: 14,
+        Grey: 15,
+    },
+    Tulip: {
+        Yellow: 16,
+        Pink: 17,
+        Violet: 18,
+    },
 };
 
 /**
