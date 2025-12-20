@@ -411,6 +411,7 @@ const TracerEventDataSchema = {
         errorReason: Schema.string,
     },
     webPush: {
+        subscriptionEndpointOrigin: Schema.string,
         browserId: Schema.id(),
         responseStatusCode: Schema.integer,
     },

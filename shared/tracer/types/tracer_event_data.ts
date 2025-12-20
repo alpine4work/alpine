@@ -1281,6 +1281,9 @@ export type TracerEventData = {
     };
 
     readonly webPush?: {
+        /** The origin of the web push service subscription endpoint like `https://fcm.googleapis.com` */
+        readonly subscriptionEndpointOrigin?: string;
+
         /** The ID of the browser we're sending the notification to. */
         readonly browserId?: string;
 

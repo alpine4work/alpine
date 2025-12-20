@@ -56,10 +56,12 @@ export async function sendPushNotificationToAccountTargets(
     // If we archived an entry (or updated an archived entry) that shouldn't
     // generate a push notification.
     //
-    // However, if the loud notification count changed then we need to send a
-    // silent push notification updating the badge number.
+    // However, if the loud notification count changed and APNs is enabled then we need to send a
+    // silent push notification updating the badge number. If we're only sending a web push
+    // notification which doesn't support silent notifications, we skip sending a push notification.
     if (
         (newInboxEntryItem === "Delete" || newInboxEntryItem.isArchived) &&
+        !shouldSendApnsPushNotification() &&
         loudNotificationCountDifference === 0
     ) {
         return;

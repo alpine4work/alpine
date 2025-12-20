@@ -50,6 +50,9 @@ export class WebPushContextModule extends WebPushContextModuleBase {
         return this._context.tracer.withSpan(
             "Send web push request to browser push service",
             async (_context, span) => {
+                const subscriptionEndpointOrigin = new URL(subscription.endpoint).origin;
+                span.addData({webPush: {subscriptionEndpointOrigin}});
+
                 const payload = JSON.stringify(notificationContent);
 
                 try {
