@@ -14,17 +14,9 @@ import {
     ApiMessageStreamPartPayload,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
-import {
-    ErrorBase,
-    InternalError,
-    InvalidArgumentError,
-    NotFoundError,
-    PermissionDeniedError,
-    UnauthenticatedError,
-    UnknownError,
-} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -133,33 +125,10 @@ export function createApiClient({
                             if (!response.ok) {
                                 const responseBody: ApiErrorResponseBody = await response.json();
 
-                                let ErrorConstructor: {
-                                    new (
-                                        message: string,
-                                        options?: {
-                                            cause?: unknown;
-                                            displayMessage?: ErrorDisplayMessage;
-                                        },
-                                    ): ErrorBase;
-                                };
-
-                                switch (response.status) {
-                                    case 400:
-                                        ErrorConstructor = InvalidArgumentError;
-                                        break;
-                                    case 401:
-                                        ErrorConstructor = UnauthenticatedError;
-                                        break;
-                                    case 403:
-                                        ErrorConstructor = PermissionDeniedError;
-                                        break;
-                                    case 404:
-                                        ErrorConstructor = NotFoundError;
-                                        break;
-                                    default:
-                                        ErrorConstructor =
-                                            response.status >= 500 ? InternalError : UnknownError;
-                                }
+                                // Our API doesn't share the internal `ErrorCode` we use, so infer an error
+                                // code from the HTTP status code.
+                                const errorCode = getErrorCodeForHttpStatusCode(response.status);
+                                const ErrorConstructor = getErrorConstructorForCode(errorCode);
 
                                 const error = new ErrorConstructor("API request failed", {
                                     // The error message might contain sensitive user data. So treat the whole

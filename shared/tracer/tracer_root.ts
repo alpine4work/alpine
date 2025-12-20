@@ -1,6 +1,7 @@
 import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {getTracerEventExceptionData} from "~/shared/tracer/helpers/get_tracer_event_exception_data.js";
@@ -183,6 +184,24 @@ export class TracerRoot extends TracerBase {
                 },
             },
             propagatedEventData: null,
+        });
+    }
+
+    /**
+     * In `AppService`, our hot reloading environment (`app_service.ts`) may have a
+     * different `TracerRoot` class then the wrapper environment
+     * (`app_service_wrapper.ts`). Allow cloning the tracer root with the
+     * correct class.
+     */
+    public cloneWithNewClass(TracerRootClass: typeof TracerRoot) {
+        assert(process.env.NODE_ENV !== "production");
+
+        return new TracerRootClass({
+            serviceName: this.serviceName,
+            clock: this._clock,
+            sendEvent: this._sendEvent,
+            sharedEventData: this.sharedEventData,
+            propagatedEventData: this.propagatedEventData,
         });
     }
 

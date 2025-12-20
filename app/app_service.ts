@@ -81,6 +81,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 let appService: {
     constants: AppServiceConstants;
@@ -110,10 +111,14 @@ export function getAppService(constants: AppServiceConstants): Promise<AppServic
 }
 
 async function createAppService({
-    tracer,
+    tracer: originalTracer,
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
+    // Make sure we use the correct `TracerRoot` class for the current environment.
+    // The constant we get from the wrapper code may be for a completely different class hierarchy.
+    const tracer = originalTracer.cloneWithNewClass(TracerRoot);
+
     const [
         tokenAgent,
         apnsCertificate,
