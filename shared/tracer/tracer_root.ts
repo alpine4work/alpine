@@ -194,8 +194,6 @@ export class TracerRoot extends TracerBase {
      * correct class.
      */
     public cloneWithNewClass(TracerRootClass: typeof TracerRoot) {
-        assert(process.env.NODE_ENV !== "production");
-
         return new TracerRootClass({
             serviceName: this.serviceName,
             clock: this._clock,
