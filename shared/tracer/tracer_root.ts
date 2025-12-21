@@ -1,7 +1,6 @@
 import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {getTracerEventExceptionData} from "~/shared/tracer/helpers/get_tracer_event_exception_data.js";
