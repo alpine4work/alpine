@@ -933,4 +933,306 @@ describe("/task-collections/{id}/tasks", () => {
             }),
         });
     });
+
+    test("only returns open tasks when status is [Open]", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session1, {
+            name: "Status Filter Collection",
+            access: "Public",
+        });
+
+        // Create tasks with different statuses
+        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
+        const activeTask = await TestTask.create(session1, {title: "Active Task"});
+        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
+
+        await closedTask.addCollection(session1, collection);
+        await activeTask.addCollection(session1, collection);
+        await inactiveTask.addCollection(session1, collection);
+
+        await closedTask.updateStatus(session1, "Closed");
+        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(`/task-collections/${collection.id}/tasks?status=Open`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: activeTask.id,
+                        title: "Active Task",
+                        status: {type: "Open", isActive: true},
+                    }),
+                    expect.objectContaining({
+                        id: inactiveTask.id,
+                        title: "Inactive Task",
+                        status: {type: "Open", isActive: false},
+                    }),
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("only returns closed tasks when status is [Closed]", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session1, {
+            name: "Status Filter Collection",
+            access: "Public",
+        });
+
+        // Create tasks with different statuses
+        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
+        const activeTask = await TestTask.create(session1, {title: "Active Task"});
+        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
+
+        await closedTask.addCollection(session1, collection);
+        await activeTask.addCollection(session1, collection);
+        await inactiveTask.addCollection(session1, collection);
+
+        await closedTask.updateStatus(session1, "Closed");
+        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?status=Closed`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: closedTask.id,
+                        title: "Closed Task",
+                        status: {type: "Closed"},
+                    }),
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("can filter tasks by status using repeated query parameters", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session1, {
+            name: "Status Filter Collection",
+            access: "Public",
+        });
+
+        // Create tasks with different statuses
+        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
+        const activeTask = await TestTask.create(session1, {title: "Active Task"});
+        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
+
+        await closedTask.addCollection(session1, collection);
+        await activeTask.addCollection(session1, collection);
+        await inactiveTask.addCollection(session1, collection);
+
+        await closedTask.updateStatus(session1, "Closed");
+        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        // Filter for Closed and OpenActive using repeated parameters
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?status=Closed&status=Open`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: closedTask.id,
+                        title: "Closed Task",
+                        status: {type: "Closed"},
+                    }),
+                    expect.objectContaining({
+                        id: activeTask.id,
+                        title: "Active Task",
+                        status: {type: "Open", isActive: true},
+                    }),
+                    expect.objectContaining({
+                        id: inactiveTask.id,
+                        title: "Inactive Task",
+                        status: {type: "Open", isActive: false},
+                    }),
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("can filter tasks by status using comma-separated values", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const session2 = await space.createSession({name: "Bob Johnson"});
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const collection = await TestTaskCollection.create(session1, {
+            name: "Comma-Separated Collection",
+            access: "Public",
+        });
+
+        const closedTask = await TestTask.create(session1, {title: "Closed Task"});
+        const activeTask = await TestTask.create(session1, {title: "Active Task"});
+        const inactiveTask = await TestTask.create(session1, {title: "Inactive Task"});
+
+        await closedTask.addCollection(session1, collection);
+        await activeTask.addCollection(session1, collection);
+        await inactiveTask.addCollection(session1, collection);
+
+        await closedTask.updateStatus(session1, "Closed");
+        await activeTask.updateAssignee(session1, session2, {assigneeStatus: "Active"});
+        await inactiveTask.updateAssignee(session1, session2, {assigneeStatus: "Inactive"});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        // Filter using comma-separated values
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?status=Open,Closed`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: expect.objectContaining({
+                spaceId: space.id,
+                tasks: [
+                    expect.objectContaining({
+                        id: closedTask.id,
+                        title: "Closed Task",
+                        status: {type: "Closed"},
+                    }),
+                    expect.objectContaining({
+                        id: activeTask.id,
+                        title: "Active Task",
+                        status: {type: "Open", isActive: true},
+                    }),
+                    expect.objectContaining({
+                        id: inactiveTask.id,
+                        title: "Inactive Task",
+                        status: {type: "Open", isActive: false},
+                    }),
+                ],
+                nextCursor: null,
+            }),
+        });
+    });
+
+    test("returns 400 error for invalid status enum value", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Test Collection",
+            access: "Public",
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?status=OpenActive&status=Closed`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message: "Invalid query parameters.",
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
+
+    test("returns 400 error for unexpected list length (repeat values)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const collection = await TestTaskCollection.create(session, {
+            name: "Test Collection",
+            access: "Public",
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        // Mix of valid and invalid values
+        const response = await server.GET(
+            `/task-collections/${collection.id}/tasks?status=Closed&status=Closed&status=Open`,
+            {
+                headers: {authorization: `bearer ${apiKey}`},
+            },
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message: "Invalid `status` query parameter.",
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
 });

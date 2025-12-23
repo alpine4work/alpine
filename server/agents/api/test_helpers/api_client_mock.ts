@@ -6,7 +6,9 @@ import {
     ApiDocumentCommentThreadResponse,
     ApiMessageResponse,
     ApiPostResponse,
+    ApiTaskCollection,
     ApiTaskResponse,
+    ApiTaskWithoutContent,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ApiSpecification} from "~/shared/api/types/api_specification_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -20,6 +22,7 @@ import {
     DocumentId,
     PostId,
     SpaceId,
+    TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -598,6 +601,60 @@ export class ApiClientMock implements ApiClient {
                     nextCursor: null,
                     messages: [],
                     ...responseData,
+                },
+            },
+            matcherData,
+        );
+    }
+
+    mockGetTaskCollection(
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        responseData: Partial<Omit<ApiTaskCollection, "id">>,
+    ): void {
+        this.mockGet(
+            "/task-collections/{id}",
+            {
+                data: {
+                    spaceId,
+                    taskCollection: {
+                        id: collectionId,
+                        name: responseData.name ?? "Test Task Collection",
+                    },
+                },
+            },
+            {path: {id: collectionId}},
+        );
+    }
+
+    mockGetTaskCollectionTasks(
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        responseData: {
+            totalTaskCount?: number;
+            nextCursor?: string | null;
+            tasks?: Array<ApiTaskWithoutContent>;
+        },
+        queryParams?: {
+            limit?: number;
+            cursor?: string | null;
+            status?: Array<"Open" | "Closed">;
+        },
+    ): void {
+        const matcherData = queryParams
+            ? {
+                  path: {id: collectionId},
+                  query: queryParams,
+              }
+            : undefined;
+
+        this.mockGet(
+            "/task-collections/{id}/tasks",
+            {
+                data: {
+                    spaceId,
+                    nextCursor: responseData.nextCursor ?? null,
+                    tasks: responseData.tasks ?? [],
                 },
             },
             matcherData,

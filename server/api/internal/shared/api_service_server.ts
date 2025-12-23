@@ -415,7 +415,7 @@ export async function createApiServiceRequestListener(
 
         const queryParameterDefinitions = new Map<
             string,
-            {type: "integer" | "number" | "string"}
+            {type: "integer" | "number" | "string" | "array"}
         >();
 
         for (let parameter of parameters) {
@@ -450,7 +450,9 @@ export async function createApiServiceRequestListener(
 
                     queryParameterDefinitions.set(parameter.name, {
                         type:
-                            parameterSchema.type === "integer" || parameterSchema.type === "number"
+                            parameterSchema.type === "integer" ||
+                            parameterSchema.type === "number" ||
+                            parameterSchema.type === "array"
                                 ? parameterSchema.type
                                 : "string",
                     });
@@ -741,6 +743,13 @@ export async function createApiServiceRequestListener(
                         }
                         case "string": {
                             queryParameters[parameterName] = queryParameter;
+                            break;
+                        }
+                        case "array": {
+                            const arrayParams = url.searchParams.getAll(parameterName);
+                            queryParameters[parameterName] = arrayParams.flatMap(item =>
+                                item.split(","),
+                            );
                             break;
                         }
                         default:

@@ -1275,6 +1275,7 @@ export namespace ApiSpecification {
                     readonly query?: {
                         readonly limit?: number;
                         readonly cursor?: string;
+                        readonly status?: readonly ("Open" | "Closed")[];
                     };
                     readonly header?: never;
                     readonly path: {

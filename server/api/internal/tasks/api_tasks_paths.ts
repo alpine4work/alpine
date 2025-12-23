@@ -19,6 +19,7 @@ import {
 import {ApiTask} from "~/shared/api/types/api_specification_convenience_types.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -351,13 +352,22 @@ export const apiTasksPaths: Pick<
             const collectionId = pathParameters.id;
             const spaceId = context.actor.getSpaceId();
 
-            // NOTE(iftizsimmons, 2025-11-05): We're only showing open tasks by default since that
-            // is the default behavior in the UI.
-            const displayStatusFilter: TaskQueryDisplayStatusNormalizedFilter = {
-                ifOpenInactive: true,
-                ifOpenActive: true,
-                ifClosed: false,
+            const statuses = new Set(
+                queryParameters.status && queryParameters.status.length > 0
+                    ? queryParameters.status
+                    : // NOTE(iftizsimmons, 2025-11-05): We'll only showing open tasks by default since that
+                      // is the default behavior in the UI. One day, when users can set default filters for
+                      // a task collection, we should use that filter instead.
+                      ["Open"],
+            );
+
+            const displayStatusFilter = {
+                ifOpenInactive: statuses.has("Open"),
+                ifOpenActive: statuses.has("Open"),
+                ifClosed: statuses.has("Closed"),
             };
+            assertValidTaskQueryDisplayStatusNormalizedFilter(displayStatusFilter);
+
             const collectionsFilter: TaskQueryCollectionsNormalizedFilter =
                 assertNonEmptyReadonlyArray([
                     assertNonEmptyReadonlyMap(new Map([[collectionId, false]])),
@@ -381,6 +391,12 @@ export const apiTasksPaths: Pick<
             return {
                 content: {spaceId, nextCursor, tasks},
             };
+
+            function assertValidTaskQueryDisplayStatusNormalizedFilter<
+                T extends Record<string, boolean> = TaskQueryDisplayStatusNormalizedFilter,
+            >(obj: Record<string, boolean>): asserts obj is T {
+                assert(Object.values(obj).some(v => v));
+            }
         },
     },
 };

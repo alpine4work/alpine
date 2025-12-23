@@ -74,6 +74,7 @@ describe("printAgentLinkPath", () => {
                 type: "TaskCollection",
                 collectionId,
                 name: "Product Launch Tasks",
+                statusesFilter: new Set(["Closed"]),
             };
             expect(printAgentLinkPath(link)).toBe("/task-collection/product-launch-tasks");
         });
@@ -517,6 +518,7 @@ describe("printAgentLinkPathIntoApiPath", () => {
                 type: "TaskCollection",
                 collectionId,
                 name: "Launch",
+                statusesFilter: new Set(["Closed"]),
             };
             expect(printApiPathForAgentLink(link)).toBe(`/task-collections/${collectionId}`);
         });
@@ -721,6 +723,7 @@ describe("printAgentPlainTextLabel", () => {
                 type: "TaskCollection",
                 collectionId,
                 name: "Product Launch Tasks",
+                statusesFilter: new Set(["Closed"]),
             };
             expect(printAgentPlainTextLabel(link)).toBe("Product Launch Tasks");
         });

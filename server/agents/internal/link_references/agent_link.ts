@@ -221,6 +221,13 @@ export type AgentTaskCollectionLink = {
     readonly collectionId: TaskCollectionId;
     readonly dedupeNumber?: number;
 
+    /**
+     * The statuses of the tasks in the collection. This is used to
+     * 1. Print the preamble for the task collection
+     * 2. Filter the task collection to only include tasks with the given statuses
+     */
+    readonly statusesFilter: ReadonlySet<ApiTaskStatus["type"]>;
+
     // e.g. "Product Launch Tasks"
     readonly name: string;
 };

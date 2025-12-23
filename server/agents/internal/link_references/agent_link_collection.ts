@@ -46,6 +46,8 @@ const AgentLinkCollection = new DurableObjectStorageCollection<string, AgentLink
 
 const AgentLinkPathByApiPathCollection = new DurableObjectStorageCollection<ApiPath, string>("a4");
 
+export const defaultAgentTaskCollectionStatusesFilter = new Set<ApiTaskStatus["type"]>(["Open"]);
+
 export type CreateAgentLinkOptions =
     | {
           type: "Account";
@@ -119,6 +121,7 @@ export type CreateAgentLinkOptions =
           taskCollection: {
               id: TaskCollectionId;
               name: string;
+              statusesFilter?: ReadonlySet<ApiTaskStatus["type"]>;
           };
       };
 
@@ -225,6 +228,11 @@ export async function createAgentLink(
                 type: "TaskCollection",
                 collectionId: options.taskCollection.id,
                 name: options.taskCollection.name,
+                statusesFilter:
+                    options.taskCollection.statusesFilter &&
+                    options.taskCollection.statusesFilter.size > 0
+                        ? options.taskCollection.statusesFilter
+                        : defaultAgentTaskCollectionStatusesFilter,
             });
         }
         default: {
