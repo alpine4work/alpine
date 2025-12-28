@@ -86,6 +86,9 @@ const context = createTestContext({
         }
     },
     notificationsInjection,
+    tasksInjection: {
+        internalGetUpdateOurAccountNameTaskTransactionEntries: () => [],
+    },
 });
 
 // Exercise idempotency by running the test suite again with jobs

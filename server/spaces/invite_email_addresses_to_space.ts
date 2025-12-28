@@ -153,13 +153,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             space: {
                 members: {
                     invite: {
-                        send: existingAccountId
-                            ? {
-                                  existingAccountId,
-                              }
-                            : {
-                                  newAccountId: accountId,
-                              },
+                        send: existingAccountId ? {existingAccountId} : {newAccountId: accountId},
                     },
                 },
             },

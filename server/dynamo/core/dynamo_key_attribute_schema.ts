@@ -47,7 +47,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
     LabelStringWithoutMaxLengthSchema,
-    defaultMaxLabelStringLength,
+    maxLabelStringLength,
     minLabelString,
 } from "~/shared/schema/helpers/label_string_schema.js";
 
@@ -564,7 +564,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * for your string. Exeeding this limit will result in an error from DynamoDB.
      */
     public static labelString<Value extends string>(
-        {maxLength}: {maxLength?: number | null} = {maxLength: defaultMaxLabelStringLength},
+        {maxLength}: {maxLength?: number | null} = {maxLength: maxLabelStringLength},
     ): DynamoKeyAttributeSchema<Value> {
         // Use a cache to optimize a `getByteCount()` that may be immediately followed by
         // `serializeBytes()` for the same value.

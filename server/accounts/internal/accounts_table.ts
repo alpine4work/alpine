@@ -45,6 +45,18 @@ export const AccountsTable = DynamoTableSchema.new({
                         hasInternalAccess: Schema.boolean.optional(),
 
                         /**
+                         * Was this account created without going through the `/sign-up` flow? If true
+                         * then:
+                         *
+                         * 1. The account can go through the `/sign-up` flow even if an account item
+                         *    already exists
+                         *
+                         * 2. The first time the account tries to `/sign-in` they'll be redirected to
+                         *    the `/sign-up` flow
+                         */
+                        hasNotSignedUp: Schema.value(true).optional(),
+
+                        /**
                          * Is this a bot account? Undefined if this isn't a bot account and
                          * defined if it is. Includes the `BotId` this account is an instantiation of.
                          * There's only one account per bot per space.
@@ -157,48 +169,23 @@ export const AccountsTable = DynamoTableSchema.new({
                          */
                         oneTimePasswordSignInState: Schema.object({
                             generatedTime: Schema.date,
+
                             /**
-                             * We would hash this with Bcrypt ([Bcrypt.js][1] has a browser mode) but
-                             * that runs up against the Cloudflare Worker CPU time limit in the
-                             * "bundled" pricing model (see this [community forum post][1]).
+                             * We keep the password in plain text. We could consider hashing with bcrypt
+                             * (slow) or sha256 (fast) but that's not a practically useful precaution. If
+                             * an attacker has a dump of the accounts table they'll also have `SessionId`s
+                             * which gives them arbitrary, permanent, access to the associated account when
+                             * paired with a private key from one of our services.
                              *
-                             * We need a worker on "unbound" pricing to get unlimited CPU time. It's
-                             * unclear whether our main app worker will be on unbound pricing or not.
-                             * The "bundled" pricing model generally appears cheaper for web services
-                             * so we're going to start there.
+                             * So also giving the one time password which is only valid for a short period
+                             * of time isn't a problem in comparison.
                              *
-                             * We could create a second worker with unbound pricing or Durable Object
-                             * (which uses similar pricing to unbound) but that seems too difficult right
-                             * now.
-                             *
-                             * It doesn't seem too bad to keep one-time passwords in plain text. We
-                             * only allow ~5 attempts per day and expire the password after ~1 hour.
-                             *
-                             * If an attacker could only read from this table they learn nothing secret
-                             * about the user. (Unlike storing regular passwords in plain text. They
-                             * learn something secret!) An attacker could sign in as the user within
-                             * the ~1 hour window.
-                             *
-                             * If an attacker could read and write to the table they could update the
-                             * password to whatever they want and sign in. We would have the same
-                             * vulnerability if the password was hashed.
-                             *
-                             * There may be a chance at timing attacks? But again, 5 attempts is a
-                             * pretty sufficient defense.
-                             *
-                             * So the only vulnerabilities I can think of by not hashing are if an
-                             * attacker has just read-only access to the database they can sign in as
-                             * accounts trying to sign in within the last ~1 hour. Not great but
-                             * the risk is small (if you have read access you probably also have write
-                             * access and attacks get much worse) so accepting it for now...
-                             *
-                             * [1]: https://github.com/dcodeIO/bcrypt.js
-                             * [2]: https://community.cloudflare.com/t/options-for-password-hashing/138077
+                             * It may be worth using a sha256 hash as an extra precaution someday since
+                             * it's fast (we don't need a slow hash since the user only gets 5 attempts
+                             * anyway).
                              */
-                            // NOTE(calebmer, 2023-06-29): The above decision was made when this code ran
-                            // in Cloudflare instead of Node.js. Now it's perfectly fine (and desirable!)
-                            // to use the Node.js bcrypt module.
                             password: Schema.string,
+
                             failedAttemptCount: Schema.integer,
                             lastFailedAttemptTime: Schema.date.nullable(),
                         }).optional(),

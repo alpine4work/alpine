@@ -57,6 +57,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "hasNotSignedUp": {
+                                        "valueSchema": {
+                                            "type": "Value",
+                                            "value": true
+                                        },
+                                        "optional": true
+                                    },
                                     "bot": {
                                         "valueSchema": {
                                             "type": "Object",

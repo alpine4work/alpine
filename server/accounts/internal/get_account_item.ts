@@ -139,3 +139,17 @@ export async function getAccountItem(
     if (!item) throw new NotFoundError("Account not found");
     return item;
 }
+
+export async function getAccountItemWithoutAvatarWithEventualThenStrongConsistency(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    accountId: AccountId,
+): Promise<AccountItemWithoutAvatar> {
+    const item = await getAccountItemWithoutAvatarIfExists(context, accountId, {
+        consistency: "Eventual",
+    });
+    if (item) return item;
+
+    return getAccountItemWithoutAvatar(context, accountId, {
+        consistency: "Strong",
+    });
+}

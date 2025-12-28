@@ -1,15 +1,13 @@
 import {appleReviewerAccountEmailAddress} from "~/server/accounts/apple_reviewer_account_email_address.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
+import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
 import {
     createAccountEmailAddressForTest,
     createAccountForTest,
     getAccountEmailAddressForTest,
 } from "~/server/accounts/create_account_for_test.js";
-import {
-    captureOneTimePasswordSignInEmailsForTest,
-    getAppleReviewerAccountPasswordForTest,
-    regenerateOneTimePasswordSignIn,
-} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
+import {getAppleReviewerAccountPasswordForTest} from "~/server/accounts/internal/actually_regenerate_one_time_password_sign_in.js";
+import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";

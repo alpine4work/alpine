@@ -61,9 +61,13 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
     // same `AccountModel` more than one billion updates later. Even if this
     // happens the resulting bugs should be very tame.
     //
+    // We add 1 so a `nameVersion` of -1 is still an SMI.
+    // `getAddSpaceAccountTransactionEntries()` uses a `nameVersion` of -1 for the
+    // `pendingAccountData` of invited existing accounts.
+    //
     // [1]: https://medium.com/fhinkel/v8-internals-how-small-is-a-small-integer-e0badc18b6da
     // [2]: https://github.com/v8/v8/blob/a9e3d9c7ec1345085c861af76e508d9591634530/include/v8.h#L253
-    const smiMinValue = -(2 ** 30);
+    const smiMinValue = -(2 ** 30) + 1;
 
     return new AccountModel({
         id: account.id,

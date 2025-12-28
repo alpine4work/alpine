@@ -174,6 +174,14 @@ export class AccountModel implements AccountModelWithoutSpace {
         };
     }
 
+    public static mergeDataWithoutSpaceAndWithoutAvatar(
+        data1: Omit<AccountModelData, "avatar">,
+        data2: Omit<AccountModelWithoutSpaceData, "avatar">,
+    ): Omit<AccountModelData, "avatar"> {
+        const latestAccountData = data1.version >= data2.version ? data1 : data2;
+        return {...latestAccountData, space: data1.space};
+    }
+
     public merge(otherAccount: AccountModel): AccountModel {
         const data = AccountModel.mergeData(this.initialData, otherAccount.initialData);
         if (data === this.initialData) return this;

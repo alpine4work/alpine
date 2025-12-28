@@ -1,8 +1,15 @@
+import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
+import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
+import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
+import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_actions.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -1030,6 +1037,83 @@ test("updating account name updates inlined assigner and assignee account names 
             workingAccountNameVersion: 2,
         },
         assignedTime: expect.any(TaskFilterableTime),
+    });
+});
+
+test("accepting invite for new account updates inlined assignee account name in index", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
+
+    const {id: accountId} = await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const task = await TestTask.create(admin);
+    await task.updateAssignee(admin, accountId);
+
+    expect((await task.getIndexDoc()).assignee.value).toMatchObject({
+        assignee: {
+            accountId: accountId,
+            workingAccountName: emailAddress.slice(0, 50),
+            workingAccountNameVersion: -1,
+        },
+    });
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await saveAccountSignUpProfile(context.withCache(), {
+        accountId,
+        name: "Anthony Mose",
+        reactionCharacter: {type: "Cat", variant: "Grey"},
+    });
+
+    const {sessionId} = await attemptOneTimePasswordSignIn(context, emailAddress, oneTimePassword, {
+        ipAddress: null,
+        userAgent: null,
+    });
+
+    await acceptSpaceAccountInvite(context.action({sessionId, accountId}), space.id);
+
+    expect((await task.getIndexDoc()).assignee.value).toMatchObject({
+        assignee: {
+            accountId: accountId,
+            workingAccountName: "Anthony Mose",
+            workingAccountNameVersion: 1,
+        },
+    });
+});
+
+test("accepting invite for existing account updates inlined assignee account name in index", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const account = await TestAccount.create(context, {name: "Anthony Mose"});
+    const emailAddress = await account.createEmailAddress();
+    const {id: accountId} = account;
+
+    await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const task = await TestTask.create(admin);
+    await task.updateAssignee(admin, accountId);
+
+    expect((await task.getIndexDoc()).assignee.value).toMatchObject({
+        assignee: {
+            accountId: accountId,
+            workingAccountName: emailAddress.slice(0, 50),
+            workingAccountNameVersion: -1,
+        },
+    });
+
+    await acceptSpaceAccountInvite((await TestSession.create(account)).action(), space.id);
+
+    expect((await task.getIndexDoc()).assignee.value).toMatchObject({
+        assignee: {
+            accountId: accountId,
+            workingAccountName: "Anthony Mose",
+            workingAccountNameVersion: 0,
+        },
     });
 });
 

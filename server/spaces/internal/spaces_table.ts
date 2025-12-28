@@ -181,6 +181,12 @@ export const SpacesTable = DynamoTableSchema.new({
          * manually maintain instead of a DynamoDB index so we can read an account's
          * spaces with strong read consistency or have transaction conditional checks
          * on an account's space memberships.
+         *
+         * - `spaceIds`: The `SpaceId`s our account has an `Active` state in (excludes
+         *   spaces where the account has an `InvitePending` or `Removed` state).
+         *
+         * - `invitePendingSpaceIds`: The `SpaceId`s our account has an `InvitePending`
+         *   state in.
          */
         {
             name: "Account",

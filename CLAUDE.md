@@ -191,5 +191,7 @@ our formatters, run:
     names
 -   Assert everything relevant, nothing more - Comprehensive but focused assertions; avoid testing
     unrelated behavior
+-   Aim for one `expect()` per test at the end of the test. Each test should be checking one thing.
+    Use `expect().toMatchObject()` for testing multiple properties in an object
 
 The full code style ruleset can be found in `admin/docs/code_style.md`, if needed.

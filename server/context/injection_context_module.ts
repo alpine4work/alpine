@@ -1,6 +1,7 @@
 import {
     ServerAccountActionContext,
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -283,11 +284,19 @@ export type SpacesInjectionContextModule = InstanceType<typeof SpacesInjectionCo
 
 export const SpacesInjectionContextModule = createInjectionContextModule<SpacesInjection>({
     getOurAccountSpaceIds: true,
+    isAccountInNoSpaces: true,
 });
 
 export type SpacesInjection = {
     getOurAccountSpaceIds(context: ServerSessionActionContext): Promise<{
         spaceIds: ReadonlySet<SpaceId>;
+        getConditionCheckTransactionEntry: () => DynamoTransactionEntry | null;
+    }>;
+    isAccountInNoSpaces(
+        context: Context<Omit<ServerActionContextModules, "actor">>,
+        accountId: AccountId,
+    ): Promise<{
+        isInNoSpaces: boolean;
         getConditionCheckTransactionEntry: () => DynamoTransactionEntry | null;
     }>;
 };

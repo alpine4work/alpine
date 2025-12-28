@@ -33,6 +33,7 @@ export function attemptOneTimePasswordSignIn(
          * this with the created session to identify the device the session is for.
          */
         ipAddress: string | null;
+
         /**
          * What is the user agent of the client attempting to sign in? We will store
          * this with the created session to identify the device the session is for.

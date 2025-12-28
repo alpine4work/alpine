@@ -48,7 +48,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {createChannel} from "~/shared/rpc/forum_rpc_definitions.js";
-import {defaultMaxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function ChannelCreator({
     title,
@@ -250,7 +250,7 @@ export function ChannelCreator({
                         <Box>
                             <TextInput
                                 ref={nameInputRef}
-                                maxLength={defaultMaxLabelStringLength}
+                                maxLength={maxLabelStringLength}
                                 fontSize="100"
                                 label="Name"
                                 placeholder="My Project"

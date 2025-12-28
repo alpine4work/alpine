@@ -1,4 +1,3 @@
-import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -25,7 +24,7 @@ import {
     removeSearchAffinityEntityActiveTaskAssigneePoints,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
@@ -92,7 +91,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {
     TaskAction,
@@ -704,7 +703,10 @@ class TaskActionTransactionIndexState {
     private readonly _context: TaskRealtimeSystemActionContext;
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
-    private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
+    private readonly _actionReferencedAccountById: ReadonlyMap<
+        AccountId,
+        Omit<AccountModelData, "avatar">
+    >;
 
     private readonly _updatedTaskIndexDocById = new Map<
         TaskId,
@@ -739,7 +741,7 @@ class TaskActionTransactionIndexState {
         context: TaskRealtimeSystemActionContext,
         spaceId: SpaceId,
         retry: (error?: unknown) => never,
-        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
+        actionReferencedAccountById: ReadonlyMap<AccountId, Omit<AccountModelData, "avatar">>,
     ) {
         assert(context.actor.getSpaceId() === spaceId);
 
@@ -771,7 +773,9 @@ class TaskActionTransactionIndexState {
 
         // Load all referenced accounts so we can inline them in our OpenSearch index.
         let referencedAccountById = await runAllPromises(
-            Array.from(referencedAccountIds, accountId => getAccount(context, spaceId, accountId)),
+            Array.from(referencedAccountIds, accountId =>
+                getAccountWithoutAvatar(context, spaceId, accountId),
+            ),
         ).then(
             referencedAccounts => new Map(referencedAccounts.map(account => [account.id, account])),
         );
@@ -1274,7 +1278,7 @@ class TaskActionTransactionIndexState {
             {
                 const newReferencedAccountById = await runAllPromises(
                     Array.from(referencedAccountIds, accountId =>
-                        dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId, {
+                        getAccountWithoutAvatar(context, spaceId, accountId, {
                             // Avoid our account cache to get the latest account model. Ok to get these
                             // accounts without authorization since we call `getAccount()` for these same
                             // accounts earlier which will perform authorization.
@@ -1295,14 +1299,17 @@ class TaskActionTransactionIndexState {
                     !iterableEvery(
                         referencedAccountIds,
                         accountId =>
-                            referencedAccountById.get(accountId)!.initialData.nameVersion ===
-                            newReferencedAccountById.get(accountId)!.initialData.nameVersion,
+                            referencedAccountById.get(accountId)!.nameVersion ===
+                            newReferencedAccountById.get(accountId)!.nameVersion,
                     )
                 ) {
                     referencedAccountById = new Map(
                         mapIterable(referencedAccountById, ([accountId, account]) => [
                             accountId,
-                            account.mergeWithoutSpace(newReferencedAccountById.get(accountId)!),
+                            AccountModel.mergeDataWithoutSpaceAndWithoutAvatar(
+                                account,
+                                newReferencedAccountById.get(accountId)!,
+                            ),
                         ]),
                     );
                     retry();
@@ -1330,8 +1337,8 @@ class TaskActionTransactionIndexState {
 
         return {
             accountId,
-            workingAccountName: account.initialData.name,
-            workingAccountNameVersion: account.initialData.nameVersion,
+            workingAccountName: account.name,
+            workingAccountNameVersion: account.nameVersion,
         };
     }
 

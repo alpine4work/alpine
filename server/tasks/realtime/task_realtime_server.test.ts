@@ -1,6 +1,14 @@
+import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
+import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
+import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
+import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
@@ -5327,6 +5335,141 @@ test("query after assignee account name update applied and refreshed", async () 
                         assignee: {
                             accountId: session2.account.id,
                             workingAccountName: session2.account.initialName,
+                            workingAccountNameVersion: 0,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after accepting invite for new account updates assignee account name", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
+
+    const {id: accountId} = await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(admin);
+    const collection = await TestTaskCollection.create(admin);
+    await collection.access.grantDefault(admin);
+    await task.addCollection(admin, collection);
+    await task.updateAssignee(admin, accountId);
+
+    await server.wait();
+
+    expect(await server.loadQuery(admin)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: accountId,
+                            workingAccountName: emailAddress.slice(0, 50),
+                            workingAccountNameVersion: -1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await saveAccountSignUpProfile(context.withCache(), {
+        accountId,
+        name: "Anthony Mose",
+        reactionCharacter: {type: "Cat", variant: "Grey"},
+    });
+
+    const {sessionId} = await attemptOneTimePasswordSignIn(context, emailAddress, oneTimePassword, {
+        ipAddress: null,
+        userAgent: null,
+    });
+
+    await acceptSpaceAccountInvite(context.action({sessionId, accountId}), space.id);
+
+    await server.wait();
+
+    expect(await server.loadQuery(admin)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: accountId,
+                            workingAccountName: "Anthony Mose",
+                            workingAccountNameVersion: 1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+});
+
+test("query after accepting invite for existing account updates assignee account name", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const account = await TestAccount.create(context, {name: "Anthony Mose"});
+    const emailAddress = await account.createEmailAddress();
+    const {id: accountId} = account;
+
+    await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const server = new TestTaskRealtimeServer(context);
+
+    const task = await TestTask.create(admin);
+    const collection = await TestTaskCollection.create(admin);
+    await collection.access.grantDefault(admin);
+    await task.addCollection(admin, collection);
+    await task.updateAssignee(admin, accountId);
+
+    await server.wait();
+
+    expect(await server.loadQuery(admin)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: accountId,
+                            workingAccountName: emailAddress.slice(0, 50),
+                            workingAccountNameVersion: -1,
+                        },
+                    }),
+                }),
+            }),
+        ],
+    });
+
+    await acceptSpaceAccountInvite((await TestSession.create(account)).action(), space.id);
+
+    await server.wait();
+
+    expect(await server.loadQuery(admin)).toEqual({
+        hasMoreTasks: false,
+        tasks: [
+            expect.objectContaining({
+                id: task.id,
+                assignee: expect.objectContaining({
+                    value: expect.objectContaining({
+                        assignee: {
+                            accountId: accountId,
+                            workingAccountName: "Anthony Mose",
                             workingAccountNameVersion: 0,
                         },
                     }),

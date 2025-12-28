@@ -3,6 +3,7 @@ import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_rand
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
  * Make transaction entries that create a new account with the provided name
@@ -70,10 +71,13 @@ export function createAccountTransactionEntries({
             partitionType: "Account",
             sortRangeType: "Attributes",
             accountId: id,
-            name,
+            name: name.slice(0, maxLabelStringLength),
             nameVersion: 0,
             createdTime: currentTime,
             observedTimeZone: null,
+            // Always set to true if we're instantiating a non-bot account. Humans must always
+            // go through the `/sign-up` flow.
+            hasNotSignedUp: !dangerouslyInstantiateBot ? true : undefined,
             bot: dangerouslyInstantiateBot,
             reactionCharacter: pickRandomReactionCharacterForAccount(),
         }),

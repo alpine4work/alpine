@@ -45,7 +45,7 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateOrderKeysBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {FileId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadParent,
@@ -472,12 +472,13 @@ export class TestTask extends TestCommentRoomBase {
 
     public async updateAssignee(
         session: TestSpaceSession,
-        assignee: TestAccount | TestSession | null,
+        assignee: TestAccount | TestSession | AccountId | null,
         {assigneeStatus}: {assigneeStatus?: "Inactive" | "Active"} = {},
     ) {
         const time = testTaskClock.now();
 
-        if (assignee instanceof TestSession) assignee = assignee.account;
+        if (typeof assignee === "string") assignee = await TestAccount.get(this.context, assignee);
+        else if (assignee instanceof TestSession) assignee = assignee.account;
 
         await commitTaskActionTransaction(session.action(), session.space.id, [
             {

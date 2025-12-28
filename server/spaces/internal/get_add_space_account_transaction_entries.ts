@@ -25,7 +25,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {getMaxId, getMinId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {defaultMaxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
+import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {SpaceAccountState} from "~/shared/spaces/space_account_state.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
@@ -324,7 +324,7 @@ export async function getAddSpaceAccountTransactionEntries(
                     version: 0,
                     // Names are labelStrings and can only support 50 characters
                     // Just do a hard truncate here
-                    name: emailAddress.substring(0, defaultMaxLabelStringLength),
+                    name: emailAddress.slice(0, maxLabelStringLength),
                     // Once the account accepts their invite, the correct name should always have a
                     // higher version than this pending name.
                     nameVersion: -1,

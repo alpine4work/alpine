@@ -138,6 +138,9 @@ const context = createTestContext({
             };
         },
     },
+    tasksInjection: {
+        internalGetUpdateOurAccountNameTaskTransactionEntries: () => [],
+    },
 });
 
 async function testGetInboxChannelPostsEntryPosts(

@@ -2,6 +2,10 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {addDays, addHours, addMinutes} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
+import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
+import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
+import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {
     updateOurAccountName,
     updateOurAccountNameBeforeExecuteTestCheckpoint,
@@ -15,7 +19,9 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
@@ -16548,6 +16554,85 @@ test("commits an update name action when the account’s name updates to every s
                     accountId: session.account.id,
                     accountName: newAccountName,
                     accountNameVersion: 1,
+                },
+            ],
+        },
+    ]);
+});
+
+test("commits an update name action when a new account accepts a space invite", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
+
+    const startTime = new Date(testTaskClock.now()[0]);
+
+    const {id: accountId} = await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await saveAccountSignUpProfile(context.withCache(), {
+        accountId,
+        name: "Anthony Mose",
+        reactionCharacter: {type: "Cat", variant: "Grey"},
+    });
+
+    const {sessionId} = await attemptOneTimePasswordSignIn(context, emailAddress, oneTimePassword, {
+        ipAddress: null,
+        userAgent: null,
+    });
+
+    await acceptSpaceAccountInvite(context.action({sessionId, accountId}), space.id);
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        {
+            spaceId: space.id,
+            committedTime: expect.any(Date),
+            actions: [
+                {
+                    type: "UpdateAccountName",
+                    time: expect.any(Array),
+                    accountId: accountId,
+                    accountName: "Anthony Mose",
+                    accountNameVersion: 1,
+                },
+            ],
+        },
+    ]);
+});
+
+test("commits an update name action when an existing account accepts a space invite", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const account = await TestAccount.create(context, {name: "Anthony Mose"});
+    const emailAddress = await account.createEmailAddress();
+    const {id: accountId} = account;
+
+    const startTime = new Date(testTaskClock.now()[0]);
+
+    await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    await acceptSpaceAccountInvite((await TestSession.create(account)).action(), space.id);
+
+    expect(
+        await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
+    ).toEqual([
+        {
+            spaceId: space.id,
+            committedTime: expect.any(Date),
+            actions: [
+                {
+                    type: "UpdateAccountName",
+                    time: expect.any(Array),
+                    accountId: accountId,
+                    accountName: "Anthony Mose",
+                    accountNameVersion: 0,
                 },
             ],
         },

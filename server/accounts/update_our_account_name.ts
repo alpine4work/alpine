@@ -48,10 +48,6 @@ export async function updateOurAccountName(
                 nameVersion,
             });
 
-        await updateOurAccountNameBeforeExecuteTestCheckpoint.waitForTest(
-            context.actor.getAccountId(),
-        );
-
         const newAccountItem = {
             ...accountItem,
             name,
@@ -68,6 +64,10 @@ export async function updateOurAccountName(
             const transactionEntry = getConditionCheckTransactionEntry();
             if (transactionEntry) transactionEntries.push(transactionEntry);
         }
+
+        await updateOurAccountNameBeforeExecuteTestCheckpoint.waitForTest(
+            context.actor.getAccountId(),
+        );
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
 

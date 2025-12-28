@@ -233,7 +233,11 @@ export class JobSender implements JobSenderBase {
                     if (isCancelled) return;
 
                     this._messageBatchByQueueName.delete(queueName);
-                    void this._sendBatch(queueName, messageBatch.messages);
+                    void this._sendBatch(
+                        context.tracer.getTracer(),
+                        queueName,
+                        messageBatch.messages,
+                    );
                 });
 
                 const messageBatch: JobSenderMessageBatch = {
@@ -258,13 +262,14 @@ export class JobSender implements JobSenderBase {
             this._messageBatchByQueueName.delete(queueName);
             messageBatch.cancel();
 
-            void this._sendBatch(queueName, messageBatch.messages);
+            void this._sendBatch(context.tracer.getTracer(), queueName, messageBatch.messages);
         }
 
         return promiseResolver.promise;
     }
 
     private async _sendBatch(
+        tracer: TracerBase,
         queueName: JobQueueName,
         originalMessages: JobSenderMessageBatch["messages"],
     ) {
@@ -303,48 +308,74 @@ export class JobSender implements JobSenderBase {
 
             let sqsClient;
             let queueUrl;
+            let sqsQueueName;
             switch (queueName) {
                 case "Default": {
                     sqsClient = this._defaultSqsClient;
                     queueUrl = this._defaultQueueUrl;
+                    sqsQueueName = "JobQueue";
                     break;
                 }
                 case "FileProcessor": {
                     sqsClient = this._fileProcessorSqsClient;
                     queueUrl = this._fileProcessorQueueUrl;
+                    sqsQueueName = "FileProcessorJobQueue";
                     break;
                 }
                 case "FileProcessorHeavy": {
                     sqsClient = this._fileProcessorHeavySqsClient;
                     queueUrl = this._fileProcessorHeavyQueueUrl;
+                    sqsQueueName = "FileProcessorHeavyJobQueue";
                     break;
                 }
                 case "FileProcessorLight": {
                     sqsClient = this._fileProcessorLightSqsClient;
                     queueUrl = this._fileProcessorLightQueueUrl;
+                    sqsQueueName = "FileProcessorLightJobQueue";
                     break;
                 }
                 default:
                     throw exhaustive(queueName);
             }
 
-            const output = await sqsClient.send(
-                new SendMessageBatchCommand({
-                    QueueUrl: queueUrl,
-                    Entries: messages.map((message, messageIndex) => ({
-                        Id: String(messageIndex),
-                        MessageBody: JSON.stringify(
-                            JobQueueMessageBodySchema.serialize({
-                                type: "Regular",
-                                sendTime: currentTime,
-                                delaySeconds: message.delaySeconds,
-                                job: message.job,
-                                tracerContext: message.span.getPropagationContext(),
-                            }),
-                        ),
-                        DelaySeconds: message.delaySeconds,
-                    })),
-                }),
+            const output = await tracer.withSpan(
+                `SQS SendMessageBatch ${sqsQueueName}`,
+                async span => {
+                    span.addData({
+                        jobs: {queueName},
+                        aws: {
+                            sqs: {
+                                queueName: sqsQueueName,
+                                messageCount: messages.length,
+                            },
+                        },
+                    });
+
+                    const output = await sqsClient.send(
+                        new SendMessageBatchCommand({
+                            QueueUrl: queueUrl,
+                            Entries: messages.map((message, messageIndex) => ({
+                                Id: String(messageIndex),
+                                MessageBody: JSON.stringify(
+                                    JobQueueMessageBodySchema.serialize({
+                                        type: "Regular",
+                                        sendTime: currentTime,
+                                        delaySeconds: message.delaySeconds,
+                                        job: message.job,
+                                        tracerContext: message.span.getPropagationContext(),
+                                    }),
+                                ),
+                                DelaySeconds: message.delaySeconds,
+                            })),
+                        }),
+                    );
+
+                    if (output.Successful?.length === 1 && (output.Failed?.length ?? 0) === 0) {
+                        span.addData({aws: {sqs: {messageId: output.Successful[0]!.MessageId}}});
+                    }
+
+                    return output;
+                },
             );
 
             for (const entry of output.Failed ?? []) {
@@ -390,7 +421,7 @@ export class JobSender implements JobSenderBase {
         {delaySeconds = 0}: {delaySeconds?: number} = {},
     ): Promise<void> {
         return context.tracer.withSpan(
-            `Sent maintenance job ${job.type}`,
+            `Send maintenance job ${job.type}`,
             async (context, span) => {
                 const currentTime = new Date();
 
@@ -406,20 +437,38 @@ export class JobSender implements JobSenderBase {
                     },
                 });
 
-                const output = await this._defaultSqsClient.send(
-                    new SendMessageCommand({
-                        QueueUrl: this._defaultQueueUrl,
-                        MessageBody: JSON.stringify(
-                            JobQueueMessageBodySchema.serialize({
-                                type: "Maintenance",
-                                sendTime: currentTime,
-                                delaySeconds,
-                                job,
-                                tracerContext: span.getPropagationContext(),
+                const sqsQueueName = "JobQueue";
+
+                const output = await context.tracer.withSpan(
+                    `SQS SendMessage ${sqsQueueName}`,
+                    async (context, span) => {
+                        span.addData({
+                            jobs: {queueName: "Default"},
+                            aws: {sqs: {queueName: sqsQueueName}},
+                        });
+
+                        const output = await this._defaultSqsClient.send(
+                            new SendMessageCommand({
+                                QueueUrl: this._defaultQueueUrl,
+                                MessageBody: JSON.stringify(
+                                    JobQueueMessageBodySchema.serialize({
+                                        type: "Maintenance",
+                                        sendTime: currentTime,
+                                        delaySeconds,
+                                        job,
+                                        tracerContext: span.getPropagationContext(),
+                                    }),
+                                ),
+                                DelaySeconds: delaySeconds,
                             }),
-                        ),
-                        DelaySeconds: delaySeconds,
-                    }),
+                        );
+
+                        span.addData({
+                            aws: {sqs: {messageId: output.MessageId}},
+                        });
+
+                        return output;
+                    },
                 );
 
                 span.addData({aws: {sqs: {messageId: output.MessageId}}});

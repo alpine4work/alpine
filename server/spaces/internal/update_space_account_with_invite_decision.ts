@@ -1,6 +1,8 @@
+import {createAccountNameVersionConditionCheckTransactionEntry} from "~/server/accounts/create_account_name_version_condition_check_transaction_entry.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
@@ -73,21 +75,7 @@ export async function updateSpaceAccountWithInviteDecision(
             };
         }
 
-        const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
-            ...spaceAccountItem,
-            state,
-        });
-        const deleteAccountAvatarOverrideTransactionEntry =
-            newAccountStateType === "Active"
-                ? SpacesTable.transactionDeleteItemIfExists({
-                      partitionType: "Space",
-                      sortRangeType: "AccountAvatarOverride",
-                      spaceId,
-                      accountId,
-                  })
-                : undefined;
-
-        await DynamoTableSchema.executeTransaction(context, [
+        const transactionEntries: Array<DynamoTransactionEntry> = [
             SpacesTable.transactionDirectlyUpdateItem({
                 ...accountSpacesItem,
                 partitionType: "Account",
@@ -96,21 +84,55 @@ export async function updateSpaceAccountWithInviteDecision(
                 spaceIds: accountSpaceIds,
                 invitePendingSpaceIds: accountInvitePendingSpaceIds,
             }),
-            updateSpaceAccountItemTransactionEntry,
-            ...(deleteAccountAvatarOverrideTransactionEntry
-                ? [deleteAccountAvatarOverrideTransactionEntry]
-                : []),
-        ]);
+        ];
+
+        const updateSpaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
+            ...spaceAccountItem,
+            state,
+        });
+        transactionEntries.push(updateSpaceAccountItemTransactionEntry);
+
+        if (newAccountStateType === "Active") {
+            transactionEntries.push(
+                SpacesTable.transactionDeleteItemIfExists({
+                    partitionType: "Space",
+                    sortRangeType: "AccountAvatarOverride",
+                    spaceId,
+                    accountId,
+                }),
+            );
+
+            // Make sure to update our account's name in the task system as well when an
+            // invite is accepted. The task system denormalizes account names so we can
+            // efficiently sort alphabetically by account name (e.g. sort alphabetically by
+            // task assignee name).
+            const taskTransactionEntries =
+                context.tasksInjection.internalGetUpdateOurAccountNameTaskTransactionEntries({
+                    spaceIds: new Set([spaceId]),
+                    name: account.initialData.name,
+                    nameVersion: account.initialData.nameVersion,
+                });
+
+            for (const taskTransactionEntry of taskTransactionEntries) {
+                transactionEntries.push(taskTransactionEntry);
+            }
+
+            // Prevent race conditions where the user is accepting their space invite and
+            // updating their name at the same time. We should retry and get the latest
+            // `nameVersion` if we don't have the right `nameVersion`. Otherwise we'll be
+            // updating the task system with stale data.
+            transactionEntries.push(
+                createAccountNameVersionConditionCheckTransactionEntry(
+                    accountId,
+                    account.initialData.nameVersion,
+                ),
+            );
+        }
+
+        await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         let accountAvatarOverride = null;
         if (newAccountStateType !== "Active") {
-            // NOTE(ifitzsimmons, #account-override-avatar-consistency):
-            // “We know there’s a potential eventual consistency race condition here where
-            // Space#Account has a non-Active state but we don’t find a
-            // Space#AccountAvatarOverride item due to eventual consistency lag. We’re not
-            // fixing this since we expect it to be quite rare in practice and the impact to be
-            // a pretty minor glitch (removed account appears as if they didn’t have an avatar
-            // set).
             accountAvatarOverride = await SpacesTable.getItemIfExists(
                 context,
                 {
@@ -119,13 +141,16 @@ export async function updateSpaceAccountWithInviteDecision(
                     spaceId,
                     accountId,
                 },
+                // Make sure there's no eventual consistency lag for newly inactive accounts.
                 {consistency: "Strong"},
             );
         }
 
         if (newAccountStateType === "Active") {
-            // Reindex the account in all space search indexes where it appears. This may
-            // recursively update any search entities where the account is mentioned.
+            // Reindex the account in the space. Since when made active the account name
+            // changes from the temporary email address account name to the real account
+            // name. This will recursively update any search entities where the account is
+            // mentioned.
             context.jobs.send({
                 type: "IndexSearchEntity",
                 spaceId,

@@ -1029,7 +1029,7 @@ components:
         LabelString:
             type: string
             minLength: 1
-            maxLength: {{defaultMaxLabelStringLength}}
+            maxLength: {{maxLabelStringLength}}
 
         DateTime:
             type: string

@@ -3,7 +3,7 @@
  * where each character is a digit from 0 to 9.
  *
  * There are 1 million possibilities so an attacker has a 0.000005% chance to
- * guess the password. We only allow 3 attempts to guess before locking the
+ * guess the password. We only allow 5 attempts to guess before locking the
  * account.
  */
 export function generateOneTimePassword(): string {
