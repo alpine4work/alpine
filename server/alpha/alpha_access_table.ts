@@ -29,7 +29,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -331,25 +331,21 @@ export async function createAlphaSpaceAsAdmin(
     {name, ownerAccountId}: {name: string; ownerAccountId: AccountId},
 ): Promise<{
     spaceId: SpaceId;
-    welcomeChannelId: ChannelId;
     createdTime: Date;
 }> {
     await authorizeInternalAccess(context);
 
     const spaceId = generateId<SpaceId>();
-    const welcomeChannelId = generateId<ChannelId>();
     const createdTime = new Date();
 
     await createSpaceForAccountAsAdmin(context, {
         name,
         ownerAccountId,
         spaceId,
-        welcomeChannelId,
     });
 
     return {
         spaceId,
-        welcomeChannelId,
         createdTime,
     };
 }

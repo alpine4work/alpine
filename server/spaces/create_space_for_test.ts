@@ -7,7 +7,6 @@ import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_ac
 import {SpaceAccountItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
@@ -52,12 +51,6 @@ export async function addSpaceAccountForTest(
             ? context.clone({cache: CacheContextModule.new()})
             : context.clone({
                   cache: CacheContextModule.new(),
-                  searchInjection: context.searchInjection.cloneForTest({
-                      // Don't add `TaskPersonal` favorite search entity in our test environment.
-                      // That would require all server tests taking a dependency on
-                      // `//server/search/data`.
-                      dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
-                  }),
               }),
         {
             spaceId,

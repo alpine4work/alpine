@@ -173,6 +173,21 @@ export const SpacesTable = DynamoTableSchema.new({
                     },
                     attributes: SpaceAccountSettingsSchema,
                 },
+
+                /**
+                 * When a space is created, we create some default entities inside the space.
+                 * We store the `Id`s of these entities in this item. When an account is added
+                 * to a space we give them some affinity points for these entities.
+                 */
+                {
+                    name: "WelcomePackage",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        generalChannelId: Schema.id<ChannelId>(),
+                        randomChannelId: Schema.id<ChannelId>(),
+                        chatGptBotAccountId: Schema.id<AccountId>().nullable(),
+                    }),
+                },
             ],
         },
 
@@ -257,5 +272,11 @@ export type SpaceAccountAvatarOverrideItem = DynamoTableItemType<
 export type SpaceAccountItemWithAccountAvatarOverride = SpaceAccountItem & {
     readonly accountAvatarOverride: SpaceAccountAvatarOverrideItem | null;
 };
+
+export type SpaceWelcomePackageItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "WelcomePackage"
+>;
 
 export type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;

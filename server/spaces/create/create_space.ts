@@ -1,14 +1,16 @@
 import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";
+import {createSpaceWelcomePackageTransactionEntries} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
+import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
-import {getCreateSpaceTransactionEntries} from "~/server/spaces/internal/get_create_space_transaction_entries.js";
+import {SpaceItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export async function createSpace(
@@ -33,12 +35,10 @@ export async function createSpaceForAccountAsAdmin(
         name,
         ownerAccountId,
         spaceId,
-        welcomeChannelId,
     }: {
         name: string;
         ownerAccountId: AccountId;
         spaceId?: SpaceId;
-        welcomeChannelId?: ChannelId;
     },
 ): Promise<SpaceModel> {
     await authorizeInternalAccess(context);
@@ -47,7 +47,6 @@ export async function createSpaceForAccountAsAdmin(
         name,
         ownerAccountId,
         spaceId,
-        welcomeChannelId,
     });
 }
 
@@ -64,12 +63,10 @@ async function actuallyCreateSpace(
         name: originalName,
         ownerAccountId,
         spaceId: givenSpaceId,
-        welcomeChannelId: givenWelcomeChannelId,
     }: {
         name: string;
         ownerAccountId: AccountId;
         spaceId?: SpaceId;
-        welcomeChannelId?: ChannelId;
     },
 ): Promise<SpaceModel> {
     const name = originalName.trim().replace(/\s+/g, " ");
@@ -80,51 +77,51 @@ async function actuallyCreateSpace(
     }
 
     const spaceId = givenSpaceId ?? generateId<SpaceId>();
-    const welcomeChannelId = givenWelcomeChannelId ?? generateId<ChannelId>();
 
     const spaceItem = await context.dynamo.retryTransaction(async context => {
-        // Add the account to the space
-        const {currentTime, transactionEntries: addSpaceAccountTransactionEntries} =
-            await getAddSpaceAccountTransactionEntries(context, {
+        const currentTime = new Date();
+
+        const [
+            {transactionEntries: addSpaceAccountTransactionEntries},
+            {welcomePackageItem, transactionEntries: welcomePackageTransactionEntries},
+        ] = await runAllPromises([
+            getAddSpaceAccountTransactionEntries(context, {
+                currentTime,
                 space: {type: "New", id: spaceId},
                 account: {type: "Existing", id: ownerAccountId},
                 role: "Owner",
-            });
-
-        // Create the space
-        const {newItem: spaceItem, transactionEntries: createSpaceTransactionEntries} =
-            getCreateSpaceTransactionEntries({
-                spaceId,
-                name,
-                createdTime: currentTime,
-            });
-
-        // Create the welcome channel
-        const createWelcomeChannelTransactionEntries =
-            internalDangerouslyCreateChannelTransactionEntries(context, {
+            }),
+            createSpaceWelcomePackageTransactionEntries(context, {
+                currentTime,
                 ownerAccountId,
                 spaceId,
-                channelId: welcomeChannelId,
-                channelName: "Welcome",
-                createdTime: currentTime,
-            });
+            }),
+        ]);
 
-        const addWelcomeChannelAffinityTransactionEntries =
-            context.searchInjection.dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries(
-                {
-                    spaceId,
-                    accountId: ownerAccountId,
-                    entityId: `Channel:${welcomeChannelId}`,
-                    points: 5,
-                },
-            );
+        const createSpaceTransactionEntry = SpacesTable.transactionCreateItem({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+            name,
+            createdTime: currentTime,
+        });
 
-        // Fire off the transactions
-        await DynamoTableSchema.executeTransaction(context, [
-            ...createSpaceTransactionEntries,
-            ...addSpaceAccountTransactionEntries,
-            ...createWelcomeChannelTransactionEntries,
-            ...addWelcomeChannelAffinityTransactionEntries,
+        const spaceItem: SpaceItem = {
+            ...createSpaceTransactionEntry.newItem,
+            avatars: {darkTheme: null, lightTheme: null},
+        };
+
+        await runAllPromises([
+            DynamoTableSchema.executeTransaction(context, [
+                createSpaceTransactionEntry,
+                ...addSpaceAccountTransactionEntries,
+                ...welcomePackageTransactionEntries,
+            ]),
+
+            // Faster to add affinity points separately from our create space transaction.
+            // We don't care if there are some affinity point items floating around for a
+            // space that doesn't exist.
+            dangerouslyApplySpaceWelcomePackage(context, ownerAccountId, welcomePackageItem),
         ]);
 
         return spaceItem;

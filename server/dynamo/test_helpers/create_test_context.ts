@@ -528,17 +528,7 @@ export function createTestContext(
     const opensearchContextModule = OpensearchContextModule.test();
     const jobsContextModule = JobsContextModule.test();
 
-    let searchInjection = options.searchInjection;
     let tasksInjection = options.tasksInjection;
-
-    // Automatically inject a noop for `dangerouslyFavoriteSearchEntityWithoutAuthorization`.
-    // That way adding a space account (common in tests) doesn't fail when we haven't
-    // injected this rather ugly function name.
-    searchInjection = {
-        dangerouslyFavoriteSearchEntityWithoutAuthorization: asyncNoop,
-        dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries: () => [],
-        ...searchInjection,
-    };
 
     // If OpenSearch is disabled we don't need to index task actions. Noop instead
     // of throw.
@@ -568,7 +558,7 @@ export function createTestContext(
         notificationsInjection: NotificationsInjectionContextModule.test(
             options.notificationsInjection,
         ),
-        searchInjection: SearchInjectionContextModule.test(searchInjection),
+        searchInjection: SearchInjectionContextModule.test(options.searchInjection),
         spacesInjection: SpacesInjectionContextModule.test(options.spacesInjection),
         tasksInjection: TasksInjectionContextModule.test(tasksInjection),
         tasks: new TestTaskContextModule({

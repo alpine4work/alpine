@@ -9,23 +9,17 @@ import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 
-const dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries =
-    import.meta.jest.fn();
+const dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization = import.meta.jest.fn(
+    searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.bind(null),
+);
 
 const context = createTestContext({
     forumInjection,
     spacesInjection,
     searchInjection: {
         ...searchInjection,
-        dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries,
+        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization,
     },
-});
-
-beforeEach(() => {
-    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mockClear();
-    dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mockReturnValue(
-        [],
-    );
 });
 
 describe("createSpaceForAccountAsAdmin()", () => {
@@ -83,7 +77,7 @@ describe("createSpaceForAccountAsAdmin()", () => {
             expect(space2.id).not.toBe(existingSpace.id);
         });
 
-        test("creates Welcome channel in the new space", async () => {
+        test("creates General channel in the new space", async () => {
             const existingSpace = await TestSpace.create(context);
             const session = await existingSpace.createSession({hasInternalAccess: true});
 
@@ -92,17 +86,17 @@ describe("createSpaceForAccountAsAdmin()", () => {
                 ownerAccountId: session.account.id,
             });
 
-            // Get the channels in the new space and verify Welcome channel exists
+            // Get the channels in the new space and verify General channel exists
             const channels = await expensivelyGetChannelsInSpaceForTest(session.action(), space.id);
 
             expect(channels).toBeDefined();
             expect(channels?.length).toBeGreaterThan(0);
 
-            // Find the Welcome channel
-            const welcomeChannel = channels?.find(channel => channel.name === "Welcome");
-            expect(welcomeChannel).toBeDefined();
-            expect(welcomeChannel?.name).toBe("Welcome");
-            expect(welcomeChannel?.spaceId).toBe(space.id);
+            // Find the General channel
+            const generalChannel = channels?.find(channel => channel.name === "General");
+            expect(generalChannel).toBeDefined();
+            expect(generalChannel?.name).toBe("General");
+            expect(generalChannel?.spaceId).toBe(space.id);
         });
 
         test("assigns affinity points to Welcome channel for user", async () => {
@@ -119,18 +113,17 @@ describe("createSpaceForAccountAsAdmin()", () => {
             });
 
             const channels = await expensivelyGetChannelsInSpaceForTest(session.action(), space.id);
-            const welcomeChannel = channels?.find(channel => channel.name === "Welcome");
+            const generalChannel = channels?.find(channel => channel.name === "General");
 
             // get the second argument of the first call
             const affinityCall =
-                dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries.mock
-                    .calls[0][1];
+                dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mock.calls[0]![1];
 
             expect(affinityCall).toEqual({
                 spaceId: space.id,
                 accountId: session.account.id,
-                entityId: `Channel:${welcomeChannel!.id}`,
-                points: 5,
+                entityId: `Channel:${generalChannel!.id}`,
+                points: 2.999,
             });
         });
     });

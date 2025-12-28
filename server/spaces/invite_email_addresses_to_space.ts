@@ -159,8 +159,11 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             },
         });
 
-        const {currentTime, spaceItem, account, newAccountItem, transactionEntries} =
+        const currentTime = new Date();
+
+        const {spaceItem, account, newAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
+                currentTime,
                 space: {type: "Existing", id: spaceId},
                 account: existingAccountId
                     ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}

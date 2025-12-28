@@ -47,8 +47,11 @@ export async function addSpaceAccountWithoutAuthorization(
     },
 ): Promise<AccountModel> {
     const createdAccount: AccountModel = await context.dynamo.retryTransaction(async context => {
+        const currentTime = new Date();
+
         const {account, newAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
+                currentTime,
                 space: {type: "Existing", id: spaceId},
                 account: {type: "Existing", id: accountId, withoutInviteForTest},
                 role,

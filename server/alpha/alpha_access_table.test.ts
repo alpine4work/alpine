@@ -15,7 +15,12 @@ import {
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
-const context = createTestContext();
+const context = createTestContext({
+    searchInjection: {
+        dangerouslyFavoriteSearchEntityWithoutAuthorization: async () => {},
+        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization: async () => {},
+    },
+});
 
 async function createTestAccount() {
     const accountId = generateId<AccountId>();

@@ -7,7 +7,6 @@ import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_c
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {
     ActorContextModule,
@@ -28,6 +27,13 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
+import {
+    searchAffinityEntityHighIntentUpdateInteractionPoints,
+    searchAffinityEntityLowIntentUpdateInteractionPoints,
+    searchAffinityEntityMediumIntentUpdateInteractionPoints,
+    searchAffinityEntityVeryLowIntentUpdateInteractionPoints,
+    searchAffinityEntityViewInteractionPoints,
+} from "~/server/spaces/search_affinity_entity_interaction_points.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -807,15 +813,15 @@ function getSearchAffinityEntityInteractionPoints(
 ): number {
     switch (interaction.type) {
         case "View":
-            return 1;
+            return searchAffinityEntityViewInteractionPoints;
         case "VeryLowIntentUpdate":
-            return 0.0625;
+            return searchAffinityEntityVeryLowIntentUpdateInteractionPoints;
         case "LowIntentUpdate":
-            return 0.2;
+            return searchAffinityEntityLowIntentUpdateInteractionPoints;
         case "MediumIntentUpdate":
-            return 1;
+            return searchAffinityEntityMediumIntentUpdateInteractionPoints;
         case "HighIntentUpdate":
-            return 3;
+            return searchAffinityEntityHighIntentUpdateInteractionPoints;
         default:
             throw exhaustive(interaction);
     }
@@ -935,14 +941,7 @@ async function addSearchAffinityEntityPoints(
         dynamo: DynamoContextModule;
         actor: ActorContextModule;
     }>,
-    {
-        spaceId,
-        accountId,
-        entityId,
-        points: pointsIncrement,
-        erosion: erosionIncrement = 0,
-        isViewInteraction,
-    }: {
+    options: {
         spaceId: SpaceId;
         accountId: AccountId;
         entityId: SearchAffinityEntityId;
@@ -955,6 +954,8 @@ async function addSearchAffinityEntityPoints(
     // Since this is a personal score it doesn't really matter if the user gives
     // themselves affinity points to an entity they don't have access to.
 
+    const {spaceId, accountId} = options;
+
     const [, , isBot] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
         authorizeOwnSpaceAccountAccess(context, accountId),
@@ -964,6 +965,40 @@ async function addSearchAffinityEntityPoints(
     // Bots don't accumulate affinity points
     if (isBot) return;
 
+    return dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(context, options);
+}
+
+/**
+ * Add search affinity points without:
+ *
+ * 1. Validating the actor is allowed to add affinity points for the
+ *    `AccountId`; OR
+ *
+ * 2. Validating the entity exists; OR
+ *
+ * 3. Even validating that the space exists!
+ *
+ * Useful when creating a space or adding an account to a space to add some
+ * affinity points for the welcome package.
+ */
+export async function dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(
+    context: DynamoContext,
+    {
+        spaceId,
+        accountId,
+        entityId,
+        points: pointsIncrement,
+        erosion: erosionIncrement = 0,
+        isViewInteraction = false,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        entityId: SearchAffinityEntityId;
+        points: number;
+        erosion?: number;
+        isViewInteraction?: boolean;
+    },
+) {
     // Make sure increments are positive and finite.
     if (pointsIncrement < 0 || isNaN(pointsIncrement) || !Number.isFinite(pointsIncrement))
         throw new InvalidArgumentError("Search affinity points increment must be a positive");
@@ -1926,49 +1961,6 @@ export async function favoriteSearchEntity(
         accountId,
         entityId,
     });
-}
-
-/**
- * Returns transaction entries to add search entity affinity points to a new entity.
- *
- * Dangerous because it does not check:
- *
- * 1. That the actor is allowed to add affinity for the provided `AccountId`
- * 2. That the actor has access to the provided `SpaceId`
- * 3. That there is an existing affinity entry for the provided `entityId`
- *
- * Use this function when you want to give an entity some initial affinity
- * points without favoriting it, making it show up in the suggested list.
- */
-export function dangerouslyAddInitialSearchEntityAffinityWithoutAuthorizationTransactionEntries(
-    context: DynamoContext,
-    {
-        spaceId,
-        accountId,
-        entityId,
-        points,
-    }: {
-        spaceId: SpaceId;
-        accountId: AccountId;
-        entityId: SearchAffinityEntityId;
-        points: number;
-    },
-): Array<DynamoTransactionEntry> {
-    const currentTime = Date.now();
-
-    const newEntry = assignSearchAffinityEntityDerivedAttributes({
-        partitionType: "Account",
-        sortRangeType: "SearchEntityAffinity",
-        spaceId,
-        accountId,
-        entityId,
-        points,
-        erosion: 0,
-        lastUpdatedTime: currentTime,
-        favoriteOrderKey: null, // Not favoriting, just adding affinity
-    });
-
-    return [SearchEntityTable.transactionDirectlyUpdateItem(newEntry)];
 }
 
 /**

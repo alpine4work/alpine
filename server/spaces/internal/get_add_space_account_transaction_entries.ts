@@ -70,10 +70,12 @@ export async function getAddSpaceAccountTransactionEntries(
         }
     >,
     {
+        currentTime,
         space: spaceInputWithoutData,
         account: accountInputWithoutData,
         role = "Member",
     }: {
+        currentTime: Date;
         space: {type: "Existing"; id: SpaceId} | {type: "New"; id: SpaceId};
         account:
             | {
@@ -235,8 +237,6 @@ export async function getAddSpaceAccountTransactionEntries(
         }
     }
 
-    const currentTime = new Date();
-
     let spaceAccountItemTransactionEntry: DynamoTransactionEntry & {newItem: SpaceAccountItem};
     let spaceAccountAvatarOverrideItemTransactionEntry:
         | (DynamoTransactionEntry & {newItem: SpaceAccountAvatarOverrideItem})
@@ -397,18 +397,6 @@ export async function getAddSpaceAccountTransactionEntries(
                 updatedTraits: {type: "Some", traits: []},
             },
         });
-
-        if (!(accountInput.type === "Existing" && accountInput.spaceAccountItem)) {
-            // After we've successfully created the account, run some additional
-            // non-critical initialization logic. If any initialization here fails, the
-            // account will still be successfully created, but there may be some small
-            // issues.
-            await context.searchInjection.dangerouslyFavoriteSearchEntityWithoutAuthorization({
-                spaceId: spaceInput.id,
-                accountId: accountInput.id,
-                entityId: "TaskPersonal",
-            });
-        }
     }
 
     return {
