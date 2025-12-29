@@ -71,6 +71,9 @@ async function deployCloudflareWorkerWithRetry(
 /**
  * Applies D1 database migrations.
  */
+// TODO(imjoshin): Ignoring to avoid overnight deploy breakage.
+// There's a failure in this command somewhere, need to investigate.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function applyCloudflareD1Migrations(
     context: Context<{tracer: TracerContextModule}>,
     databaseName: string,
@@ -144,12 +147,14 @@ export async function deployCloudflareWorkers(
         env,
     );
 
-    await applyCloudflareD1Migrations(
-        context,
-        "agent-usage",
-        joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
-        env,
-    );
+    // TODO(imjoshin): Commenting to avoid overnight deploy breakage.
+    // There's a failure in this command somewhere, need to investigate.
+    // await applyCloudflareD1Migrations(
+    //     context,
+    //     "agent-usage",
+    //     joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
+    //     env,
+    // );
 
     await deployCloudflareWorkerWithRetry(
         context,
