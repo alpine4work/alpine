@@ -69,6 +69,45 @@ async function deployCloudflareWorkerWithRetry(
 }
 
 /**
+ * Applies D1 database migrations.
+ */
+async function applyCloudflareD1Migrations(
+    context: Context<{tracer: TracerContextModule}>,
+    databaseName: string,
+    wranglerPath: string,
+    env: Record<string, string> & NodeJS.ProcessEnv,
+): Promise<void> {
+    await context.tracer.withSpan(`Apply D1 migrations`, async (context, span) => {
+        span.addData({
+            cloudflare: {
+                d1: {
+                    action: "ApplyMigrations",
+                    databaseName,
+                },
+            },
+        });
+
+        const subprocess: ChildProcess = spawn(
+            wranglerPath,
+            ["d1", "migrations", "apply", databaseName, "--remote"],
+            {
+                cwd: joinPath(runfilesPath, "cyberworlds"),
+                env,
+                stdio: ["ignore", "inherit", "inherit"],
+            },
+        );
+
+        const {exitCode} = await waitForProcessExitWithAnyCode(subprocess);
+
+        if (exitCode !== 0) {
+            throw new UnknownError(
+                `D1 migration application failed with exit code ${exitCode} for database ${databaseName}`,
+            );
+        }
+    });
+}
+
+/**
  * Deploy Cloudflare by running `bazel run //server/edge:wrangler -- deploy`.
  * Should behave the same as if you run it locally. Except locally to
  * authenticate you need to run `bazel run //server/edge:wrangler -- login`.
@@ -101,6 +140,13 @@ export async function deployCloudflareWorkers(
     await deployCloudflareWorkerWithRetry(
         context,
         "Agent Service",
+        joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
+        env,
+    );
+
+    await applyCloudflareD1Migrations(
+        context,
+        "agent-usage",
         joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.sh"),
         env,
     );

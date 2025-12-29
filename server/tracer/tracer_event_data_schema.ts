@@ -442,6 +442,10 @@ const TracerEventDataSchema = {
         wrangler: {
             attempt: Schema.integer,
         },
+        d1: {
+            action: Schema.string,
+            databaseName: Schema.string,
+        },
     },
     github: {
         compareUrl: Schema.string,

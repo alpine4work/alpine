@@ -1373,6 +1373,18 @@ export type TracerEventData = {
             /** The attempt number of a Cloudflare Wrangler deployment. */
             readonly attempt?: number;
         };
+
+        /**
+         * Information related to Cloudflare D1. Cloudflare's serverless
+         * SQL database service.
+         */
+        readonly d1?: {
+            /** The Cloudflare D1 action being executed. */
+            readonly action?: string;
+
+            /** The attempt number of a Cloudflare D1 deployment. */
+            readonly databaseName?: string;
+        };
     };
 
     /**
