@@ -28,5 +28,5 @@ new_classes = ["MockAgentDurableObject"]
 [[d1_databases]]
 binding = "AgentUsageDatabase"
 database_name = "agent-usage"
-database_id = "agent-usage"
+database_id = "c6cc146c-55f6-410a-a7d5-b1d6c6b55e68"
 migrations_dir = "internal/d1/migrations"
