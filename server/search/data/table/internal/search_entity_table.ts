@@ -7,6 +7,18 @@ import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId, SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
+const SearchAffinityEntityIdDynamoKeyAttributeSchema =
+    DynamoKeyAttributeSchema.labelString<SearchAffinityEntityId>({
+        // Some IDs (e.g. document comment threads) can be longer than 50 characters.
+        maxLength: 256,
+    });
+
+const SearchDynamicEntityIdDynamoKeyAttributeSchema =
+    DynamoKeyAttributeSchema.labelString<SearchDynamicEntityId>({
+        // Some IDs (e.g. document comment threads) can be longer than 50 characters.
+        maxLength: 256,
+    });
+
 export const SearchEntityTable = DynamoTableSchema.new({
     name: "SearchEntities",
     partitions: [
@@ -23,7 +35,7 @@ export const SearchEntityTable = DynamoTableSchema.new({
                     // since data is already stored in the database with this sort range type.
                     name: "SearchEntityAffinity",
                     sortKeyAttributes: {
-                        entityId: DynamoKeyAttributeSchema.labelString<SearchAffinityEntityId>(),
+                        entityId: SearchAffinityEntityIdDynamoKeyAttributeSchema,
                     },
                     withExpirationTime: "RequiredNullable",
                     attributes: Schema.object({
@@ -202,7 +214,7 @@ export const SearchEntityTable = DynamoTableSchema.new({
             name: "IndexSearchEntityEmbeddingChunksJob",
             partitionKeyAttributes: {
                 spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
-                entityId: DynamoKeyAttributeSchema.labelString<SearchDynamicEntityId>(),
+                entityId: SearchDynamicEntityIdDynamoKeyAttributeSchema,
             },
             sortRanges: [
                 /**
@@ -349,7 +361,7 @@ export const AccountSearchFavoriteEntitiesIndex = SearchEntityTable.addIndex({
         favoriteOrderKey: DynamoKeyAttributeSchema.orderKey.nullable(),
         // Include the `entityId` in the index sort keys so if two items have the
         // same `favoriteOrderKey` we'll still get consistent ordering.
-        entityId: DynamoKeyAttributeSchema.labelString<SearchAffinityEntityId>(),
+        entityId: SearchAffinityEntityIdDynamoKeyAttributeSchema,
     },
     // Only include favorited items in this index.
     filter: item => typeof item.favoriteOrderKey === "string",
