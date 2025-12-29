@@ -1,5 +1,5 @@
 diff --git a/dist/src/index.js b/dist/src/index.js
-index 1cfffad73fdb40e4f903388fad35b99a635701bc..f0ba673c84fd70d4a47276d8c24f71ed32a45056 100644
+index 1cfffad73fdb40e4f903388fad35b99a635701bc..4b8df53e3b122dd853c787c0de3037646f558ac3 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
 @@ -102,7 +102,7 @@ var FileStorage = class extends import_storage_memory.LocalStorage {
@@ -11,7 +11,19 @@ index 1cfffad73fdb40e4f903388fad35b99a635701bc..f0ba673c84fd70d4a47276d8c24f71ed
      const filePath = import_path2.default.join(this.root, sanitisedKey);
      return [
        filePath.startsWith(this.root) ? filePath : void 0,
-@@ -220,7 +220,7 @@ This is a limitation of Miniflare's file-system storage. Please use in-memory/Re
+@@ -154,7 +154,10 @@ var FileStorage = class extends import_storage_memory.LocalStorage {
+     if (this.sqliteDB)
+       return this.sqliteDB;
+     import_fs.default.mkdirSync(import_path2.default.dirname(this.root), { recursive: true });
+-    this.sqliteDB = await (0, import_shared2.createSQLiteDB)(this.root + ".sqlite3");
++
++    // NOTE(imjoshin): We update this to just .sqlite. There's a discrepency between our old
++    // version of Miniflare and the wrangler CLI. See our patch of @miniflare/d1 for more info.
++    this.sqliteDB = await (0, import_shared2.createSQLiteDB)(this.root + ".sqlite");
+     return this.sqliteDB;
+   }
+   async getRangeMaybeExpired(key, { offset: _offset, length: _length, suffix }) {
+@@ -220,7 +223,7 @@ This is a limitation of Miniflare's file-system storage. Please use in-memory/Re
          continue;
        const name = filePath.substring(this.root.length + 1);
        const meta = await this.meta(filePath);
@@ -20,7 +32,7 @@ index 1cfffad73fdb40e4f903388fad35b99a635701bc..f0ba673c84fd70d4a47276d8c24f71ed
        keys.push({
          name: realName,
          expiration: meta.expiration,
-@@ -230,6 +230,50 @@ This is a limitation of Miniflare's file-system storage. Please use in-memory/Re
+@@ -230,6 +233,50 @@ This is a limitation of Miniflare's file-system storage. Please use in-memory/Re
      return keys;
    }
  };
@@ -39,7 +51,7 @@ index 1cfffad73fdb40e4f903388fad35b99a635701bc..f0ba673c84fd70d4a47276d8c24f71ed
 +function encodePath(path) {
 +  const encodedPath = path.replace(/./g, char => {
 +    const code = char.charCodeAt(0);
-+      
++
 +    // Keep lowercase letters and numbers unencoded
 +    if (
 +      (code >= 0x61 && code <= 0x7A) || // a-z
@@ -50,7 +62,7 @@ index 1cfffad73fdb40e4f903388fad35b99a635701bc..f0ba673c84fd70d4a47276d8c24f71ed
 +    ) {
 +        return char;
 +    }
-+      
++
 +    // Encode everything else (uppercase, special chars, etc.)
 +    return `%${code.toString(16).toUpperCase().padStart(2, "0")}`;
 +  });

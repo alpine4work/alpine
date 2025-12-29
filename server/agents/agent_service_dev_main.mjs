@@ -6,6 +6,11 @@ import toml from "toml";
 import {parseArgs} from "util";
 // eslint-disable-next-line sort-imports-by-source
 import {writeTracerEventToFileInDev} from "../../shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
+import {
+    runDevAgentsD1ApplyCommand,
+    runDevAgentsD1StatusCommand,
+    // eslint-disable-next-line sort-imports-by-source
+} from "../../admin/dev/agents_d1/dev_agents_d1_commands.js";
 
 // Make our service easy to find in process managers. We include
 // "cyberworlds" and "node" so you can grep by those strings.
@@ -29,6 +34,7 @@ async function main() {
             port: portString,
             cacheLocalDataPath,
             durableObjectsLocalDataPath,
+            d1LocalDataPath,
             apiServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
             mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
@@ -41,6 +47,7 @@ async function main() {
             port: {type: "string"},
             cacheLocalDataPath: {type: "string"},
             durableObjectsLocalDataPath: {type: "string"},
+            d1LocalDataPath: {type: "string"},
             apiServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
             mockChatGptApiServiceKey: {type: "string"},
@@ -57,6 +64,7 @@ async function main() {
     if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` option");
     if (!durableObjectsLocalDataPath)
         throw new Error("Missing `durableObjectsLocalDataPath` option");
+    if (!d1LocalDataPath) throw new Error("Missing `d1LocalDataPath` option");
     if (!apiServiceUrl) throw new Error("Missing `apiServiceUrl` option");
     if (!chatGptApiServiceKeyPath) throw new Error("Missing `chatGptApiServiceKey` option");
     if (!mockChatGptApiServiceKeyPath) throw new Error("Missing `mockChatGptApiServiceKey` option");
@@ -77,6 +85,13 @@ async function main() {
     );
     const config = toml.parse(configString);
 
+    if ((await runDevAgentsD1StatusCommand({quiet: true})) === "CommittedMigrations") {
+        // eslint-disable-next-line no-console
+        console.log("D1 migrations required, applying...");
+
+        await runDevAgentsD1ApplyCommand();
+    }
+
     const miniflare = new Miniflare({
         name: config.name,
         modules: true,
@@ -84,6 +99,7 @@ async function main() {
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/agents/wrangler.toml"),
         cachePersist: cacheLocalDataPath,
         durableObjectsPersist: durableObjectsLocalDataPath,
+        d1Persist: d1LocalDataPath,
         bindings: {
             API_SERVICE_URL: apiServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,

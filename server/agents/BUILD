@@ -1,5 +1,6 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@npm//:drizzle-kit/package_json.bzl", drizzle_kit_bin = "bin")
 load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
@@ -22,6 +23,7 @@ ts_project(
     # dependencies but we try to keep them few and far between.
     deps = [
         "//:node_modules/@types/mustache",
+        "//:node_modules/drizzle-orm",
         "//:node_modules/gpt-tokenizer",
         "//:node_modules/immer",
         "//:node_modules/mustache",
@@ -61,11 +63,15 @@ js_binary(
         "wrangler.toml",
         ":agent_service_bundle_file",
         ":agents_lib",
+        "//:node_modules/better-sqlite3",
         "//:node_modules/fs-extra",
         "//:node_modules/miniflare",
         "//:node_modules/toml",
         "//:package_light_json_file",
+        "//admin/dev/agents_d1",
         "//server/helpers",
+        "//server/helpers/node",
+        "//shared/tracer",
     ],
     entry_point = "agent_service_dev_main.mjs",
     env = {"NODE_ENV": "development"},
@@ -78,12 +84,35 @@ production_transition(
     target = ":agent_service_bundle_file",
 )
 
+MIGRATIONS = glob([
+    "internal/d1/migrations/*.sql",
+    "internal/d1/migrations/meta/*.json",
+], allow_empty=True)
+
 wrangler_bin.wrangler_binary(
     name = "wrangler",
     chdir = package_name(),
-    data = [
+    data = MIGRATIONS + [
         "wrangler.toml",
         ":agent_service_bundle_file_production",
     ],
     visibility = ["//server/deploy/script:__pkg__"],
+)
+
+wrangler_bin.wrangler_binary(
+    name = "wrangler_dev",
+    chdir = package_name(),
+    data = MIGRATIONS + ["wrangler.toml"],
+    visibility = ["//admin/dev/agents_d1:__pkg__"],
+)
+
+drizzle_kit_bin.drizzle_kit_binary(
+    name = "drizzle_kit",
+    chdir = package_name(),
+    data = MIGRATIONS + [
+        "//:node_modules/drizzle-kit",
+        ":agents_lib",
+        "internal/d1/agent_usage_drizzle.config.cjs",
+    ],
+    visibility = ["//admin/dev/agents_d1:__pkg__"],
 )

@@ -10,6 +10,7 @@ import {
     putAgentScheduleEvent,
 } from "~/server/agents/internal/agent_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
+import {AgentUsageDatabase} from "~/server/agents/internal/d1/agent_usage_database.js";
 import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
@@ -48,6 +49,7 @@ export type AgentWebhookRequest = {
     readonly storage: DurableObjectStorage;
     readonly apiClient: ApiClient;
     readonly openAiClient: Lazy<OpenAiClient>;
+    readonly agentUsageDatabase: Lazy<AgentUsageDatabase>;
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
     readonly event: ApiBotWebhookEvent;
@@ -93,6 +95,7 @@ export abstract class AgentDurableObjectBase<Route> {
     private readonly _tracer: Lazy<TracerRoot>;
     private readonly _processContext: Lazy<AgentContext>;
     private readonly _openAiClient: Lazy<OpenAiClient>;
+    private readonly _agentUsageDatabase: Lazy<AgentUsageDatabase>;
 
     private readonly _alarmTimeMutex: MutexValue<
         (AgentScheduleEvent & {type: "ClearStorage"}) | null
@@ -150,6 +153,10 @@ export abstract class AgentDurableObjectBase<Route> {
                     "Missing `OPEN_AI_API_KEY` environment variable",
                 ),
             });
+        });
+
+        this._agentUsageDatabase = new Lazy(() => {
+            return new AgentUsageDatabase(this._env.AgentUsageDatabase);
         });
     }
 
@@ -286,6 +293,7 @@ export abstract class AgentDurableObjectBase<Route> {
                         accessToken,
                     }),
                     openAiClient: this._openAiClient,
+                    agentUsageDatabase: this._agentUsageDatabase,
                 };
 
                 await this._webhook(span, request);

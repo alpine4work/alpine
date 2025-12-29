@@ -11,6 +11,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/crawl:crawl",
     "//admin/cron:cron",
     "//admin/dev:dev_lib",
+    "//admin/dev/agents_d1:agents_d1",
     "//admin/dynamo:dynamo",
     "//admin/dynamo/local:local",
     "//admin/eslint:eslint",

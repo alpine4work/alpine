@@ -1,5 +1,5 @@
 diff --git a/dist/src/index.js b/dist/src/index.js
-index acea30a3f84102e3a4cb62222b7ebf1ace767a68..d5c61a8e62f401390f86eba1318a0d005461230d 100644
+index acea30a3f84102e3a4cb62222b7ebf1ace767a68..b6b1e614c7e01dd4073c38354f2f7d5f2fc7810a 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
 @@ -192,7 +192,20 @@ function underscoreReplacement(match) {
@@ -24,3 +24,20 @@ index acea30a3f84102e3a4cb62222b7ebf1ace767a68..d5c61a8e62f401390f86eba1318a0d00
  }
  
  // packages/shared/src/compat.ts
+@@ -805,10 +818,13 @@ var Mutex = class {
+ // packages/shared/src/sqlite.ts
+ var import_node_path = __toModule(require("node:path"));
+ async function createSQLiteDB(dbPath) {
+-  const { npxImport, npxResolve } = await import("npx-import");
+-  const { default: DatabaseConstructor } = await npxImport("better-sqlite3@8.0.1");
++  // NOTE(calebmer): `npx-import` is a crazy idea as much as its `README.md` would
++  // like to tell you otherwise. For Alpine, if you want a SQLite database then
++  // make sure you've included the version of `better-sqlite3` we've installed
++  // as a dependency.
++  const { default: DatabaseConstructor } = await import("better-sqlite3");
+   return new DatabaseConstructor(dbPath, {
+-    nativeBinding: getSQLiteNativeBindingLocation(npxResolve("better-sqlite3"))
++    nativeBinding: getSQLiteNativeBindingLocation(require.resolve("better-sqlite3"))
+   });
+ }
+ function getSQLiteNativeBindingLocation(sqliteResolvePath) {

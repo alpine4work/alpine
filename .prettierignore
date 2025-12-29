@@ -9,3 +9,6 @@
 
 # VSCode
 /.vscode/extensions/*/out
+
+# Database migrations metadata
+**/migrations/meta/

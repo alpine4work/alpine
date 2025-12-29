@@ -13,36 +13,38 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // Our `wrangler` dependency has an old version of `esbuild` we allow since we
     // should be bundling our code with a newer version of `esbuild` before it gets
     // to `wrangler`.
-    ["esbuild", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-arm64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-arm", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/android-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/darwin-arm64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/darwin-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/freebsd-arm64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/freebsd-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-arm64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-arm", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-ia32", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-loong64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-mips64el", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-ppc64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-riscv64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-s390x", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/linux-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/netbsd-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/openbsd-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/sunos-x64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-arm64", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-ia32", ["0.17.19", "0.21.5", "0.25.10"]],
-    ["@esbuild/win32-x64", ["0.17.19", "0.21.5", "0.25.10"]],
+    ["esbuild", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/android-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/android-arm", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/android-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/darwin-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/darwin-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/freebsd-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/freebsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-arm", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-ia32", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-loong64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-mips64el", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-ppc64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-riscv64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-s390x", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/linux-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/netbsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/openbsd-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/sunos-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/win32-arm64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/win32-ia32", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
+    ["@esbuild/win32-x64", ["0.17.19", "0.18.20", "0.21.5", "0.25.10"]],
     ["@esbuild/aix-ppc64", ["0.21.5", "0.25.10"]],
+    ["@jridgewell/gen-mapping", ["0.1.1", "0.3.13"]],
+    ["get-tsconfig", ["4.13.0", "4.6.2"]],
 
     // Incompatible versions from AWS dependencies. Mostly stemming from
     // `@aws-sdk/client-s3`'s dependency on `@aws-crypto/sha1-browser`.
-    ["@smithy/is-array-buffer", ["2.2.0", "3.0.0"]],
-    ["@smithy/util-buffer-from", ["2.2.0", "3.0.0"]],
-    ["@smithy/util-utf8", ["2.3.0", "3.0.0"]],
+    ["@smithy/is-array-buffer", ["2.2.0", "4.0.0"]],
+    ["@smithy/util-buffer-from", ["2.2.0", "4.0.0"]],
+    ["@smithy/util-utf8", ["2.3.0", "4.0.0"]],
 
     // We keep using Miniflare v2 in our development environment since it runs in
     // a Node.js environment instead of a custom JavaScript VM (backed by
@@ -80,9 +82,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib`
     // (to 2.189.1) and corresponding `@aws-sdk` packages that we can't easily
     // resolve but shouldn't cause issues.
-    ["@smithy/is-array-buffer", ["2.2.0", "4.0.0"]],
-    ["@smithy/util-buffer-from", ["2.2.0", "4.0.0"]],
-    ["@smithy/util-utf8", ["2.3.0", "4.0.0"]],
     ["diff", ["5.2.0", "7.0.0"]],
     ["events", ["1.1.1", "3.3.0"]],
     ["jackspeak", ["2.3.6", "4.1.0"]],
@@ -184,7 +183,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["is-plain-obj", ["3.0.0", "4.1.0"]],
     ["is-stream", ["2.0.1", "3.0.0"]],
     ["isarray", ["1.0.0", "2.0.5"]],
-    ["istanbul-lib-instrument", ["5.2.0", "6.0.3"]],
+    ["istanbul-lib-instrument", ["5.2.0", "6.0.0"]],
     ["js-yaml", ["3.14.1", "4.1.0"]],
     ["json-parse-even-better-errors", ["2.3.1", "3.0.2"]],
     ["json5", ["1.0.1", "2.2.3"]],
@@ -229,12 +228,12 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["pretty-format", ["27.5.1", "29.6.3"]],
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
-    ["react-is", ["16.13.1", "17.0.2", "18.3.1"]],
+    ["react-is", ["16.13.1", "17.0.2", "18.2.0"]],
     ["readable-stream", ["2.3.7", "3.6.0", "4.7.0"]],
     ["resolve-from", ["4.0.0", "5.0.0"]],
     ["resolve", ["1.22.8", "2.0.0-next.5"]],
     ["safe-buffer", ["5.1.2", "5.2.1"]],
-    ["semver", ["6.3.1", "7.7.3"]],
+    ["semver", ["6.3.1", "7.7.1"]],
     ["signal-exit", ["3.0.7", "4.1.0"]],
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],
@@ -267,6 +266,9 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["yargs-parser", ["20.2.9", "21.1.1"]],
     ["yargs", ["16.2.0", "17.7.2"]],
     ["youch", ["2.2.2", "3.2.3"]],
+
+    // Duplicate packages after adding drizzle for agent limits.
+    ["strip-json-comments", ["2.0.1", "3.1.1"]],
 ]);
 
 async function main() {

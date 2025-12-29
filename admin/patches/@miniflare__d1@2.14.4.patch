@@ -1,0 +1,83 @@
+diff --git a/dist/src/index.js b/dist/src/index.js
+index c28f9dc8ca357561e27ea855bbb0dba8a0a10c4c..8b618585e161ac3294a4533499981f91807c3150 100644
+--- a/dist/src/index.js
++++ b/dist/src/index.js
+@@ -460,10 +460,58 @@ var D1Plugin = class extends import_shared.Plugin {
+   d1Databases;
+   d1Persist;
+   #persist;
++  #hackDatabaseName;
+   constructor(ctx, options) {
+     super(ctx);
+     this.assignOptions(options);
+-    this.#persist = (0, import_shared.resolveStoragePersist)(ctx.rootPath, this.d1Persist);
++
++    // START HACK
++
++    // HACK(imjoshin): Our verison of Miniflare (see patch below) is outdated. The path
++    // that gets resolved here vs what the wrangler CLI use are different. This means local
++    // dev commands and the actual service using the D1Database get different locations in dev.
++    // To workaround this, we resolve the path ourselves here in the same way as wrangler.
++    // This is hacky and will likely break if we add more than one database in the same
++    // d1Persist path.
++
++    const absoluteD1Persist = (0, import_shared.resolveStoragePersist)(ctx.rootPath, this.d1Persist);
++
++    // Only attempt the hack if we have a valid persist path
++    if (!absoluteD1Persist) {
++      // No persist path configured
++      this.#persist = undefined;
++    } else {
++      // Check if v3/d1/miniflare-D1DatabaseObject exists
++      const d1ObjectPath = import_path.default.join(absoluteD1Persist, 'v3/d1/miniflare-D1DatabaseObject');
++      let foundSqliteFile = false;
++
++      // List files in v3/d1/miniflare-D1DatabaseObject
++      const import_fs = __toModule(require("fs"));
++      const files = import_fs.default.readdirSync(d1ObjectPath);
++
++      // Find the .sqlite file
++      const sqliteFile = files.find(file => file.endsWith('.sqlite'));
++
++      if (sqliteFile) {
++        foundSqliteFile = true;
++        // Set this.#hackDatabaseName to the file name minus .sqlite
++        this.#hackDatabaseName = sqliteFile.replace(/\.sqlite$/, '');
++        // Set this.#persist to the directory containing the .sqlite file
++        this.#persist = d1ObjectPath;
++      }
++
++      // If no .sqlite file found, set this.#persist to absoluteD1Persist
++      if (!foundSqliteFile) {
++        this.#persist = absoluteD1Persist;
++      }
++    }
++
++    // END HACK
+   }
+   async getDatabase(storageFactory, dbName) {
+     const storage = await storageFactory.storage(dbName, this.#persist);
+@@ -473,11 +521,18 @@ var D1Plugin = class extends import_shared.Plugin {
+   async setup(storageFactory) {
+     const bindings = {};
+     for (const dbName of this.d1Databases ?? []) {
+-      if (dbName.startsWith(D1_BETA_PREFIX)) {
+-        bindings[dbName] = await this.getDatabase(storageFactory, dbName.slice(D1_BETA_PREFIX.length));
+-      } else {
+-        console.warn(`Not injecting D1 Database for '${dbName}' as this version of Miniflare only supports D1 beta bindings. Upgrade Wrangler and/or Miniflare and try again.`);
+-      }
++      // NOTE(imjoshin): This version of miniflare doesn't support stable D1 bindings yet.
++      // However, we can't upgrade miniflare:
++      //  - We depend on the Node-based Miniflare runtime for debugger attach + existing tests
++      //      - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/trb4f64apye6xgf1g75amhvg4c
++      //  - Tooling is tightly coupled: moving Miniflare/Wrangler up drags other upgrades and has
++      //    previously caused breakage when mixing Miniflare major versions.
++      //      - https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/pm925djyz13fjyfrddb0vth6xm
++
++      // HACK: see the constructor above
++      // If this.#hackDatabaseName is set, use that as the dbName
++      const actualDbName = this.#hackDatabaseName || dbName;
++      bindings[dbName] = await this.getDatabase(storageFactory, actualDbName);
+     }
+     return { bindings };
+   }

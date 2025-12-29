@@ -1,6 +1,7 @@
 export type AgentServiceEnv = {
     ChatGptAgentDurableObjectNamespace: DurableObjectNamespace;
     MockAgentDurableObjectNamespace: DurableObjectNamespace;
+    AgentUsageDatabase: D1Database;
     API_SERVICE_URL: string;
     CHAT_GPT_API_SERVICE_KEY: string;
     MOCK_CHAT_GPT_API_SERVICE_KEY?: string;

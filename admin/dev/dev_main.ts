@@ -417,7 +417,7 @@ function createArtifacts() {
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "edge")}`,
-                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge")}`,
+                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge/do")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -624,7 +624,8 @@ function createArtifacts() {
             },
             args: [
                 `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
-                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents")}`,
+                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents/do")}`,
+                `--d1LocalDataPath=${joinPath(devEnvPaths.data, "agents/d1")}`,
                 `--apiServiceUrl=http://localhost:${apiDevPort}`,
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,

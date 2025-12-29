@@ -48,3 +48,6 @@ _tmp*
 
 # Claude code instructions
 CLAUDE.local.md
+
+# Local Cloudflare generated files (like D1 bindings)
+.wrangler

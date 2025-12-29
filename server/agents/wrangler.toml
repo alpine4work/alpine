@@ -24,3 +24,9 @@ new_classes = ["ChatGptAgentDurableObject"]
 [[migrations]]
 tag = "v2"
 new_classes = ["MockAgentDurableObject"]
+
+[[d1_databases]]
+binding = "AgentUsageDatabase"
+database_name = "agent-usage"
+database_id = "agent-usage"
+migrations_dir = "internal/d1/migrations"
