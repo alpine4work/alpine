@@ -8,8 +8,8 @@ repository.
 **Build Commands:**
 
 ```bash
-./admin/bin/dev check        # Run linting and formatting checks for changed files
-./admin/bin/dev format       # Fix any linting and formatting issues in changed files
+./admin/bin/dev check             # Run linting and formatting checks for changed files
+./admin/bin/dev format            # Fix any linting and formatting issues in changed files
 ./admin/bin/dev format [...files] # Fix any linting and formatting issues in given files
 ```
 
@@ -89,7 +89,9 @@ Cyberworlds is a multi-service application with these core services:
 
 ### Testing
 
-Only run tests if you're explicitly asked to. Our tests are expensive to run.
+Only run `./admin/bin/dev test` to run our full test suite if you're explicitly asked to. Our tests
+are expensive to run. Running individual tests like this `./admin/bin/dev test <file>` is encouraged
+to make sure your changes work as expected.
 
 **Unit Tests**: Jest with TypeScript
 

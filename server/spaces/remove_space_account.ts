@@ -128,7 +128,10 @@ function removeSpaceAccountWithoutAuthorization(
                 spaceItem,
                 spaceItem.updateLockVersion,
             ),
-            createAccountVersionConditionCheckTransactionEntry(account),
+            createAccountVersionConditionCheckTransactionEntry(
+                accountId,
+                account.initialData.version,
+            ),
 
             SpacesTable.transactionDirectlyUpdateItem({
                 ...accountSpacesItem,

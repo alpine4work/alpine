@@ -3123,21 +3123,38 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Types["ItemKey"],
         updateLockVersion: number | undefined,
     ): DynamoTransactionEntry {
-        return this.transactionConditionCheck(
-            key,
-            {
-                // Verify that the lock version was not changed by a concurrent writer.
-                updateLockVersion:
-                    typeof updateLockVersion === "number" && updateLockVersion !== 0
-                        ? DynamoConditionExpression.eq(updateLockVersion)
-                        : DynamoConditionExpression.exists().not(),
-            },
-            {
-                // This operation implements an optimistic locking scheme. Retrying the
-                // operation should read the latest item version and eventually succeed.
-                isConditionCheckErrorRetriable: true,
-            },
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
+
+        // Verify that the lock version was not changed by a concurrent writer.
+        const conditionExpression = DynamoConditionExpression.from({
+            updateLockVersion:
+                typeof updateLockVersion === "number" && updateLockVersion !== 0
+                    ? DynamoConditionExpression.eq(updateLockVersion)
+                    : DynamoConditionExpression.exists().not(),
+        });
+
+        const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
+        const {string: conditionExpressionString} = conditionExpression.compile(
+            attributesSchema,
+            conditionCompilationContext,
         );
+
+        return DynamoClient.transactionConditionCheck({
+            tableName: this._name,
+            key: {partitionKey, sortKey},
+            conditionExpression: conditionExpressionString,
+            expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
+            // This operation implements an optimistic locking scheme. Retrying the
+            // operation should read the latest item version and eventually succeed.
+            isConditionCheckErrorRetriable: true,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
+        });
     }
 
     /**

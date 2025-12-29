@@ -1,12 +1,12 @@
+import {accountHasAlreadySignedUpError} from "~/server/accounts/internal/account_has_already_signed_up_error.js";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {getAccountItemWithoutAvatarWithEventualThenStrongConsistency} from "~/server/accounts/internal/get_account_item.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {Context} from "~/shared/context/context.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
@@ -47,11 +47,7 @@ export async function saveAccountSignUpProfile(
         );
 
         if (!accountItem.hasNotSignedUp) {
-            throw new FailedPreconditionError("Account has already finished signing up", {
-                displayMessage: errorDisplayMessage`You’ve already finished signing up. Try ${errorDisplayMessage.signInLink(
-                    "signing in",
-                )} instead.`,
-            });
+            throw accountHasAlreadySignedUpError();
         }
 
         // We commit an update account name task action in all the spaces an account is in.
@@ -74,9 +70,7 @@ export async function saveAccountSignUpProfile(
 
         const transactionEntries: Array<DynamoTransactionEntry> = [
             AccountsTable.transactionDirectlyUpdateItem({
-                // Remove the `hasNotSignedUp` property. You won't be able to call
-                // `saveAccountSignUpProfile()` on this account again.
-                ...omitObject(accountItem, ["hasNotSignedUp"]),
+                ...accountItem,
                 name,
                 nameVersion,
                 reactionCharacter,

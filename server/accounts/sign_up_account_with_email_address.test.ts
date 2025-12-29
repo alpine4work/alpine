@@ -8,7 +8,6 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext({
@@ -117,16 +116,10 @@ test("sign up with pending invitation and then sign in", async () => {
     });
 });
 
-test("attempting to sign up after finishing sign up fails", async () => {
+test("attempting to sign up after saving sign up profile is ok", async () => {
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    await attemptOneTimePasswordSignIn(context, emailAddress, oneTimePassword, sessionInfo);
+    await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
 
@@ -136,9 +129,13 @@ test("attempting to sign up after finishing sign up fails", async () => {
         reactionCharacter: {type: "Cat", variant: "Grey"},
     });
 
-    await expect(
-        signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress),
-    ).rejects.toThrow(new FailedPreconditionError("Email address has already signed up"));
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await attemptOneTimePasswordSignIn(context, emailAddress, oneTimePassword, sessionInfo);
 });
 
 test("sign in with one time password after sign up", async () => {

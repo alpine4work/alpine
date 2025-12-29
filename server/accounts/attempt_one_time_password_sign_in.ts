@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {accountEmailAddressNotFoundError} from "~/server/accounts/internal/account_email_address_not_found_error.js";
 import {accountEmailAddressSignInLockedError} from "~/server/accounts/internal/account_email_address_sign_in_locked_error.js";
-import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {AccountEmailAddressItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {getHoursUntilRegenerateOneTimePasswordUnlocked} from "~/server/accounts/internal/get_hours_until_regenerate_one_time_password_unlocked.js";
 import {
     expireOneTimePasswordAfterMinutes,
@@ -12,38 +12,71 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+
+export type AttemptOneTimePasswordSignInOptions = {
+    /**
+     * What is the IP address of the client attempting to sign in? We will store
+     * this with the created session to identify the device the session is for.
+     */
+    ipAddress: string | null;
+
+    /**
+     * What is the user agent of the client attempting to sign in? We will store
+     * this with the created session to identify the device the session is for.
+     */
+    userAgent: string | null;
+};
 
 /**
  * Attempts to sign into the account with a one time password. After a few
  * consecutive failed attempts to sign in, we will lock the account for at
  * least 24 hours.
  */
-export function attemptOneTimePasswordSignIn(
+export async function attemptOneTimePasswordSignIn(
     context: DynamoContext,
     emailAddress: EmailAddress,
     oneTimePassword: string,
-    {
-        ipAddress,
-        userAgent,
-    }: {
-        /**
-         * What is the IP address of the client attempting to sign in? We will store
-         * this with the created session to identify the device the session is for.
-         */
-        ipAddress: string | null;
-
-        /**
-         * What is the user agent of the client attempting to sign in? We will store
-         * this with the created session to identify the device the session is for.
-         */
-        userAgent: string | null;
-    },
+    options: AttemptOneTimePasswordSignInOptions,
 ): Promise<{
     sessionId: SessionId;
     sessionAccountId: AccountId;
 }> {
+    const [, result] = await attemptOneTimePasswordSignInWithAction(
+        context,
+        emailAddress,
+        oneTimePassword,
+        options,
+        asyncNoop,
+    );
+
+    return result;
+}
+
+/**
+ * Same as `attemptOneTimePasswordSignIn()` but you can provide an action that
+ * runs after the password has been verified in parallel with session creation.
+ * Useful for implementing sign up. We can immediately start creating the space
+ * instead of waiting for session creation to finish.
+ */
+export function attemptOneTimePasswordSignInWithAction<Value>(
+    context: DynamoContext,
+    emailAddress: EmailAddress,
+    oneTimePassword: string,
+    {ipAddress, userAgent}: AttemptOneTimePasswordSignInOptions,
+    action: (accountEmailAddressItem: AccountEmailAddressItem) => Promise<Value>,
+): Promise<
+    [
+        Value,
+        {
+            sessionId: SessionId;
+            sessionAccountId: AccountId;
+        },
+    ]
+> {
     return context.dynamo.retryTransaction(async context => {
         const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
             partitionType: "AccountEmailAddress",
@@ -100,29 +133,35 @@ export function attemptOneTimePasswordSignIn(
         } else {
             const sessionId = generateId<SessionId>();
 
-            await DynamoTableSchema.executeTransaction(context, [
-                AccountsTable.transactionDirectlyUpdateItem({
-                    ...accountEmailAddressItem,
-                    // Verify this email address.
-                    isVerified: true,
-                    // Remove our one-time password sign in state.
-                    oneTimePasswordSignInState: undefined,
-                }),
-                AccountsTable.transactionCreateOrReplaceItem({
-                    partitionType: "Session",
-                    sortRangeType: "Attributes",
-                    sessionId,
-                    accountId: accountEmailAddressItem.accountId,
-                    createdTime: new Date(),
-                    initialIpAddress: ipAddress,
-                    initialUserAgent: userAgent,
-                }),
+            const [value] = await runAllPromises([
+                action(accountEmailAddressItem),
+                DynamoTableSchema.executeTransaction(context, [
+                    AccountsTable.transactionDirectlyUpdateItem({
+                        ...accountEmailAddressItem,
+                        // Verify this email address.
+                        isVerified: true,
+                        // Remove our one-time password sign in state.
+                        oneTimePasswordSignInState: undefined,
+                    }),
+                    AccountsTable.transactionCreateOrReplaceItem({
+                        partitionType: "Session",
+                        sortRangeType: "Attributes",
+                        sessionId,
+                        accountId: accountEmailAddressItem.accountId,
+                        createdTime: new Date(),
+                        initialIpAddress: ipAddress,
+                        initialUserAgent: userAgent,
+                    }),
+                ]),
             ]);
 
-            return {
-                sessionId,
-                sessionAccountId: accountEmailAddressItem.accountId,
-            };
+            return [
+                value,
+                {
+                    sessionId,
+                    sessionAccountId: accountEmailAddressItem.accountId,
+                },
+            ];
         }
     });
 }

@@ -399,6 +399,14 @@ export async function getAddSpaceAccountTransactionEntries(
         });
     }
 
+    const accountVersionConditionCheckTransactionEntry =
+        accountInput.type === "Existing"
+            ? createAccountVersionConditionCheckTransactionEntry(
+                  accountInput.id,
+                  accountInput.account.initialData.version,
+              )
+            : null;
+
     return {
         currentTime,
         spaceItem: spaceInput.type === "Existing" ? spaceInput.spaceItem : null,
@@ -412,6 +420,8 @@ export async function getAddSpaceAccountTransactionEntries(
                 ? spaceAccountAvatarOverrideItemTransactionEntry.newItem
                 : null,
         },
+
+        accountVersionConditionCheckTransactionEntry,
 
         transactionEntries: [
             // Since this transaction is security sensitive, make sure the account and
@@ -433,8 +443,8 @@ export async function getAddSpaceAccountTransactionEntries(
                             ),
                   ]
                 : []),
-            ...(accountInput.type === "Existing"
-                ? [createAccountVersionConditionCheckTransactionEntry(accountInput.account)]
+            ...(accountVersionConditionCheckTransactionEntry
+                ? [accountVersionConditionCheckTransactionEntry]
                 : []),
             SpacesTable.transactionDirectlyUpdateItem({
                 ...(accountInput.type === "Existing" ? accountInput.accountSpacesItem : null),

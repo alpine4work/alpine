@@ -12,7 +12,7 @@ import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext({
@@ -27,7 +27,7 @@ const sessionInfo = {
     userAgent: null,
 };
 
-test("finishing sign up for a fresh account updates account", async () => {
+test("saving sign up profile for a fresh account updates account", async () => {
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
     await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
@@ -48,10 +48,10 @@ test("finishing sign up for a fresh account updates account", async () => {
         nameVersion: 1,
         reactionCharacter: {type: "Cat", variant: "Grey"},
     });
-    expect(accountItemAfterFinish.hasNotSignedUp).toBeUndefined();
+    expect(accountItemAfterFinish.hasNotSignedUp).toBe(true);
 });
 
-test("finishing sign up for an account with a pending invite", async () => {
+test("saving sign up profile for an account with a pending invite", async () => {
     const space = await TestSpace.create(context);
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
@@ -78,33 +78,10 @@ test("finishing sign up for an account with a pending invite", async () => {
         nameVersion: 1,
         reactionCharacter: {type: "Cat", variant: "Pink"},
     });
-    expect(accountItemAfterFinish.hasNotSignedUp).toBeUndefined();
+    expect(accountItemAfterFinish.hasNotSignedUp).toBe(true);
 });
 
-test("cannot finish sign up twice", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-
-    const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-    const accountId = accountEmailAddressItem.accountId;
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "First Finish",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    await expect(
-        saveAccountSignUpProfile(context.withCache(), {
-            accountId,
-            name: "Second Finish",
-            reactionCharacter: {type: "Cat", variant: "Pink"},
-        }),
-    ).rejects.toThrow(new FailedPreconditionError("Account has already finished signing up"));
-});
-
-test("cannot finish sign up after joining a space", async () => {
+test("cannot save sign up profile after joining a space", async () => {
     const space = await TestSpace.create(context);
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
@@ -144,84 +121,7 @@ test("cannot finish sign up after joining a space", async () => {
     );
 });
 
-test("finish account sign up then sign in", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-    const accountId = accountEmailAddressItem.accountId;
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "Complete User",
-        reactionCharacter: {type: "Frog", variant: "Green"},
-    });
-
-    const {sessionId} = await attemptOneTimePasswordSignIn(
-        context,
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const accountItemAfterSignIn = await getAccountItem(context.withCache(), accountId);
-
-    expect(sessionId).toEqual(expect.any(String));
-    expect(accountItemAfterSignIn).toMatchObject({
-        name: "Complete User",
-        reactionCharacter: {type: "Frog", variant: "Green"},
-    });
-    expect(accountItemAfterSignIn.hasNotSignedUp).toBeUndefined();
-});
-
-test("finish account sign up with pending invite then accept invite", async () => {
-    const space = await TestSpace.create(context);
-    const admin = await space.createSession({role: "Admin"});
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    await space.inviteEmailAddress(admin.action(), emailAddress);
-
-    const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-    const accountId = accountEmailAddressItem.accountId;
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "Invited Complete User",
-        reactionCharacter: {type: "Tree", variant: "Green"},
-    });
-
-    const {sessionId} = await attemptOneTimePasswordSignIn(
-        context,
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const sessionContext = context.action({sessionId, accountId});
-
-    await acceptSpaceAccountInvite(sessionContext, space.id);
-
-    const accountItemAfterJoin = await getAccountItem(context.withCache(), accountId);
-
-    expect(accountItemAfterJoin).toMatchObject({
-        name: "Invited Complete User",
-        reactionCharacter: {type: "Tree", variant: "Green"},
-    });
-    expect(accountItemAfterJoin.hasNotSignedUp).toBeUndefined();
-});
-
-test("name version increments when finishing sign up", async () => {
+test("name version increments when saving sign up profile", async () => {
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
     await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
@@ -243,7 +143,7 @@ test("name version increments when finishing sign up", async () => {
     expect(accountItemAfter.nameVersion).toEqual(nameVersionBefore + 1);
 });
 
-test("invited account can finish sign up without calling signUpAccountWithEmailAddress first", async () => {
+test("invited account can save account sign up profile without calling signUpAccountWithEmailAddress first", async () => {
     const space = await TestSpace.create(context);
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
@@ -268,10 +168,10 @@ test("invited account can finish sign up without calling signUpAccountWithEmailA
             reactionCharacter: {type: "Yeti", variant: "Blue"},
         }),
     );
-    expect(accountItem.hasNotSignedUp).toBeUndefined();
+    expect(accountItem.hasNotSignedUp).toBe(true);
 });
 
-test("finishing sign up with non-existent account fails", async () => {
+test("saving sign up profile with non-existent account fails", async () => {
     await expect(
         saveAccountSignUpProfile(context.withCache(), {
             accountId: generateId(),
@@ -281,7 +181,49 @@ test("finishing sign up with non-existent account fails", async () => {
     ).rejects.toThrow();
 });
 
-test("race condition: accepting invite while finishing sign up causes retry and error", async () => {
+test("cannot save sign up profile when account has joined space via invite even if hasNotSignedUp is true", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
+
+    await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
+    const accountId = accountEmailAddressItem.accountId;
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    const {sessionId} = await attemptOneTimePasswordSignIn(
+        context,
+        emailAddress,
+        oneTimePassword,
+        sessionInfo,
+    );
+
+    const sessionContext = context.action({sessionId, accountId});
+    await acceptSpaceAccountInvite(sessionContext, space.id);
+
+    const accountItemBeforeAttempt = await getAccountItem(context.withCache(), accountId);
+    expect(accountItemBeforeAttempt.hasNotSignedUp).toBe(true);
+
+    await expect(
+        saveAccountSignUpProfile(context.withCache(), {
+            accountId,
+            name: "Should Fail",
+            reactionCharacter: {type: "Cat", variant: "Grey"},
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+        ),
+    );
+});
+
+test("race condition: accepting invite while saving sign up profile causes retry and error", async () => {
     const space = await TestSpace.create(context);
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);

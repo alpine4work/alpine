@@ -1,5 +1,8 @@
 import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createSpaceWelcomePackageTransactionEntries} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_model_from_item.js";
@@ -58,7 +61,7 @@ export async function createSpaceForAccountAsAdmin(
  * - Starter tasks for the user
  */
 async function actuallyCreateSpace(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         name: originalName,
         ownerAccountId,
