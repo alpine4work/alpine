@@ -239,14 +239,34 @@ const escapeMarkdownRegExp = new RegExp(
  * they're at the start of a line since they're common in mathematical
  * expressions.
  *
+ * We add some additional logic to prevent [indented code blocks][2]
+ * by escaping 4+ consecutive spaces which our ProseMirror schema constraints
+ * cannot handle, particularly within blockquotes.
+ *
  * [1]: https://www.markdownguide.org/basic-syntax/#escaping-characters
+ * [2]: https://spec.commonmark.org/0.30/#example-252
  */
 function escapeMarkdown(textContent: string): string {
-    return textContent.replaceAll(escapeMarkdownRegExp, substring => {
+    // First, handle regular markdown characters
+    const result = textContent.replaceAll(escapeMarkdownRegExp, substring => {
         const match = substring.match(/^(\s*?)(\S.*)$/);
         assert(match);
         return `${match[1]!}\\${match[2]!}`;
     });
+
+    // Handle 4+ spaces at line start to prevent CommonMark indented code blocks
+    return result.replaceAll(
+        /^( {4,})|^(\\[>+\-#]|\d+\\.|\\?[|]) ( {4,})/gm,
+        (match, spaces, markdownChar, spacesAfterChar) => {
+            if (spaces) {
+                // 4+ spaces at line start
+                return `&#x0020;${spaces.slice(1)}`;
+            } else {
+                // Markdown characters followed by 4+ spaces
+                return `${markdownChar} &#x0020;${spacesAfterChar.slice(1)}`;
+            }
+        },
+    );
 }
 
 /**

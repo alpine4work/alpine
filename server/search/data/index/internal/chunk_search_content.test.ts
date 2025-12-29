@@ -3115,7 +3115,7 @@ Here’s some braces that look like a link: [Google\\](https://google.com)
 This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, this is < em >weird< /em >`,
         isGroup: true,
         context: {sectionHeading: null},
-        tokenCount: 308,
+        tokenCount: 326,
         childChunks: [
             {
                 isGroup: false,
@@ -3127,9 +3127,11 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
             },
             {
                 isGroup: false,
-                tokenCount: 6,
+                tokenCount: 12,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "    space at the beginning of paragraph", tokenCount: 6}],
+                sentenceChunks: [
+                    {text: "&#x0020;   space at the beginning of paragraph", tokenCount: 12},
+                ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3143,10 +3145,10 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
             },
             {
                 isGroup: false,
-                tokenCount: 15,
+                tokenCount: 21,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: ">     space at the beginning of paragraph", tokenCount: 7},
+                    {text: "> &#x0020;   space at the beginning of paragraph", tokenCount: 13},
                     {text: "\n>\n> space at the end of paragraph    ", tokenCount: 8},
                 ],
                 lineMarginTop: 2,
@@ -3154,14 +3156,14 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
             },
             {
                 isGroup: false,
-                tokenCount: 10,
+                tokenCount: 16,
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {text: "spaces before break    \\", tokenCount: 4},
                     {text: "\n", tokenCount: 0},
                     {text: "wow next\\", tokenCount: 3},
                     {text: "\n", tokenCount: 0},
-                    {text: "    spaces after break", tokenCount: 3},
+                    {text: "&#x0020;   spaces after break", tokenCount: 9},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -3375,6 +3377,194 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
         ],
     });
 });
+
+test("escapes 4 spaces which would create a code block", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
+
+    expect(
+        testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("    this isn’t a code block")]),
+                schema.node("quoteBlock", {}, [
+                    schema.node("paragraph", {}, [schema.text("    this also isn’t a code block")]),
+                ]),
+                schema.node("unorderedListItem", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("    this unordered list item isn’t a code block"),
+                    ]),
+                ]),
+                schema.node("orderedListItem", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("    this ordered list item isn’t a code block"),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text(">     similarly, not a code block")]),
+                schema.node("paragraph", {}, [schema.text("-     nor is this a code block")]),
+                schema.node("paragraph", {}, [
+                    schema.text("1.     finally, this isn’t a code block"),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ),
+    ).toEqual({
+        text: `\
+&#x0020;   this isn’t a code block
+
+> &#x0020;   this also isn’t a code block
+
+- &#x0020;   this unordered list item isn’t a code block
+1. &#x0020;   this ordered list item isn’t a code block
+
+\\> &#x0020;   similarly, not a code block
+
+\\- &#x0020;   nor is this a code block
+
+1\\. &#x0020;   finally, this isn’t a code block`,
+        isGroup: true,
+        tokenCount: 111,
+        context: {sectionHeading: null},
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 13,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "&#x0020;   this isn’t a code block", tokenCount: 13}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 15,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {text: "> &#x0020;   this also isn’t a code block", tokenCount: 15},
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: true,
+                tokenCount: 37,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 19,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {
+                                text: "- &#x0020;   this unordered list item isn’t a code block",
+                                tokenCount: 19,
+                            },
+                        ],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 18,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {
+                                text: "1. &#x0020;   this ordered list item isn’t a code block",
+                                tokenCount: 18,
+                            },
+                        ],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 14,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {text: "\\> &#x0020;   similarly, not a code block", tokenCount: 14},
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 14,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "\\- &#x0020;   nor is this a code block", tokenCount: 14}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 18,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {text: "1\\. &#x0020;   finally, this isn’t a code block", tokenCount: 18},
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+for (const numSpaces of [1, 2, 3]) {
+    // sanity checks for spaces that are not expected to make code blocks in CommonMark
+    test(`escapes ${numSpaces} spaces which would not create a code block`, async () => {
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+        const getAccountIfExists = () => null;
+        const getSearchEntityIfExists = () => null;
+
+        const spaces = " ".repeat(numSpaces);
+        const chunkEscapedSpaces = "&#x0020;" + " ".repeat(numSpaces - 1);
+
+        expect(
+            testGetFullSearchContentChunk(
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [schema.text(`${spaces}this isn’t a code block`)]),
+                    schema.node("quoteBlock", {}, [
+                        schema.node("paragraph", {}, [
+                            schema.text(`${spaces}this also isn’t a code block`),
+                        ]),
+                    ]),
+                ]),
+                {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+            ),
+        ).toEqual({
+            text: `\
+${chunkEscapedSpaces}this isn’t a code block
+
+> ${chunkEscapedSpaces}this also isn’t a code block`,
+            isGroup: true,
+            tokenCount: 16,
+            context: {sectionHeading: null},
+            childChunks: [
+                {
+                    isGroup: false,
+                    tokenCount: 7,
+                    context: {sectionHeading: null},
+                    sentenceChunks: [{text: `${spaces}this isn’t a code block`, tokenCount: 7}],
+                    lineMarginTop: 2,
+                    lineMarginBottom: 2,
+                },
+                {
+                    isGroup: false,
+                    tokenCount: 9,
+                    context: {sectionHeading: null},
+                    sentenceChunks: [
+                        {
+                            text: `> ${spaces}this also isn’t a code block`,
+                            tokenCount: 9,
+                        },
+                    ],
+                    lineMarginTop: 2,
+                    lineMarginBottom: 2,
+                },
+            ],
+        });
+    });
+}
 
 test("prints mentions", async () => {
     const space = await TestSpace.create(context);

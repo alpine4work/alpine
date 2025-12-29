@@ -173,6 +173,94 @@ test("properly highlights content with `<em>` HTML tags in inline code", () => {
     });
 });
 
+// Covers our parsing of escaped spaces (&#x0020;) at the start of lines to avoid
+// CommonMark treating them as code blocks.
+test("parses 4 spaces with one escaped space at the beginning of a line as plain text", () => {
+    expect(
+        parseSearchContent("&#x0020;   test", {
+            shouldParseEmphasisHtmlTagAsHighlight: true,
+        }).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "    test"}],
+            },
+        ],
+    });
+});
+
+// Covers our parsing of escaped spaces (&#x0020;) at the start of lines to avoid
+// CommonMark treating them as code blocks.
+const markdownPrefixTests = [
+    {
+        character: ">",
+        type: "quoteBlock",
+    },
+    {
+        character: "-",
+        type: "unorderedListItem",
+        attrs: {
+            indent: 0,
+        },
+    },
+    {
+        character: "1.",
+        type: "orderedListItem",
+        attrs: {
+            indent: 0,
+            orderStart: null,
+        },
+    },
+];
+
+for (const {character, type, attrs} of markdownPrefixTests) {
+    test(`parses 4 spaces in a ${type} with one escaped space as plain text`, () => {
+        expect(
+            parseSearchContent(`${character} &#x0020;   test`, {
+                shouldParseEmphasisHtmlTagAsHighlight: true,
+            }).toJSON(),
+        ).toEqual({
+            type: "doc",
+            content: [
+                {
+                    type,
+                    ...(attrs ? {attrs} : {}),
+                    content: [
+                        {
+                            type: "paragraph",
+                            content: [{type: "text", text: "    test"}],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    test(`parses 4 spaces in a ${type} with one escaped space as plain text and starts with user typed html space`, () => {
+        expect(
+            parseSearchContent(`${character} &#x0020;   \\&#x0020;test`, {
+                shouldParseEmphasisHtmlTagAsHighlight: true,
+            }).toJSON(),
+        ).toEqual({
+            type: "doc",
+            content: [
+                {
+                    type,
+                    ...(attrs ? {attrs} : {}),
+                    content: [
+                        {
+                            type: "paragraph",
+                            content: [{type: "text", text: "    &#x0020;test"}],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+}
+
 // NOTE(calebmer): Reproduces an error I saw in development with a Wikipedia
 // dataset I downloaded to my computer.
 //

@@ -712,9 +712,42 @@ describe("markdown escaping", () => {
                 description: "HTML entity escaped",
             },
             {
+                input: "   Code with 3 spaces",
+                expected: "   Code with 3 spaces",
+                description: "3 spaces not escaped",
+            },
+            {
                 input: "    Code block indent",
-                expected: "    Code block indent",
-                description: "code block indentation not escaped",
+                expected: "&#x0020;   Code block indent",
+                description: "4+ spaces at line start escaped",
+            },
+            {
+                input: "    &#x0020;Code block indent and starts with space html character",
+                // User input is escaped, our inserted space character is not
+                expected:
+                    "&#x0020;   \\&#x0020;Code block indent and starts with space html character",
+                description: "4+ spaces at line start escaped with user-entered html space",
+            },
+            {
+                input: ">     Code in quote block",
+                expected: "\\> &#x0020;   Code in quote block",
+                description:
+                    "quote block marker, a space divider, and 4+ spaces after space escaped",
+            },
+            {
+                input: "|     Code in table |",
+                expected: "| &#x0020;   Code in table |",
+                description: "table marker, a space divider, and 4+ spaces after space escaped",
+            },
+            {
+                input: "-     Code in list",
+                expected: "\\- &#x0020;   Code in list",
+                description: "list, a space divider, and 4+ spaces after space escaped",
+            },
+            {
+                input: "2.     Code in numbered list",
+                expected: "2\\. &#x0020;   Code in numbered list",
+                description: "numbered list, a space divider, and 4+ spaces after space escaped",
             },
         ];
 
