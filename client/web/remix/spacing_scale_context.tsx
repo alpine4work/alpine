@@ -130,10 +130,10 @@ export function subscribeToSpacingScaleChange(listener: () => void): () => void 
     };
 }
 
-export function useSpacingScaleContextProvider(
-    clientInfo: ClientInfo,
-    children: ReactNode,
-): {spacingScale: SpacingScale; children: ReactElement} {
+export function useSpacingScaleContextProvider(clientInfo: ClientInfo): {
+    spacingScale: SpacingScale;
+    render: (children: ReactNode) => ReactElement;
+} {
     const [spacingScale, setSpacingScale] = useState(getInitialAppRenderSpacingScale(clientInfo));
 
     useEffect(() => {
@@ -151,7 +151,7 @@ export function useSpacingScaleContextProvider(
 
     return {
         spacingScale,
-        children: (
+        render: (children: ReactNode) => (
             <SpacingScaleContext.Provider value={spacingScale}>
                 {children}
             </SpacingScaleContext.Provider>

@@ -48,6 +48,7 @@ import {CurrentTimeContextProvider} from "~/client/web/remix/current_time_contex
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {usePlatformContextProvider} from "~/client/web/remix/platform_context.js";
+import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_context.js";
 import {useSpacingScaleContextProvider} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {NavigationContextProvider} from "~/client/web/remix/use_navigate.js";
@@ -59,6 +60,7 @@ import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_bloc
 import {colors} from "~/shared/design/core/colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -69,7 +71,8 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {generateId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
-import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
+import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
+import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
@@ -268,6 +271,9 @@ function renderRootBodyScripts(platform: Platform) {
 }
 
 function useRootAppContext(
+    clientInfo: ClientInfo,
+    spacingScale: SpacingScale,
+    platform: Platform,
     dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>,
 ) {
     // Incidentally, re-rendering when loader data is fulfilled here also causes
@@ -289,6 +295,16 @@ function useRootAppContext(
     context = useMemo(() => {
         const propagatedEventData: Array<TracerEventFullData> = [];
 
+        propagatedEventData.push({
+            context: {
+                route: getRouteStringFromMatches(dataRouterStateContext.matches),
+                platform,
+                spacingScale,
+                routeLayout: getDefaultRouteLayoutForPlatform(platform),
+                renderingEngine: clientInfo.renderingEngine,
+            },
+        });
+
         const loaderData = Object.values(dataRouterStateContext.loaderData);
         for (const data of loaderData) {
             if (!data) continue;
@@ -304,13 +320,16 @@ function useRootAppContext(
             }
         }
 
-        if (propagatedEventData.length === 0) return context;
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
     }, [
+        platform,
+        spacingScale,
+        clientInfo.renderingEngine,
         dataRouterStateContext.loaderData,
+        dataRouterStateContext.matches,
         loadingIndicatorLoaderDataResult.isPending,
         loadingIndicatorLoaderDataResult.value,
-        context,
+        context.tracer,
     ]);
 
     return context;
@@ -326,7 +345,24 @@ export default function Root() {
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
-    const context = useRootAppContext(dataRouterStateContext);
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+
+    const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
+        ? dataRouterStateContext
+        : null;
+
+    const {clientInfo, render: renderClientInfoContextProvider} = useClientInfoContextProvider({
+        browserId: loaderData.browserId,
+        initialClientInfo: loaderData.clientInfo,
+    });
+
+    const {spacingScale, render: renderSpacingScaleContextProvider} =
+        useSpacingScaleContextProvider(clientInfo);
+
+    const {platform, render: renderPlatformContextProvider} =
+        usePlatformContextProvider(clientInfo);
+
+    const context = useRootAppContext(clientInfo, spacingScale, platform, dataRouterStateContext);
 
     // If there are any unhandled browser errors then report them with our tracer.
     // We put uncaught error handling here because we want it to include propagated
@@ -374,12 +410,6 @@ export default function Root() {
             window.removeEventListener("error", handleError);
         };
     }, [context.tracer]);
-
-    const loaderData = useLoaderDataWithSchema(LoaderSchema);
-
-    const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
-        ? dataRouterStateContext
-        : null;
 
     const nodes: Array<ReactElement> = [];
 
@@ -536,54 +566,40 @@ export default function Root() {
         nodes.sort((node1, node2) => defaultCompareStrings(String(node1.key), String(node2.key)));
     }
 
-    const wrappedChildren5 = (
-        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-            <AppContextProvider value={context}>
-                <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
-                    <NavigationContextProvider>
-                        <GlobalKeyDownRootContextProvider>
-                            <BottomBarFrameContextProvider>
-                                <RootOverlayScopeContextProvider>
-                                    <MobileFullScreenModalContextProvider>
-                                        <TooltipCoordinationContextProvider>
-                                            <ReporterContextProvider>
-                                                <BlobsArtProvider />
-                                                {nodes}
-                                            </ReporterContextProvider>
-                                        </TooltipCoordinationContextProvider>
-                                    </MobileFullScreenModalContextProvider>
-                                </RootOverlayScopeContextProvider>
-                            </BottomBarFrameContextProvider>
-                        </GlobalKeyDownRootContextProvider>
-                    </NavigationContextProvider>
-                </CurrentTimeContextProvider>
-            </AppContextProvider>
-        </IconContext.Provider>
-    );
-
-    const {clientInfo, children: wrappedChildren4} = useClientInfoContextProvider(
-        {
-            browserId: loaderData.browserId,
-            initialClientInfo: loaderData.clientInfo,
-        },
-        wrappedChildren5,
-    );
-
-    const {spacingScale, children: wrappedChildren3} = useSpacingScaleContextProvider(
-        clientInfo,
-        wrappedChildren4,
-    );
-
-    const {platform, children: wrappedChildren2} = usePlatformContextProvider(
-        clientInfo,
-        wrappedChildren3,
+    const children = renderClientInfoContextProvider(
+        renderSpacingScaleContextProvider(
+            renderPlatformContextProvider(
+                <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                    <AppContextProvider value={context}>
+                        <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
+                            <NavigationContextProvider>
+                                <GlobalKeyDownRootContextProvider>
+                                    <BottomBarFrameContextProvider>
+                                        <RootOverlayScopeContextProvider>
+                                            <MobileFullScreenModalContextProvider>
+                                                <TooltipCoordinationContextProvider>
+                                                    <ReporterContextProvider>
+                                                        <BlobsArtProvider />
+                                                        {nodes}
+                                                    </ReporterContextProvider>
+                                                </TooltipCoordinationContextProvider>
+                                            </MobileFullScreenModalContextProvider>
+                                        </RootOverlayScopeContextProvider>
+                                    </BottomBarFrameContextProvider>
+                                </GlobalKeyDownRootContextProvider>
+                            </NavigationContextProvider>
+                        </CurrentTimeContextProvider>
+                    </AppContextProvider>
+                </IconContext.Provider>,
+            ),
+        ),
     );
 
     const wrappedChildren = useGlobalContextProvider(
         useAppInitialRenderContextProvider(
             loaderData.initialTime,
             loaderData.initialAppRenderId,
-            wrappedChildren2,
+            children,
         ),
     );
 
@@ -652,8 +668,6 @@ function RootErrorBoundaryWrapper() {
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
-    const context = useRootAppContext(dataRouterStateContext);
-
     // `useLoaderData()` doesn't work in an error boundary or catch boundary.
     // We use this exact component for error and catch boundaries to avoid
     // remounting when navigating between errors and non-errors. So manually
@@ -666,6 +680,21 @@ function RootErrorBoundaryWrapper() {
         [dataRouterStateContext.loaderData.root],
     );
 
+    const {clientInfo, render: renderClientInfoContextProvider} = useClientInfoContextProvider({
+        // If there was an error at our root loader and we couldn't load `BrowserId`
+        // then use the `RealmId` as the `BrowserId`.
+        browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
+        initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
+    });
+
+    const {spacingScale, render: renderSpacingScaleContextProvider} =
+        useSpacingScaleContextProvider(clientInfo);
+
+    const {platform, render: renderPlatformContextProvider} =
+        usePlatformContextProvider(clientInfo);
+
+    const context = useRootAppContext(clientInfo, spacingScale, platform, dataRouterStateContext);
+
     const [fallbackInitialTime] = useState(() => new Date());
 
     // In case we don't have loader data (an error was thrown) fallback to trying
@@ -675,42 +704,22 @@ function RootErrorBoundaryWrapper() {
         [fallbackInitialTime, loaderData?.initialTime],
     );
 
-    const wrappedChildren5 = (
-        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-            <AppContextProvider value={context}>
-                <NavigationContextProvider>
-                    <RootErrorBoundary />
-                </NavigationContextProvider>
-            </AppContextProvider>
-        </IconContext.Provider>
-    );
-
-    const {clientInfo, children: wrappedChildren4} = useClientInfoContextProvider(
-        {
-            // If there was an error at our root loader and we couldn't load `BrowserId`
-            // then use the `RealmId` as the `BrowserId`.
-            browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
-            initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
-        },
-        wrappedChildren5,
-    );
-
-    const {spacingScale, children: wrappedChildren3} = useSpacingScaleContextProvider(
-        clientInfo,
-        wrappedChildren4,
-    );
-
-    const {platform, children: wrappedChildren2} = usePlatformContextProvider(
-        clientInfo,
-        wrappedChildren3,
+    const children = renderClientInfoContextProvider(
+        renderSpacingScaleContextProvider(
+            renderPlatformContextProvider(
+                <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                    <AppContextProvider value={context}>
+                        <NavigationContextProvider>
+                            <RootErrorBoundary />
+                        </NavigationContextProvider>
+                    </AppContextProvider>
+                </IconContext.Provider>,
+            ),
+        ),
     );
 
     const wrappedChildren = useGlobalContextProvider(
-        useAppInitialRenderContextProvider(
-            initialTime,
-            loaderData?.initialAppRenderId,
-            wrappedChildren2,
-        ),
+        useAppInitialRenderContextProvider(initialTime, loaderData?.initialAppRenderId, children),
     );
 
     return (

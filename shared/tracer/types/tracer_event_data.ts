@@ -1,3 +1,6 @@
+import type {Platform} from "~/shared/design/core/platform.js";
+import type {RouteLayout} from "~/shared/design/core/route_layout.js";
+import type {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import type {DateString} from "~/shared/helpers/date/date_string.js";
 import {
     AccountId,
@@ -557,6 +560,32 @@ export type TracerEventData = {
          * Is this span a part of a migration? If so this is the migration name.
          */
         readonly migration?: string;
+
+        /**
+         * Route we're rendering in `AppService`.
+         */
+        readonly route?: string;
+
+        /**
+         * What platform are we rendering on? Desktop or mobile.
+         */
+        readonly platform?: Platform;
+
+        /**
+         * What spacing scale are we using to render?
+         */
+        readonly spacingScale?: SpacingScale;
+
+        /**
+         * What route layout are we rendering in? Full (desktop) or narrow (mobile and
+         * peeks).
+         */
+        readonly routeLayout?: RouteLayout;
+
+        /**
+         * The browser rendering engine being used to render the app.
+         */
+        readonly renderingEngine?: string;
     };
 
     /**

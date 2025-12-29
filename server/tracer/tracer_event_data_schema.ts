@@ -2,6 +2,9 @@ import {
     tracerEventDataDynamoConsumedCapacityKeys,
     tracerEventDataDynamoPartitionTypesByTableName,
 } from "~/server/tracer/tracer_event_data_dynamo.js";
+import {allPlatforms} from "~/shared/design/core/platform.js";
+import {allRouteLayouts} from "~/shared/design/core/route_layout.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
@@ -196,6 +199,11 @@ const TracerEventDataSchema = {
             aboveChatId: Schema.id(),
         },
         migration: Schema.string,
+        route: Schema.string,
+        platform: Schema.enum(allPlatforms),
+        spacingScale: Schema.enum(allSpacingScales),
+        routeLayout: Schema.enum(allRouteLayouts),
+        renderingEngine: Schema.string,
     },
     dynamodb: {
         action: IdentifierStringSchema,

@@ -130,10 +130,10 @@ export function subscribeToPlatformChange(listener: () => void): () => void {
     };
 }
 
-export function usePlatformContextProvider(
-    clientInfo: ClientInfo,
-    children: ReactNode,
-): {platform: Platform; children: ReactElement} {
+export function usePlatformContextProvider(clientInfo: ClientInfo): {
+    platform: Platform;
+    render: (children: ReactNode) => ReactElement;
+} {
     const [platform, setPlatform] = useState(getInitialAppRenderPlatform(clientInfo));
 
     useEffect(() => {
@@ -169,7 +169,7 @@ export function usePlatformContextProvider(
 
     return {
         platform,
-        children: (
+        render: (children: ReactNode) => (
             <PlatformContext.Provider value={platform}>
                 <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
                     {children}

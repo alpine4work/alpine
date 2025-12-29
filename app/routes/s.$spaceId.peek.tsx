@@ -18,6 +18,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
@@ -77,6 +78,10 @@ export default function PeekLayout() {
         replacePropagatedEventData.context = replaceContextPropagatedEventData;
         replaceContextPropagatedEventData.peekId = peekContext.id;
         replaceContextPropagatedEventData.peek = replaceContextPeekPropagatedEventData;
+        replaceContextPropagatedEventData.route = getRouteStringFromMatches(
+            dataRouterStateContext.matches,
+        );
+        replaceContextPropagatedEventData.routeLayout = peekContext.layout;
 
         // Move some defined IDs in `context` into `peek.context` with an "above"
         // prefix. This disambiguates context IDs the user is interacting with from the
@@ -115,7 +120,9 @@ export default function PeekLayout() {
     }, [
         context,
         peekContext.id,
+        peekContext.layout,
         dataRouterStateContext.loaderData,
+        dataRouterStateContext.matches,
         loadingIndicatorLoaderDataResult.isPending,
         loadingIndicatorLoaderDataResult.value,
     ]);

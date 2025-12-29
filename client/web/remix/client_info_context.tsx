@@ -108,16 +108,16 @@ export function useClientInfo(): ClientInfo {
     return clientInfo;
 }
 
-export function useClientInfoContextProvider(
-    {
-        browserId,
-        initialClientInfo,
-    }: {
-        browserId: BrowserId;
-        initialClientInfo: ClientInfo;
-    },
-    children: ReactNode,
-): {clientInfo: ClientInfo; children: ReactElement} {
+export function useClientInfoContextProvider({
+    browserId,
+    initialClientInfo,
+}: {
+    browserId: BrowserId;
+    initialClientInfo: ClientInfo;
+}): {
+    clientInfo: ClientInfo;
+    render: (children: ReactNode) => ReactElement;
+} {
     const [clientInfo, setClientInfo] = useState(initialClientInfo);
 
     useEffect(() => {
@@ -140,7 +140,7 @@ export function useClientInfoContextProvider(
 
     return {
         clientInfo,
-        children: (
+        render: (children: ReactNode) => (
             <BrowserIdContext.Provider value={browserId}>
                 <ClientInfoContext.Provider value={clientInfo}>
                     <I18nProvider

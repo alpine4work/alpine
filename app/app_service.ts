@@ -12,6 +12,9 @@ import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
 import {authenticateActorContextModule} from "~/app/helpers/authenticate_actor_context_module.js";
 import {createAppServerRoutes} from "~/app/router/app_server_routes.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
+import {getInitialAppRenderPlatform} from "~/client/web/remix/platform_context.js";
+import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_context.js";
+import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
@@ -81,6 +84,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 let appService: {
@@ -358,16 +362,11 @@ async function createAppService({
 
             const matches = handleRequest.matchServerRoutes(url);
 
-            let route = "";
-
+            let route;
             if (matches === null) {
                 route = "/*";
             } else {
-                for (const match of matches) {
-                    if (match.route.id === "root") continue;
-                    if (match.route.path === undefined) continue;
-                    route = `${route}/${match.route.path}`;
-                }
+                route = getRouteStringFromMatches(matches);
             }
 
             return [route, matches];
@@ -407,6 +406,13 @@ async function createAppService({
                     webPushVapidPublicKey,
                 });
 
+                let route;
+                if (matches === null) {
+                    route = "/*";
+                } else {
+                    route = getRouteStringFromMatches(matches);
+                }
+
                 const response = await processContext.with<
                     Omit<
                         LoaderContextModules,
@@ -423,6 +429,19 @@ async function createAppService({
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
                     },
                     context => {
+                        const clientInfo = context.loader.getClientInfo();
+                        const platform = getInitialAppRenderPlatform(clientInfo);
+
+                        span.addPropagatedData({
+                            context: {
+                                route,
+                                platform,
+                                spacingScale: getInitialAppRenderSpacingScale(clientInfo),
+                                routeLayout: getDefaultRouteLayoutForPlatform(platform),
+                                renderingEngine: clientInfo.renderingEngine,
+                            },
+                        });
+
                         // The first time our server process runs in development, seed DynamoDB with
                         // some initial data. The seed function should be idempotent.
                         if (
@@ -462,20 +481,7 @@ async function createAppService({
 
                 // Include the route in an HTTP header so our edge service can use the route in
                 // its HTTP span name.
-                {
-                    let route = "";
-                    if (matches === null) {
-                        route = "/*";
-                    } else {
-                        for (const match of matches) {
-                            if (match.route.id === "root") continue;
-                            if (match.route.path === undefined) continue;
-                            route = `${route}/${match.route.path}`;
-                        }
-                    }
-
-                    response.headers.set("cyberworlds-route", route);
-                }
+                response.headers.set("cyberworlds-route", route);
 
                 return response;
             });

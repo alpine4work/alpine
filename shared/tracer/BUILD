@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/cookie",
         "//:node_modules/set-cookie-parser",
         "//:node_modules/tough-cookie",
+        "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
