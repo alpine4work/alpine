@@ -72,7 +72,7 @@ export async function runDevAgentsD1ExecuteCommand({
     }
 
     const stdout = await runDevAgentsD1Process(
-        ["execute", "agent-service", "--local", "--json", "--command", command],
+        ["execute", "agent-usage", "--local", "--json", "--command", command],
         {consumeOutput: true},
     );
 
@@ -99,14 +99,14 @@ export async function runDevAgentsD1ExecuteCommand({
 }
 
 export async function runDevAgentsD1ApplyCommand() {
-    await runDevAgentsD1Process(["migrations", "apply", "agent-service", "--local"]);
+    await runDevAgentsD1Process(["migrations", "apply", "agent-usage", "--local"]);
 }
 
 export async function runDevAgentsD1StatusCommand({quiet = false}: {quiet?: boolean} = {}): Promise<
     "NoMigrations" | "CommittedMigrations" | "UncommittedMigrations"
 > {
     // Check if there are pending migrations using migrations list
-    const stdout = await runDevAgentsD1Process(["migrations", "list", "agent-service", "--local"], {
+    const stdout = await runDevAgentsD1Process(["migrations", "list", "agent-usage", "--local"], {
         consumeOutput: true,
     });
 
