@@ -92,7 +92,7 @@ async function applyCloudflareD1Migrations(
 
         const subprocess: ChildProcess = spawn(
             wranglerPath,
-            ["d1", "migrations", "apply", databaseName],
+            ["d1", "migrations", "apply", databaseName, "--remote"],
             {
                 cwd: joinPath(runfilesPath, "cyberworlds"),
                 env,
