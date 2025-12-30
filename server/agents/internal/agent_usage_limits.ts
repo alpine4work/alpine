@@ -5,9 +5,13 @@ import {
 } from "~/server/agents/internal/supported_agent_models.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {DataLossError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Defines the dynamic agent usage window duration and limit in dollars.
@@ -15,37 +19,22 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * or surpasses their previous window duration. After this duration, the
  * window resets and usage is reset.
  */
-export const dynamicAgentUsageWindowLimit = {
-    durationMs: 8 * 60 * 60 * 1000, // 8 hours
-    limitDollars: 1,
+export const agentUsageWindowLimit = {
+    // The dynamic window is a rolling 8 hour window. If a user hasn't sent a request in 10 hours,
+    // on their next request, a new window will start with an 8 hour timer.
+    dynamic: {
+        durationMs: 8 * 60 * 60 * 1000, // 8 hours
+        limitDollars: 1,
+    },
+    // Weekly windows are fixed windows that start at the beginning of the week (Sunday 00:00 UTC)
+    // and last for 7 days. They do not start at the time of the first request (like dynamic).
+    weekly: {
+        durationMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+        limitDollars: 2,
+    },
 };
 
-/**
- * Determines if the usage window should be reset based on its start time and the current timestamp.
- */
-function shouldResetWindow(startedAt: number, currentTimestamp: number): boolean {
-    const windowDurationMs = dynamicAgentUsageWindowLimit.durationMs;
-    return currentTimestamp >= startedAt + windowDurationMs;
-}
-
-/**
- * Calculates the time shown to the user of when their agent usage limit will reset.
- */
-function calculateVisualTimeUntilReset(windowStart: number, currentTimestamp: number): string {
-    const windowEnd = windowStart + dynamicAgentUsageWindowLimit.durationMs;
-    const msUntilReset = Math.max(0, windowEnd - currentTimestamp);
-
-    const totalMinutes = msUntilReset / (60 * 1000);
-    const hours = totalMinutes / 60;
-
-    if (hours >= 1) {
-        const roundedHours = Math.ceil(hours);
-        return roundedHours === 1 ? "1 hour" : `${roundedHours} hours`;
-    } else {
-        const roundedMinutes = Math.max(1, Math.ceil(totalMinutes));
-        return roundedMinutes === 1 ? "1 minute" : `${roundedMinutes} minutes`;
-    }
-}
+type AgentUsageWindowType = keyof typeof agentUsageWindowLimit;
 
 type CheckAgentLimitResult =
     | {
@@ -62,71 +51,142 @@ type CheckAgentLimitResult =
       };
 
 /**
- * Verify if an account can make a request based on their agent usage limits.
+ * Determines if the usage window should be reset based on its start time and the current timestamp.
  */
-export async function checkAgentUsageLimit(
-    tracer: TracerBase,
+function shouldResetWindow(
+    type: AgentUsageWindowType,
+    windowStartedAt: number,
+    currentTimestamp: number,
+): boolean {
+    const windowDurationMs = agentUsageWindowLimit[type].durationMs;
+    return currentTimestamp >= windowStartedAt + windowDurationMs;
+}
+
+/**
+ * Calculates the time shown to the user of when their agent usage limit will reset.
+ */
+function calculateVisualTimeUntilReset(
+    type: AgentUsageWindowType,
+    windowStartedAt: number,
+    currentTimestamp: number,
+): string {
+    const windowEnd = windowStartedAt + agentUsageWindowLimit[type].durationMs;
+    const msUntilReset = Math.max(0, windowEnd - currentTimestamp);
+
+    const totalMinutes = msUntilReset / (60 * 1000);
+    const hours = totalMinutes / 60;
+    const days = hours / 24;
+
+    if (days >= 1) {
+        const roundedDays = Math.ceil(days);
+        return printPrettyNumber(defaultLocale, roundedDays, "day");
+    } else if (hours >= 1) {
+        const roundedHours = Math.ceil(hours);
+        return printPrettyNumber(defaultLocale, roundedHours, "hour");
+    } else {
+        const roundedMinutes = Math.max(1, Math.ceil(totalMinutes));
+        return printPrettyNumber(defaultLocale, roundedMinutes, "minute");
+    }
+}
+
+async function getAgentUsageWindowStartedAt(
+    span: TracerSpan,
     agentUsageDatabase: AgentUsageDatabase,
-    params: {
-        accountId: AccountId;
-        currentTimestamp: number;
-    },
-): Promise<CheckAgentLimitResult> {
-    const {accountId, currentTimestamp} = params;
-    return tracer.withSpan(`Check agent limit`, async span => {
-        // Place account ID first so we get this data even if an error occurs later
-        span.addData({
-            agents: {
-                request: {
-                    accountId,
-                },
-            },
-        });
+    {
+        type,
+        accountId,
+        currentTimestamp,
+    }: {type: AgentUsageWindowType; accountId: AccountId; currentTimestamp: number},
+): Promise<number> {
+    switch (type) {
+        case "weekly": {
+            const date = new Date(currentTimestamp);
 
-        const agentWindowLimit = dynamicAgentUsageWindowLimit.limitDollars * 100 * 1000;
+            // Go to 00:00:00.000 UTC of the same day
+            date.setUTCHours(0, 0, 0, 0);
 
-        // Get the current window start time (returns currentTimestamp if no window exists)
-        const windowStartedAt = await agentUsageDatabase.getWindowStartTimeByAccountId(accountId);
+            // Back up to Sunday
+            date.setUTCDate(date.getUTCDate() - date.getUTCDay());
 
-        let currentUsed = BigInt(0);
-        let actualWindowStart: number;
+            return date.getTime();
+        }
+        case "dynamic": {
+            const windowStartedAt = await agentUsageDatabase.getWindowStartTimeByAccountId(
+                accountId,
+            );
 
-        if (!windowStartedAt || shouldResetWindow(windowStartedAt, currentTimestamp)) {
-            // Window needs reset - set new start time
-            await agentUsageDatabase.setWindowStartTimeByAccountId(accountId, currentTimestamp);
-
-            actualWindowStart = currentTimestamp;
-
-            if (windowStartedAt) {
-                span.addData({
-                    agents: {
-                        request: {
-                            usageWindow: {
-                                previousStartTime: serializeDateString(new Date(windowStartedAt)),
-                                reset: true,
+            if (
+                !windowStartedAt ||
+                shouldResetWindow("dynamic", windowStartedAt, currentTimestamp)
+            ) {
+                if (windowStartedAt) {
+                    span.addData({
+                        agents: {
+                            request: {
+                                usageWindow: {
+                                    previousStartTime: serializeDateString(
+                                        new Date(windowStartedAt),
+                                    ),
+                                    reset: true,
+                                },
                             },
                         },
-                    },
-                });
-            }
-        } else {
-            actualWindowStart = windowStartedAt;
+                    });
+                }
 
-            // Window is still active - get current usage by summing agent requests
-            currentUsed = await agentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp(
-                accountId,
-                windowStartedAt,
-            );
+                // Window needs reset - set new start time
+                await agentUsageDatabase.setWindowStartTimeByAccountId(accountId, currentTimestamp);
+                return currentTimestamp;
+            }
+
+            return windowStartedAt;
         }
+        default: {
+            throw exhaustive(type);
+        }
+    }
+}
+
+async function checkAgentUsageLimitForWindow(
+    parentSpan: TracerSpan,
+    agentUsageDatabase: AgentUsageDatabase,
+    {
+        type,
+        currentTimestamp,
+        accountId,
+    }: {
+        type: AgentUsageWindowType;
+        currentTimestamp: number;
+        accountId: AccountId;
+    },
+): Promise<CheckAgentLimitResult> {
+    return parentSpan.withSpan(`Check ${type} window`, async span => {
+        // Get the limit in millicents
+        const limit = agentUsageWindowLimit[type].limitDollars * 100 * 1000;
+
+        const startedAt = await getAgentUsageWindowStartedAt(span, agentUsageDatabase, {
+            type,
+            accountId,
+            currentTimestamp,
+        });
+
+        const currentUsed =
+            startedAt === currentTimestamp
+                ? BigInt(0)
+                : await agentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp(
+                      accountId,
+                      startedAt,
+                  );
 
         span.addData({
             agents: {
                 request: {
                     usageWindow: {
-                        limitMillicents: agentWindowLimit,
+                        windowType: type,
+                        limitMillicents: limit,
                         usedMillicents: Number(currentUsed),
-                        ageMs: currentTimestamp - actualWindowStart,
-                        startTime: serializeDateString(new Date(actualWindowStart)),
+                        ageMs: currentTimestamp - startedAt,
+                        startTime: serializeDateString(new Date(startedAt)),
                     },
                 },
             },
@@ -134,11 +194,8 @@ export async function checkAgentUsageLimit(
 
         // Check if current usage exceeds limit
         // If we're an alpioneer, we never enforce limits, but still return usage for downgrades
-        if (currentUsed > agentWindowLimit && !(accountId in alpioneers)) {
-            const timeUntilReset = calculateVisualTimeUntilReset(
-                actualWindowStart,
-                currentTimestamp,
-            );
+        if (currentUsed > limit && !(accountId in alpioneers)) {
+            const timeUntilReset = calculateVisualTimeUntilReset(type, startedAt, currentTimestamp);
 
             span.addData({
                 agents: {
@@ -158,8 +215,56 @@ export async function checkAgentUsageLimit(
             };
         }
 
-        // TODO(imjoshin): check weekly and monthly limits here
-        const maximumWindowUsagePercent = Number(currentUsed) / agentWindowLimit;
+        const maximumWindowUsagePercent = Number(currentUsed) / limit;
+
+        return {ok: true, maximumWindowUsagePercent};
+    });
+}
+
+/**
+ * Verify if an account can make a request based on their agent usage limits.
+ */
+export async function checkAgentUsageLimit(
+    tracer: TracerBase,
+    agentUsageDatabase: AgentUsageDatabase,
+    params: {
+        accountId: AccountId;
+        currentTimestamp: number;
+    },
+): Promise<CheckAgentLimitResult> {
+    const {accountId, currentTimestamp} = params;
+    return tracer.withSpan(`Check agent limits`, async span => {
+        // Place account ID first so we get this data even if an error occurs later
+        span.addData({
+            agents: {
+                request: {
+                    accountId,
+                },
+            },
+        });
+
+        let maximumWindowUsagePercent = 0;
+
+        // We purposefully check the longest window first. If they hit a weekly limit,
+        // there's no need to check the dynamic limit, and we want to return the longest
+        // blocked period to the user.
+        for (const type of ["weekly", "dynamic"] as const) {
+            const result = await checkAgentUsageLimitForWindow(span, agentUsageDatabase, {
+                type,
+                accountId,
+                currentTimestamp,
+            });
+
+            // As soon as we encounter a limit breach, return immediately
+            if (!result.ok) {
+                return result;
+            } else {
+                maximumWindowUsagePercent = Math.max(
+                    maximumWindowUsagePercent,
+                    result.maximumWindowUsagePercent,
+                );
+            }
+        }
 
         return {ok: true, maximumWindowUsagePercent};
     });
