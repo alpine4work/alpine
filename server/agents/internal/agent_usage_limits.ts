@@ -245,25 +245,34 @@ export async function checkAgentUsageLimit(
 
         let maximumWindowUsagePercent = 0;
 
-        // We purposefully check the longest window first. If they hit a weekly limit,
-        // there's no need to check the dynamic limit, and we want to return the longest
-        // blocked period to the user.
-        for (const type of ["weekly", "dynamic"] as const) {
-            const result = await checkAgentUsageLimitForWindow(span, agentUsageDatabase, {
-                type,
-                accountId,
-                currentTimestamp,
-            });
+        try {
+            // We purposefully check the longest window first. If they hit a weekly limit,
+            // there's no need to check the dynamic limit, and we want to return the longest
+            // blocked period to the user.
+            for (const type of ["weekly", "dynamic"] as const) {
+                const result = await checkAgentUsageLimitForWindow(span, agentUsageDatabase, {
+                    type,
+                    accountId,
+                    currentTimestamp,
+                });
 
-            // As soon as we encounter a limit breach, return immediately
-            if (!result.ok) {
-                return result;
-            } else {
-                maximumWindowUsagePercent = Math.max(
-                    maximumWindowUsagePercent,
-                    result.maximumWindowUsagePercent,
-                );
+                // As soon as we encounter a limit breach, return immediately
+                if (!result.ok) {
+                    return result;
+                } else {
+                    maximumWindowUsagePercent = Math.max(
+                        maximumWindowUsagePercent,
+                        result.maximumWindowUsagePercent,
+                    );
+                }
             }
+        } catch (error) {
+            // In case of errors checking limits, allow the request to proceed.
+            // We don't want to block users due to transient errors.
+            span.addException(
+                new DataLossError("Failed to check agent usage limits", {cause: error}),
+            );
+            return {ok: true, maximumWindowUsagePercent: 0};
         }
 
         return {ok: true, maximumWindowUsagePercent};

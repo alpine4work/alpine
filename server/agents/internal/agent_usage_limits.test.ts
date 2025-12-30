@@ -10,6 +10,7 @@ import {
     AgentUsageDatabaseInterface,
 } from "~/server/agents/internal/d1/agent_usage_database.js";
 import {joshKnownAccountId} from "~/shared/accounts/known_account_ids.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -463,6 +464,38 @@ describe("checkAgentUsageLimit", () => {
                 mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
             ).toHaveBeenCalledTimes(2);
         });
+    });
+
+    test("allows requests when database errors occur (graceful degradation)", async () => {
+        const currentTimestamp = Date.now();
+        const accountId = "test_account" as AccountId;
+
+        // Mock getWindowStartTimeByAccountId to succeed (returns null for new window)
+        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(null);
+
+        // Mock setWindowStartTimeByAccountId to succeed
+        mockAgentUsageDatabase.setWindowStartTimeByAccountId.mockResolvedValue();
+
+        // Mock getUsedMillicentsByAccountIdSinceTimestamp to throw an error
+        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockRejectedValue(
+            new UnknownError("Database connection failed"),
+        );
+
+        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+            accountId,
+            currentTimestamp,
+        });
+
+        // Should allow the request to proceed despite database error
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.maximumWindowUsagePercent).toBe(0);
+        }
+
+        // Should have attempted to check usage
+        expect(
+            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
+        ).toHaveBeenCalled();
     });
 
     describe("windows reset properly", () => {
