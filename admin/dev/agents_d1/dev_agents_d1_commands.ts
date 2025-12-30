@@ -12,7 +12,21 @@ import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel
 
 // Shortcuts for common queries to be used with the "d1 run" command
 const namedQueries = new Map<string, string>([
-    ["get_agent_usage", "SELECT * FROM account_agent_usage_windows;"],
+    [
+        "get-agent-usage-windows",
+        "SELECT * FROM agent_usage_windows ORDER BY started_at DESC LIMIT 10;",
+    ],
+    ["get-agent-requests", "SELECT * FROM agent_requests ORDER BY created_at DESC LIMIT 10;"],
+    [
+        "max-last-request-used",
+        "UPDATE agent_requests SET used_millicents = 9999999999999999 WHERE created_at = (SELECT MAX(created_at) FROM agent_requests);",
+    ],
+    [
+        "expire-short-window-30-seconds",
+        `UPDATE agent_usage_windows SET started_at = ${
+            Date.now() - 8 * 60 * 60 * 1000 + 30 * 1000
+        };`,
+    ],
 ]);
 
 async function runDevAgentsD1Process(

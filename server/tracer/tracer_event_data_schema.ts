@@ -575,6 +575,23 @@ const TracerEventDataSchema = {
                 type: Schema.string,
             },
         },
+        request: {
+            accountId: Schema.id(),
+            provider: Schema.string,
+            model: Schema.string,
+            usedMillicents: Schema.integer,
+            usageWindow: {
+                limitMillicents: Schema.integer,
+                usedMillicents: Schema.integer,
+                exceededLimit: Schema.boolean,
+                windowType: Schema.string,
+                ageMs: Schema.integer,
+                reset: Schema.boolean,
+                startTime: DateStringSchema,
+                previousStartTime: DateStringSchema,
+                previousUsedMillicents: Schema.integer,
+            },
+        },
     },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 

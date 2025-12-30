@@ -8,6 +8,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "agents_lib",
     test_deps = [
+        "//:node_modules/@jest/globals",
         "//:node_modules/@miniflare/durable-objects",
         "//:node_modules/@miniflare/storage-memory",
         "//server/agents/api/test_helpers",

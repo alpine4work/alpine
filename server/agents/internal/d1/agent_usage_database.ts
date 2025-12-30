@@ -8,7 +8,17 @@ import {
     agentUsageWindowsTable,
 } from "~/server/agents/internal/d1/agent_usage_schema.js";
 
-export class AgentUsageDatabase {
+export interface AgentUsageDatabaseInterface {
+    createAgentRequest(request: AgentRequest): Promise<void>;
+    getUsedMillicentsByAccountIdSinceTimestamp(
+        accountId: string,
+        sinceTimestamp: number,
+    ): Promise<bigint>;
+    getWindowStartTimeByAccountId(accountId: string): Promise<number | null>;
+    setWindowStartTimeByAccountId(accountId: string, startedAt: number): Promise<void>;
+}
+
+export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
     private readonly database;
     constructor(database: D1Database) {
         this.database = drizzle(database, {

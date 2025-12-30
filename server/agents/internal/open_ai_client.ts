@@ -1,4 +1,5 @@
 import OpenAi, {APIConnectionTimeoutError, APIError} from "openai";
+import {SupportedAgentModels} from "~/server/agents/internal/supported_agent_models.js";
 import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -88,7 +89,9 @@ export class OpenAiClient {
 
     public async *createResponseWithStreaming(
         tracer: TracerBase,
-        body: OpenAi.Responses.ResponseCreateParamsStreaming,
+        body: OpenAi.Responses.ResponseCreateParamsStreaming & {
+            model: SupportedAgentModels["openai"];
+        },
     ): AsyncIterableIterator<OpenAi.Responses.ResponseStreamEvent> {
         const {span, finishSpan} = tracer.startSpan("OpenAI create response (streaming)");
 

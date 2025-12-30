@@ -1670,12 +1670,87 @@ export type TracerEventData = {
     };
 
     readonly agents?: {
-        schedule: {
-            event: {
-                time?: DateString;
-                executionTime?: DateString;
-                queueDurationMs?: number;
-                type?: string;
+        readonly schedule?: {
+            readonly event?: {
+                readonly time?: DateString;
+                readonly executionTime?: DateString;
+                readonly queueDurationMs?: number;
+                readonly type?: string;
+            };
+        };
+
+        /**
+         * Information regarding a single agent request.
+         */
+        readonly request?: {
+            /**
+             * The account id associated with the agent request.
+             */
+            readonly accountId?: AccountId;
+
+            /**
+             * The provider of the model.
+             */
+            readonly provider?: string;
+
+            /**
+             * The model used for the agent request.
+             */
+            readonly model?: string;
+
+            /**
+             * The number of millicents used for the agent request.
+             */
+            readonly usedMillicents?: number;
+
+            /**
+             * Information regarding the current usage window for the agent.
+             */
+            readonly usageWindow?: {
+                /**
+                 * The limit for agent usage for the given request.
+                 */
+                readonly limitMillicents?: number;
+
+                /**
+                 * The amount of millicents used in the current usage window.
+                 */
+                readonly usedMillicents?: number;
+
+                /**
+                 * Whether or not the agent usage limit has been exceeded.
+                 */
+                readonly exceededLimit?: boolean;
+
+                /**
+                 * The type of window being checked
+                 */
+                readonly windowType?: string;
+
+                /**
+                 * The age of the current usage window in milliseconds.
+                 */
+                readonly ageMs?: number;
+
+                /**
+                 * Did we reset the usage window during this request?
+                 */
+                readonly reset?: boolean;
+
+                /**
+                 * The start timestamp of the current usage window.
+                 */
+                readonly startTime?: DateString;
+
+                /**
+                 * The start timestamp of the previous usage window.
+                 */
+                readonly previousStartTime?: DateString;
+
+                /**
+                 * The amount of millicents used in the previous usage window.
+                 */
+                readonly previousUsedMillicents?: number;
             };
         };
     };

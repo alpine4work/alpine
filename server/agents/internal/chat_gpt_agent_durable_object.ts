@@ -16,6 +16,10 @@ import {
 import {agentMaxTokenCountPerWebhookCall} from "~/server/agents/internal/agent_limits.js";
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
 import {
+    checkAgentUsageLimit,
+    recordAgentUsage,
+} from "~/server/agents/internal/agent_usage_limits.js";
+import {
     chatGptReadLinkTool,
     chatGptSearchAlpineTool,
     getChatGptInstructions,
@@ -34,6 +38,10 @@ import {initializeMessagesInAgentConversation} from "~/server/agents/internal/me
 import {loadNewMessagesInAgentConversation} from "~/server/agents/internal/messages/load_new_messages_in_agent_conversation.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {shouldAgentRespondToRequest} from "~/server/agents/internal/should_agent_respond_to_request.js";
+import {
+    SupportedAgentModels,
+    agentMillicentsPerToken,
+} from "~/server/agents/internal/supported_agent_models.js";
 import {searchAlpineForAgent} from "~/server/agents/internal/tools/search_alpine_for_agent.js";
 import {AgentMessageStream} from "~/server/api/markdown/agent_message_stream.js";
 import {parseApiContentFromMarkdown} from "~/server/api/markdown/parse_api_content_from_markdown.js";
@@ -53,7 +61,12 @@ import {
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    DataLossError,
+    ErrorBase,
+    FailedPreconditionError,
+    InvalidArgumentError,
+} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {serializeError} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -77,6 +90,15 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type ChatGptAgentRoute = "NotFound" | "FetchConversationState" | "Webhook";
+
+type ChatAgentGptResponse = {
+    usedMillicents?: number;
+};
+
+// Model configuration for ChatGPT agent.
+const defaultModel: SupportedAgentModels["openai"] = "gpt-5.1";
+const downgradedModel: SupportedAgentModels["openai"] = "gpt-5-mini";
+const downgradeAtUsagePercent = 0.75;
 
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
@@ -118,10 +140,71 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
     }
 
-    protected override async _webhook(tracer: TracerBase, request: AgentWebhookRequest) {
+    protected override async _webhook(
+        span: TracerSpan,
+        request: AgentWebhookRequest,
+    ): Promise<void> {
+        // Check if the agent should respond before continuing.
+        if (!(await shouldAgentRespondToRequest(span, request))) return;
+
+        const currentTimestamp = Date.now();
+
+        span.addData({
+            agents: {
+                request: {
+                    provider: "openai",
+                },
+            },
+        });
+
+        const [{index: messageIndex}, usageLimitCheck] = await runAllPromises([
+            // Start the stream message immediately so the user sees some indicator.
+            createChatGptAgentEmptyStreamMessage(span, request),
+            // TODO(imjoshin, #ai): Usage limits and recording should be handled
+            // in the parent class before we call _webhook.
+            checkAgentUsageLimit(span, request.agentUsageDatabase.get(), {
+                accountId: request.accountId,
+                currentTimestamp,
+            }),
+        ]);
+
+        if (!usageLimitCheck.ok) {
+            await sendLimitErrorMessage(span, request, messageIndex, usageLimitCheck.message);
+            return;
+        }
+
+        // If the user has used more than 75% of any window, use the smaller model.
+        // TODO: when downgrading, show a message to the user
+        //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/nv1wvyh51yckfzkmxsq7mnstwr
+        const model: SupportedAgentModels["openai"] =
+            usageLimitCheck.maximumWindowUsagePercent > downgradeAtUsagePercent
+                ? downgradedModel
+                : defaultModel;
+
+        span.addData({
+            agents: {
+                request: {
+                    model,
+                },
+            },
+        });
+
         // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
         // message while the agent is responding to a previous request?
-        await requestChatGptAgent(tracer, request);
+        const response = await requestChatGptAgent(span, request, this._env, model, messageIndex);
+
+        if (response.usedMillicents !== undefined) {
+            await recordAgentUsage(span, request.agentUsageDatabase.get(), {
+                accountId: request.accountId,
+                spaceId: request.spaceId,
+                requestUsedMillicents: response.usedMillicents,
+                currentTimestamp,
+                provider: "openai",
+                model,
+            });
+        } else {
+            span.addException(new DataLossError("Missing required usage in ChatGPT response"));
+        }
     }
 
     private async _fetchConversationState(
@@ -208,13 +291,72 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
     }
 }
 
+/**
+ * Sends a limit error message to the user when agent limits are exceeded.
+ *
+ * TODO: finalize messaging and format
+ *   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/18hyw8ssg62c6az1a04sb82gpc
+ */
+async function sendLimitErrorMessage(
+    tracer: TracerBase,
+    request: AgentWebhookRequest,
+    messageIndex: number,
+    message: string,
+): Promise<void> {
+    const payload: ApiMessageStreamPartPayload = {
+        type: "Content",
+        content: {
+            elements: [
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: message,
+                        },
+                    ],
+                },
+                {
+                    type: "Paragraph",
+                    elements: [
+                        {
+                            type: "Text",
+                            text: "You can upgrade your plan to get more agent usage. ",
+                        },
+                        {
+                            type: "Text",
+                            text: "Learn more about upgrading your plan",
+                            marks: [
+                                {
+                                    type: "Link",
+                                    url: "https://alpine.inc#pricing",
+                                },
+                            ],
+                        },
+                        {
+                            type: "Text",
+                            text: " to continue using AI agents.",
+                        },
+                    ],
+                },
+            ],
+        },
+    };
+
+    await putApiMessageStreamPart(tracer, request.apiClient, request.room, messageIndex, 0, {
+        payload,
+    });
+
+    await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+}
+
 async function requestChatGptAgent(
     tracer: TracerBase,
     request: AgentWebhookRequest,
-): Promise<void> {
-    // Check if the agent should respond before continuing.
-    if (!(await shouldAgentRespondToRequest(tracer, request))) return;
-
+    env: AgentServiceEnv,
+    model: SupportedAgentModels["openai"],
+    messageIndex: number,
+): Promise<ChatAgentGptResponse> {
     // Make sure we have the latest messages from the messaging room in
     // conversation history.
     //
@@ -226,7 +368,7 @@ async function requestChatGptAgent(
     await ensureMessagesInChatGptAgentConversation(tracer, request);
 
     // Send a message from ChatGPT.
-    await createChatGptAgentMessage(tracer, request);
+    return createChatGptAgentMessage(tracer, env, request, model, messageIndex);
 }
 
 async function ensureMessagesInChatGptAgentConversation(
@@ -325,9 +467,13 @@ type ChatGptAgentMessageState = {
     getFunctionCallOutputTokenCount(): number;
 };
 
-async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebhookRequest) {
-    const {index: messageIndex} = await createChatGptAgentEmptyStreamMessage(tracer, request);
-
+async function createChatGptAgentMessage(
+    tracer: TracerBase,
+    env: AgentServiceEnv,
+    request: AgentWebhookRequest,
+    model: SupportedAgentModels["openai"],
+    messageIndex: number,
+): Promise<ChatAgentGptResponse> {
     const content = new AgentMessageStream({
         spaceId: request.spaceId,
         getTargetPathIfExists: async linkPath => {
@@ -446,7 +592,7 @@ async function createChatGptAgentMessage(tracer: TracerBase, request: AgentWebho
     };
 
     try {
-        await createChatGptAgentResponse(tracer, request, messageState);
+        return await createChatGptAgentResponse(tracer, env, request, model, messageState);
     } catch (error) {
         content.pushText(defaultAgentErrorDisplayMessage);
 
@@ -532,11 +678,29 @@ function createChatGptAgentEmptyStreamMessage(
     });
 }
 
+function convertChatGptUsageToMillicents(
+    model: SupportedAgentModels["openai"],
+    usage: OpenAi.Responses.ResponseUsage,
+) {
+    const millicentsPerToken = agentMillicentsPerToken["openai"][model];
+    const cachedInputTokens = usage.input_tokens_details.cached_tokens;
+    const inputTokens = usage.input_tokens - cachedInputTokens;
+    const outputTokens = usage.output_tokens;
+
+    return (
+        cachedInputTokens * millicentsPerToken.cachedInputTokens +
+        inputTokens * millicentsPerToken.inputTokens +
+        outputTokens * millicentsPerToken.outputTokens
+    );
+}
+
 async function createChatGptAgentResponse(
     tracer: TracerBase,
+    env: AgentServiceEnv,
     request: AgentWebhookRequest,
+    model: SupportedAgentModels["openai"],
     messageState: ChatGptAgentMessageState,
-): Promise<void> {
+): Promise<ChatAgentGptResponse> {
     // Calls any pending functions in the conversation history. Important for our
     // ChatGPT agent loop. If an agent response has function calls then we call
     // `createChatGptAgentResponse()` again. Which starts with this function that
@@ -563,9 +727,7 @@ async function createChatGptAgentResponse(
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
     const responseStream = request.openAiClient.get().createResponseWithStreaming(tracer, {
         stream: true,
-
-        // TODO(ifitzsimmons, #ai): Manage models with config (environment variables?)
-        model: "gpt-5.1",
+        model,
         // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.roomPath),
         safety_identifier: request.event.authorId,
@@ -638,6 +800,14 @@ async function createChatGptAgentResponse(
                 messageState.pushReasoningSummary(event.part.text);
                 break;
             }
+            case "response.completed": {
+                const {usage} = event.response;
+                if (!usage) break;
+
+                return {
+                    usedMillicents: convertChatGptUsageToMillicents(model, usage),
+                };
+            }
         }
     }
 
@@ -646,8 +816,10 @@ async function createChatGptAgentResponse(
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        await createChatGptAgentResponse(tracer, request, messageState);
+        return createChatGptAgentResponse(tracer, env, request, model, messageState);
     }
+
+    return {};
 }
 
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
