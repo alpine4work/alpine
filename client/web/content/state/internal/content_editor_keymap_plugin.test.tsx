@@ -1297,13 +1297,13 @@ test("can create an ordered list in a quote block", async () => {
     expect(getDoc().toString()).toEqual("doc(quoteBlock(orderedListItem(paragraph)))");
 });
 
-test("can not create a check list in a quote block", async () => {
+test("can create a check list in a quote block", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping("> ");
     await simulateTyping("[] ");
 
-    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("[] ")))');
+    expect(getDoc().toString()).toEqual("doc(quoteBlock(checkListItem(paragraph)))");
 });
 
 test("cannot create a divider in a quote block", async () => {

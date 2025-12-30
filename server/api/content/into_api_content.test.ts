@@ -18,6 +18,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {MessageContentProsemirrorSchema} from "~/shared/messaging/message_content_schema.js";
 
 // Node builders
 const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
@@ -31,6 +32,8 @@ const unorderedListItem = (indent: number, ...content: Array<Node>) =>
     schema.nodes.unorderedListItem.create({indent}, content);
 const orderedListItem = (indent: number, ...content: Array<Node>) =>
     schema.nodes.orderedListItem.create({indent}, content);
+const checkListItem = (indent: number, checked: boolean, ...content: Array<Node>) =>
+    schema.nodes.checkListItem.create({indent, checked}, content);
 const br = (marks?: Array<Mark>) => schema.nodes.break.create(null, null, marks);
 const mention = (mentionData: ContentMention, marks?: Array<Mark>) =>
     schema.nodes.mention.create({mention: mentionData}, null, marks);
@@ -2771,4 +2774,1086 @@ test("converts text with multiple comment marks into API content", () => {
             ],
         },
     );
+});
+
+describe("checklist", () => {
+    test("converts simple checklist into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, false, paragraph(text("Unchecked item"))),
+                checkListItem(0, true, paragraph(text("Checked item"))),
+                checkListItem(0, false, paragraph(text("Another unchecked"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unchecked item"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Checked item"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Another unchecked"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts checklist with all items checked into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Task 1"))),
+                checkListItem(0, true, paragraph(text("Task 2"))),
+                checkListItem(0, true, paragraph(text("Task 3"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Task 1"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Task 2"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Task 3"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts nested checklist into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Parent task"))),
+                checkListItem(1, false, paragraph(text("Subtask 1"))),
+                checkListItem(1, true, paragraph(text("Subtask 2"))),
+                checkListItem(0, false, paragraph(text("Another parent"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Parent task"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Subtask 1"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                checked: true,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Subtask 2"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Another parent"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts deeply nested checklist into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Level 0"))),
+                checkListItem(1, false, paragraph(text("Level 1"))),
+                checkListItem(2, true, paragraph(text("Level 2"))),
+                checkListItem(3, false, paragraph(text("Level 3"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Level 0"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Level 1"}],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "CheckList",
+                                                        items: [
+                                                            {
+                                                                checked: true,
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Level 2",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                                nestedListElements: [
+                                                                    {
+                                                                        type: "CheckList",
+                                                                        items: [
+                                                                            {
+                                                                                checked: false,
+                                                                                elements: [
+                                                                                    {
+                                                                                        type: "Paragraph",
+                                                                                        elements: [
+                                                                                            {
+                                                                                                type: "Text",
+                                                                                                text: "Level 3",
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts checklist with big phantom jump from indent 0 to 4", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Level 0"))),
+                checkListItem(4, false, paragraph(text("Level 4 (big jump)"))),
+                checkListItem(2, true, paragraph(text("Level 2 (back down)"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Level 0"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "UnorderedList",
+                                        items: [
+                                            {
+                                                elements: [],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "UnorderedList",
+                                                        items: [
+                                                            {
+                                                                elements: [],
+                                                                nestedListElements: [
+                                                                    {
+                                                                        type: "UnorderedList",
+                                                                        items: [
+                                                                            {
+                                                                                elements: [],
+                                                                                nestedListElements:
+                                                                                    [
+                                                                                        {
+                                                                                            type: "CheckList",
+                                                                                            items: [
+                                                                                                {
+                                                                                                    checked:
+                                                                                                        false,
+                                                                                                    elements:
+                                                                                                        [
+                                                                                                            {
+                                                                                                                type: "Paragraph",
+                                                                                                                elements:
+                                                                                                                    [
+                                                                                                                        {
+                                                                                                                            type: "Text",
+                                                                                                                            text: "Level 4 (big jump)",
+                                                                                                                        },
+                                                                                                                    ],
+                                                                                                            },
+                                                                                                        ],
+                                                                                                },
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                    {
+                                                        type: "CheckList",
+                                                        items: [
+                                                            {
+                                                                checked: true,
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Level 2 (back down)",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts mixed unordered, ordered, and checklist items at same indentation into list group elements", () => {
+        testIntoApiContent(
+            doc(
+                unorderedListItem(0, paragraph(text("Unordered 1"))),
+                unorderedListItem(0, paragraph(text("Unordered 2"))),
+                orderedListItem(0, paragraph(text("Ordered 1"))),
+                orderedListItem(0, paragraph(text("Ordered 2"))),
+                checkListItem(0, true, paragraph(text("Checked 1"))),
+                checkListItem(0, false, paragraph(text("Unchecked 1"))),
+                unorderedListItem(0, paragraph(text("Unordered 3"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "UnorderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unordered 1"}],
+                                    },
+                                ],
+                            },
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unordered 2"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Ordered 1"}],
+                                    },
+                                ],
+                            },
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Ordered 2"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Checked 1"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unchecked 1"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "UnorderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unordered 3"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts mixed nested list types with checklists", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Checklist parent"))),
+                unorderedListItem(1, paragraph(text("Unordered child"))),
+                orderedListItem(2, paragraph(text("Ordered grandchild"))),
+                checkListItem(3, false, paragraph(text("Checklist great-grandchild"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Checklist parent"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "UnorderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Unordered child"},
+                                                        ],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "OrderedList",
+                                                        items: [
+                                                            {
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Ordered grandchild",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                                nestedListElements: [
+                                                                    {
+                                                                        type: "CheckList",
+                                                                        items: [
+                                                                            {
+                                                                                checked: false,
+                                                                                elements: [
+                                                                                    {
+                                                                                        type: "Paragraph",
+                                                                                        elements: [
+                                                                                            {
+                                                                                                type: "Text",
+                                                                                                text: "Checklist great-grandchild",
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts checklist item with multiple paragraphs into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(
+                    0,
+                    true,
+                    paragraph(text("First paragraph")),
+                    paragraph(text("Second paragraph")),
+                    paragraph(text("Third paragraph")),
+                ),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "First paragraph"}],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Second paragraph"}],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Third paragraph"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts complex mixed list with alternating checklist types", () => {
+        testIntoApiContent(
+            doc(
+                unorderedListItem(0, paragraph(text("Unordered 1"))),
+                checkListItem(1, true, paragraph(text("Nested checklist"))),
+                checkListItem(1, false, paragraph(text("Another nested checklist"))),
+                orderedListItem(0, paragraph(text("Ordered 1"))),
+                checkListItem(1, true, paragraph(text("Checklist under ordered"))),
+                unorderedListItem(2, paragraph(text("Unordered nested deeper"))),
+                checkListItem(0, false, paragraph(text("Back to checklist at root"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "UnorderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unordered 1"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: true,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Nested checklist",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Another nested checklist",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Ordered 1"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: true,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Checklist under ordered",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "UnorderedList",
+                                                        items: [
+                                                            {
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Unordered nested deeper",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Back to checklist at root"},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts checklist with formatted text into API content", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(
+                    0,
+                    true,
+                    paragraph(text("Task with "), text("bold", [bold()]), text(" text")),
+                ),
+                checkListItem(
+                    0,
+                    false,
+                    paragraph(
+                        text("Task with "),
+                        text("link", [link("https://example.com")]),
+                        text(" and "),
+                        text("italic", [italic()]),
+                    ),
+                ),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Task with "},
+                                            {type: "Text", text: "bold", marks: [{type: "Bold"}]},
+                                            {type: "Text", text: " text"},
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Task with "},
+                                            {
+                                                type: "Text",
+                                                text: "link",
+                                                marks: [{type: "Link", url: "https://example.com"}],
+                                            },
+                                            {type: "Text", text: " and "},
+                                            {
+                                                type: "Text",
+                                                text: "italic",
+                                                marks: [{type: "Italic"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("converts checklist with maximum indentation level", () => {
+        testIntoApiContent(
+            doc(
+                checkListItem(0, true, paragraph(text("Level 0"))),
+                checkListItem(1, false, paragraph(text("Level 1"))),
+                checkListItem(2, true, paragraph(text("Level 2"))),
+                checkListItem(3, false, paragraph(text("Level 3"))),
+                checkListItem(4, true, paragraph(text("Level 4"))),
+                checkListItem(5, false, paragraph(text("Level 5 (max)"))),
+            ),
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Level 0"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Level 1"}],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "CheckList",
+                                                        items: [
+                                                            {
+                                                                checked: true,
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Level 2",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                                nestedListElements: [
+                                                                    {
+                                                                        type: "CheckList",
+                                                                        items: [
+                                                                            {
+                                                                                checked: false,
+                                                                                elements: [
+                                                                                    {
+                                                                                        type: "Paragraph",
+                                                                                        elements: [
+                                                                                            {
+                                                                                                type: "Text",
+                                                                                                text: "Level 3",
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                                nestedListElements:
+                                                                                    [
+                                                                                        {
+                                                                                            type: "CheckList",
+                                                                                            items: [
+                                                                                                {
+                                                                                                    checked:
+                                                                                                        true,
+                                                                                                    elements:
+                                                                                                        [
+                                                                                                            {
+                                                                                                                type: "Paragraph",
+                                                                                                                elements:
+                                                                                                                    [
+                                                                                                                        {
+                                                                                                                            type: "Text",
+                                                                                                                            text: "Level 4",
+                                                                                                                        },
+                                                                                                                    ],
+                                                                                                            },
+                                                                                                        ],
+                                                                                                    nestedListElements:
+                                                                                                        [
+                                                                                                            {
+                                                                                                                type: "CheckList",
+                                                                                                                items: [
+                                                                                                                    {
+                                                                                                                        checked:
+                                                                                                                            false,
+                                                                                                                        elements:
+                                                                                                                            [
+                                                                                                                                {
+                                                                                                                                    type: "Paragraph",
+                                                                                                                                    elements:
+                                                                                                                                        [
+                                                                                                                                            {
+                                                                                                                                                type: "Text",
+                                                                                                                                                text: "Level 5 (max)",
+                                                                                                                                            },
+                                                                                                                                        ],
+                                                                                                                                },
+                                                                                                                            ],
+                                                                                                                    },
+                                                                                                                ],
+                                                                                                            },
+                                                                                                        ],
+                                                                                                },
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
+
+    test("Converts checklist into unordered list when schema doesn't support checklists", () => {
+        const result = fromApiContent(MessageContentProsemirrorSchema, {
+            elements: [
+                {
+                    type: "CheckList",
+                    items: [
+                        {
+                            checked: true,
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Checked item"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "CheckList",
+                                    items: [
+                                        {
+                                            checked: false,
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [{type: "Text", text: "Nested item"}],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "UnorderedList",
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Unordered item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "OrderedList",
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Ordered item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        expect(result.toJSON()).toEqual(
+            doc(
+                unorderedListItem(0, paragraph(text("Checked item"))),
+                unorderedListItem(1, paragraph(text("Nested item"))),
+                unorderedListItem(1, paragraph(text("Unordered item"))),
+                orderedListItem(1, paragraph(text("Ordered item"))),
+            ).toJSON(),
+        );
+    });
+
+    test("converts checklists within quote blocks into API content", () => {
+        testIntoApiContent(
+            doc(
+                quoteBlock(
+                    paragraph(text("Quote intro")),
+                    checkListItem(0, false, paragraph(text("Task"))),
+                    unorderedListItem(0, paragraph(text("Item 1"))),
+                    orderedListItem(0, paragraph(text("Ordered 1"))),
+                    checkListItem(1, true, paragraph(text("Completed task"))),
+                    paragraph(text("Quote outro")),
+                ),
+            ),
+            {
+                elements: [
+                    {
+                        type: "Quote",
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Quote intro"}],
+                            },
+                            {
+                                type: "CheckList",
+                                items: [
+                                    {
+                                        checked: false,
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Task"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "UnorderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Item 1"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Ordered 1"}],
+                                            },
+                                        ],
+                                        nestedListElements: [
+                                            {
+                                                type: "CheckList",
+                                                items: [
+                                                    {
+                                                        checked: true,
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {
+                                                                        type: "Text",
+                                                                        text: "Completed task",
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Quote outro"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        );
+    });
 });

@@ -15,6 +15,8 @@ import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentBreakInlineElement,
+    ApiContentCheckListBlockElement,
+    ApiContentCheckListBlockElementItem,
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
@@ -191,83 +193,107 @@ const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlo
         elements: fc.array(ApiContentInlineElementArbitrary),
     });
 
-const {ApiContentUnorderedListBlockElementArbitrary, ApiContentOrderedListBlockElementArbitrary} =
-    fc.letrec<{
-        ApiContentListBlockElementArbitrary: ApiContentListBlockElement;
-        ApiContentListBlockElementItemArbitrary: ApiContentListBlockElementItem;
-        ApiContentUnorderedListBlockElementArbitrary: ApiContentUnorderedListBlockElement;
-        ApiContentOrderedListBlockElementArbitrary: ApiContentOrderedListBlockElement;
-    }>(tie => {
-        const ApiContentListBlockElementArbitrary: Arbitrary<ApiContentListBlockElement> = fc.oneof(
-            tie("ApiContentUnorderedListBlockElementArbitrary"),
-            tie("ApiContentOrderedListBlockElementArbitrary"),
-        );
+const {
+    ApiContentUnorderedListBlockElementArbitrary,
+    ApiContentOrderedListBlockElementArbitrary,
+    ApiContentCheckListBlockElementArbitrary,
+} = fc.letrec<{
+    ApiContentListBlockElementArbitrary: ApiContentListBlockElement;
+    ApiContentListBlockElementItemArbitrary: ApiContentListBlockElementItem;
+    ApiContentCheckListBlockElementItemArbitrary: ApiContentCheckListBlockElementItem;
+    ApiContentUnorderedListBlockElementArbitrary: ApiContentUnorderedListBlockElement;
+    ApiContentOrderedListBlockElementArbitrary: ApiContentOrderedListBlockElement;
+    ApiContentCheckListBlockElementArbitrary: ApiContentCheckListBlockElement;
+}>(tie => {
+    const ApiContentListBlockElementArbitrary: Arbitrary<ApiContentListBlockElement> = fc.oneof(
+        tie("ApiContentUnorderedListBlockElementArbitrary"),
+        tie("ApiContentOrderedListBlockElementArbitrary"),
+    );
 
-        const ApiContentListBlockElementItemArbitrary: Arbitrary<ApiContentListBlockElementItem> =
-            fc.record({
-                elements: fc.oneof(
-                    {
-                        weight: 200,
-                        arbitrary: fc.tuple(ApiContentParagraphBlockElementArbitrary),
-                    },
-                    {
-                        weight: 1,
-                        arbitrary: fc.tuple(
-                            ApiContentParagraphBlockElementArbitrary,
-                            ApiContentParagraphBlockElementArbitrary,
-                        ),
-                    },
-                    {
-                        weight: 1,
-                        arbitrary: fc.tuple(
-                            ApiContentParagraphBlockElementArbitrary,
-                            ApiContentParagraphBlockElementArbitrary,
-                            ApiContentParagraphBlockElementArbitrary,
-                        ),
-                    },
-                    {weight: 1, arbitrary: fc.tuple()},
-                ),
-                nestedListElements: fc.oneof(
-                    {maxDepth: 5},
-                    {weight: 200, arbitrary: fc.tuple()},
-                    {weight: 20, arbitrary: fc.tuple(ApiContentListBlockElementArbitrary)},
-                    {
-                        weight: 1,
-                        arbitrary: fc.tuple(
-                            ApiContentListBlockElementArbitrary,
-                            ApiContentListBlockElementArbitrary,
-                        ),
-                    },
-                    {
-                        weight: 1,
-                        arbitrary: fc.tuple(
-                            ApiContentListBlockElementArbitrary,
-                            ApiContentListBlockElementArbitrary,
-                            ApiContentListBlockElementArbitrary,
-                        ),
-                    },
-                ),
-            });
+    const ListItemElementArbitrary = fc.oneof(
+        {
+            weight: 200,
+            arbitrary: fc.tuple(ApiContentParagraphBlockElementArbitrary),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+            ),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+                ApiContentParagraphBlockElementArbitrary,
+            ),
+        },
+        {weight: 1, arbitrary: fc.tuple()},
+    );
 
-        const ApiContentUnorderedListBlockElementArbitrary: Arbitrary<ApiContentUnorderedListBlockElement> =
-            fc.record({
-                type: fc.constant("UnorderedList"),
-                items: fc.array(ApiContentListBlockElementItemArbitrary),
-            });
+    const NestedListItemElementArbitrary = fc.oneof(
+        {maxDepth: 5},
+        {weight: 200, arbitrary: fc.tuple()},
+        {weight: 20, arbitrary: fc.tuple(ApiContentListBlockElementArbitrary)},
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+            ),
+        },
+        {
+            weight: 1,
+            arbitrary: fc.tuple(
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+                ApiContentListBlockElementArbitrary,
+            ),
+        },
+    );
 
-        const ApiContentOrderedListBlockElementArbitrary: Arbitrary<ApiContentOrderedListBlockElement> =
-            fc.record({
-                type: fc.constant("OrderedList"),
-                items: fc.array(ApiContentListBlockElementItemArbitrary),
-            });
+    const ApiContentListBlockElementItemArbitrary: Arbitrary<ApiContentListBlockElementItem> =
+        fc.record({
+            elements: ListItemElementArbitrary,
+            nestedListElements: NestedListItemElementArbitrary,
+        });
 
-        return {
-            ApiContentListBlockElementArbitrary,
-            ApiContentListBlockElementItemArbitrary,
-            ApiContentUnorderedListBlockElementArbitrary,
-            ApiContentOrderedListBlockElementArbitrary,
-        };
-    });
+    const ApiContentCheckListBlockElementItemArbitrary: Arbitrary<ApiContentCheckListBlockElementItem> =
+        fc.record({
+            checked: fc.boolean(),
+            elements: ListItemElementArbitrary,
+            nestedListElements: NestedListItemElementArbitrary,
+        });
+
+    const ApiContentUnorderedListBlockElementArbitrary: Arbitrary<ApiContentUnorderedListBlockElement> =
+        fc.record({
+            type: fc.constant("UnorderedList"),
+            items: fc.array(ApiContentListBlockElementItemArbitrary),
+        });
+
+    const ApiContentOrderedListBlockElementArbitrary: Arbitrary<ApiContentOrderedListBlockElement> =
+        fc.record({
+            type: fc.constant("OrderedList"),
+            items: fc.array(ApiContentListBlockElementItemArbitrary),
+        });
+
+    const ApiContentCheckListBlockElementArbitrary: Arbitrary<ApiContentCheckListBlockElement> =
+        fc.record({
+            type: fc.constant("CheckList"),
+            items: fc.array(ApiContentCheckListBlockElementItemArbitrary),
+        });
+
+    return {
+        ApiContentListBlockElementArbitrary,
+        ApiContentListBlockElementItemArbitrary,
+        ApiContentUnorderedListBlockElementArbitrary,
+        ApiContentOrderedListBlockElementArbitrary,
+        ApiContentCheckListBlockElementArbitrary,
+        ApiContentCheckListBlockElementItemArbitrary,
+    };
+});
 
 const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElement> = fc.record({
     type: fc.constant("Quote"),
@@ -276,6 +302,7 @@ const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElemen
             Paragraph: ApiContentParagraphBlockElementArbitrary,
             UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
             OrderedList: ApiContentOrderedListBlockElementArbitrary,
+            CheckList: ApiContentCheckListBlockElementArbitrary,
         }),
     ),
 });
@@ -373,6 +400,7 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                                 OrderedList: ApiContentOrderedListBlockElementArbitrary,
                                 Quote: ApiContentQuoteBlockElementArbitrary,
                                 Code: ApiContentCodeBlockElementArbitrary,
+                                CheckList: ApiContentCheckListBlockElementArbitrary,
                             }),
                         ),
                     }),
@@ -386,6 +414,7 @@ const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElem
     Paragraph: {arbitrary: ApiContentParagraphBlockElementArbitrary, weight: 20},
     UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
     OrderedList: ApiContentOrderedListBlockElementArbitrary,
+    CheckList: ApiContentCheckListBlockElementArbitrary,
     Quote: ApiContentQuoteBlockElementArbitrary,
     Heading: ApiContentHeadingBlockElementArbitrary,
     Divider: ApiContentDividerBlockElementArbitrary,

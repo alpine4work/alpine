@@ -1,5 +1,5 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {BlockContent, DefinitionContent, PhrasingContent, Root, RootContent} from "mdast";
+import {BlockContent, DefinitionContent, ListItem, PhrasingContent, Root, RootContent} from "mdast";
 import {fromMarkdown} from "mdast-util-from-markdown";
 import {frontmatterFromMarkdown} from "mdast-util-frontmatter";
 import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
@@ -16,6 +16,7 @@ import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/api_content_co
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentCheckListBlockElementItem,
     ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
@@ -34,6 +35,7 @@ import {
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -241,59 +243,80 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "list": {
-            yield {
-                type: content.ordered ? "OrderedList" : "UnorderedList",
-                items: Array.from(
-                    flatMapIterable(
+            // Ordered lists are homogenous (they contain *only* ordered list items) so we
+            // can yield them directly. Conversely, unordered lists are non-homogenous –
+            // they can contain normal unordered list items or "checklist" items. However,
+            // we maintain separate list structures for checklists and unordered lists; so
+            // when parsing unordered lists into our API content, we need to split them based
+            // on the list items.
+            if (content.ordered) {
+                yield {
+                    type: "OrderedList",
+                    items: parseContentListBlockElementItems(
                         content.children,
-                        function* (item): IterableIterator<ApiContentListBlockElementItem> {
-                            let elements: Array<ApiContentBlockElement> = [];
-                            let nestedListElements: Array<ApiContentListBlockElement> = [];
-
-                            for (const element of parseApiContentBlockElementsFromMarkdown(
-                                item.children,
-                                definitions,
-                                options,
-                                // Instead of ignoring elements like `</td>` (which may feel broken) throw an
-                                // error if we see table HTML.
-                                {withTableHtml: false},
-                            )) {
-                                if (
-                                    element.type === "UnorderedList" ||
-                                    element.type === "OrderedList"
-                                ) {
-                                    nestedListElements.push(element);
-                                } else {
-                                    if (nestedListElements.length > 0) {
-                                        yield {
-                                            elements: Array.from(
-                                                flatMapIterable(
-                                                    elements,
-                                                    intoApiContentParagraphBlockElement,
-                                                ),
-                                            ),
-                                            nestedListElements,
-                                        };
-
-                                        elements = [];
-                                        nestedListElements = [];
-                                    }
-
-                                    elements.push(element);
-                                }
-                            }
-
-                            yield {
-                                elements: Array.from(
-                                    flatMapIterable(elements, intoApiContentParagraphBlockElement),
-                                ),
-                                nestedListElements:
-                                    nestedListElements.length > 0 ? nestedListElements : undefined,
-                            };
-                        },
+                        definitions,
+                        options,
+                        intoApiContentListBlockElementItem,
                     ),
-                ),
-            };
+                };
+                break;
+            }
+
+            // Group consecutive items by their list type. This is necessary because the
+            // markdown AST represents mixed checklist/regular items as a single, unordered
+            // list, but our API treats CheckList as a separate type.
+            //
+            // For example:
+            // - [ ] Checklist item
+            // - Regular item
+            // - [x] Another checklist item
+            //
+            // Gets parsed as a single unordered list with mixed `checked` values,
+            // but needs to be yielded as: CheckList, UnorderedList, CheckList
+            const itemGroups: Array<{
+                type: "UnorderedList" | "CheckList";
+                items: Array<ListItem>;
+            }> = [];
+
+            for (const item of content.children) {
+                const listType =
+                    item.checked !== null && item.checked !== undefined
+                        ? "CheckList"
+                        : "UnorderedList";
+
+                const lastGroup = itemGroups[itemGroups.length - 1];
+
+                if (lastGroup && lastGroup.type === listType) {
+                    lastGroup.items.push(item);
+                } else {
+                    itemGroups.push({type: listType, items: [item]});
+                }
+            }
+
+            // Yield each group as a separate list block
+            for (const group of itemGroups) {
+                if (group.type === "UnorderedList") {
+                    yield {
+                        type: "UnorderedList",
+                        items: parseContentListBlockElementItems(
+                            group.items,
+                            definitions,
+                            options,
+                            intoApiContentListBlockElementItem,
+                        ),
+                    };
+                } else {
+                    yield {
+                        type: "CheckList",
+                        items: parseContentListBlockElementItems(
+                            group.items,
+                            definitions,
+                            options,
+                            intoApiContentCheckListBlockElementItem,
+                        ),
+                    };
+                }
+            }
             break;
         }
         case "blockquote": {
@@ -2064,6 +2087,80 @@ export function parseApiMentionPathIfPossible(spaceId: SpaceId, url: URL): ApiMe
     return null;
 }
 
+function intoApiContentCheckListBlockElementItem(
+    item: ListItem,
+    elements: ReadonlyArray<ApiContentBlockElement>,
+    nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
+): ApiContentCheckListBlockElementItem {
+    assert(item.checked !== null && item.checked !== undefined);
+
+    return {
+        checked: item.checked,
+        elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
+        nestedListElements: nestedListElements?.length > 0 ? nestedListElements : undefined,
+    };
+}
+
+function intoApiContentListBlockElementItem(
+    item: ListItem,
+    elements: ReadonlyArray<ApiContentBlockElement>,
+    nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
+): ApiContentListBlockElementItem {
+    return {
+        elements: Array.from(flatMapIterable(elements, intoApiContentParagraphBlockElement)),
+        nestedListElements: nestedListElements?.length > 0 ? nestedListElements : undefined,
+    };
+}
+
+function parseContentListBlockElementItems<
+    InputListItem extends ListItem,
+    OutputListItem extends ApiContentListBlockElementItem | ApiContentCheckListBlockElementItem,
+>(
+    inputListItems: ReadonlyArray<InputListItem>,
+    definitions: ApiContentMarkdownParserDefinitions,
+    options: ApiContentMarkdownParserOptions,
+    createOutputListItem: (
+        inputListItem: InputListItem,
+        elements: ReadonlyArray<ApiContentBlockElement>,
+        nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
+    ) => OutputListItem,
+): Array<OutputListItem> {
+    return Array.from(
+        flatMapIterable(inputListItems, function* (item): IterableIterator<OutputListItem> {
+            let elements: Array<ApiContentBlockElement> = [];
+            let nestedListElements: Array<ApiContentListBlockElement> = [];
+
+            for (const element of parseApiContentBlockElementsFromMarkdown(
+                item.children,
+                definitions,
+                options,
+                // Instead of ignoring elements like `</td>` (which may feel broken) throw an
+                // error if we see table HTML.
+                {withTableHtml: false},
+            )) {
+                if (
+                    element.type === "UnorderedList" ||
+                    element.type === "OrderedList" ||
+                    element.type === "CheckList"
+                ) {
+                    nestedListElements.push(element);
+                } else {
+                    if (nestedListElements.length > 0) {
+                        yield createOutputListItem(item, elements, nestedListElements);
+
+                        elements = [];
+                        nestedListElements = [];
+                    }
+
+                    elements.push(element);
+                }
+            }
+
+            yield createOutputListItem(item, elements, nestedListElements);
+        }),
+    );
+}
+
 function parseApiContentInlineElementHighlightMarkColorIfPossible(
     color: string,
 ): ApiContentInlineElementHighlightMarkColor | null {
@@ -2090,6 +2187,7 @@ function* intoApiContentTableBlockElementCellElement(
         case "Paragraph":
         case "UnorderedList":
         case "OrderedList":
+        case "CheckList":
         case "Quote":
         case "Code": {
             yield element;
@@ -2134,7 +2232,8 @@ function* intoApiContentQuoteBlockElementBlockElement(
         switch (element.type) {
             case "Paragraph":
             case "UnorderedList":
-            case "OrderedList": {
+            case "OrderedList":
+            case "CheckList": {
                 yield element;
                 break;
             }
@@ -2173,7 +2272,8 @@ export function* intoApiContentParagraphBlockElement(
                 break;
             }
             case "UnorderedList":
-            case "OrderedList": {
+            case "OrderedList":
+            case "CheckList": {
                 for (const item of element.items) {
                     for (const itemElement of item.elements) {
                         yield itemElement;

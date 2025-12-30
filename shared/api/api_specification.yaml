@@ -1433,6 +1433,7 @@ components:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
                 - $ref: "#/components/schemas/ContentHeadingBlockElement"
                 - $ref: "#/components/schemas/ContentDividerBlockElement"
@@ -1444,6 +1445,7 @@ components:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
                     Quote: "#/components/schemas/ContentQuoteBlockElement"
                     Heading: "#/components/schemas/ContentHeadingBlockElement"
                     Divider: "#/components/schemas/ContentDividerBlockElement"
@@ -1466,11 +1468,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
 
         ContentUnorderedListBlockElement:
             type: object
@@ -1498,6 +1502,19 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentListBlockElementItem"
 
+        ContentCheckListBlockElement:
+            type: object
+            required: [type, items]
+            additionalProperties: false
+            properties:
+                type:
+                    const: CheckList
+                items:
+                    type: array
+                    minItems: 1
+                    items:
+                        $ref: "#/components/schemas/ContentCheckListBlockElementItem"
+
         ContentListBlockElementItem:
             type: object
             required: [elements]
@@ -1510,6 +1527,22 @@ components:
                 # does render an item.
                 #
                 # We need to clearly document this behavior in our API documentation.
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentParagraphBlockElement"
+                nestedListElements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/ContentListBlockElement"
+
+        ContentCheckListBlockElementItem:
+            type: object
+            required: [checked, elements]
+            additionalProperties: false
+            properties:
+                checked:
+                    type: boolean
                 elements:
                     type: array
                     items:
@@ -1537,12 +1570,14 @@ components:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
             discriminator:
                 propertyName: type
                 mapping:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
 
         ContentHeadingBlockElement:
             type: object
@@ -1623,6 +1658,7 @@ components:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement"
                 - $ref: "#/components/schemas/ContentUnorderedListBlockElement"
                 - $ref: "#/components/schemas/ContentOrderedListBlockElement"
+                - $ref: "#/components/schemas/ContentCheckListBlockElement"
                 - $ref: "#/components/schemas/ContentQuoteBlockElement"
                 - $ref: "#/components/schemas/ContentCodeBlockElement"
             discriminator:
@@ -1631,6 +1667,7 @@ components:
                     Paragraph: "#/components/schemas/ContentParagraphBlockElement"
                     UnorderedList: "#/components/schemas/ContentUnorderedListBlockElement"
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
+                    CheckList: "#/components/schemas/ContentCheckListBlockElement"
                     Quote: "#/components/schemas/ContentQuoteBlockElement"
                     Code: "#/components/schemas/ContentCodeBlockElement"
 

@@ -4,10 +4,12 @@ import {parseApiMentionTarget} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
     ApiContentBlockElement,
+    ApiContentCheckListBlockElementItem,
     ApiContentInlineElement,
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentListBlockElement,
+    ApiContentListBlockElementItem,
     ApiContentMentionInlineElement,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -15,6 +17,7 @@ import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_na
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -43,7 +46,8 @@ export function* fromApiContentBlockElements(
                 break;
             }
             case "UnorderedList":
-            case "OrderedList": {
+            case "OrderedList":
+            case "CheckList": {
                 function* fromApiContentListBlockElement(
                     element: ApiContentListBlockElement,
                     indent: number,
@@ -57,14 +61,35 @@ export function* fromApiContentBlockElements(
                         case "OrderedList":
                             typeName = "orderedListItem";
                             break;
+                        case "CheckList": {
+                            // NOTE(ifitzsimmons, 2025-12-19): As of this writing, only documents support
+                            // checklists. When a user passes a checklist into a content surface that doesn't
+                            // support checklists, we have to decide what to do.
+                            // In the app, if a user tries to copy and paste a checklist from a document into
+                            // another surface, we paste it as an unordered list. We've decided to maintain the
+                            // current behavior. If a user tries to create a checklist in a post/comment/message
+                            // via the API, we'll convert it into an unordered list.
+                            if (!schema.nodes.checkListItem) {
+                                typeName = "unorderedListItem";
+                            } else {
+                                typeName = "checkListItem";
+                            }
+                            break;
+                        }
                         default:
                             throw exhaustive(element);
                     }
 
                     for (const item of element.items) {
                         if (item.elements.length > 0) {
+                            const attrs: {indent: number; checked?: boolean} = {indent};
+
+                            if (typeName === "checkListItem") {
+                                attrs.checked = assertCheckListItem(item).checked;
+                            }
+
                             yield schema.nodes[typeName]!.create(
-                                {indent},
+                                attrs,
                                 Array.from(fromApiContentBlockElements(schema, item.elements)),
                             );
                         }
@@ -91,13 +116,7 @@ export function* fromApiContentBlockElements(
                 break;
             }
             case "Heading": {
-                if (!schema.nodes.heading) {
-                    yield* fromApiContentBlockElements(
-                        schema,
-                        intoApiContentParagraphBlockElement(element),
-                    );
-                    break;
-                }
+                assert(schema.nodes.heading, "All content surfaces should support headings");
 
                 yield schema.nodes.heading.create(
                     {level: element.level},
@@ -297,4 +316,11 @@ export function fromApiContentInlineElementHighlightMarkColor(
         default:
             throw exhaustive(color);
     }
+}
+
+function assertCheckListItem(
+    item: ApiContentCheckListBlockElementItem | ApiContentListBlockElementItem,
+): ApiContentCheckListBlockElementItem {
+    assert(typeof item.checked === "boolean");
+    return item;
 }

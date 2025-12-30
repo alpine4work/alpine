@@ -43,7 +43,8 @@ function visitApiContentBlockElement(element: ApiContentBlockElement, visitor: A
             break;
         }
         case "UnorderedList":
-        case "OrderedList": {
+        case "OrderedList":
+        case "CheckList": {
             for (const item of element.items) {
                 visitApiContentBlockElements(item.elements, visitor);
 

@@ -6,6 +6,7 @@ import {gfmTableToMarkdown} from "mdast-util-gfm-table";
 import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
+import {assertApiChecklistBlockElementItem} from "~/server/api/markdown/assert_api_checklist_block_element_item.js";
 import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
 import {normalizeApiContentInlineElementMarks} from "~/server/api/markdown/normalize_api_content.js";
 import {
@@ -191,26 +192,81 @@ function* printApiContentBlockElementToMarkdown(
             break;
         }
         case "UnorderedList":
-        case "OrderedList": {
+        case "OrderedList":
+        case "CheckList": {
             if (element.items.length === 0) break;
 
             yield {
                 type: "list",
                 ordered: element.type === "OrderedList",
                 children: element.items.map(item => {
+                    const children = Array.from(
+                        concatIterables(
+                            printApiContentBlockElementsToMarkdown(
+                                // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
+                                // lists. `CheckList` and `OrderedList` can't support phantom lists in the same way.
+                                //
+                                // So while unordered phantom lists look like:
+                                // ```markdown
+                                // - - - item at 3rd level in a phantom unordered list
+                                // ```
+                                //
+                                // Checklists and ordered phantom lists get an empty paragraph and look like:
+                                // ```markdown
+                                // 1. <p></p>
+                                //   - Mixed types with phantoms
+                                //
+                                // OR
+                                //
+                                // [ ] <p></p>
+                                //   - Mixed types with phantoms
+                                // ```
+                                item.elements.length > 0 || element.type === "UnorderedList"
+                                    ? item.elements
+                                    : [{type: "Paragraph", elements: []}],
+                                options,
+                            ),
+                            item.nestedListElements
+                                ? printApiContentBlockElementsToMarkdown(
+                                      item.nestedListElements,
+                                      options,
+                                  )
+                                : emptyArray,
+                        ),
+                    );
+
+                    // The GFM specification says that a check list item must start with a
+                    // paragraph node.
+                    //
+                    // > A task list item is a list item where the first block in it is a paragraph
+                    // > which begins with a task list item marker and at least one whitespace
+                    // > character before any other content.
+                    //
+                    // So when we print an empty paragraph as `{type: "html", value: "<p></p>"}`
+                    // it's not wrapped in a paragraph node and so not printed as a GFM check list
+                    // item. Replace `{type: "html", value: "<p></p>"}` with `<span></span>` (e.g.
+                    // `{type: "paragraph", children: [{type: "html", value: "<span></span>"}]}`)
+                    // so the GFM check list item is printed properly.
+                    if (element.type === "CheckList" && children.length > 0) {
+                        const firstChild = children[0]!;
+
+                        if (firstChild.type !== "paragraph") {
+                            assert(firstChild.type === "html" && firstChild.value === "<p></p>");
+
+                            children[0] = {
+                                type: "paragraph",
+                                children: [{type: "html", value: "<span></span>"}],
+                            };
+                        }
+                    }
+
                     return {
                         type: "listItem",
-                        children: Array.from(
-                            concatIterables(
-                                printApiContentBlockElementsToMarkdown(item.elements, options),
-                                item.nestedListElements
-                                    ? printApiContentBlockElementsToMarkdown(
-                                          item.nestedListElements,
-                                          options,
-                                      )
-                                    : emptyArray,
-                            ),
-                        ),
+                        checked:
+                            element.type === "CheckList"
+                                ? assertApiChecklistBlockElementItem(item).checked
+                                : undefined,
+                        children,
                     };
                 }),
             };
