@@ -92,7 +92,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type ChatGptAgentRoute = "NotFound" | "FetchConversationState" | "Webhook";
 
 type ChatAgentGptResponse = {
-    usedMillicents?: number;
+    usedMillicents: number;
 };
 
 // Model configuration for ChatGPT agent.
@@ -193,18 +193,14 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         // message while the agent is responding to a previous request?
         const response = await requestChatGptAgent(span, request, this._env, model, messageIndex);
 
-        if (response.usedMillicents !== undefined) {
-            await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-                accountId: request.accountId,
-                spaceId: request.spaceId,
-                requestUsedMillicents: response.usedMillicents,
-                currentTimestamp,
-                provider: "openai",
-                model,
-            });
-        } else {
-            span.addException(new DataLossError("Missing required usage in ChatGPT response"));
-        }
+        await recordAgentUsage(span, request.agentUsageDatabase.get(), {
+            accountId: request.accountId,
+            spaceId: request.spaceId,
+            requestUsedMillicents: response.usedMillicents,
+            currentTimestamp,
+            provider: "openai",
+            model,
+        });
     }
 
     private async _fetchConversationState(
@@ -351,7 +347,7 @@ async function sendLimitErrorMessage(
 }
 
 async function requestChatGptAgent(
-    tracer: TracerBase,
+    span: TracerSpan,
     request: AgentWebhookRequest,
     env: AgentServiceEnv,
     model: SupportedAgentModels["openai"],
@@ -365,10 +361,10 @@ async function requestChatGptAgent(
     // TODO(ifitzsimmons, #ai): Don't load all messages at once. Use pagination to
     // load conversation history instead.
     // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
-    await ensureMessagesInChatGptAgentConversation(tracer, request);
+    await ensureMessagesInChatGptAgentConversation(span, request);
 
     // Send a message from ChatGPT.
-    return createChatGptAgentMessage(tracer, env, request, model, messageIndex);
+    return createChatGptAgentMessage(span, env, request, model, messageIndex);
 }
 
 async function ensureMessagesInChatGptAgentConversation(
@@ -468,7 +464,7 @@ type ChatGptAgentMessageState = {
 };
 
 async function createChatGptAgentMessage(
-    tracer: TracerBase,
+    span: TracerSpan,
     env: AgentServiceEnv,
     request: AgentWebhookRequest,
     model: SupportedAgentModels["openai"],
@@ -499,7 +495,7 @@ async function createChatGptAgentMessage(
 
         pingInterval = createInterval(() => {
             void updateMutex.withLock(async () => {
-                await pingApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+                await pingApiMessageStream(span, request.apiClient, request.room, messageIndex);
             });
         }, agentMessageStreamPingIntervalMs);
     }
@@ -536,7 +532,7 @@ async function createChatGptAgentMessage(
                     }
 
                     await putApiMessageStreamPart(
-                        tracer,
+                        span,
                         request.apiClient,
                         request.room,
                         messageIndex,
@@ -592,7 +588,7 @@ async function createChatGptAgentMessage(
     };
 
     try {
-        return await createChatGptAgentResponse(tracer, env, request, model, messageState);
+        return await createChatGptAgentResponse(span, env, request, model, messageState);
     } catch (error) {
         content.pushText(defaultAgentErrorDisplayMessage);
 
@@ -627,7 +623,7 @@ async function createChatGptAgentMessage(
 
         await updateMutex.waitForUnlock();
 
-        await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
+        await completeApiMessageStream(span, request.apiClient, request.room, messageIndex);
     }
 }
 
@@ -695,18 +691,19 @@ function convertChatGptUsageToMillicents(
 }
 
 async function createChatGptAgentResponse(
-    tracer: TracerBase,
+    span: TracerSpan,
     env: AgentServiceEnv,
     request: AgentWebhookRequest,
     model: SupportedAgentModels["openai"],
     messageState: ChatGptAgentMessageState,
+    totalUsedMillicents = 0,
 ): Promise<ChatAgentGptResponse> {
     // Calls any pending functions in the conversation history. Important for our
     // ChatGPT agent loop. If an agent response has function calls then we call
     // `createChatGptAgentResponse()` again. Which starts with this function that
     // actually executes the function calls.
     const input = await getChatGptAgentConversationItemsAndCallPendingFunctions(
-        tracer,
+        span,
         request,
         messageState,
     );
@@ -725,7 +722,7 @@ async function createChatGptAgentResponse(
     // something new?
     //
     // [1]: https://platform.openai.com/docs/guides/tools-web-search
-    const responseStream = request.openAiClient.get().createResponseWithStreaming(tracer, {
+    const responseStream = request.openAiClient.get().createResponseWithStreaming(span, {
         stream: true,
         model,
         // https://platform.openai.com/docs/guides/prompt-caching
@@ -740,11 +737,8 @@ async function createChatGptAgentResponse(
         reasoning: {
             // Default reasoning effort is "medium", so we're just being explicit here.
             effort: "medium",
-            // NOTE(ifitzsimmons, 2025-11-07): Ideally, this would be "concise", but that
-            // setting isn't available for GPT-5. We're using "auto" instead.
-            summary: "auto",
+            summary: getReasoningSummaryForModel(model),
         },
-
         // Load the entire conversation history and use that as our input to OpenAI.
         input,
     });
@@ -802,11 +796,14 @@ async function createChatGptAgentResponse(
             }
             case "response.completed": {
                 const {usage} = event.response;
-                if (!usage) break;
 
-                return {
-                    usedMillicents: convertChatGptUsageToMillicents(model, usage),
-                };
+                if (!usage) {
+                    span.addException(
+                        new DataLossError("Missing required usage in ChatGPT response"),
+                    );
+                }
+
+                totalUsedMillicents += usage ? convertChatGptUsageToMillicents(model, usage) : 0;
             }
         }
     }
@@ -816,10 +813,17 @@ async function createChatGptAgentResponse(
     //
     // Keep calling recursively until there are no more function calls.
     if (hasFunctionCallOutputItem) {
-        return createChatGptAgentResponse(tracer, env, request, model, messageState);
+        return createChatGptAgentResponse(
+            span,
+            env,
+            request,
+            model,
+            messageState,
+            totalUsedMillicents,
+        );
     }
 
-    return {};
+    return {usedMillicents: totalUsedMillicents};
 }
 
 function getChatGptAgentConversationItemsAndCallPendingFunctions(
@@ -1101,5 +1105,25 @@ function getRoomPathForPromptCacheKey(spaceId: SpaceId, roomPath: ApiMessageRoom
             return `thread/${roomPathObject.id}-${roomPathObject.threadId}`;
         default:
             throw exhaustive(roomPathObject);
+    }
+}
+
+/**
+ * It's cost-efficient to use concise reasoning summaries for the GPT agent. However, not
+ * all models support concise reasoning summaries.
+ *
+ * When adding or changing supported OpenAI models, make sure to test that the model
+ * supports concise summaries. If it doesn't we should discuss the tradeoffs of using
+ * the model as a team. Longer reasoning summaries ultimately limit the number of requests
+ * users can make to our agents. We're betting that users prefer more agent usage over
+ * more descriptive reasoning summaries.
+ */
+function getReasoningSummaryForModel(model: SupportedAgentModels["openai"]): "concise" {
+    switch (model) {
+        case "gpt-5.1":
+        case "gpt-5-mini":
+            return "concise";
+        default:
+            throw exhaustive(model);
     }
 }
