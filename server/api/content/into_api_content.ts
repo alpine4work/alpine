@@ -3,6 +3,7 @@ import {intoApiTaskStatus} from "~/server/api/content/into_api_task_status.js";
 import {getApiMentionPathNoun} from "~/server/api/markdown/get_api_mention_path_type_noun.js";
 import {
     ApiContentBlockElementResponse,
+    ApiContentCheckListBlockElementItemResponse,
     ApiContentInlineElementHighlightMarkColor,
     ApiContentInlineElementMark,
     ApiContentInlineElementResponse,
@@ -22,7 +23,7 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -82,7 +83,8 @@ function* intoApiContentBlockElements(
 
         switch (typeName) {
             case "unorderedListItem":
-            case "orderedListItem": {
+            case "orderedListItem":
+            case "checkListItem": {
                 const items: Array<ApiContentListBlockElementWorkingItem> = [];
 
                 // Make sure the while loop below sees the current node.
@@ -129,6 +131,7 @@ function* intoApiContentListBlockElements(
     let lastElement:
         | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItemResponse>}
         | {type: "OrderedList"; items: Array<ApiContentListBlockElementItemResponse>}
+        | {type: "CheckList"; items: Array<ApiContentCheckListBlockElementItemResponse>}
         | null = null;
 
     for (const item of items) {
@@ -193,7 +196,23 @@ function* intoApiContentListBlockElements(
                 break;
             }
             case "checkListItem": {
-                throw new UnimplementedError(`${typeName} node isn’t available in the API yet`);
+                const elementItem: ApiContentCheckListBlockElementItemResponse = {
+                    checked: item.node?.attrs.checked ?? false,
+                    elements,
+                    nestedListElements,
+                };
+
+                if (lastElement?.type === "CheckList") {
+                    lastElement.items.push(elementItem);
+                } else {
+                    if (lastElement !== null) yield lastElement;
+
+                    lastElement = {
+                        type: "CheckList",
+                        items: [elementItem],
+                    };
+                }
+                break;
             }
             default:
                 throw exhaustive(typeName);
@@ -204,7 +223,10 @@ function* intoApiContentListBlockElements(
 }
 
 function intoApiContentBlockElement(
-    typeName: Exclude<ContentBlockNodeTypeName, "unorderedListItem" | "orderedListItem">,
+    typeName: Exclude<
+        ContentBlockNodeTypeName,
+        "unorderedListItem" | "orderedListItem" | "checkListItem"
+    >,
     node: Node,
     options: ApiContentMarkdownIntoOptions,
 ): ApiContentBlockElementResponse {
@@ -224,7 +246,8 @@ function intoApiContentBlockElement(
                         switch (element.type) {
                             case "Paragraph":
                             case "UnorderedList":
-                            case "OrderedList": {
+                            case "OrderedList":
+                            case "CheckList": {
                                 return element;
                             }
                             case "Quote":
@@ -279,6 +302,7 @@ function intoApiContentBlockElement(
                                                 case "UnorderedList":
                                                 case "OrderedList":
                                                 case "Quote":
+                                                case "CheckList":
                                                 case "Code": {
                                                     return element;
                                                 }
@@ -344,19 +368,6 @@ function intoApiContentBlockElement(
                 }),
             };
         }
-        case "checkListItem":
-            // TODO(ifitzsimmons, #ai): Add support for check list items prior to launch.
-            //
-            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/kkdajt62s0ap8tw1a0ch6fgkgg
-            return {
-                type: "Paragraph",
-                elements: [
-                    {
-                        type: "Text",
-                        text: "(There’s a check list item here but ChatGPT can’t currently see check list items in Alpine.)",
-                    },
-                ],
-            };
         case "fileRow":
         case "fileFloat":
         case "fileRowTable": {

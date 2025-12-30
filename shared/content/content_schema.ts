@@ -174,7 +174,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          */
         quoteBlock: {
             group: "block tableBlock",
-            content: "(paragraph | simpleListItem)+",
+            content: "(paragraph | listItem)+",
             // Don't allow selecting with a `NodeSelection`. The default is `true` but
             // there's only a small number of nodes (e.g. `divider`) we actually want to
             // let be selectable.

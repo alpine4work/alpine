@@ -1559,6 +1559,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentParagraphBlockElement"]
                 | components["schemas"]["ContentUnorderedListBlockElement"]
                 | components["schemas"]["ContentOrderedListBlockElement"]
+                | components["schemas"]["ContentCheckListBlockElement"]
                 | components["schemas"]["ContentQuoteBlockElement"]
                 | components["schemas"]["ContentHeadingBlockElement"]
                 | components["schemas"]["ContentDividerBlockElement"]
@@ -1574,7 +1575,8 @@ export namespace ApiSpecification {
             };
             readonly ContentListBlockElement:
                 | components["schemas"]["ContentUnorderedListBlockElement"]
-                | components["schemas"]["ContentOrderedListBlockElement"];
+                | components["schemas"]["ContentOrderedListBlockElement"]
+                | components["schemas"]["ContentCheckListBlockElement"];
             readonly ContentUnorderedListBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1591,7 +1593,20 @@ export namespace ApiSpecification {
                 readonly type: "OrderedList";
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem"][];
             };
+            readonly ContentCheckListBlockElement: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "CheckList";
+                readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem"][];
+            };
             readonly ContentListBlockElementItem: {
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement"][];
+            };
+            readonly ContentCheckListBlockElementItem: {
+                readonly checked: boolean;
                 readonly elements: readonly components["schemas"]["ContentParagraphBlockElement"][];
                 readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement"][];
             };
@@ -1606,7 +1621,8 @@ export namespace ApiSpecification {
             readonly ContentQuoteBlockElementBlockElement:
                 | components["schemas"]["ContentParagraphBlockElement"]
                 | components["schemas"]["ContentUnorderedListBlockElement"]
-                | components["schemas"]["ContentOrderedListBlockElement"];
+                | components["schemas"]["ContentOrderedListBlockElement"]
+                | components["schemas"]["ContentCheckListBlockElement"];
             readonly ContentHeadingBlockElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -1647,6 +1663,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentParagraphBlockElement"]
                 | components["schemas"]["ContentUnorderedListBlockElement"]
                 | components["schemas"]["ContentOrderedListBlockElement"]
+                | components["schemas"]["ContentCheckListBlockElement"]
                 | components["schemas"]["ContentQuoteBlockElement"]
                 | components["schemas"]["ContentCodeBlockElement"];
             readonly ContentCodeBlockElement: {
@@ -2250,6 +2267,7 @@ export namespace ApiSpecification {
                 | components["schemas"]["ContentParagraphBlockElement_Response"]
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
                 | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"]
                 | components["schemas"]["ContentQuoteBlockElement_Response"]
                 | components["schemas"]["ContentHeadingBlockElement_Response"]
                 | components["schemas"]["ContentDividerBlockElement"]
@@ -2259,14 +2277,21 @@ export namespace ApiSpecification {
                 readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
                 readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
             };
+            readonly ContentCheckListBlockElementItem_Response: {
+                readonly checked: boolean;
+                readonly elements: readonly components["schemas"]["ContentParagraphBlockElement_Response"][];
+                readonly nestedListElements?: readonly components["schemas"]["ContentListBlockElement_Response"][];
+            };
             readonly ContentQuoteBlockElementBlockElement_Response:
                 | components["schemas"]["ContentParagraphBlockElement_Response"]
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"];
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"];
             readonly ContentTableBlockElementCellBlockElement_Response:
                 | components["schemas"]["ContentParagraphBlockElement_Response"]
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
                 | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"]
                 | components["schemas"]["ContentQuoteBlockElement_Response"]
                 | components["schemas"]["ContentCodeBlockElement"];
             readonly MessageStreamToolCallPartPayload_Response: {
@@ -2296,6 +2321,14 @@ export namespace ApiSpecification {
                 readonly type: "OrderedList";
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
             };
+            readonly ContentCheckListBlockElement_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "CheckList";
+                readonly items: readonly components["schemas"]["ContentCheckListBlockElementItem_Response"][];
+            };
             readonly ContentQuoteBlockElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -2313,7 +2346,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamReasoningPartPayload_Response"];
             readonly ContentListBlockElement_Response:
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
-                | components["schemas"]["ContentOrderedListBlockElement_Response"];
+                | components["schemas"]["ContentOrderedListBlockElement_Response"]
+                | components["schemas"]["ContentCheckListBlockElement_Response"];
             readonly ContentTableBlockElementRow_Response: {
                 readonly cells: readonly components["schemas"]["ContentTableBlockElementCell_Response"][];
             };

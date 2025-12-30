@@ -1,4 +1,5 @@
 import {Draft, castDraft, produce} from "immer";
+import {assertApiChecklistBlockElementItem} from "~/server/api/markdown/assert_api_checklist_block_element_item.js";
 import {printApiMentionPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContent,
@@ -35,7 +36,9 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
 
         // Remove empty unordered and ordered lists.
         if (
-            (element.type === "UnorderedList" || element.type === "OrderedList") &&
+            (element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList") &&
             element.items.length === 0
         ) {
             elements.splice(index, 1);
@@ -43,11 +46,19 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
         }
 
         // Merge adjacent lists of the same type.
-        if (element.type === "UnorderedList" || element.type === "OrderedList") {
+        if (
+            element.type === "UnorderedList" ||
+            element.type === "OrderedList" ||
+            element.type === "CheckList"
+        ) {
             while (index < elements.length - 1) {
                 const nextElement = elements[index + 1]!;
 
-                if (nextElement.type !== "UnorderedList" && nextElement.type !== "OrderedList") {
+                if (
+                    nextElement.type !== "UnorderedList" &&
+                    nextElement.type !== "OrderedList" &&
+                    nextElement.type !== "CheckList"
+                ) {
                     break;
                 }
 
@@ -63,7 +74,11 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
                 }
 
                 for (const item of nextElement.items) {
-                    element.items.push(item);
+                    if (element.type === "CheckList") {
+                        element.items.push(castDraft(assertApiChecklistBlockElementItem(item)));
+                    } else {
+                        element.items.push(item);
+                    }
                 }
 
                 elements.splice(index + 1, 1);
@@ -82,9 +97,32 @@ function normalizeApiContentBlockElement(element: Draft<ApiContentBlockElement>)
             break;
         }
         case "UnorderedList":
-        case "OrderedList": {
+        case "OrderedList":
+        case "CheckList": {
             for (const item of element.items) {
-                normalizeApiContentBlockElements(item.elements);
+                if (item.elements.length > 0) {
+                    normalizeApiContentBlockElements(item.elements);
+                } else if (element.type !== "UnorderedList") {
+                    // NOTE(ifitzsimmons, 2025-12-29): We only allow UnorderedList to create phantom
+                    // lists. `CheckList` and `OrderedList` can't support phantom lists in the same way.
+                    //
+                    // So while unordered phantom lists look like:
+                    // ```markdown
+                    // - - - item at 3rd level in a phantom unordered list
+                    // ```
+                    //
+                    // Checklists and ordered phantom lists get an empty paragraph and look like:
+                    // ```markdown
+                    // 1. <p></p>
+                    //   - Mixed types with phantoms
+                    //
+                    // OR
+                    //
+                    // [ ] <p></p>
+                    //   - Mixed types with phantoms
+                    // ```
+                    item.elements = [{type: "Paragraph", elements: []}];
+                }
 
                 if (item.nestedListElements !== undefined) {
                     normalizeApiContentBlockElements(item.nestedListElements);

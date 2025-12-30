@@ -58,6 +58,9 @@ export type ApiContentOrderedListBlockElement =
 export type ApiContentOrderedListBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_Response"];
 
+export type ApiContentCheckListBlockElement =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElement"];
+
 export type ApiContentListBlockElement =
     ApiSpecification.components["schemas"]["ContentListBlockElement"];
 
@@ -65,10 +68,16 @@ export type ApiContentListBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentListBlockElement_Response"];
 
 export type ApiContentListBlockElementItem =
-    ApiSpecification.components["schemas"]["ContentListBlockElementItem"];
+    ApiSpecification.components["schemas"]["ContentListBlockElementItem"] & {checked?: undefined};
 
 export type ApiContentListBlockElementItemResponse =
     ApiSpecification.components["schemas"]["ContentListBlockElementItem_Response"];
+
+export type ApiContentCheckListBlockElementItem =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem"];
+
+export type ApiContentCheckListBlockElementItemResponse =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem_Response"];
 
 export type ApiContentQuoteBlockElement =
     ApiSpecification.components["schemas"]["ContentQuoteBlockElement"];

@@ -2128,6 +2128,88 @@ test("ordered list with big phantom jump from level 0 to 4", async () => {
     );
 });
 
+test("check list with big phantom jump from level 0 to 4", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "CheckList",
+                    items: [
+                        {
+                            checked: true,
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Level 0"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "UnorderedList",
+                                    items: [
+                                        {
+                                            elements: [],
+                                            nestedListElements: [
+                                                {
+                                                    type: "UnorderedList",
+                                                    items: [
+                                                        {
+                                                            elements: [],
+                                                            nestedListElements: [
+                                                                {
+                                                                    type: "UnorderedList",
+                                                                    items: [
+                                                                        {
+                                                                            elements: [],
+                                                                            nestedListElements: [
+                                                                                {
+                                                                                    type: "CheckList",
+                                                                                    items: [
+                                                                                        {
+                                                                                            checked:
+                                                                                                false,
+                                                                                            elements:
+                                                                                                [
+                                                                                                    {
+                                                                                                        type: "Paragraph",
+                                                                                                        elements:
+                                                                                                            [
+                                                                                                                {
+                                                                                                                    type: "Text",
+                                                                                                                    text: "Level 4 (big jump)",
+                                                                                                                },
+                                                                                                            ],
+                                                                                                    },
+                                                                                                ],
+                                                                                        },
+                                                                                    ],
+                                                                                },
+                                                                            ],
+                                                                        },
+                                                                    ],
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+- [x] Level 0
+
+  - - - - [ ] Level 4 (big jump)
+`,
+    );
+});
+
 test("list starting at level 3 with all phantom parents", async () => {
     await testPrintApiContentToMarkdown(
         {
@@ -2196,7 +2278,9 @@ test("list starting at level 3 with all phantom parents", async () => {
             ],
         },
         `\
-1. - - 1. Deep start at level 3
+1. <p></p>
+
+   - - 1. Deep start at level 3
 
        2. Another at level 3
 `,
@@ -2248,7 +2332,9 @@ test("mixed list types with phantom items", async () => {
             ],
         },
         `\
-- 1. - Mixed types with phantoms
+- 1. <p></p>
+
+     - Mixed types with phantoms
 `,
     );
 });
@@ -2502,6 +2588,726 @@ test("phantom item without nested list elements", async () => {
 -
 `,
     );
+});
+
+describe("checklist", () => {
+    test("simple checklist with unchecked items", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "First task"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Second task"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Third task"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] First task
+
+- [ ] Second task
+
+- [ ] Third task
+`,
+        );
+    });
+
+    test("simple checklist with checked items", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Completed task 1"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Completed task 2"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [x] Completed task 1
+
+- [x] Completed task 2
+`,
+        );
+    });
+
+    test("checklist with mixed checked and unchecked items", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Done"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Not done"}],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Also done"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [x] Done
+
+- [ ] Not done
+
+- [x] Also done
+`,
+        );
+    });
+
+    test("checklist with formatted text", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Task with "},
+                                            {type: "Text", text: "bold", marks: [{type: "Bold"}]},
+                                            {type: "Text", text: " text"},
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Task with "},
+                                            {
+                                                type: "Text",
+                                                text: "italic",
+                                                marks: [{type: "Italic"}],
+                                            },
+                                            {type: "Text", text: " text"},
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] Task with **bold** text
+
+- [x] Task with *italic* text
+`,
+        );
+    });
+
+    test("checklist with links", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Review "},
+                                            {
+                                                type: "Text",
+                                                text: "documentation",
+                                                marks: [
+                                                    {type: "Link", url: "https://example.com/docs"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [
+                                            {type: "Text", text: "Read "},
+                                            {
+                                                type: "Text",
+                                                text: "tutorial",
+                                                marks: [
+                                                    {
+                                                        type: "Link",
+                                                        url: "https://example.com/tutorial",
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] Review [documentation](https://example.com/docs)
+
+- [x] Read [tutorial](https://example.com/tutorial)
+`,
+        );
+    });
+
+    test("nested checklists", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Parent task"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: true,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Subtask 1"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Subtask 2"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] Parent task
+
+  - [x] Subtask 1
+
+  - [ ] Subtask 2
+`,
+        );
+    });
+
+    test("deeply nested checklists", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Level 0"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: true,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Level 1"}],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "CheckList",
+                                                        items: [
+                                                            {
+                                                                checked: false,
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Level 2",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] Level 0
+
+  - [x] Level 1
+
+    - [ ] Level 2
+`,
+        );
+    });
+
+    test("checklist with multiple paragraphs in item", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "First paragraph"}],
+                                    },
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Second paragraph"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [ ] First paragraph
+
+  Second paragraph
+`,
+        );
+    });
+
+    test("mixed list types with checklists", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "UnorderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Unordered item"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "CheckList",
+                                        items: [
+                                            {
+                                                checked: false,
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Checklist item"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- Unordered item
+
+  - [ ] Checklist item
+`,
+        );
+    });
+
+    test("checklist with nested ordered list", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Checklist item"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Step 1"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Step 2"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [x] Checklist item
+
+  1. Step 1
+
+  2. Step 2
+`,
+        );
+    });
+
+    test("empty checklist item", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: true,
+                                elements: [],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+- [x] <span></span>
+`,
+        );
+    });
+
+    test("checklist between paragraphs", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "Before checklist"}],
+                    },
+                    {
+                        type: "CheckList",
+                        items: [
+                            {
+                                checked: false,
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Task"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "Paragraph",
+                        elements: [{type: "Text", text: "After checklist"}],
+                    },
+                ],
+            },
+            `\
+Before checklist
+
+- [ ] Task
+
+After checklist
+`,
+        );
+    });
+
+    test("checklist in table", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Table",
+                        width: 1,
+                        hasHeaderRow: true,
+                        hasHeaderColumn: false,
+                        columns: [{width: 1}, {width: 1}],
+                        rows: [
+                            {
+                                cells: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Task List"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Status"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                cells: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "CheckList",
+                                                items: [
+                                                    {
+                                                        checked: true,
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {type: "Text", text: "Done"},
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                    {
+                                                        checked: false,
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {type: "Text", text: "Todo"},
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "In progress"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+<table>
+<thead>
+<tr>
+<th>
+
+Task List
+
+</th>
+<th>
+
+Status
+
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+- [x] Done
+
+- [ ] Todo
+
+</td>
+<td>
+
+In progress
+
+</td>
+</tr>
+</tbody>
+</table>
+`,
+        );
+    });
+
+    test("checklists within quote blocks", async () => {
+        await testPrintApiContentToMarkdown(
+            {
+                elements: [
+                    {
+                        type: "Quote",
+                        elements: [
+                            {
+                                type: "CheckList",
+                                items: [
+                                    {
+                                        checked: false,
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Task"}],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        checked: true,
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Completed task"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Task"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+            `\
+> - [ ] Task
+>
+> - [x] Completed task
+>
+> Task
+`,
+        );
+    });
 });
 
 // Table tests

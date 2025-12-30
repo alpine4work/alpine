@@ -1492,6 +1492,112 @@ test("list item with paragraphs then nested list then more paragraphs", () => {
     });
 });
 
+describe("checklist", () => {
+    test("checklist closing bracket followed by EOF renders unordered list", () => {
+        expect(parseApiContentFromMarkdown(`\n- [ ]`, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "[ ]"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+    test("checklist closing bracket followed by EOL renders unordered list", () => {
+        expect(parseApiContentFromMarkdown(`\n- [ ]\n\n`, {spaceId})).toEqual({
+            elements: [
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "[ ]"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    test("nested checklist closing brackets followed by EOL renders nested unordered lists", () => {
+        expect(
+            parseApiContentFromMarkdown(
+                `
+- [x]
+
+   - unordered item
+
+      - [ ]
+`,
+                {spaceId},
+            ),
+        ).toEqual({
+            elements: [
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "[x]"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "UnorderedList",
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "unordered item"},
+                                                    ],
+                                                },
+                                            ],
+                                            nestedListElements: [
+                                                {
+                                                    type: "UnorderedList",
+                                                    items: [
+                                                        {
+                                                            elements: [
+                                                                {
+                                                                    type: "Paragraph",
+                                                                    elements: [
+                                                                        {type: "Text", text: "[ ]"},
+                                                                    ],
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+});
+
 // Mention parsing edge cases
 test("mention with short name format", () => {
     const accountId = "n93hre935d0yd7akahtrwcvv30";
