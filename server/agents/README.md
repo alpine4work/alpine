@@ -95,6 +95,9 @@ For convenience, several named queries are available that can be used with the `
 instead of writing SQL:
 
 ```bash
+# Delete all agent usage windows and agent requests
+dev agents d1 execute reset-agent-usage
+
 # View recent agent usage windows (last 10)
 dev agents d1 execute get-agent-usage-windows
 
@@ -104,14 +107,9 @@ dev agents d1 execute get-agent-requests
 # Set the last request to maximum usage (triggers usage limits)
 dev agents d1 execute max-last-request-used
 
-# Expire short windows (set startedAt to 8 hours ago + 30 seconds, making them ready for reset)
-dev agents d1 execute expire-short-window-30-seconds
+# Set the last request to 80 percent of dynamic window limit (triggers downgrade)
+dev agents d1 execute set-last-request-used-80-percent
+
+# Expire dynamic windows (set startedAt to 8 hours ago + 30 seconds, making them ready for reset)
+dev agents d1 execute expire-dynamic-window-30-seconds
 ```
-
-**Named Query Details:**
-
--   `get-agent-usage-windows`: Shows the 10 most recent usage windows ordered by `started_at`
--   `get-agent-requests`: Shows the 10 most recent agent requests ordered by `created_at`
--   `max-last-request-used`: Updates the last request to have a large `used_millicents` value
--   `expire-short-window-30-seconds`: Sets the `started_at` timestamp to 8 hours and 30 seconds ago
-    for all windows, making them expired in 30 seconds (useful for testing window reset behavior)

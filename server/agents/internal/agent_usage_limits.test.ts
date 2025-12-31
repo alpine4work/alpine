@@ -1,51 +1,58 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import {jest} from "@jest/globals";
 import {
-    agentUsageWindowLimit,
-    checkAgentUsageLimit,
+    AgentUsageWindowWithWindowLimitsAndUsedMillicents,
+    agentUsageWindowLimits,
+    getAgentUsageLimitWindows,
+    isAgentUsageLimitExceeded,
     recordAgentUsage,
+    shouldDowngradeModelForAgentUsageLimit,
 } from "~/server/agents/internal/agent_usage_limits.js";
 import {
     AgentUsageDatabase,
     AgentUsageDatabaseInterface,
 } from "~/server/agents/internal/d1/agent_usage_database.js";
-import {joshKnownAccountId} from "~/shared/accounts/known_account_ids.js";
+import {AgentUsageWindowType} from "~/server/agents/internal/d1/agent_usage_schema.js";
+import {alpioneers, joshKnownAccountId} from "~/shared/accounts/known_account_ids.js";
 import {UnknownError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {
     createAgentRequest: jest.fn(),
     getUsedMillicentsByAccountIdSinceTimestamp: jest.fn(),
-    getWindowStartTimeByAccountId: jest.fn(),
-    setWindowStartTimeByAccountId: jest.fn(),
+    getWindowByAccountIdAndType: jest.fn(),
+    setWindowByAccountIdAndType: jest.fn(),
+    downgradeModelForWindow: jest.fn(),
 };
 
 const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUsageDatabase;
 
-/**
- * Helper function to assert that a timestamp matches an expected human-readable date string.
- * This just makes failing assertions much easier to read.
- */
-function assertStringTimestampEqual(actualTimestamp: number, expectedDateString: string) {
-    const actualDate = new Date(actualTimestamp);
-    const formatter = new Intl.DateTimeFormat("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-        timeZone: "UTC",
+const dynamicWindowLimit = agentUsageWindowLimits.find(limit => limit.type === "Dynamic")!;
+const weeklyWindowLimit = agentUsageWindowLimits.find(limit => limit.type === "Weekly")!;
+
+function intoUsageWindowWithWindowLimitsAndUsedMillicents(
+    accountId: AccountId,
+    windows: Array<{
+        type: AgentUsageWindowType;
+        startedTime: number;
+        usedMillicents: number;
+        wasModelDowngraded: boolean;
+    }>,
+): Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> {
+    return windows.map(window => {
+        const windowLimit = agentUsageWindowLimits.find(limit => limit.type === window.type)!;
+        return {
+            ...window,
+            accountId,
+            durationMs: windowLimit.durationMs,
+            limitDollars: windowLimit.limitDollars,
+        };
     });
-    const actualDateString = formatter.format(actualDate).replace(" at ", " at ");
-    expect(actualDateString).toBe(expectedDateString);
 }
 
-describe("checkAgentUsageLimit", () => {
+describe("getAgentUsageLimitWindows", () => {
     beforeAll(() => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date("2024-01-17T12:00:00.000Z").getTime());
@@ -59,578 +66,798 @@ describe("checkAgentUsageLimit", () => {
         jest.clearAllMocks();
     });
 
-    test("allows requests when no window exists (returns current timestamp)", async () => {
+    test("returns windows with current usage for both window types", async () => {
         const currentTimestamp = Date.now();
         const accountId = "test_account" as AccountId;
 
-        // Mock returns null since no window exists
-        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(null);
-        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-            BigInt(0),
-        );
+        // Calculate the correct Sunday start time for the current week
+        const currentDate = new Date(currentTimestamp);
+        currentDate.setUTCHours(0, 0, 0, 0);
+        currentDate.setUTCDate(currentDate.getUTCDate() - currentDate.getUTCDay());
+        const weeklyStartTime = currentDate.getTime();
 
-        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-            accountId,
-            currentTimestamp,
-        });
+        const dynamicStartTime = currentTimestamp - 2 * 60 * 60 * 1000; // 2 hours ago
 
-        expect(result.ok).toBe(true);
-        expect(mockAgentUsageDatabase.getWindowStartTimeByAccountId).toHaveBeenCalledWith(
-            accountId,
-        );
-    });
+        // Mock existing windows
+        mockAgentUsageDatabase.getWindowByAccountIdAndType
+            .mockResolvedValueOnce({
+                accountId,
+                type: "Weekly",
+                startedTime: weeklyStartTime,
+                wasModelDowngraded: false,
+            }) // weekly
+            .mockResolvedValueOnce({
+                accountId,
+                type: "Dynamic",
+                startedTime: dynamicStartTime,
+                wasModelDowngraded: true,
+            }); // dynamic
 
-    test("allows requests under both weekly and dynamic limits", async () => {
-        const currentTimestamp = Date.now();
-        const accountId = "test_account" as AccountId;
-        const windowStartTime = currentTimestamp - 1000;
+        // Mock usage amounts
+        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
+            .mockResolvedValueOnce(15000) // weekly usage
+            .mockResolvedValueOnce(8000); // dynamic usage
 
-        // Mock existing window
-        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-        // Mock current usage under both limits
-        const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-        const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-        const usageAmount = Math.min(dynamicLimit, weeklyLimit) - 1000;
-
-        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-            BigInt(usageAmount),
-        );
-
-        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-            accountId,
-            currentTimestamp,
-        });
-
-        expect(result.ok).toBe(true);
-        // Should check both weekly window (from Sunday) and dynamic window
-        expect(
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-        ).toHaveBeenCalledTimes(2);
-    });
-
-    [
-        {
-            dynamicPercent: 0,
-            weeklyPercent: 0,
-            expectedMaximumWindowUsagePercent: 0,
-        },
-        {
-            dynamicPercent: 0,
-            weeklyPercent: 0.5,
-            expectedMaximumWindowUsagePercent: 0.5,
-        },
-        {
-            dynamicPercent: 0.5,
-            weeklyPercent: 0,
-            expectedMaximumWindowUsagePercent: 0.5,
-        },
-        {
-            dynamicPercent: 0.3,
-            weeklyPercent: 0.5,
-            expectedMaximumWindowUsagePercent: 0.5,
-        },
-        {
-            dynamicPercent: 0.5,
-            weeklyPercent: 0.3,
-            expectedMaximumWindowUsagePercent: 0.5,
-        },
-        {
-            dynamicPercent: 1,
-            weeklyPercent: 0.3,
-            expectedMaximumWindowUsagePercent: 1,
-        },
-        {
-            dynamicPercent: 0.99999,
-            weeklyPercent: 0.99999,
-            expectedMaximumWindowUsagePercent: 0.99999,
-        },
-    ].forEach(({dynamicPercent, weeklyPercent, expectedMaximumWindowUsagePercent}) => {
-        test(`calculates maximumWindowUsagePercent correctly with dynamic: ${
-            dynamicPercent * 100
-        }% and weekly: ${weeklyPercent * 100}%`, async () => {
-            const currentTimestamp = Date.now();
-            const accountId = "test_account" as AccountId;
-            const windowStartTime = currentTimestamp - 1000;
-            const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Set dynamic window to 30% usage and weekly window to 60% usage
-            const dynamicUsage = dynamicLimit * dynamicPercent;
-            const weeklyUsage = weeklyLimit * weeklyPercent;
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock different usage amounts for each call
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
-                .mockResolvedValueOnce(BigInt(weeklyUsage)) // Weekly window check (first call)
-                .mockResolvedValueOnce(BigInt(dynamicUsage)); // Dynamic window check (second call)
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+        const result = await testTracer.withSpan("test", async span =>
+            getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
                 accountId,
                 currentTimestamp,
-            });
+            }),
+        );
 
-            assert(result.ok);
-            expect(result.maximumWindowUsagePercent).toBe(expectedMaximumWindowUsagePercent);
-        });
+        expect(result).toEqual(
+            intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
+                {
+                    type: "Weekly",
+                    startedTime: weeklyStartTime,
+                    usedMillicents: 15000,
+                    wasModelDowngraded: false,
+                },
+                {
+                    type: "Dynamic",
+                    startedTime: dynamicStartTime,
+                    usedMillicents: 8000,
+                    wasModelDowngraded: true,
+                },
+            ]),
+        );
     });
 
-    [
-        {
-            description: "6 days until reset",
-            mockTime: "2024-01-15T00:00:00.000Z", // Monday
-            expectedMessage: "You’ve asked a lot! Please ask again in 6 days.",
-        },
-        {
-            description: "3 days until reset",
-            mockTime: "2024-01-18T00:00:00.000Z", // Thursday
-            expectedMessage: "You’ve asked a lot! Please ask again in 3 days.",
-        },
-        {
-            description: "1 day until reset",
-            mockTime: "2024-01-20T00:00:00.000Z", // Saturday
-            expectedMessage: "You’ve asked a lot! Please ask again in 1 day.",
-        },
-        {
-            description: "20 hours until reset",
-            mockTime: "2024-01-20T04:00:00.000Z", // Saturday 4 AM
-            expectedMessage: "You’ve asked a lot! Please ask again in 20 hours.",
-        },
-        {
-            description: "1 hour until reset",
-            mockTime: "2024-01-20T23:00:00.000Z", // Saturday 11 PM
-            expectedMessage: "You’ve asked a lot! Please ask again in 1 hour.",
-        },
-    ].forEach(({description, mockTime, expectedMessage}) => {
-        test(`blocks requests when weekly limit is exceeded (${description})`, async () => {
-            jest.setSystemTime(new Date(mockTime).getTime());
-
-            const currentTimestamp = Date.now();
-            const accountId = "test_account" as AccountId;
-            const windowStartTime = currentTimestamp - 1000;
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly usage over limit (should block immediately without checking dynamic)
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-                BigInt(weeklyLimit + 1000),
-            );
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            });
-
-            expect(result.ok).toBe(false);
-            if (!result.ok) {
-                expect(result.message).toBe(expectedMessage);
-            }
-
-            // Should only check weekly limit, not dynamic (since weekly failed first)
-            expect(
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-            ).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    [
-        {
-            description: "7 hours until reset",
-            windowStartTimeDelta: -1 * 60 * 60 * 1000, // Window started 1 hour ago, 7 hours left in 8-hour window
-            expectedMessage: "You’ve asked a lot! Please ask again in 7 hours.",
-        },
-        {
-            description: "1 hour until reset",
-            windowStartTimeDelta: -7 * 60 * 60 * 1000, // Window started 7 hours ago, 1 hour left in 8-hour window
-            expectedMessage: "You’ve asked a lot! Please ask again in 1 hour.",
-        },
-        {
-            description: "30 minutes until reset",
-            windowStartTimeDelta: -(7 * 60 + 30) * 60 * 1000, // Window started 7.5 hours ago, 30 minutes left
-            expectedMessage: "You’ve asked a lot! Please ask again in 30 minutes.",
-        },
-        {
-            description: "1 minute until reset",
-            windowStartTimeDelta: -(7 * 60 + 59) * 60 * 1000, // Window started 7 hours 59 minutes ago, 1 minute left
-            expectedMessage: "You’ve asked a lot! Please ask again in 1 minute.",
-        },
-    ].forEach(({description, windowStartTimeDelta, expectedMessage}) => {
-        test(`blocks requests when dynamic limit is exceeded (${description})`, async () => {
-            const currentTimestamp = Date.now();
-            const windowStartTime = currentTimestamp + windowStartTimeDelta;
-
-            const accountId = "test_account" as AccountId;
-            const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly under limit, dynamic over limit
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
-                .mockResolvedValueOnce(BigInt(weeklyLimit - 1000)) // Weekly under limit
-                .mockResolvedValueOnce(BigInt(dynamicLimit + 1000)); // Dynamic over limit
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            });
-
-            expect(result.ok).toBe(false);
-            if (!result.ok) {
-                expect(result.message).toBe(expectedMessage);
-            }
-
-            // Should check both limits
-            expect(
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-            ).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    test("resets dynamic window after 8 hours", async () => {
-        const currentTimestamp = Date.now();
+    test("handles new windows with zero usage", async () => {
+        const currentTimestamp = new Date("2025-12-30T12:00:00.000Z").getTime();
         const accountId = "test_account" as AccountId;
 
-        // Mock window that's older than 8 hours
-        const oldWindowStart = currentTimestamp - (agentUsageWindowLimit.dynamic.durationMs + 1000);
-        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(oldWindowStart);
-        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-            BigInt(0),
-        );
+        // Mock no existing windows (new account)
+        mockAgentUsageDatabase.getWindowByAccountIdAndType.mockResolvedValue(null);
 
-        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+        // Mock usage query - weekly window will query since it starts at Sunday, dynamic won't since it starts now
+        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(0);
+
+        mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
             accountId,
-            currentTimestamp,
+            type: "Weekly",
+            startedTime: new Date("2025-12-28T00:00:00.000Z").getTime(),
+            wasModelDowngraded: false,
+        });
+        mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
+            accountId,
+            type: "Dynamic",
+            startedTime: currentTimestamp,
+            wasModelDowngraded: false,
         });
 
-        expect(result.ok).toBe(true);
-        expect(mockAgentUsageDatabase.setWindowStartTimeByAccountId).toHaveBeenCalledWith(
-            accountId,
-            currentTimestamp,
+        const result = await testTracer.withSpan("test", async span =>
+            getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                accountId,
+                currentTimestamp,
+            }),
+        );
+
+        expect(result).toEqual(
+            intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
+                {
+                    type: "Weekly",
+                    startedTime: new Date("2025-12-28T00:00:00.000Z").getTime(),
+                    usedMillicents: 0,
+                    wasModelDowngraded: false,
+                },
+                {
+                    type: "Dynamic",
+                    startedTime: currentTimestamp,
+                    usedMillicents: 0,
+                    wasModelDowngraded: false,
+                },
+            ]),
         );
     });
 
-    test("weekly window is calculated from Sunday 00:00 UTC", async () => {
-        const currentTimestamp = Date.now();
+    describe("weekly window reset scenarios", () => {
+        const testCases = [
+            {
+                description: "resets window when current week is different from stored week",
+                currentTime: "2024-01-21T10:00:00.000Z", // Next Sunday
+                storedWeekStart: new Date("2024-01-14T00:00:00.000Z").getTime(), // Previous Sunday
+                expectedNewWeekStart: new Date("2024-01-21T00:00:00.000Z").getTime(),
+                shouldReset: true,
+            },
+            {
+                description: "preserves window when in same week",
+                currentTime: "2024-01-19T15:00:00.000Z", // Friday same week
+                storedWeekStart: new Date("2024-01-14T00:00:00.000Z").getTime(), // Current week Sunday
+                expectedNewWeekStart: new Date("2024-01-14T00:00:00.000Z").getTime(),
+                shouldReset: false,
+            },
+        ];
+
+        testCases.forEach(
+            ({description, currentTime, storedWeekStart, expectedNewWeekStart, shouldReset}) => {
+                test(`weekly window reset: ${description}`, async () => {
+                    const currentTimestamp = new Date(currentTime).getTime();
+                    const accountId = "test_account" as AccountId;
+
+                    // Mock existing weekly window with stored week start
+                    mockAgentUsageDatabase.getWindowByAccountIdAndType
+                        .mockResolvedValueOnce({
+                            accountId,
+                            type: "Weekly",
+                            startedTime: storedWeekStart,
+                            wasModelDowngraded: false,
+                        })
+                        .mockResolvedValueOnce(null); // dynamic (new)
+
+                    mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
+                        5000,
+                    );
+
+                    if (shouldReset) {
+                        mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
+                            accountId,
+                            type: "Weekly",
+                            startedTime: expectedNewWeekStart,
+                            wasModelDowngraded: false,
+                        });
+                    }
+
+                    mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
+                        accountId,
+                        type: "Dynamic",
+                        startedTime: currentTimestamp,
+                        wasModelDowngraded: false,
+                    });
+
+                    const result = await testTracer.withSpan("test", async span =>
+                        getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                            accountId,
+                            currentTimestamp,
+                        }),
+                    );
+                    expect(result).toEqual(
+                        intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
+                            {
+                                type: "Weekly",
+                                startedTime: expectedNewWeekStart,
+                                usedMillicents: 5000,
+                                wasModelDowngraded: false,
+                            },
+                            {
+                                type: "Dynamic",
+                                startedTime: currentTimestamp,
+                                usedMillicents: 0,
+                                wasModelDowngraded: false,
+                            },
+                        ]),
+                    );
+                });
+            },
+        );
+    });
+
+    describe("dynamic window reset scenarios", () => {
+        const testCases = [
+            {
+                description: "resets window when duration has passed",
+                windowAge: dynamicWindowLimit.durationMs + 1000, // 1 second past 8 hours
+                shouldReset: true,
+            },
+            {
+                description: "preserves window when duration has not passed",
+                windowAge: dynamicWindowLimit.durationMs - 1000, // 1 second before 8 hours
+                shouldReset: false,
+            },
+            {
+                description: "resets window when exactly at duration limit",
+                windowAge: dynamicWindowLimit.durationMs,
+                shouldReset: true,
+            },
+        ];
+
+        testCases.forEach(({description, windowAge, shouldReset}) => {
+            test(`dynamic window reset: ${description}`, async () => {
+                const currentTimestamp = new Date("2025-12-30T12:00:00.000Z").getTime(); // Tuesday
+                const weeklyStartTime = new Date("2025-12-28T00:00:00.000Z").getTime(); // Sunday
+                const dynamicStartTime = currentTimestamp - windowAge;
+
+                const accountId = "test_account" as AccountId;
+
+                mockAgentUsageDatabase.getWindowByAccountIdAndType
+                    .mockResolvedValueOnce({
+                        startedTime: weeklyStartTime,
+                        wasModelDowngraded: false,
+                        accountId,
+                        type: "Weekly",
+                    })
+                    .mockResolvedValueOnce({
+                        startedTime: dynamicStartTime,
+                        wasModelDowngraded: false,
+                        accountId,
+                        type: "Dynamic",
+                    });
+
+                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
+                    3000,
+                );
+
+                if (shouldReset) {
+                    mockAgentUsageDatabase.setWindowByAccountIdAndType.mockResolvedValueOnce({
+                        accountId,
+                        type: "Dynamic",
+                        startedTime: currentTimestamp,
+                        wasModelDowngraded: false,
+                    });
+                }
+
+                const result = await testTracer.withSpan("test", async span =>
+                    getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                        accountId,
+                        currentTimestamp,
+                    }),
+                );
+
+                if (shouldReset) {
+                    expect(result).toEqual(
+                        intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
+                            {
+                                type: "Weekly",
+                                startedTime: weeklyStartTime,
+                                usedMillicents: 3000,
+                                wasModelDowngraded: false,
+                            },
+                            {
+                                type: "Dynamic",
+                                startedTime: currentTimestamp,
+                                usedMillicents: 0,
+                                wasModelDowngraded: false,
+                            },
+                        ]),
+                    );
+                    expect(mockAgentUsageDatabase.setWindowByAccountIdAndType).toHaveBeenCalledWith(
+                        accountId,
+                        "Dynamic",
+                        currentTimestamp,
+                        false,
+                    );
+                } else {
+                    expect(result).toEqual(
+                        intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
+                            {
+                                type: "Weekly",
+                                startedTime: weeklyStartTime,
+                                usedMillicents: 3000,
+                                wasModelDowngraded: false,
+                            },
+                            {
+                                type: "Dynamic",
+                                startedTime: dynamicStartTime,
+                                usedMillicents: 3000,
+                                wasModelDowngraded: false,
+                            },
+                        ]),
+                    );
+                    expect(
+                        mockAgentUsageDatabase.setWindowByAccountIdAndType,
+                    ).not.toHaveBeenCalled();
+                }
+            });
+        });
+    });
+
+    test("handles database errors gracefully", async () => {
+        const currentTimestamp = new Date("2025-12-30T12:00:00.000Z").getTime(); // Tuesday
+        const weeklyStartTime = new Date("2025-12-28T00:00:00.000Z").getTime(); // Sunday
+
         const accountId = "test_account" as AccountId;
 
-        // Mock no existing dynamic window (returns null for dynamic)
-        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(null);
+        // Mock first window call to succeed, second to fail
+        mockAgentUsageDatabase.getWindowByAccountIdAndType
+            .mockResolvedValueOnce({
+                startedTime: weeklyStartTime,
+                wasModelDowngraded: false,
+                accountId,
+                type: "Weekly",
+            })
+            .mockRejectedValueOnce(new UnknownError("Database error"));
 
-        // Mock setting the new dynamic window start time
-        mockAgentUsageDatabase.setWindowStartTimeByAccountId.mockResolvedValue();
+        // Should not throw, but may have incomplete results
+        await expect(
+            testTracer.withSpan("test", async span =>
+                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                    accountId,
+                    currentTimestamp,
+                }),
+            ),
+        ).rejects.toThrow("Database error");
+    });
+});
 
-        // Mock usage result - only one call for weekly window
-        // (dynamic window will skip the DB call since it's a new window with currentTimestamp)
-        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValueOnce(
-            BigInt(0),
-        ); // Weekly window usage
+describe("isAgentUsageLimitExceeded", () => {
+    const accountId = "test_account" as AccountId;
+    const alpioneerAccountId = joshKnownAccountId;
 
-        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+    beforeAll(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date("2024-01-17T12:00:00.000Z").getTime());
+    });
+
+    afterAll(() => {
+        jest.useRealTimers();
+    });
+
+    const twoHoursAfterDynamicWindowStart = new Date("2025-12-30T12:00:00.000Z").getTime(); // Tuesday
+    const weeklyStartTime = new Date("2025-12-28T00:00:00.000Z").getTime(); // Sunday
+    const nextWeekWeeklyStartTime = new Date("2026-01-04T00:00:00.000Z").getTime(); // Next Sunday
+    const dynamicStartTime = twoHoursAfterDynamicWindowStart - 2 * 60 * 60 * 1000; // 2 hours ago
+
+    const createWindows = (params: {
+        weekly: {usage: number; wasModelDowngraded?: boolean};
+        dynamic: {usage: number; wasModelDowngraded?: boolean};
+    }): Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> => [
+        {
             accountId,
-            currentTimestamp,
+            type: "Weekly",
+            startedTime: weeklyStartTime,
+            usedMillicents: params.weekly.usage,
+            wasModelDowngraded: params.weekly.wasModelDowngraded ?? false,
+            durationMs: weeklyWindowLimit.durationMs,
+            limitDollars: weeklyWindowLimit.limitDollars,
+        },
+        {
+            accountId,
+            type: "Dynamic",
+            startedTime: dynamicStartTime,
+            usedMillicents: params.dynamic.usage,
+            wasModelDowngraded: params.dynamic.wasModelDowngraded ?? false,
+            durationMs: dynamicWindowLimit.durationMs,
+            limitDollars: dynamicWindowLimit.limitDollars,
+        },
+    ];
+
+    describe("limit not exceeded scenarios", () => {
+        const testCases = [
+            {
+                description: "both windows under limits",
+                weeklyUsage: weeklyWindowLimit.limitDollars * 100 * 1000 - 1000,
+                dynamicUsage: dynamicWindowLimit.limitDollars * 100 * 1000 - 500,
+            },
+            {
+                description: "both windows at zero usage",
+                weeklyUsage: 0,
+                dynamicUsage: 0,
+            },
+            {
+                description: "one window at exact limit (not exceeded)",
+                weeklyUsage: weeklyWindowLimit.limitDollars * 100 * 1000,
+                dynamicUsage: dynamicWindowLimit.limitDollars * 100 * 1000 - 500,
+            },
+        ];
+
+        testCases.forEach(({description, weeklyUsage, dynamicUsage}) => {
+            test(`limit not exceeded: ${description}`, () => {
+                const windows = createWindows({
+                    weekly: {usage: weeklyUsage},
+                    dynamic: {usage: dynamicUsage},
+                });
+                const result = isAgentUsageLimitExceeded(accountId, windows);
+                expect(result).toEqual({exceeded: false});
+            });
+        });
+    });
+
+    describe("limit exceeded scenarios", () => {
+        test("weekly window exceeds limit", () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit + 1000},
+                dynamic: {usage: dynamicLimit - 500},
+            });
+
+            const result = isAgentUsageLimitExceeded(accountId, windows);
+
+            expect(result).toEqual({
+                exceeded: true,
+                type: "Weekly",
+                resetTime: new Date(nextWeekWeeklyStartTime),
+            });
         });
 
-        expect(result.ok).toBe(true);
+        test("dynamic window exceeds limit", () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit - 500},
+                dynamic: {usage: dynamicLimit + 1000},
+            });
 
-        // Should call getUsedMillicentsByAccountIdSinceTimestamp once for weekly window
-        // (Dynamic window skips DB call since startedAt === currentTimestamp for new windows)
-        expect(
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-        ).toHaveBeenCalledTimes(1);
+            const result = isAgentUsageLimitExceeded(accountId, windows);
 
-        // The call should be for weekly window with a timestamp that's aligned to Sunday
-        const weeklyCall =
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mock.calls[0];
-        const weeklyStartTime = weeklyCall![1];
+            expect(result).toEqual({
+                exceeded: true,
+                type: "Dynamic",
+                // 8 hours from start of window
+                resetTime: new Date(dynamicStartTime + dynamicWindowLimit.durationMs),
+            });
+        });
 
-        assertStringTimestampEqual(weeklyStartTime, "Sunday, January 14, 2024 at 00:00:00");
+        test("both windows exceed limits - returns window with furthest reset time", () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit + 1000},
+                dynamic: {usage: dynamicLimit + 1000},
+            });
 
-        // Should set the dynamic window start time for the new window
-        expect(mockAgentUsageDatabase.setWindowStartTimeByAccountId).toHaveBeenCalledWith(
-            accountId,
-            currentTimestamp,
-        );
+            const result = isAgentUsageLimitExceeded(accountId, windows);
+
+            // Weekly window lasts 7 days, dynamic lasts 8 hours, so weekly should be returned
+            expect(result).toEqual({
+                exceeded: true,
+                type: "Weekly",
+                resetTime: new Date(nextWeekWeeklyStartTime),
+            });
+        });
+
+        test("both windows exceed limits but dynamic resets later than weekly end", () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+
+            // Create scenario where dynamic window was started later and will reset after weekly ends
+            const dynamicStartTime = nextWeekWeeklyStartTime - 6 * 60 * 60 * 1000; // 6 hours ago
+            const windows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> = [
+                {
+                    accountId,
+                    type: "Weekly",
+                    startedTime: weeklyStartTime, // Started 6 days ago, ends in 1 day
+                    usedMillicents: weeklyLimit + 1000,
+                    wasModelDowngraded: false,
+                    durationMs: weeklyWindowLimit.durationMs,
+                    limitDollars: weeklyWindowLimit.limitDollars,
+                },
+                {
+                    accountId,
+                    type: "Dynamic",
+                    startedTime: dynamicStartTime, // Started 2 hours ago before weekly window ends
+                    usedMillicents: dynamicLimit + 1000,
+                    wasModelDowngraded: false,
+                    durationMs: dynamicWindowLimit.durationMs,
+                    limitDollars: dynamicWindowLimit.limitDollars,
+                },
+            ];
+
+            const result = isAgentUsageLimitExceeded(accountId, windows);
+
+            expect(result).toEqual({
+                exceeded: true,
+                type: "Dynamic",
+                resetTime: new Date(dynamicStartTime + dynamicWindowLimit.durationMs),
+            });
+        });
     });
 
     describe("alpioneer account behavior", () => {
-        test("allows weekly window requests for alpioneer accounts even when over limit", async () => {
-            const currentTimestamp = Date.now();
-            const accountId = joshKnownAccountId;
-            const windowStartTime = currentTimestamp - 1000;
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly usage OVER limit for alpioneer account
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-                BigInt(weeklyLimit + 1000),
-            );
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
+        test("never exceeds limits for alpioneer accounts", () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 10}, // Way over limits
+                dynamic: {usage: dynamicLimit * 10},
             });
 
-            // Should not be blocked even though over limit
-            expect(result.ok).toBe(true);
-            if (result.ok) {
-                // Should still return accurate usage percentage (over 100%)
-                expect(result.maximumWindowUsagePercent).toBeGreaterThan(1);
-            }
+            const result = isAgentUsageLimitExceeded(alpioneerAccountId, windows);
 
-            // Should only check weekly limit, then dynamic (both pass for alpioneers)
-            expect(
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-            ).toHaveBeenCalledTimes(2);
+            expect(result).toEqual({exceeded: false});
         });
 
-        test("allows dynamic window requests for alpioneer accounts even when over limit", async () => {
-            const currentTimestamp = Date.now();
-            const accountId = joshKnownAccountId;
-            const windowStartTime = currentTimestamp - 1000;
-            const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly under limit, dynamic OVER limit for alpioneer account
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
-                .mockResolvedValueOnce(BigInt(weeklyLimit - 1000)) // Weekly under limit
-                .mockResolvedValueOnce(BigInt(dynamicLimit + 1000)); // Dynamic over limit
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
+        test("works with any alpioneer account", () => {
+            const anotherAlpioneer = Object.keys(alpioneers)[1] as AccountId;
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 5},
+                dynamic: {usage: dynamicLimit * 5},
             });
 
-            // Should not be blocked even though dynamic window is over limit
-            expect(result.ok).toBe(true);
-            if (result.ok) {
-                // Should return the higher of the two usage percentages (dynamic is over 100%)
-                const weeklyPercent = (weeklyLimit - 1000) / weeklyLimit;
-                const dynamicPercent = (dynamicLimit + 1000) / dynamicLimit;
-                const expectedMaxPercent = Math.max(weeklyPercent, dynamicPercent);
-                expect(result.maximumWindowUsagePercent).toBe(expectedMaxPercent);
-                expect(result.maximumWindowUsagePercent).toBeGreaterThan(1);
-            }
+            const result = isAgentUsageLimitExceeded(anotherAlpioneer, windows);
 
-            // Should check both limits
-            expect(
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-            ).toHaveBeenCalledTimes(2);
-        });
-
-        test("allows requests for alpioneer accounts even when both windows are over limit", async () => {
-            const currentTimestamp = Date.now();
-            const accountId = joshKnownAccountId;
-            const windowStartTime = currentTimestamp - 1000;
-            const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock BOTH weekly and dynamic over limit for alpioneer account
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
-                .mockResolvedValueOnce(BigInt(weeklyLimit + 2000)) // Weekly over limit
-                .mockResolvedValueOnce(BigInt(dynamicLimit + 3000)); // Dynamic over limit
-
-            const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            });
-
-            // Should not be blocked even though both windows are over limit
-            expect(result.ok).toBe(true);
-            if (result.ok) {
-                // Should return the higher of the two usage percentages
-                const weeklyPercent = (weeklyLimit + 2000) / weeklyLimit;
-                const dynamicPercent = (dynamicLimit + 3000) / dynamicLimit;
-                const expectedMaxPercent = Math.max(weeklyPercent, dynamicPercent);
-                expect(result.maximumWindowUsagePercent).toBe(expectedMaxPercent);
-                expect(result.maximumWindowUsagePercent).toBeGreaterThan(1);
-            }
-
-            // Should check both limits
-            expect(
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-            ).toHaveBeenCalledTimes(2);
+            expect(result).toEqual({exceeded: false});
         });
     });
+});
 
-    test("allows requests when database errors occur (graceful degradation)", async () => {
-        const currentTimestamp = Date.now();
-        const accountId = "test_account" as AccountId;
+describe("shouldDowngradeModelForAgentUsageLimit", () => {
+    const accountId = generateId<AccountId>();
 
-        // Mock getWindowStartTimeByAccountId to succeed (returns null for new window)
-        mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(null);
+    beforeAll(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date("2024-01-17T12:00:00.000Z").getTime());
+    });
 
-        // Mock setWindowStartTimeByAccountId to succeed
-        mockAgentUsageDatabase.setWindowStartTimeByAccountId.mockResolvedValue();
+    afterAll(() => {
+        jest.useRealTimers();
+    });
 
-        // Mock getUsedMillicentsByAccountIdSinceTimestamp to throw an error
-        mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockRejectedValue(
-            new UnknownError("Database connection failed"),
-        );
+    const twoHoursAfterDynamicWindowStart = new Date("2025-12-30T12:00:00.000Z").getTime(); // Tuesday
+    const weeklyStartTime = new Date("2025-12-28T00:00:00.000Z").getTime(); // Sunday
+    const dynamicStartTime = twoHoursAfterDynamicWindowStart - 2 * 60 * 60 * 1000; // 2 hours ago
 
-        const result = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+    const createWindows = (params: {
+        weekly: {usage: number; wasModelDowngraded?: boolean};
+        dynamic: {usage: number; wasModelDowngraded?: boolean};
+    }): Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> => [
+        {
             accountId,
-            currentTimestamp,
+            type: "Weekly",
+            startedTime: weeklyStartTime,
+            usedMillicents: params.weekly.usage,
+            wasModelDowngraded: params.weekly.wasModelDowngraded ?? false,
+            durationMs: weeklyWindowLimit.durationMs,
+            limitDollars: weeklyWindowLimit.limitDollars,
+        },
+        {
+            accountId,
+            type: "Dynamic",
+            startedTime: dynamicStartTime,
+            usedMillicents: params.dynamic.usage,
+            wasModelDowngraded: params.dynamic.wasModelDowngraded ?? false,
+            durationMs: dynamicWindowLimit.durationMs,
+            limitDollars: dynamicWindowLimit.limitDollars,
+        },
+    ];
+
+    describe("no downgrade scenarios", () => {
+        const testCases = [
+            {
+                description: "both windows under downgrade threshold",
+                weeklyPercent: 0.5, // 50%
+                dynamicPercent: 0.6, // 60%
+                downgradeThreshold: 0.75,
+            },
+            {
+                description: "one window just below threshold",
+                weeklyPercent: 0.74, // Just below threshold
+                dynamicPercent: 0.5,
+                downgradeThreshold: 0.75,
+            },
+            {
+                description: "zero usage",
+                weeklyPercent: 0,
+                dynamicPercent: 0,
+                downgradeThreshold: 0.5,
+            },
+        ];
+
+        testCases.forEach(({description, weeklyPercent, dynamicPercent, downgradeThreshold}) => {
+            test(`no downgrade: ${description}`, async () => {
+                const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+                const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+                const windows = createWindows({
+                    weekly: {usage: weeklyLimit * weeklyPercent},
+                    dynamic: {usage: dynamicLimit * dynamicPercent},
+                });
+
+                const result = await shouldDowngradeModelForAgentUsageLimit(
+                    mockAgentUsageDatabaseClass,
+                    windows,
+                    downgradeThreshold,
+                );
+
+                expect(result).toEqual({shouldDowngrade: false});
+            });
         });
-
-        // Should allow the request to proceed despite database error
-        expect(result.ok).toBe(true);
-        if (result.ok) {
-            expect(result.maximumWindowUsagePercent).toBe(0);
-        }
-
-        // Should have attempted to check usage
-        expect(
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp,
-        ).toHaveBeenCalled();
     });
 
-    describe("windows reset properly", () => {
-        test("weekly window resets after Sunday 00:00 UTC", async () => {
-            const accountId = "test_account" as AccountId;
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Set time to Saturday 11 PM
-            jest.setSystemTime(new Date("2024-01-20T23:00:00.000Z").getTime());
-
-            const initialTimestamp = Date.now();
-            const windowStartTime = initialTimestamp - 1000;
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly usage over limit
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-                BigInt(weeklyLimit + 1000),
-            );
-
-            // First request should fail
-            const failResult = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp: initialTimestamp,
+    describe("downgrade scenarios", () => {
+        test("weekly window exceeds threshold - first time downgrade", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: false}, // Above 75%, not previously downgraded
+                dynamic: {usage: dynamicLimit * 0.5}, // Below 75%
             });
 
-            expect(failResult.ok).toBe(false);
-
-            // Advance time to Sunday 1 AM (2 hours later)
-            jest.setSystemTime(new Date("2024-01-21T01:00:00.000Z").getTime());
-
-            const resetTimestamp = Date.now();
-
-            // Reset mocks for second call
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-                BigInt(0),
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
             );
 
-            // Second request should pass after reset
-            const passResult = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp: resetTimestamp,
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: true,
+                resetTime: new Date(weeklyStartTime + weeklyWindowLimit.durationMs),
             });
-
-            // Our weekly window was reset!
-            expect(passResult.ok).toBe(true);
-
-            // Verify the calls to getUsedMillicentsByAccountIdSinceTimestamp
-            const calls =
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mock.calls;
-
-            // First call should be for weekly window (from previous Sunday)
-            expect(calls[0]![0]).toBe(accountId);
-            const firstCallTimestamp = calls[0]![1];
-            assertStringTimestampEqual(firstCallTimestamp, "Sunday, January 14, 2024 at 00:00:00");
-
-            // Second call should be for weekly window after reset (from Sunday 00:00)
-            expect(calls[1]![0]).toBe(accountId);
-            const secondCallTimestamp = calls[1]![1];
-            assertStringTimestampEqual(secondCallTimestamp, "Sunday, January 21, 2024 at 00:00:00");
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                accountId,
+                "Weekly",
+            );
         });
 
-        test("dynamic window resets after 8 hours", async () => {
-            const accountId = "test_account" as AccountId;
-            const dynamicLimit = agentUsageWindowLimit.dynamic.limitDollars * 100 * 1000; // in millicents
-            const weeklyLimit = agentUsageWindowLimit.weekly.limitDollars * 100 * 1000; // in millicents
-
-            // Set initial time
-            const initialTime = Date.now();
-            const windowStartTime = initialTime - 7 * 60 * 60 * 1000; // Window started 7 hours ago
-
-            // Mock existing window
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-
-            // Mock weekly under limit, dynamic over limit
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
-                .mockResolvedValueOnce(BigInt(weeklyLimit - 1000)) // Weekly under limit
-                .mockResolvedValueOnce(BigInt(dynamicLimit + 1000)); // Dynamic over limit
-
-            // First request should fail
-            const failResult = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp: initialTime,
+        test("dynamic window exceeds threshold - first time downgrade", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.5}, // Below 75%
+                dynamic: {usage: dynamicLimit * 0.9, wasModelDowngraded: false}, // Above 75%, not previously downgraded
             });
 
-            expect(failResult.ok).toBe(false);
-
-            // Advance time by 2 hours (total 9 hours since window start, should trigger reset)
-            jest.advanceTimersByTime(2 * 60 * 60 * 1000);
-
-            const resetTimestamp = Date.now();
-
-            // Reset mocks for second call - window should reset
-            mockAgentUsageDatabase.getWindowStartTimeByAccountId.mockResolvedValue(windowStartTime);
-            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mockResolvedValue(
-                BigInt(0),
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
             );
 
-            // Second request should pass after reset
-            const passResult = await checkAgentUsageLimit(testTracer, mockAgentUsageDatabaseClass, {
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: true,
+                resetTime: new Date(dynamicStartTime + dynamicWindowLimit.durationMs),
+            });
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
                 accountId,
-                currentTimestamp: resetTimestamp,
+                "Dynamic",
+            );
+        });
+
+        test("both windows exceed threshold - first time downgrade", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: false}, // Above 75%, not previously downgraded
+                dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: false}, // Above 75%, not previously downgraded
             });
 
-            expect(passResult.ok).toBe(true);
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
+            );
 
-            // Should have called setWindowStartTimeByAccountId to reset the window
-            expect(mockAgentUsageDatabase.setWindowStartTimeByAccountId).toHaveBeenCalledWith(
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: true,
+                resetTime: new Date(weeklyStartTime + weeklyWindowLimit.durationMs),
+            });
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
                 accountId,
-                resetTimestamp,
+                "Weekly",
+            );
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                accountId,
+                "Dynamic",
+            );
+        });
+
+        test("already downgraded window exceeds threshold - no alert", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
+                dynamic: {usage: dynamicLimit * 0.5}, // Below 75%
+            });
+
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
             );
 
-            // Verify the calls to getUsedMillicentsByAccountIdSinceTimestamp
-            const calls =
-                mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp.mock.calls;
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: false,
+            });
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).not.toHaveBeenCalled();
+        });
 
-            // First request makes 2 calls: weekly window, then dynamic window
-            expect(calls[0]![0]).toBe(accountId);
-            const firstWeeklyCallTimestamp = calls[0]![1];
-            assertStringTimestampEqual(
-                firstWeeklyCallTimestamp,
-                "Sunday, January 21, 2024 at 00:00:00",
+        test("mixed downgrade states - alert only for new downgrades", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
+                dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: false}, // Above 75%, not previously downgraded
+            });
+
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
             );
 
-            expect(calls[1]![0]).toBe(accountId);
-            expect(calls[1]![1]).toBe(windowStartTime); // Dynamic window from 7 hours ago
-
-            // Second request makes 1 call: only weekly window (dynamic window skipped since it's new)
-            expect(calls[2]![0]).toBe(accountId);
-            const secondWeeklyCallTimestamp = calls[2]![1];
-            assertStringTimestampEqual(
-                secondWeeklyCallTimestamp,
-                "Sunday, January 21, 2024 at 00:00:00",
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: true, // Because dynamic needs first-time alert
+                resetTime: new Date(weeklyStartTime + weeklyWindowLimit.durationMs),
+            });
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledTimes(1);
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                accountId,
+                "Dynamic",
             );
+        });
+
+        test("both already downgraded - no alert", async () => {
+            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const windows = createWindows({
+                weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
+                dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: true}, // Above 75%, already downgraded
+            });
+
+            const result = await shouldDowngradeModelForAgentUsageLimit(
+                mockAgentUsageDatabaseClass,
+                windows,
+                0.75,
+            );
+
+            expect(result).toEqual({
+                shouldDowngrade: true,
+                shouldAlertUser: false,
+            });
+            expect(mockAgentUsageDatabase.downgradeModelForWindow).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("downgrade threshold edge cases", () => {
+        const testCases = [
+            {
+                description: "exactly at threshold triggers downgrade",
+                usagePercent: 0.75,
+                threshold: 0.75,
+                shouldDowngrade: true,
+            },
+            {
+                description: "just below threshold does not trigger",
+                usagePercent: 0.7499,
+                threshold: 0.75,
+                shouldDowngrade: false,
+            },
+            {
+                description: "100% usage with 90% threshold",
+                usagePercent: 1.0,
+                threshold: 0.9,
+                shouldDowngrade: true,
+            },
+            {
+                description: "very low threshold",
+                usagePercent: 0.1,
+                threshold: 0.05,
+                shouldDowngrade: true,
+            },
+        ];
+
+        testCases.forEach(({description, usagePercent, threshold, shouldDowngrade}) => {
+            test(`downgrade threshold edge case: ${description}`, async () => {
+                const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+                const windows = createWindows({
+                    weekly: {usage: weeklyLimit * usagePercent},
+                    dynamic: {usage: 0},
+                });
+
+                const result = await shouldDowngradeModelForAgentUsageLimit(
+                    mockAgentUsageDatabaseClass,
+                    windows,
+                    threshold,
+                );
+
+                expect(result.shouldDowngrade).toEqual(shouldDowngrade);
+            });
         });
     });
 });
@@ -646,51 +873,125 @@ describe("recordAgentUsage", () => {
         jest.clearAllMocks();
     });
 
-    test("records usage by creating agent request record", async () => {
-        const accountId = "test_account" as AccountId;
+    describe("successful recording", () => {
+        test("records usage by creating agent request record", async () => {
+            const accountId = "test_account" as AccountId;
 
-        await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
-            accountId,
-            spaceId,
-            requestUsedMillicents: 500,
-            currentTimestamp: currentTime,
-            provider,
-            model,
+            await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
+                accountId,
+                spaceId,
+                requestUsedMillicents: 500,
+                currentTimestamp: currentTime,
+                provider,
+                model,
+            });
+
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
+                accountId,
+                spaceId,
+                traceId: expect.any(String),
+                spanId: expect.any(String),
+                createdTime: currentTime,
+                provider,
+                model,
+                usedMillicents: 500,
+            });
         });
 
-        expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-            accountId,
-            spaceId,
-            traceId: expect.any(String),
-            spanId: expect.any(String),
-            createdTime: currentTime,
-            provider,
-            model,
-            usedMillicents: 500,
+        test("handles fractional millicents by flooring", async () => {
+            const accountId = "test_account" as AccountId;
+
+            await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
+                accountId,
+                spaceId,
+                requestUsedMillicents: 500.7,
+                currentTimestamp: currentTime,
+                provider,
+                model,
+            });
+
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
+                accountId,
+                spaceId,
+                traceId: expect.any(String),
+                spanId: expect.any(String),
+                createdTime: currentTime,
+                provider,
+                model,
+                usedMillicents: 500, // Should be floored
+            });
+        });
+
+        test("handles zero usage", async () => {
+            const accountId = "test_account" as AccountId;
+
+            await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
+                accountId,
+                spaceId,
+                requestUsedMillicents: 0,
+                currentTimestamp: currentTime,
+                provider,
+                model,
+            });
+
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
+                accountId,
+                spaceId,
+                traceId: expect.any(String),
+                spanId: expect.any(String),
+                createdTime: currentTime,
+                provider,
+                model,
+                usedMillicents: 0,
+            });
+        });
+
+        test("handles large usage amounts", async () => {
+            const accountId = "test_account" as AccountId;
+            const largeAmount = 999999.99;
+
+            await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
+                accountId,
+                spaceId,
+                requestUsedMillicents: largeAmount,
+                currentTimestamp: currentTime,
+                provider,
+                model,
+            });
+
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
+                accountId,
+                spaceId,
+                traceId: expect.any(String),
+                spanId: expect.any(String),
+                createdTime: currentTime,
+                provider,
+                model,
+                usedMillicents: 999999, // Floored
+            });
         });
     });
 
-    test("handles fractional millicents by flooring", async () => {
-        const accountId = "test_account" as AccountId;
+    describe("error handling", () => {
+        test("continues without throwing when database fails", async () => {
+            const accountId = "test_account" as AccountId;
+            const error = new UnknownError("Database insert failed");
 
-        await recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
-            accountId,
-            spaceId,
-            requestUsedMillicents: 500.7,
-            currentTimestamp: currentTime,
-            provider,
-            model,
-        });
+            mockAgentUsageDatabase.createAgentRequest.mockRejectedValue(error);
 
-        expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-            accountId,
-            spaceId,
-            traceId: expect.any(String),
-            spanId: expect.any(String),
-            createdTime: currentTime,
-            provider,
-            model,
-            usedMillicents: 500, // Should be floored
+            // Should not throw - graceful degradation
+            await expect(
+                recordAgentUsage(testTracer, mockAgentUsageDatabaseClass, {
+                    accountId,
+                    spaceId,
+                    requestUsedMillicents: 500,
+                    currentTimestamp: currentTime,
+                    provider,
+                    model,
+                }),
+            ).resolves.toBeUndefined();
+
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalled();
         });
     });
 });

@@ -1740,17 +1740,22 @@ export type TracerEventData = {
                 /**
                  * The start timestamp of the current usage window.
                  */
-                readonly startTime?: DateString;
+                readonly startedTime?: DateString;
 
                 /**
                  * The start timestamp of the previous usage window.
                  */
-                readonly previousStartTime?: DateString;
+                readonly previousStartedTime?: DateString;
 
                 /**
                  * The amount of millicents used in the previous usage window.
                  */
                 readonly previousUsedMillicents?: number;
+
+                /**
+                 * If the request was downgraded to a lower model due to usage limits.
+                 */
+                readonly downgradedModel?: boolean;
             };
         };
     };

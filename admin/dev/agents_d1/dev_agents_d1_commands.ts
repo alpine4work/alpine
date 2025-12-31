@@ -12,18 +12,26 @@ import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel
 
 // Shortcuts for common queries to be used with the "d1 run" command
 const namedQueries = new Map<string, string>([
+    ["reset-agent-usage", "DELETE FROM agent_usage_windows; DELETE FROM agent_requests;"],
     [
         "get-agent-usage-windows",
-        "SELECT * FROM agent_usage_windows ORDER BY started_at DESC LIMIT 10;",
+        "SELECT * FROM agent_usage_windows ORDER BY started_time DESC LIMIT 10;",
     ],
-    ["get-agent-requests", "SELECT * FROM agent_requests ORDER BY created_at DESC LIMIT 10;"],
+    ["get-agent-requests", "SELECT * FROM agent_requests ORDER BY created_time DESC LIMIT 10;"],
     [
         "max-last-request-used",
-        "UPDATE agent_requests SET used_millicents = 9999999999999999 WHERE created_at = (SELECT MAX(created_at) FROM agent_requests);",
+        "UPDATE agent_requests SET used_millicents = 9999999999999999 WHERE created_time = (SELECT MAX(created_time) FROM agent_requests);",
     ],
     [
-        "expire-short-window-30-seconds",
-        `UPDATE agent_usage_windows SET started_at = ${
+        "set-last-request-used-80-percent",
+        // Dynamic limit is currently $1 (see agent_usage_limits.ts). 80% of $1 is $0.80, then converted to millicents
+        `UPDATE agent_requests SET used_millicents = ${
+            1 * 0.8 * 100 * 1000
+        } WHERE created_time = (SELECT MAX(created_time) FROM agent_requests);`,
+    ],
+    [
+        "expire-dynamic-window-30-seconds",
+        `UPDATE agent_usage_windows SET started_time = ${
             Date.now() - 8 * 60 * 60 * 1000 + 30 * 1000
         };`,
     ],

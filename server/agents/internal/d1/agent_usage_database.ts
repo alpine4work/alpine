@@ -4,6 +4,8 @@ import {eq} from "drizzle-orm/sql/expressions/conditions";
 import {sum} from "drizzle-orm/sql/functions/aggregate";
 import {AgentRequest} from "~/server/agents/internal/d1/agent_usage_database_types.js";
 import {
+    AgentUsageWindow,
+    AgentUsageWindowType,
     agentRequestsTable,
     agentUsageWindowsTable,
 } from "~/server/agents/internal/d1/agent_usage_schema.js";
@@ -42,9 +44,18 @@ export interface AgentUsageDatabaseInterface {
     getUsedMillicentsByAccountIdSinceTimestamp(
         accountId: string,
         sinceTimestamp: number,
-    ): Promise<bigint>;
-    getWindowStartTimeByAccountId(accountId: string): Promise<number | null>;
-    setWindowStartTimeByAccountId(accountId: string, startedAt: number): Promise<void>;
+    ): Promise<number>;
+    getWindowByAccountIdAndType(
+        accountId: string,
+        type: AgentUsageWindowType,
+    ): Promise<AgentUsageWindow | null>;
+    setWindowByAccountIdAndType(
+        accountId: string,
+        type: AgentUsageWindowType,
+        startedTime: number,
+        wasModelDowngraded?: boolean,
+    ): Promise<AgentUsageWindow>;
+    downgradeModelForWindow(accountId: string, type: AgentUsageWindowType): Promise<void>;
 }
 
 export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
@@ -62,7 +73,7 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
     async getUsedMillicentsByAccountIdSinceTimestamp(
         accountId: string,
         sinceTimestamp: number,
-    ): Promise<bigint> {
+    ): Promise<number> {
         return retryD1Error(async () => {
             const [row] = await this.database
                 .select({
@@ -76,38 +87,82 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
                     ),
                 );
 
-            if (!row || row.totalUsedMillicents === null) return BigInt(0);
+            if (!row || row.totalUsedMillicents === null) return 0;
 
-            return BigInt(row.totalUsedMillicents);
+            return parseInt(row.totalUsedMillicents, 10);
         });
     }
 
     /**
-     * Get the window start time for an account.
+     * Get window information for an account and type.
      */
-    async getWindowStartTimeByAccountId(accountId: string): Promise<number | null> {
+    async getWindowByAccountIdAndType(
+        accountId: string,
+        type: AgentUsageWindowType,
+    ): Promise<AgentUsageWindow | null> {
         return retryD1Error(async () => {
             const [row] = await this.database
                 .select()
                 .from(agentUsageWindowsTable)
-                .where(eq(agentUsageWindowsTable.accountId, accountId));
+                .where(
+                    Conditions.and(
+                        eq(agentUsageWindowsTable.accountId, accountId),
+                        eq(agentUsageWindowsTable.type, type),
+                    ),
+                );
 
-            return row?.startedTime ?? null;
+            return row
+                ? {
+                      startedTime: row.startedTime,
+                      wasModelDowngraded: Boolean(row.wasModelDowngraded),
+                      accountId,
+                      type,
+                  }
+                : null;
         });
     }
 
     /**
-     * Set the window start time for an account.
+     * Set window information for an account and type.
      */
-    async setWindowStartTimeByAccountId(accountId: string, startedTime: number): Promise<void> {
+    async setWindowByAccountIdAndType(
+        accountId: string,
+        type: AgentUsageWindowType,
+        startedTime: number,
+        wasModelDowngraded: boolean = false,
+    ): Promise<AgentUsageWindow> {
         await retryD1Error(() =>
             this.database
                 .insert(agentUsageWindowsTable)
-                .values({accountId, startedTime})
+                .values({
+                    accountId,
+                    type,
+                    startedTime,
+                    wasModelDowngraded,
+                })
                 .onConflictDoUpdate({
-                    target: [agentUsageWindowsTable.accountId],
-                    set: {startedTime},
+                    target: [agentUsageWindowsTable.accountId, agentUsageWindowsTable.type],
+                    set: {startedTime, wasModelDowngraded},
                 }),
+        );
+
+        return {accountId, type, startedTime, wasModelDowngraded};
+    }
+
+    /**
+     * Update the downgraded model flag for a window.
+     */
+    async downgradeModelForWindow(accountId: string, type: AgentUsageWindowType): Promise<void> {
+        await retryD1Error(() =>
+            this.database
+                .update(agentUsageWindowsTable)
+                .set({wasModelDowngraded: true})
+                .where(
+                    Conditions.and(
+                        eq(agentUsageWindowsTable.accountId, accountId),
+                        eq(agentUsageWindowsTable.type, type),
+                    ),
+                ),
         );
     }
 }

@@ -8,6 +8,13 @@
       "when": 1767024620886,
       "tag": "0000_windows_and_usage_table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1767200013431,
+      "tag": "0001_add_window_type_and_downgrade_indication_to_windows",
+      "breakpoints": true
     }
   ]
 }
