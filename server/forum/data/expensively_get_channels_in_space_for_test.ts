@@ -1,7 +1,4 @@
-import {
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,7 +13,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * This is only available in test environments.
  */
 export async function expensivelyGetChannelsInSpaceForTest(
-    context: ServerSessionActionContext | ServerSystemActionContext,
+    context: DynamoContext,
     spaceId: SpaceId,
 ) {
     assert(process.env.NODE_ENV === "test");

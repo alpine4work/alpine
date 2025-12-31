@@ -10546,6 +10546,66 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             },
                             "childSortRangeByType": {}
+                        },
+                        "AutoAddAccountsFromEmailDomain": {
+                            "id": 7,
+                            "orderKey": "a4",
+                            "sortKeyAttributeByKey": {
+                                "emailDomain": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "AutoAddAccountsFromEmailDomain": {
+                    "id": 3,
+                    "partitionKeyAttributeByKey": {
+                        "emailDomain": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Space": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "spaceId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "isEnabled": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
                         }
                     }
                 },

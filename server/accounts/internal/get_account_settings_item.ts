@@ -14,6 +14,11 @@ const AccountSettingsItemContextCache = new DynamoContextCache<AccountId, Accoun
     whenActorChanges: "DangerouslyShare",
 });
 
+/**
+ * Get the settings for the provided account.
+ *
+ * If the `AccountId` doesn't exist, we return initial settings.
+ */
 export async function getAccountSettingsItem(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,

@@ -563,7 +563,7 @@ export class DynamoKeyAttributeSchema<Value> {
      * concatenate key attributes with other values, so you may have fewer than 2048 characters left
      * for your string. Exeeding this limit will result in an error from DynamoDB.
      */
-    public static labelString<Value extends string>(
+    public static labelString<Value extends string = string>(
         {maxLength}: {maxLength?: number | null} = {maxLength: maxLabelStringLength},
     ): DynamoKeyAttributeSchema<Value> {
         // Use a cache to optimize a `getByteCount()` that may be immediately followed by

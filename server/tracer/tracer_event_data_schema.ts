@@ -594,6 +594,22 @@ const TracerEventDataSchema = {
             },
         },
     },
+    auth: {
+        signIn: {
+            failedAttemptCount: Schema.integer,
+            minutesUntilExpiration: Schema.integer,
+            hoursUntilUnlocked: Schema.integer,
+        },
+        signUp: {
+            autoAddAccountsFromEmailDomain: Schema.string,
+        },
+    },
+    reaction: {
+        character: {
+            type: IdentifierStringSchema,
+            variant: IdentifierStringSchema,
+        },
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

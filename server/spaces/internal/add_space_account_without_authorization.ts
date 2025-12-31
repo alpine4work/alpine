@@ -1,11 +1,13 @@
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
@@ -46,22 +48,31 @@ export async function addSpaceAccountWithoutAuthorization(
         withoutInviteForTest?: boolean;
     },
 ): Promise<AccountModel> {
+    // Only allow setting this option in test environments.
+    if (withoutInviteForTest) {
+        assert(isTestNodeEnvOrAdminScenariosScript);
+    }
+
     const createdAccount: AccountModel = await context.dynamo.retryTransaction(async context => {
         const currentTime = new Date();
 
-        const {account, newAccountItem, transactionEntries} =
+        const {account, newSpaceAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
                 currentTime,
                 space: {type: "Existing", id: spaceId},
-                account: {type: "Existing", id: accountId, withoutInviteForTest},
+                account: {
+                    type: "Existing",
+                    id: accountId,
+                    dangerouslyWithoutInvite: withoutInviteForTest,
+                },
                 role,
             });
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
         return createAccountModelFromItem(
-            newAccountItem,
-            newAccountItem.state.type === "Active" ? account : null,
+            newSpaceAccountItem,
+            newSpaceAccountItem.state.type === "Active" ? account : null,
         );
     });
 

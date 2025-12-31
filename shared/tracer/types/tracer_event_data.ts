@@ -1759,6 +1759,51 @@ export type TracerEventData = {
             };
         };
     };
+
+    /**
+     * Information regarding authorization and authentication. For example the
+     * `/sign-in` and `/sign-up` endpoints.
+     */
+    readonly auth?: {
+        readonly signIn?: {
+            /**
+             * How many times has the user attempted to sign in and failed?
+             */
+            readonly failedAttemptCount?: number;
+
+            /**
+             * How many minutes until the one-time password expires?
+             */
+            readonly minutesUntilExpiration?: number;
+
+            /**
+             * How many hours until the account is unlocked? Only present if the account
+             * is locked.
+             */
+            readonly hoursUntilUnlocked?: number;
+        };
+
+        readonly signUp?: {
+            /**
+             * Email domain we use for auto-adding accounts to a space.
+             */
+            readonly autoAddAccountsFromEmailDomain?: string;
+        };
+    };
+
+    /**
+     * Information regarding reactions.
+     */
+    readonly reaction?: {
+        /** The character for the reaction. */
+        readonly character?: {
+            /** The type of reaction character. */
+            readonly type?: string;
+
+            /** The variant of the reaction character. */
+            readonly variant?: string;
+        };
+    };
 };
 
 /**

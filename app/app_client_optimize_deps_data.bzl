@@ -66,6 +66,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "email-validator",
     "emoji-regex",
     "escape-html",
+    "free-email-domains/domains.json",
     "functional-red-black-tree",
     "fuse.js",
     "grapheme-splitter",

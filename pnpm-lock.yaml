@@ -807,6 +807,9 @@ importers:
       find-my-way:
         specifier: ^9.3.0
         version: 9.3.0
+      free-email-domains:
+        specifier: ^1.2.21
+        version: 1.2.21
       fs-extra:
         specifier: ^11.2.0
         version: 11.2.0
@@ -6087,6 +6090,10 @@ packages:
         optional: true
       react-dom:
         optional: true
+
+  free-email-domains@1.2.21:
+    resolution: {integrity: sha512-KIYZoIDyk/PWX6hKVmjEPxtdmLF6WwgGAqvzfJUgRDyI+vG1j9MIvixCpHStC3TlowtkjBBMsqbVJ5s/7DWvgQ==}
+    engines: {node: '>= 14'}
 
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
@@ -16348,6 +16355,10 @@ snapshots:
     optionalDependencies:
       react: 19.2.0
       react-dom: 19.2.0(patch_hash=wyayct42ub5h3cwiybsxmdcpdq)(react@19.2.0)
+
+  free-email-domains@1.2.21:
+    dependencies:
+      simple-get: 4.0.1
 
   fresh@0.5.2: {}
 

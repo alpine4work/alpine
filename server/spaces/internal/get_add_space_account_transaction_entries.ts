@@ -5,13 +5,13 @@ import {SearchInjectionContextModule} from "~/server/context/injection_context_m
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
-import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {
     AccountSpacesItem,
     SpaceAccountAvatarOverrideItem,
     SpaceAccountItem,
+    SpaceAccountItemWithAccountAvatarOverride,
     SpaceAttributesItem,
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
@@ -21,6 +21,7 @@ import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {getMaxId, getMinId} from "~/shared/id/id.js";
@@ -82,7 +83,7 @@ export async function getAddSpaceAccountTransactionEntries(
                   type: "Existing";
                   id: AccountId;
                   invitedEmailAddress?: EmailAddress;
-                  withoutInviteForTest?: boolean;
+                  dangerouslyWithoutInvite?: boolean;
               }
             | {
                   type: "New";
@@ -138,7 +139,7 @@ export async function getAddSpaceAccountTransactionEntries(
               type: "Existing";
               id: AccountId;
               invitedEmailAddress: EmailAddress | undefined;
-              withoutInviteForTest: boolean;
+              dangerouslyWithoutInvite: boolean;
               account: AccountModelWithoutSpace;
               spaceAccountItem: SpaceAccountItem | null;
               accountSpacesItem: AccountSpacesItem | null;
@@ -180,7 +181,7 @@ export async function getAddSpaceAccountTransactionEntries(
                 type: "Existing",
                 id: accountInputWithoutData.id,
                 invitedEmailAddress: accountInputWithoutData.invitedEmailAddress,
-                withoutInviteForTest: accountInputWithoutData.withoutInviteForTest ?? false,
+                dangerouslyWithoutInvite: accountInputWithoutData.dangerouslyWithoutInvite ?? false,
                 account,
                 spaceAccountItem,
                 accountSpacesItem,
@@ -292,14 +293,20 @@ export async function getAddSpaceAccountTransactionEntries(
 
         let state: SpaceAccountState;
 
-        if (accountInput.type === "Existing" && accountInput.withoutInviteForTest) {
-            // Make sure we only use this code path in test environments!
-            assert(isTestNodeEnvOrAdminScenariosScript);
-
-            state = {type: "Active"};
-        } else if (role === "Owner") {
+        if (
             // As the owner of a new space, the account is automatically active and doesn't
             // need to accept an invite.
+            role === "Owner" ||
+            // We allow the caller to dangerously skip the invite process and directly add
+            // the account as `Active`. This is dangerous since it reveals private
+            // information about the account before they've intentionally opened a space.
+            //
+            // We use this when auto-adding accounts to a space based on their email
+            // domain. We only auto-add _new_ accounts to a space and as long as we do a
+            // good job deciding what's a company email domain vs generic email domain
+            // we'll always be adding the account to a space with trusted peers.
+            (accountInput.type === "Existing" && accountInput.dangerouslyWithoutInvite)
+        ) {
             state = {type: "Active"};
         } else {
             let emailAddress: EmailAddress;
@@ -407,6 +414,15 @@ export async function getAddSpaceAccountTransactionEntries(
               )
             : null;
 
+    const accountSpacesItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem({
+        ...(accountInput.type === "Existing" ? accountInput.accountSpacesItem : null),
+        partitionType: "Account",
+        sortRangeType: "Spaces",
+        accountId: accountInput.id,
+        spaceIds: accountSpaceIds,
+        invitePendingSpaceIds: accountInvitePendingSpaceIds,
+    });
+
     return {
         currentTime,
         spaceItem: spaceInput.type === "Existing" ? spaceInput.spaceItem : null,
@@ -414,13 +430,14 @@ export async function getAddSpaceAccountTransactionEntries(
         spaceAccountItem: accountInput.type === "Existing" ? accountInput.spaceAccountItem : null,
         accountSpacesItem: accountInput.type === "Existing" ? accountInput.accountSpacesItem : null,
 
-        newAccountItem: {
+        newSpaceAccountItem: cast<SpaceAccountItemWithAccountAvatarOverride>({
             ...spaceAccountItemTransactionEntry.newItem,
             accountAvatarOverride: spaceAccountAvatarOverrideItemTransactionEntry
                 ? spaceAccountAvatarOverrideItemTransactionEntry.newItem
                 : null,
-        },
+        }),
 
+        accountSpacesItemTransactionEntry,
         accountVersionConditionCheckTransactionEntry,
 
         transactionEntries: [
@@ -446,14 +463,7 @@ export async function getAddSpaceAccountTransactionEntries(
             ...(accountVersionConditionCheckTransactionEntry
                 ? [accountVersionConditionCheckTransactionEntry]
                 : []),
-            SpacesTable.transactionDirectlyUpdateItem({
-                ...(accountInput.type === "Existing" ? accountInput.accountSpacesItem : null),
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId: accountInput.id,
-                spaceIds: accountSpaceIds,
-                invitePendingSpaceIds: accountInvitePendingSpaceIds,
-            }),
+            accountSpacesItemTransactionEntry,
             spaceAccountItemTransactionEntry,
             ...(spaceAccountAvatarOverrideItemTransactionEntry
                 ? [spaceAccountAvatarOverrideItemTransactionEntry]

@@ -18,6 +18,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//server/accounts",
         "//server/context",
         "//server/forum/data",
         "//server/spaces",

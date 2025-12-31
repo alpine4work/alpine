@@ -188,6 +188,61 @@ export const SpacesTable = DynamoTableSchema.new({
                         chatGptBotAccountId: Schema.id<AccountId>().nullable(),
                     }),
                 },
+
+                /**
+                 * Accounts that sign up with an email from this email domain are automatically
+                 * added to the space.
+                 *
+                 * The canonical item is `Space#AutoAddAccountsFromEmailDomain` and we have
+                 * this item to allow for reading the email domains associated with a space at
+                 * strong read consistency. (Indexes only allow eventual consistency.)
+                 */
+                {
+                    name: "AutoAddAccountsFromEmailDomain",
+                    sortKeyAttributes: {
+                        emailDomain: DynamoKeyAttributeSchema.labelString<string>({
+                            maxLength: null,
+                        }),
+                    },
+                    attributes: Schema.object({}),
+                },
+            ],
+        },
+
+        /**
+         * Accounts that sign up with an email from this email domain are automatically
+         * added to the `SpaceId`.
+         *
+         * This is the canonical item. There's also a
+         * `Space#AutoAddAccountsFromEmailDomain` item so we can read the email domains
+         * associated with a space with strong read consistency. We could use an index
+         * but the index wouldn't let us read at strong consistency and it's only
+         * 1 additional WCU which happens rarely to write a second item.
+         */
+        {
+            name: "AutoAddAccountsFromEmailDomain",
+            partitionKeyAttributes: {
+                emailDomain: DynamoKeyAttributeSchema.labelString<string>({maxLength: null}),
+            },
+            sortRanges: [
+                {
+                    name: "Space",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The `SpaceId` to automatically add accounts to.
+                         */
+                        spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * Whether auto-adding accounts from this email domain is enabled. We never
+                         * delete this item (since on next sign up we'd create a new space for the
+                         * domain) but space admins may set `isEnabled: false` to disable new sign ups
+                         * from being automatically added to the space.
+                         */
+                        isEnabled: Schema.boolean,
+                    }),
+                },
             ],
         },
 

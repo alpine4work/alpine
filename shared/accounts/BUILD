@@ -6,6 +6,7 @@ ts_project(
         "//visibility:public",
     ],
     deps = [
+        "//:node_modules/free-email-domains",
         "//shared/avatar",
         "//shared/helpers",
         "//shared/id",

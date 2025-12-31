@@ -16,6 +16,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AttemptOneTimePasswordSignInOptions = {
     /**
@@ -67,7 +68,7 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
     emailAddress: EmailAddress,
     oneTimePassword: string,
     {ipAddress, userAgent}: AttemptOneTimePasswordSignInOptions,
-    action: (accountEmailAddressItem: AccountEmailAddressItem) => Promise<Value>,
+    action: (accountEmailAddressItem: AccountEmailAddressItem, span: TracerSpan) => Promise<Value>,
 ): Promise<
     [
         Value,
@@ -77,33 +78,84 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
         },
     ]
 > {
-    return context.dynamo.retryTransaction(async context => {
+    return context.tracer.withSpan("Attempt one time password sign in", (context, span) => {
+        return context.dynamo.retryTransaction(context => {
+            return run(context, span);
+        });
+    });
+
+    async function run(
+        context: DynamoContext,
+        span: TracerSpan,
+    ): Promise<
+        [
+            Value,
+            {
+                sessionId: SessionId;
+                sessionAccountId: AccountId;
+            },
+        ]
+    > {
+        span.addData({
+            http: {
+                clientIp: ipAddress ?? undefined,
+                userAgent: userAgent ?? undefined,
+            },
+        });
+
         const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
         });
-        if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
+        if (!accountEmailAddressItem) {
+            span.addData({common: {branch: "EmailAddressNotFound"}});
+            throw accountEmailAddressNotFoundError(emailAddress);
+        }
 
-        if (!accountEmailAddressItem.oneTimePasswordSignInState)
+        span.addPropagatedData({context: {accountId: accountEmailAddressItem.accountId}});
+
+        if (!accountEmailAddressItem.oneTimePasswordSignInState) {
+            span.addData({common: {branch: "MissingOneTimePassword"}});
             throw missingOneTimePasswordError();
+        }
+
+        const minutesSinceGeneratedTime = differenceInMinutes(
+            new Date(),
+            accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
+        );
 
         const hoursUntilUnlocked =
             getHoursUntilRegenerateOneTimePasswordUnlocked(accountEmailAddressItem);
 
+        span.addData({
+            auth: {
+                signIn: {
+                    failedAttemptCount:
+                        accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount,
+                    minutesUntilExpiration: Math.max(
+                        0,
+                        expireOneTimePasswordAfterMinutes - minutesSinceGeneratedTime + 1,
+                    ),
+                },
+            },
+        });
+
         // Check if the account is locked.
-        if (hoursUntilUnlocked > 0) throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
+        if (hoursUntilUnlocked > 0) {
+            span.addData({
+                common: {branch: "EmailAddressSignInLocked"},
+                auth: {signIn: {hoursUntilUnlocked}},
+            });
+            throw accountEmailAddressSignInLockedError(hoursUntilUnlocked);
+        }
 
         // Check if the one-time password is expired. We check if the account is locked
         // first since the one-time password will expire while the account is locked
         // and you won't be able to generate a new one-time password until after the
         // account is unlocked.
-        if (
-            differenceInMinutes(
-                new Date(),
-                accountEmailAddressItem.oneTimePasswordSignInState.generatedTime,
-            ) > expireOneTimePasswordAfterMinutes
-        ) {
+        if (minutesSinceGeneratedTime > expireOneTimePasswordAfterMinutes) {
+            span.addData({common: {branch: "ExpiredOneTimePassword"}});
             throw missingOneTimePasswordError();
         }
 
@@ -111,6 +163,8 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
             accountEmailAddressItem.oneTimePasswordSignInState.password === oneTimePassword;
 
         if (!isCorrectOneTimePassword) {
+            span.addData({common: {branch: "IncorrectOneTimePassword"}});
+
             await AccountsTable.directlyUpdateItem(context, {
                 ...accountEmailAddressItem,
                 oneTimePasswordSignInState: {
@@ -131,10 +185,12 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
                 )} again.`,
             });
         } else {
+            span.addData({common: {branch: "CorrectOneTimePassword"}});
+
             const sessionId = generateId<SessionId>();
 
             const [value] = await runAllPromises([
-                action(accountEmailAddressItem),
+                action(accountEmailAddressItem, span),
                 DynamoTableSchema.executeTransaction(context, [
                     AccountsTable.transactionDirectlyUpdateItem({
                         ...accountEmailAddressItem,
@@ -163,7 +219,7 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
                 },
             ];
         }
-    });
+    }
 }
 
 function missingOneTimePasswordError() {

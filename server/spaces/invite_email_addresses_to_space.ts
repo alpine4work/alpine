@@ -161,7 +161,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
         const currentTime = new Date();
 
-        const {spaceItem, account, newAccountItem, transactionEntries} =
+        const {spaceItem, account, newSpaceAccountItem, transactionEntries} =
             await getAddSpaceAccountTransactionEntries(context, {
                 currentTime,
                 space: {type: "Existing", id: spaceId},
@@ -209,8 +209,8 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         });
 
         return createAccountModelFromItem(
-            newAccountItem,
-            newAccountItem.state.type === "Active" ? account : null,
+            newSpaceAccountItem,
+            newSpaceAccountItem.state.type === "Active" ? account : null,
         );
     });
 }

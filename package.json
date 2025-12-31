@@ -211,6 +211,7 @@
         "fast-check": "^4.2.0",
         "fast-glob": "^3.3.1",
         "find-my-way": "^9.3.0",
+        "free-email-domains": "^1.2.21",
         "fs-extra": "^11.2.0",
         "functional-red-black-tree": "^1.0.1",
         "fuse.js": "^6.6.2",

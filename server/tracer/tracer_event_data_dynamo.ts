@@ -76,7 +76,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],
     ["Notifications", ["Inbox", "PushTargets"]],
     ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections", "IndexSearchEntityEmbeddingChunksJob"]],
-    ["Spaces", ["Space", "Account", "Bot"]],
+    ["Spaces", ["Space", "AutoAddAccountsFromEmailDomain", "Account", "Bot"]],
     ["SpellCheck", ["IgnoredLint", "Realtime", "Graveyard"]],
     ["TaskActions", ["TaskActions"]],
     ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],

@@ -15,6 +15,9 @@
         },
         "transform": {
             "{{react}}": {}
+        },
+        "experimental": {
+            "keepImportAttributes": true
         }
     },
     "module": {
