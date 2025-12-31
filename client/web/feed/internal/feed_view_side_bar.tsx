@@ -46,6 +46,10 @@ import {
     searchByAffinity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    isSearchDynamicEntityId,
+    parseSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 export function FeedViewSideBar({
@@ -104,6 +108,23 @@ export function FeedViewSideBar({
     const visibleResultCount = Math.floor(
         availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
+
+    const peopleResults = [];
+    const suggestedResults = [];
+
+    if (output) {
+        for (const result of sliceIterable(
+            output.results,
+            0,
+            visibleResultCount - favoriteResults.length,
+        )) {
+            if (isSearchAffinityResultChatOrAccount(result)) {
+                peopleResults.push(result);
+            } else {
+                suggestedResults.push(result);
+            }
+        }
+    }
 
     return (
         <Box pointerEvents="auto" width="full" paddingLeft={feedViewSideBarPaddingLeft}>
@@ -184,52 +205,59 @@ export function FeedViewSideBar({
                             }}
                         />
                     ))}
-                    <Box
-                        paddingTop={searchEntityHeaderPaddingTop}
-                        paddingX={searchEntityViewDefaultPaddingX}
-                        color="grey-50"
-                        fontSize={searchEntityHeaderFontSize}
-                        style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
-                    >
-                        Suggested
-                    </Box>
-                    {mapIterable(
-                        sliceIterable(
-                            output.results,
-                            0,
-                            visibleResultCount - favoriteResults.length,
-                        ),
-                        result => (
-                            <FeedSearchAffinityView
-                                key={result.id}
-                                result={result}
-                                randomSeed={randomSeed}
-                                onRemoveFromSuggested={async () => {
-                                    await clearSearchEntityAffinity(context, {
-                                        spaceId: space.id,
-                                        entityId: result.id,
-                                    });
-
-                                    forceRevalidateSearchByAffinity(
-                                        context,
-                                        rpcCache,
-                                        space.id,
-                                        "removing suggestion in feed side bar",
-                                        output => {
-                                            // Test that the item was removed from `results`.
-                                            return !output.results.some(
-                                                otherResult => otherResult.id === result.id,
-                                            );
-                                        },
-                                    );
-                                }}
-                            />
-                        ),
-                    )}
+                    {renderSuggestedSearchEntitySection("People", peopleResults)}
+                    {renderSuggestedSearchEntitySection("Suggested", suggestedResults)}
                 </>
             )}
         </Box>
     );
+
+    function renderSuggestedSearchEntitySection(
+        sectionTitle: "Suggested" | "People",
+        results: ReadonlyArray<SearchAffinityEntityResultModel>,
+    ) {
+        if (results.length === 0) return null;
+
+        return (
+            <>
+                <Box
+                    paddingTop={searchEntityHeaderPaddingTop}
+                    paddingX={searchEntityViewDefaultPaddingX}
+                    color="grey-50"
+                    fontSize={searchEntityHeaderFontSize}
+                    style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
+                >
+                    {sectionTitle}
+                </Box>
+                {results.map(result => (
+                    <FeedSearchAffinityView
+                        key={result.id}
+                        result={result}
+                        randomSeed={randomSeed}
+                        onRemoveFromSuggested={async () => {
+                            await clearSearchEntityAffinity(context, {
+                                spaceId: space.id,
+                                entityId: result.id,
+                            });
+
+                            forceRevalidateSearchByAffinity(
+                                context,
+                                rpcCache,
+                                space.id,
+                                "removing suggestion in feed side bar",
+                                output => {
+                                    // Test that the item was removed from `results`.
+                                    return !output.results.some(
+                                        otherResult => otherResult.id === result.id,
+                                    );
+                                },
+                            );
+                        }}
+                    />
+                ))}
+            </>
+        );
+    }
 }
 
 function FeedSearchAffinityView({
@@ -426,4 +454,12 @@ function FeedViewFavoritesHeaderSeeMoreButton() {
             see all
         </Box>
     );
+}
+
+function isSearchAffinityResultChatOrAccount(result: SearchAffinityEntityResultModel): boolean {
+    if (!isSearchDynamicEntityId(result.id)) return false;
+
+    const {type: entityType} = parseSearchDynamicEntityId(result.id);
+
+    return entityType === "Chat" || entityType === "Account";
 }
