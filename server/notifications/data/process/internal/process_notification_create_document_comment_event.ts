@@ -281,6 +281,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
         roomPath: `/documents/${event.documentId}/threads/${event.commentThreadId}`,
         index: event.commentIndex,
         authorId: event.authorId,
+        createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (context, event, {accountId, entryItem}) => {

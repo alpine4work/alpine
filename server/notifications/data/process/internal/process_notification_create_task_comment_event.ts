@@ -149,6 +149,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
         roomPath: `/tasks/${event.taskId}`,
         index: event.commentIndex,
         authorId: event.authorId,
+        createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (context, event, {accountId}) => {

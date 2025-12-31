@@ -5823,6 +5823,7 @@ export async function createTaskComment(
                 taskId,
                 commentIndex,
                 createdTime,
+                createdTimeZone,
                 authorId,
                 mentionedAccountIds,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,

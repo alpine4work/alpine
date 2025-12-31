@@ -12,6 +12,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type NotificationCreateChatMessageEvent = SchemaType<
@@ -25,6 +26,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     chatId: Schema.id<ChatId>(),
     messageIndex: Schema.integer,
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
@@ -43,6 +45,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     postId: Schema.id<PostId>(),
     commentIndex: Schema.integer,
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
@@ -76,6 +79,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     commentThreadId: Schema.id<DocumentCommentThreadId>(),
     commentIndex: Schema.integer,
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
@@ -93,6 +97,7 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     taskId: Schema.id<TaskId>(),
     commentIndex: Schema.integer,
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),

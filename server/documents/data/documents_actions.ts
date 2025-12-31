@@ -3237,6 +3237,7 @@ export async function updateDocumentContent(
                                     commentThreadId: createCommentThread.commentThreadId,
                                     commentIndex: 0,
                                     createdTime: createCommentThread.createdTime ?? currentTime,
+                                    createdTimeZone: createCommentThread.createdTimeZone,
                                     authorId: context.actor.getAccountId(),
                                     mentionedAccountIds,
                                     isContentSnippetComplete:
@@ -4721,6 +4722,7 @@ export async function createDocumentComment(
                 commentThreadId,
                 commentIndex,
                 createdTime,
+                createdTimeZone,
                 authorId,
                 mentionedAccountIds,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,

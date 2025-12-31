@@ -2476,6 +2476,7 @@ components:
                 - roomPath
                 - index
                 - authorId
+                - createdTimeZone
             additionalProperties: false
             properties:
                 type:
@@ -2487,6 +2488,8 @@ components:
                     minimum: 0
                 authorId:
                     $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
         SearchResult:

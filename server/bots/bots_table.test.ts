@@ -23,6 +23,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {
     generateChronologicalId,
     generateChronologicalIdWithTime,
@@ -137,6 +138,7 @@ test("if webhook is successful it’s only called once", async () => {
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     const event2Id = generateChronologicalId<BotWebhookEventId>();
@@ -146,6 +148,7 @@ test("if webhook is successful it’s only called once", async () => {
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 1,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -225,6 +228,7 @@ test("if webhook is successful it’s only called once even if job is run multip
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     const event2Id = generateChronologicalId<BotWebhookEventId>();
@@ -234,6 +238,7 @@ test("if webhook is successful it’s only called once even if job is run multip
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 1,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -364,6 +369,7 @@ test("if job fails it’s scheduled to be run later up to three times", async ()
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -438,6 +444,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -504,6 +511,7 @@ test("if job fails it’s scheduled to be run later up to three times (success a
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -580,6 +588,7 @@ test("same job queued while waiting to retry failed job also waits", async () =>
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -675,6 +684,7 @@ test("requests which don’t finish promptly are timed out and retried", async (
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -784,6 +794,7 @@ test("requests which don’t finish promptly are timed out and retried even if t
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);
@@ -885,6 +896,7 @@ test("requests which don’t finish promptly and have a simulated process crash 
         authorId: generateId<AccountId>(),
         roomPath: `/chats/${generateId<ChatId>()}`,
         index: 0,
+        createdTimeZone: defaultTimeZone,
     };
 
     expect(serverRequestCount).toEqual(0);

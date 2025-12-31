@@ -6,9 +6,11 @@ describe("getAgentTokenLimitExceededMessage", () => {
         const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
         const resetTime = new Date("2025-01-15T23:00:00.000Z"); // 6pm EST
 
-        const result = getAgentTokenLimitExceededMessage(resetTime, currentTime, {
-            timeZone: assertTimeZone("America/New_York"),
-        });
+        const result = getAgentTokenLimitExceededMessage(
+            resetTime,
+            currentTime,
+            assertTimeZone("America/New_York"),
+        );
 
         expect(result).toBe(
             "You’ve reached your agent usage limit. Your limit will reset today at 6:00pm EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",
@@ -19,9 +21,11 @@ describe("getAgentTokenLimitExceededMessage", () => {
         const currentTime = new Date("2025-01-15T15:00:00.000Z"); // 10am EST
         const resetTime = new Date("2025-01-16T15:00:00.000Z"); // 10am EST next day
 
-        const result = getAgentTokenLimitExceededMessage(resetTime, currentTime, {
-            timeZone: assertTimeZone("America/New_York"),
-        });
+        const result = getAgentTokenLimitExceededMessage(
+            resetTime,
+            currentTime,
+            assertTimeZone("America/New_York"),
+        );
 
         expect(result).toBe(
             "You’ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",
@@ -32,9 +36,11 @@ describe("getAgentTokenLimitExceededMessage", () => {
         const currentTime = new Date("2025-01-15T15:00:00.000Z");
         const resetTime = new Date("2025-01-22T15:00:00.000Z"); // 7 days later
 
-        const result = getAgentTokenLimitExceededMessage(resetTime, currentTime, {
-            timeZone: assertTimeZone("America/New_York"),
-        });
+        const result = getAgentTokenLimitExceededMessage(
+            resetTime,
+            currentTime,
+            assertTimeZone("America/New_York"),
+        );
 
         expect(result).toBe(
             "You’ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",

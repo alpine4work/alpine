@@ -386,6 +386,7 @@ export async function createPostComment(
                 postId,
                 commentIndex,
                 createdTime,
+                createdTimeZone,
                 authorId,
                 mentionedAccountIds,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,

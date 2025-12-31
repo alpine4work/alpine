@@ -216,6 +216,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
         roomPath: `/chats/${event.chatId}`,
         index: event.messageIndex,
         authorId: event.authorId,
+        createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
     }),
     getAlertContent: async (

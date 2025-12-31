@@ -901,6 +901,7 @@ function sendChatMessageForAccount(
                 chatId,
                 messageIndex,
                 createdTime,
+                createdTimeZone,
                 authorId,
                 mentionedAccountIds,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,

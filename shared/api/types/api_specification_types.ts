@@ -2059,6 +2059,7 @@ export namespace ApiSpecification {
                 readonly roomPath: components["schemas"]["MessageRoomPath"];
                 readonly index: number;
                 readonly authorId: components["schemas"]["AccountId"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;
             };
             readonly SearchResult:

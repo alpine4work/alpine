@@ -331,33 +331,25 @@ async function sendLimitErrorMessage(
         currentTime: Date;
     },
 ): Promise<void> {
-    // TODO(ifitzsimmons, #ai): I'm going to pipe the message timezone into the
-    // `request.event` object, so we won't need conversation state here.
-    //
-    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/v234e2hgaz7zzny85kj4j68qxm
-    return request.storage.transaction(async transaction => {
-        const state = await ChatGptAgentConversationStore.new(transaction);
+    agentMessageStream.pushText(
+        getAgentTokenLimitExceededMessage(resetTime, currentTime, request.event.createdTimeZone),
+    );
+    const parts = await agentMessageStream.update();
 
-        agentMessageStream.pushText(
-            getAgentTokenLimitExceededMessage(resetTime, currentTime, state.getState()),
+    for (const part of parts) {
+        await putApiMessageStreamPart(
+            tracer,
+            request.apiClient,
+            request.room,
+            messageIndex,
+            part.index,
+            {
+                payload: part.payload,
+            },
         );
-        const parts = await agentMessageStream.update();
+    }
 
-        for (const part of parts) {
-            await putApiMessageStreamPart(
-                tracer,
-                request.apiClient,
-                request.room,
-                messageIndex,
-                part.index,
-                {
-                    payload: part.payload,
-                },
-            );
-        }
-
-        await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
-    });
+    await completeApiMessageStream(tracer, request.apiClient, request.room, messageIndex);
 }
 
 /**
@@ -381,29 +373,21 @@ async function sendDowngradeWarningMessage(
         currentTime: Date;
     },
 ): Promise<void> {
-    // TODO(ifitzsimmons, #ai): I'm going to pipe the message timezone into the
-    // `request.event` object, so we won't need conversation state here.
-    //
-    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/v234e2hgaz7zzny85kj4j68qxm
-    return request.storage.transaction(async transaction => {
-        const state = await ChatGptAgentConversationStore.new(transaction);
+    agentMessageStream.pushText(
+        getAgentModelDowngradedMessage(resetTime, currentTime, request.event.createdTimeZone),
+    );
+    const parts = await agentMessageStream.update();
 
-        agentMessageStream.pushText(
-            getAgentModelDowngradedMessage(resetTime, currentTime, state.getState()),
+    for (const part of parts) {
+        await putApiMessageStreamPart(
+            tracer,
+            request.apiClient,
+            request.room,
+            messageIndex,
+            part.index,
+            {payload: part.payload},
         );
-        const parts = await agentMessageStream.update();
-
-        for (const part of parts) {
-            await putApiMessageStreamPart(
-                tracer,
-                request.apiClient,
-                request.room,
-                messageIndex,
-                part.index,
-                {payload: part.payload},
-            );
-        }
-    });
+    }
 }
 
 async function requestChatGptAgent(
@@ -465,19 +449,28 @@ async function initializeInChatGptAgentConversationIfNeeded(
     // maybe another process was killed during initialization?
     assert(conversation.getState().lastOrderKey === null);
 
-    await initializeInstructionsInChatGptAgentConversation(
-        tracer,
-        transaction,
-        request,
-        conversation,
-    );
+    await runAllPromises([
+        (async () => {
+            // These both act on ChatGptAgentConversationItemCollection and the insertion
+            // order matters, so they must be serialized.
+            await initializeInstructionsInChatGptAgentConversation(
+                tracer,
+                transaction,
+                request,
+                conversation,
+            );
 
-    await initializeMessagesInAgentConversation({
-        tracer,
-        transaction,
-        request,
-        conversation,
-    });
+            await initializeMessagesInAgentConversation({
+                tracer,
+                transaction,
+                request,
+                conversation,
+            });
+        })(),
+        conversation.setState(transaction, {
+            timeZone: request.event.createdTimeZone,
+        }),
+    ]);
 
     assert(conversation.getState().lastMessageIndex !== null);
 }
@@ -855,6 +848,7 @@ async function createChatGptAgentResponse(
                 }
 
                 totalUsedMillicents += usage ? convertChatGptUsageToMillicents(model, usage) : 0;
+                break;
             }
         }
     }
