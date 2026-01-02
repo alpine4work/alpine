@@ -86,7 +86,7 @@ export function MessageStreamViewThinkingSummary({
     // If this was a content only section, then there was no thinking involved.
     // This may happen when we send "system" messages that let the user know that
     // they've reached or are nearing their agent usage limits.
-    if (nonContentParts.length === 0) return null;
+    if (section.contentParts.length > 0 && nonContentParts.length === 0) return null;
 
     return (
         <div

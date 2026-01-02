@@ -122,9 +122,40 @@ export function MessageStreamView({
             if (currentSection.contentParts.length > 0) {
                 sections.push(currentSection);
 
+                // NOTE(ifitzsimmons, 2026-01-02): As stated above, we create a new "thinking summary"
+                // section for each content part produced by the agent. This is intuitive because it
+                // resembles the way humans interact -- we (hopefully) think before we say something.
+                //
+                // So, when a new section is created, it is due to one of two scenarios:
+                // 1. The agent completes a "thought", writes a response, and moves on to the next
+                //    "thought". This is pretty unlikely in the context of the way our agents work
+                //    today, but that might not always be the case.
+                // 2. WE inject some system message(s) that is not part of the agent's response.
+                //    For example, we might inject a message at the top of the response that let's
+                //    the user know that they are almost out of tokens.
+                //
+                // In either case, it's not quite accurate to measure the following section's start
+                // time by using the first content part's created time. Consider the case where we
+                // inject the system message before the agent does any work
+                // 1. We send a system message.
+                // 2. The agent starts handling the request.
+                // 3. At some point later, the agent returns a reasoning or tool call part.
+                //
+                // In the above example, the following section's start time is actually number 2
+                // in the list. We may not get the first reasoning summary until 30 seconds later.
+                // Number 1 (system message sent) is almost *always* closer to the actual start time
+                // (Number 2) than the first reasoning summary part (Number 3).
+                //
+                // If it helps to see a real world example of why this is necessary, see the following
+                // bug [1]. The second "Though for 0 seconds" summary is incorrect (the first one is
+                // a separate bug that's already been fixed).
+                //
+                // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/ce6enwqth1qzsx9snntsc8gtbg
+                const approximatePreviousSectionEndTime = currentSection.contentStartTime;
+
                 currentSection = {
                     posAttributeOffset,
-                    startTime: part.createdTime,
+                    startTime: approximatePreviousSectionEndTime ?? part.createdTime,
                     nonContentParts: [],
                     contentStartTime: null,
                     contentParts: [],
