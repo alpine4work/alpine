@@ -1276,7 +1276,7 @@ function ContentEditorPointerToolbarLinkButton({
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
                     description="Link"
-                    keyboardShortcutHint={isAppleDevice ? "⌘+L" : "Ctrl+L"}
+                    keyboardShortcutHint={isAppleDevice ? "⌘+K" : "Ctrl+K"}
                     isActive={isLinkInputOpen || !!activeLinkMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isLinkInputOpen

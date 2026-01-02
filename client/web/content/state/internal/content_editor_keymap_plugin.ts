@@ -2238,9 +2238,9 @@ export function buildContentEditorKeymapPlugin(
     // Link overlay
     //
     // If you used shift to select text, you're may still be holding shift when
-    // hitting the link shortcut. So cmd-shift-l opens the link input as well.
-    keys.set("Mod-l", linkCommand);
-    keys.set("Mod-shift-l", linkCommand);
+    // hitting the link shortcut. So cmd-shift-k opens the link input as well.
+    keys.set("Mod-k", linkCommand);
+    keys.set("Mod-shift-k", linkCommand);
 
     // Comments
     if (schema.marks.comment) {

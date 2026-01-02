@@ -807,6 +807,17 @@ export default function SpaceLayoutRoute() {
                         break;
                     }
 
+                    // NOTE(calebmer): cmd-p is the superior shortcut to cmd-k for search. cmd-k is
+                    // also used for links when text is selected. We only document support for cmd-p
+                    // because it's unambiguous but we support cmd-k because it's popular among many
+                    // modern productivity apps (e.g. Slack, Notion, Linear) and we don't want to
+                    // break people's muscle memory.
+                    //
+                    // In the future I'd love to phase out cmd-k support for search. e.g. If someone
+                    // hits cmd-k when text isn't selected then open search either via cmd-p or
+                    // clicking the search button ask them if they want to bind cmd-k (when text
+                    // isn't selected) to search.
+                    case "p":
                     case "k": {
                         if (
                             platform !== "mobile" &&
