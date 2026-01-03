@@ -12,7 +12,7 @@ import {useStableValue} from "~/client/web/helpers/use_stable_value.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {getWebMobileTabFromPathname} from "~/client/web/spaces/layout/web_mobile_tab.js";
+import {getWebMobileTabFromLocation} from "~/client/web/spaces/layout/web_mobile_tab.js";
 import {useRouteErrorTitle} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {
@@ -35,8 +35,8 @@ export function SpaceRouteErrorBoundary() {
     // tab location and null otherwise. Even though the function was not made for
     // this purpose it still gets the job done.
     const isTabRootLocation = useMemo(
-        () => !!(platform === "mobile" ? getWebMobileTabFromPathname(location.pathname) : null),
-        [platform, location.pathname],
+        () => !!(platform === "mobile" ? getWebMobileTabFromLocation(location) : null),
+        [platform, location],
     );
 
     // It appears that Remix does not `useMemo()` its error object. So stabilize

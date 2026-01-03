@@ -18,7 +18,7 @@ import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/web/spaces/layo
 import {
     WebMobileTab,
     WebMobileTabSchema,
-    getWebMobileTabFromPathname,
+    getWebMobileTabFromLocation,
 } from "~/client/web/spaces/layout/web_mobile_tab.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/web/styles/space_layout_shared_styles.js";
@@ -79,16 +79,14 @@ export function SpaceLayoutWebMobileTabBar({
     const pendingTab = useMemo(
         () =>
             dataRouterStateContext.navigation.state === "loading"
-                ? getWebMobileTabFromPathname(dataRouterStateContext.navigation.location.pathname)
+                ? getWebMobileTabFromLocation(dataRouterStateContext.navigation.location)
                 : null,
-        [
-            dataRouterStateContext.navigation.location?.pathname,
-            dataRouterStateContext.navigation.state,
-        ],
+        [dataRouterStateContext.navigation.location, dataRouterStateContext.navigation.state],
     );
+
     const matchedTab = useMemo(
-        () => getWebMobileTabFromPathname(dataRouterStateContext.location.pathname),
-        [dataRouterStateContext.location.pathname],
+        () => getWebMobileTabFromLocation(dataRouterStateContext.location),
+        [dataRouterStateContext.location],
     );
 
     const [selectedTab, setSelectedTab] = useSessionStorage(
