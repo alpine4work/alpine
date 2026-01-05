@@ -85,16 +85,24 @@ export function FeedViewSideBar({
     const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
     const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
-    const availableHeight =
+    const sectionHeaderHeight = convertRemLengthToPx(
+        addRemLengths(searchEntityHeaderPaddingTop, searchEntityHeaderLineHeight),
+        spacingScale,
+    );
+
+    const availableHeightWithoutSectionHeaders =
         height -
         (convertRemLengthToPx(navigationBarHeight, spacingScale) -
-            convertRemLengthToPx(feedViewSideBarSpaceNameNegativeMarginBottom, spacingScale) +
-            (hasFavorites
-                ? convertRemLengthToPx(
-                      addRemLengths(searchEntityHeaderPaddingTop, searchEntityHeaderLineHeight),
-                      spacingScale,
-                  ) * 2
-                : 0));
+            convertRemLengthToPx(feedViewSideBarSpaceNameNegativeMarginBottom, spacingScale));
+
+    // We estimate the available height assuming there's at least one non-favorites
+    // section header. We won't know how many headers there actually are until
+    // after we check the contents of the first `estimatedVisibleResultCount`
+    // results and determine what groups we have.
+    const estimatedAvailableHeight =
+        availableHeightWithoutSectionHeaders -
+        (hasFavorites ? sectionHeaderHeight : 0) -
+        sectionHeaderHeight;
 
     // The feed search affinity list sidebar doesn't scroll. We render as many
     // entities as will fit on the screen and that's it. The feed post list does,
@@ -105,8 +113,8 @@ export function FeedViewSideBar({
     // make the search affinity list and feed scrollable separately that's probably
     // fine but I like that it's conceptually clean that there's no conflicting
     // scrollbars on the home page.
-    const visibleResultCount = Math.floor(
-        availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
+    const estimatedVisibleResultCount = Math.floor(
+        estimatedAvailableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
 
     const peopleResults = [];
@@ -116,12 +124,44 @@ export function FeedViewSideBar({
         for (const result of sliceIterable(
             output.results,
             0,
-            visibleResultCount - favoriteResults.length,
+            estimatedVisibleResultCount - favoriteResults.length,
         )) {
             if (isSearchAffinityResultChatOrAccount(result)) {
                 peopleResults.push(result);
             } else {
                 suggestedResults.push(result);
+            }
+        }
+    }
+
+    // We could have up to three section headers.
+    const availableHeight =
+        availableHeightWithoutSectionHeaders -
+        (hasFavorites ? sectionHeaderHeight : 0) -
+        (peopleResults.length > 0 ? sectionHeaderHeight : 0) -
+        (suggestedResults.length > 0 ? sectionHeaderHeight : 0);
+
+    const visibleResultCount = Math.floor(
+        availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
+    );
+
+    // Remove the result with the lowest score from the sections until we have
+    // `visibleResultCount` items in total.
+    if (visibleResultCount > 0) {
+        while (peopleResults.length + suggestedResults.length > visibleResultCount) {
+            if (peopleResults.length === 0) {
+                suggestedResults.pop();
+            } else if (suggestedResults.length === 0) {
+                peopleResults.pop();
+            } else {
+                const lastPeopleResult = peopleResults[peopleResults.length - 1]!;
+                const lastSuggestedResult = suggestedResults[suggestedResults.length - 1]!;
+
+                if (lastPeopleResult.score < lastSuggestedResult.score) {
+                    peopleResults.pop();
+                } else {
+                    suggestedResults.pop();
+                }
             }
         }
     }
@@ -175,36 +215,43 @@ export function FeedViewSideBar({
                             )}
                         </Box>
                     )}
-                    {mapIterable(sliceIterable(favoriteResults, 0, visibleResultCount), result => (
-                        <FeedSearchAffinityView
-                            key={result.id}
-                            result={result}
-                            randomSeed={randomSeed}
-                            onRemoveFromFavorites={async () => {
-                                await unfavoriteSearchEntity(context, {
-                                    spaceId: space.id,
-                                    entityId: result.id,
-                                });
+                    {mapIterable(
+                        sliceIterable(favoriteResults, 0, estimatedVisibleResultCount),
+                        result => (
+                            <FeedSearchAffinityView
+                                key={result.id}
+                                result={result}
+                                randomSeed={randomSeed}
+                                onRemoveFromFavorites={async () => {
+                                    await unfavoriteSearchEntity(context, {
+                                        spaceId: space.id,
+                                        entityId: result.id,
+                                    });
 
-                                // This is very race condition prone. But it's good enough for this
-                                // non-collaborative use case. *Shrug*
-                                updateSearchFavoriteEntityMenuAction(space.id, result.id, false);
+                                    // This is very race condition prone. But it's good enough for this
+                                    // non-collaborative use case. *Shrug*
+                                    updateSearchFavoriteEntityMenuAction(
+                                        space.id,
+                                        result.id,
+                                        false,
+                                    );
 
-                                forceRevalidateSearchByAffinity(
-                                    context,
-                                    rpcCache,
-                                    space.id,
-                                    "removing favorite in feed side bar",
-                                    output => {
-                                        // Test that the item was removed from `favoriteResults`.
-                                        return !output.favoriteResults.some(
-                                            otherResult => otherResult.id === result.id,
-                                        );
-                                    },
-                                );
-                            }}
-                        />
-                    ))}
+                                    forceRevalidateSearchByAffinity(
+                                        context,
+                                        rpcCache,
+                                        space.id,
+                                        "removing favorite in feed side bar",
+                                        output => {
+                                            // Test that the item was removed from `favoriteResults`.
+                                            return !output.favoriteResults.some(
+                                                otherResult => otherResult.id === result.id,
+                                            );
+                                        },
+                                    );
+                                }}
+                            />
+                        ),
+                    )}
                     {renderSuggestedSearchEntitySection("People", peopleResults)}
                     {renderSuggestedSearchEntitySection("Suggested", suggestedResults)}
                 </>
