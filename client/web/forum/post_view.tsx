@@ -5,6 +5,7 @@ import {PostContentViewInitialScroll} from "~/client/web/forum/post_content_view
 import {PostBasicList} from "~/client/web/forum/post_list.js";
 import {PostListView, PostListViewRef} from "~/client/web/forum/post_list_view.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
+import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
@@ -39,6 +40,8 @@ export function PostView({
 
     const postListRef = useRef<PostListViewRef>(null);
     const hasInitializedRef = useRef(false);
+
+    const inboxContext = useInboxContext();
 
     // TODO(calebmer): Support server-side rendering for immediately jumping to a
     // comment in the middle of a post. This will make transitions seamless when
@@ -112,6 +115,9 @@ export function PostView({
                 assertExists(postListRef.current).startEditingPost(postResult.post);
             },
         }),
+        defaultPreviousRoute: inboxContext?.entry
+            ? `/s/${inboxContext.entry.model.spaceId}/inbox`
+            : `/s/${initialPost.model.spaceId}/posts/${initialPost.model.id}`,
     });
 
     return (

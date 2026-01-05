@@ -36,6 +36,7 @@ import {ShareOverlay, ShareOverlayRef} from "~/client/web/navigation/internal/sh
 import {ShareSwitch} from "~/client/web/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/web/navigation/internal/use_share_state.js";
 import {NavigationBarShareButtonProps} from "~/client/web/navigation/navigation_bar_types.js";
+import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {ShareButton} from "~/client/web/navigation/share_button.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -52,6 +53,7 @@ import {
     isSpacing,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {OutOfRangeError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -84,6 +86,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleLeftSlop,
         desktopAdditionalActions,
         withoutMobileBackButton = false,
+        defaultPreviousRoute,
         onMobileClose,
         onMobileCancel,
     }: {
@@ -107,6 +110,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopTitleLeftSlop?: Spacing;
         desktopAdditionalActions?: ReactNode;
         withoutMobileBackButton?: boolean;
+        defaultPreviousRoute?: string;
         onMobileClose?: () => void;
         onMobileCancel?: () => void;
     },
@@ -117,6 +121,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const {isNativeMobile} = useClientInfo();
     const navigate = useNavigate();
     const spaceContext = useSpaceContextIfExists();
+    const navigationState = useNavigationState();
 
     const isMobile = platform === "mobile";
 
@@ -189,6 +194,16 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 
     const hasRightActions: boolean =
         !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
+
+    const handleBackButtonPress = () => {
+        if (navigationState.hasPreviousLocation) {
+            navigate(-1);
+        } else if (defaultPreviousRoute) {
+            void navigate(defaultPreviousRoute);
+        } else {
+            throw new OutOfRangeError("No previous page in browser history");
+        }
+    };
 
     return (
         <Box
@@ -267,7 +282,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                           description="Go back"
                                           withoutTooltip={true}
                                           pressErrorTitle="Couldn’t go back"
-                                          onPress={() => navigate(-1)}
+                                          onPress={handleBackButtonPress}
                                       >
                                           <ArrowLeft />
                                       </IconButton>

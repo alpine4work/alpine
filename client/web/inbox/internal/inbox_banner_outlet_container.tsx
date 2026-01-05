@@ -23,6 +23,7 @@ import {
 import {InboxContextProvider} from "~/client/web/inbox/inbox_context_provider.js";
 import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
 import {printInboxEntryDisplayContentSummaryWithoutInteractivityStore} from "~/client/web/inbox/internal/print_inbox_entry_display_content_summary_without_interactivity_store.js";
+import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -75,6 +76,7 @@ export function InboxBannerOutletContainer({
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
     const archiveInboxEntry = useArchiveInboxEntry();
     const unarchiveInboxEntry = useUnarchiveInboxEntry();
+    const navigationState = useNavigationState();
 
     const doneButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
 
@@ -310,6 +312,57 @@ export function InboxBannerOutletContainer({
         ),
     );
 
+    const handleDoneButtonPress = async () => {
+        if (!entry.model.isArchived) {
+            archiveInboxEntry({
+                entry,
+                withAnimation: true,
+            });
+
+            if (!navigation && routeLayout === "narrow") {
+                // Navigate back, if this is in a peek we'll close the peek. If this is on
+                // mobile or we have no previous entries in browser history we'll go back to inbox.
+                //
+                // If this is a wide layout (desktop) then that's because the user expanded
+                // the notification. Don't navigate if the user took an intentional action to
+                // expand the peek.
+                if (navigationState.hasPreviousLocation) {
+                    await navigate(-1);
+                } else {
+                    await navigate(`/s/${entry.model.spaceId}/inbox`);
+                }
+            }
+
+            if (navigation?.filter === "New") {
+                if (navigation.nextEntry) {
+                    await navigation.selectEntry(navigation.nextEntry);
+                } else if (navigation.previousEntry) {
+                    await navigation.selectEntry(navigation.previousEntry);
+                } else {
+                    await navigation.selectEntry(null);
+                }
+            }
+        }
+        // This button works as a toggle button. If you click it when the notification
+        // has already been archived then we'll unarchive.
+        else {
+            unarchiveInboxEntry({
+                entry,
+                withAnimation: true,
+            });
+
+            if (navigation?.filter === "Archive") {
+                if (navigation.nextEntry) {
+                    await navigation.selectEntry(navigation.nextEntry);
+                } else if (navigation.previousEntry) {
+                    await navigation.selectEntry(navigation.previousEntry);
+                } else {
+                    await navigation.selectEntry(null);
+                }
+            }
+        }
+    };
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -504,60 +557,7 @@ export function InboxBannerOutletContainer({
                                             : undefined
                                     }
                                     pressErrorTitle="Can’t mark as done"
-                                    onPress={async () => {
-                                        if (!entry.model.isArchived) {
-                                            archiveInboxEntry({
-                                                entry,
-                                                withAnimation: true,
-                                            });
-
-                                            if (!navigation && routeLayout === "narrow") {
-                                                // Navigate back, if this is in a peek we'll close the peek. If this is on
-                                                // mobile we'll go back to inbox.
-                                                //
-                                                // If this is a wide layout (desktop) then that's because the user expanded
-                                                // the notification. Don't navigate if the user took an intentional action to
-                                                // expand the peek.
-                                                await navigate(-1);
-                                            }
-
-                                            if (navigation?.filter === "New") {
-                                                if (navigation.nextEntry) {
-                                                    await navigation.selectEntry(
-                                                        navigation.nextEntry,
-                                                    );
-                                                } else if (navigation.previousEntry) {
-                                                    await navigation.selectEntry(
-                                                        navigation.previousEntry,
-                                                    );
-                                                } else {
-                                                    await navigation.selectEntry(null);
-                                                }
-                                            }
-                                        }
-                                        // This button works as a toggle button. If you click it when the notification
-                                        // has already been archived then we'll unarchive.
-                                        else {
-                                            unarchiveInboxEntry({
-                                                entry,
-                                                withAnimation: true,
-                                            });
-
-                                            if (navigation?.filter === "Archive") {
-                                                if (navigation.nextEntry) {
-                                                    await navigation.selectEntry(
-                                                        navigation.nextEntry,
-                                                    );
-                                                } else if (navigation.previousEntry) {
-                                                    await navigation.selectEntry(
-                                                        navigation.previousEntry,
-                                                    );
-                                                } else {
-                                                    await navigation.selectEntry(null);
-                                                }
-                                            }
-                                        }
-                                    }}
+                                    onPress={handleDoneButtonPress}
                                 >
                                     Done
                                 </Button>

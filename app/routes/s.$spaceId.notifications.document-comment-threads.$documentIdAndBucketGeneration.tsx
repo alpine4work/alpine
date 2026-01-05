@@ -419,6 +419,7 @@ function DocumentNewCommentThreadsRouteInner2({
                 </Box>
             ),
         withoutDisappearingTitle: true,
+        defaultPreviousRoute: `/s/${inboxEntry.model.spaceId}/inbox`,
     });
 
     const [

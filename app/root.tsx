@@ -42,6 +42,7 @@ import {GlobalKeyDownRootContextProvider} from "~/client/web/helpers/global_key_
 import {useAppInitialRenderContextProvider} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/web/helpers/use_promise.js";
+import {NavigationStateProvider} from "~/client/web/navigation/navigation_state_context.js";
 import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
 import {useClientInfoContextProvider} from "~/client/web/remix/client_info_context.js";
 import {CurrentTimeContextProvider} from "~/client/web/remix/current_time_context_provider.js";
@@ -569,28 +570,30 @@ export default function Root() {
     const children = renderClientInfoContextProvider(
         renderSpacingScaleContextProvider(
             renderPlatformContextProvider(
-                <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-                    <AppContextProvider value={context}>
-                        <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
-                            <NavigationContextProvider>
-                                <GlobalKeyDownRootContextProvider>
-                                    <BottomBarFrameContextProvider>
-                                        <RootOverlayScopeContextProvider>
-                                            <MobileFullScreenModalContextProvider>
-                                                <TooltipCoordinationContextProvider>
-                                                    <ReporterContextProvider>
-                                                        <BlobsArtProvider />
-                                                        {nodes}
-                                                    </ReporterContextProvider>
-                                                </TooltipCoordinationContextProvider>
-                                            </MobileFullScreenModalContextProvider>
-                                        </RootOverlayScopeContextProvider>
-                                    </BottomBarFrameContextProvider>
-                                </GlobalKeyDownRootContextProvider>
-                            </NavigationContextProvider>
-                        </CurrentTimeContextProvider>
-                    </AppContextProvider>
-                </IconContext.Provider>,
+                <NavigationStateProvider>
+                    <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                        <AppContextProvider value={context}>
+                            <CurrentTimeContextProvider initialTime={loaderData.initialTime}>
+                                <NavigationContextProvider>
+                                    <GlobalKeyDownRootContextProvider>
+                                        <BottomBarFrameContextProvider>
+                                            <RootOverlayScopeContextProvider>
+                                                <MobileFullScreenModalContextProvider>
+                                                    <TooltipCoordinationContextProvider>
+                                                        <ReporterContextProvider>
+                                                            <BlobsArtProvider />
+                                                            {nodes}
+                                                        </ReporterContextProvider>
+                                                    </TooltipCoordinationContextProvider>
+                                                </MobileFullScreenModalContextProvider>
+                                            </RootOverlayScopeContextProvider>
+                                        </BottomBarFrameContextProvider>
+                                    </GlobalKeyDownRootContextProvider>
+                                </NavigationContextProvider>
+                            </CurrentTimeContextProvider>
+                        </AppContextProvider>
+                    </IconContext.Provider>
+                </NavigationStateProvider>,
             ),
         ),
     );

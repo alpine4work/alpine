@@ -295,6 +295,7 @@ function ChannelPostsRoute({
         isDisabled: platform !== "mobile",
         title: printPrettySmallNumberSummary(posts.getPostCount(), "new post"),
         withoutDisappearingTitle: true,
+        defaultPreviousRoute: `/s/${inboxEntry.model.spaceId}/inbox`,
     });
 
     useEffect(() => {

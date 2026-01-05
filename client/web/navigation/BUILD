@@ -7,6 +7,7 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@remix-run/router",
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@react-types/shared",
         "//:node_modules/@types/react",
@@ -17,6 +18,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-dom",
+        "//:node_modules/react-router",
         "//:node_modules/react-stately",
         "//client/web/accounts",
         "//client/web/blobs",

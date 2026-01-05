@@ -36,7 +36,6 @@ ts_project(
         "//shared/id",
         "//shared/notifications",
         "//shared/rpc",
-        "//shared/schema",
         "//shared/spaces",
     ],
 )

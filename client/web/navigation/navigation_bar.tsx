@@ -68,6 +68,7 @@ export function useNavigationBar({
     desktopAdditionalActions,
     withoutMobileBackButton = false,
     contentCover,
+    defaultPreviousRoute,
     onMobileClose,
     onMobileCancel,
 }: NavigationBarProps): NavigationBarResult {
@@ -199,6 +200,7 @@ export function useNavigationBar({
             contentCover={contentCover}
             onMobileClose={onMobileClose}
             onMobileCancel={onMobileCancel}
+            defaultPreviousRoute={defaultPreviousRoute}
         />
     ) : null;
 

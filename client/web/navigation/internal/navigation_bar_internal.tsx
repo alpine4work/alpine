@@ -162,6 +162,7 @@ export function NavigationBar({
     desktopAdditionalActions,
     withoutMobileBackButton,
     contentCover,
+    defaultPreviousRoute,
     onMobileClose,
     onMobileCancel,
 }: {
@@ -197,6 +198,7 @@ export function NavigationBar({
     contentCover: ReactNode | undefined;
     onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
+    defaultPreviousRoute: string | undefined;
 }) {
     const platform = usePlatform();
 
@@ -1128,6 +1130,7 @@ export function NavigationBar({
                             withoutMobileBackButton={withoutMobileBackButton}
                             onMobileClose={onMobileClose}
                             onMobileCancel={onMobileCancel}
+                            defaultPreviousRoute={defaultPreviousRoute}
                         />
                     </Box>
                 </div>

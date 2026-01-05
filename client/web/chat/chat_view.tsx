@@ -15,7 +15,9 @@ import {
 } from "~/client/web/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/web/design/pretty_conjunction_list.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
+import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {MessagingView, MessagingViewRef} from "~/client/web/messaging/messaging_view.js";
+import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
@@ -89,6 +91,8 @@ function ChatViewTopBar({
     const platform = usePlatform();
     const {space, currentAccount} = useSpaceContext();
     const navigate = useNavigate();
+    const inboxContext = useInboxContext();
+    const navigationState = useNavigationState();
 
     // Exclude the current user from the list of accounts we display on top of the
     // chat unless this is a one-person chat with only the current user.
@@ -103,6 +107,16 @@ function ChatViewTopBar({
             : `Chat:${chat.id}`,
         initialIsFavorite,
     );
+
+    const handleBackButtonPress = () => {
+        if (inboxContext?.entry) {
+            navigate(`/s/${inboxContext.entry.model.spaceId}/inbox`);
+        } else if (navigationState.hasPreviousLocation) {
+            navigate(-1);
+        } else {
+            navigate(`/s/${space.id}/chat/with/${chat.id}`);
+        }
+    };
 
     return (
         <Box
@@ -156,7 +170,7 @@ function ChatViewTopBar({
                             description="Go back"
                             withoutTooltip={true}
                             pressErrorTitle="Couldn’t go back"
-                            onPress={() => navigate(-1)}
+                            onPress={handleBackButtonPress}
                         >
                             <ArrowLeft />
                         </IconButton>

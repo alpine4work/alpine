@@ -1,13 +1,12 @@
-import {Action} from "@remix-run/router";
 import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut} from "phosphor-react";
-import {ReactNode, useEffect, useState} from "react";
-import {useLocation, useNavigationType} from "react-router";
+import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
+import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
@@ -19,7 +18,6 @@ import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_co
 import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -141,65 +139,10 @@ export function SpaceLayoutSideBarContentBlockWidthContextProvider({
     );
 }
 
-const NavigationStateSchema = Schema.object({
-    initialLocationKey: Schema.string,
-    latestLocationKey: Schema.string,
-    locationKey: Schema.string,
-    hasNextLocation: Schema.boolean,
-    hasPreviousLocation: Schema.boolean,
-});
-
 function SpaceLayoutSideBarNavigationButtons() {
-    const location = useLocation();
-    const navigationType = useNavigationType();
     const navigate = useNavigate();
     const clientInfo = useClientInfo();
-
-    const [navigationState, setNavigationState] = useState<{
-        initialLocationKey: string;
-        latestLocationKey: string;
-        locationKey: string;
-        hasNextLocation: boolean;
-        hasPreviousLocation: boolean;
-    }>({
-        initialLocationKey: location.key,
-        latestLocationKey: location.key,
-        locationKey: location.key,
-        hasNextLocation: false,
-        hasPreviousLocation: false,
-    });
-
-    if (navigationState.locationKey !== location.key) {
-        setNavigationState({
-            initialLocationKey: navigationState.initialLocationKey,
-            latestLocationKey:
-                navigationType === Action.Push ? location.key : navigationState.latestLocationKey,
-            locationKey: location.key,
-            hasNextLocation:
-                navigationType === Action.Pop && location.key !== navigationState.latestLocationKey,
-            hasPreviousLocation:
-                navigationType === Action.Push ||
-                location.key !== navigationState.initialLocationKey,
-        });
-    }
-
-    // Read our current navigation state from `sessionStorage` and use it to
-    // initialize our component's state.
-    useEffect(() => {
-        const navigationStateString = sessionStorage.getItem("cyberworlds/navigationState");
-        if (navigationStateString) {
-            setNavigationState(
-                NavigationStateSchema.deserialize(JSON.parse(navigationStateString)),
-            );
-        }
-    }, []);
-
-    useEffect(() => {
-        sessionStorage.setItem(
-            "cyberworlds/navigationState",
-            JSON.stringify(NavigationStateSchema.serialize(navigationState)),
-        );
-    }, [navigationState]);
+    const navigationState = useNavigationState();
 
     return (
         <GlobalKeyDownEvent

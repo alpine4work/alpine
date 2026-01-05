@@ -153,6 +153,9 @@ export default function DocumentCommentThreadRoute() {
         isDisabled: platform !== "mobile",
         title: "Comment thread",
         withoutDisappearingTitle: true,
+        defaultPreviousRoute: inboxEntry
+            ? `/s/${inboxEntry.model.spaceId}/inbox`
+            : `/s/${initialDocument.spaceId}/documents/${initialDocument.id}`,
     });
 
     const node = (

@@ -232,6 +232,12 @@ export type NavigationBarProps = {
     readonly contentCover?: ReactNode;
 
     /**
+     * The default route to navigate to when the back button is pressed and there
+     * is no previous page in browser history.
+     */
+    readonly defaultPreviousRoute?: string;
+
+    /**
      * By default, the navigation bar on mobile has a back button which calls
      * `navigate(-1)`. If you'd like to provide custom back navigation behavior
      * then you may pass this prop which will switch the back button to an "X"
