@@ -152,6 +152,10 @@ function* intoApiContentListBlockElements(
                   )
                 : [];
 
+        if (item.node !== null && elements.length === 0) {
+            elements.push({type: "Paragraph", elements: []});
+        }
+
         const nestedListElements =
             item.items.length > 0
                 ? Array.from(intoApiContentListBlockElements(item.items, options))
