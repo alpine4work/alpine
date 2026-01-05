@@ -1,8 +1,8 @@
 diff --git a/dist/src/index.js b/dist/src/index.js
-index c28f9dc8ca357561e27ea855bbb0dba8a0a10c4c..8b618585e161ac3294a4533499981f91807c3150 100644
+index c28f9dc8ca357561e27ea855bbb0dba8a0a10c4c..755ee85e96bb7e4aaaedd4adfe89b065336553d9 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -460,10 +460,58 @@ var D1Plugin = class extends import_shared.Plugin {
+@@ -460,10 +460,53 @@ var D1Plugin = class extends import_shared.Plugin {
    d1Databases;
    d1Persist;
    #persist;
@@ -57,7 +57,7 @@ index c28f9dc8ca357561e27ea855bbb0dba8a0a10c4c..8b618585e161ac3294a4533499981f91
    }
    async getDatabase(storageFactory, dbName) {
      const storage = await storageFactory.storage(dbName, this.#persist);
-@@ -473,11 +521,18 @@ var D1Plugin = class extends import_shared.Plugin {
+@@ -473,11 +516,18 @@ var D1Plugin = class extends import_shared.Plugin {
    async setup(storageFactory) {
      const bindings = {};
      for (const dbName of this.d1Databases ?? []) {

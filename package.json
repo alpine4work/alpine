@@ -465,7 +465,9 @@
             "@miniflare/scheduler": "2.14.4",
             "@miniflare/sites": "2.14.4",
             "@miniflare/watcher": "2.14.4",
-            "@miniflare/web-sockets": "2.14.4"
+            "@miniflare/web-sockets": "2.14.4",
+            "@esbuild-kit/esm-loader": "2.6.5",
+            "@esbuild-kit/core-utils": "3.3.2"
         },
         "peerDependencyRules": {
             "allowedVersions": {

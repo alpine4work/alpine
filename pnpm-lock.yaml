@@ -41,7 +41,7 @@ patchedDependencies:
     hash: di55vvis5paiupfudkzzxlvcfm
     path: admin/patches/@dnd-kit__utilities@3.2.1.patch
   '@miniflare/d1@2.14.4':
-    hash: j5b5s3rshdntlrppdjsb4xok3m
+    hash: 6hbhum4lg4oro77z5576345o6a
     path: admin/patches/@miniflare__d1@2.14.4.patch
   '@miniflare/shared@2.14.4':
     hash: mkotdi7nyq4frmqbvxak3qytue
@@ -11988,7 +11988,7 @@ snapshots:
       undici: 5.28.4
       urlpattern-polyfill: 4.0.3
 
-  '@miniflare/d1@2.14.4(patch_hash=j5b5s3rshdntlrppdjsb4xok3m)':
+  '@miniflare/d1@2.14.4(patch_hash=6hbhum4lg4oro77z5576345o6a)':
     dependencies:
       '@miniflare/core': 2.14.4
       '@miniflare/shared': 2.14.4(patch_hash=mkotdi7nyq4frmqbvxak3qytue)
@@ -18287,7 +18287,7 @@ snapshots:
       '@miniflare/cache': 2.14.4
       '@miniflare/cli-parser': 2.14.4
       '@miniflare/core': 2.14.4
-      '@miniflare/d1': 2.14.4(patch_hash=j5b5s3rshdntlrppdjsb4xok3m)
+      '@miniflare/d1': 2.14.4(patch_hash=6hbhum4lg4oro77z5576345o6a)
       '@miniflare/durable-objects': 2.14.4
       '@miniflare/html-rewriter': 2.14.4
       '@miniflare/http-server': 2.14.4(bufferutil@4.0.7)(utf-8-validate@5.0.10)
