@@ -1688,217 +1688,58 @@ var require_color = __commonJS({
 });
 
 // shared/error/error_code.js
-var ErrorCode;
-(function (ErrorCode2) {
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was cancelled, typically by the caller.
-             */
-            "Cancelled"
-        ] = 1)
-    ] = "Cancelled";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Unknown error. For example, this error may be returned when a status code
-             * received from another address space belongs to an error space that is not
-             * known in this address space. Also errors raised by APIs that do not return
-             * enough error information may be converted to this error.
-             */
-            "Unknown"
-        ] = 2)
-    ] = "Unknown";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The client specified an invalid argument. Note that this differs from
-             * `FailedPrecondition`. `InvalidArgument` indicates arguments that are
-             * problematic regardless of the state of the system (e.g., a malformed file
-             * name).
-             */
-            "InvalidArgument"
-        ] = 3)
-    ] = "InvalidArgument";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The deadline expired before the operation could complete. For operations
-             * that change the state of the system, this error may be returned even if the
-             * operation has completed successfully.
-             */
-            "DeadlineExceeded"
-        ] = 4)
-    ] = "DeadlineExceeded";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Some requested entity (e.g., file or directory) was not found. Note to
-             * server developers: if a request is denied for an entire class of users, such
-             * as gradual feature rollout or undocumented allowlist, `NotFound` may be
-             * used. If a request is denied for some users within a class of users, such as
-             * user-based access control, `PermissionDenied` must be used.
-             */
-            "NotFound"
-        ] = 5)
-    ] = "NotFound";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The entity that a client attempted to create (e.g., file or directory)
-             * already exists.
-             */
-            "AlreadyExists"
-        ] = 6)
-    ] = "AlreadyExists";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The caller does not have permission to execute the specified operation.
-             * `PermissionDenied` must not be used for rejections caused by exhausting some
-             * resource (use `ResourceExhausted` instead for those errors).
-             * `PermissionDenied` must not be used if the caller can not be identified (use
-             * `Unauthenticated` instead for those errors). This error code does not imply
-             * the request is valid or the requested entity exists or satisfies other
-             * pre-conditions.
-             */
-            "PermissionDenied"
-        ] = 7)
-    ] = "PermissionDenied";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Some resource has been exhausted, perhaps a per-user quota, or perhaps the
-             * entire file system is out of space.
-             */
-            "ResourceExhausted"
-        ] = 8)
-    ] = "ResourceExhausted";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was rejected because the system is not in a state required for
-             * the operation's execution. For example, the directory to be deleted is
-             * non-empty, an rmdir operation is applied to a non-directory, etc. Service
-             * implementors can use the following guidelines to decide between
-             * `FailedPrecondition`, `Aborted`, and `Unavailable`: (a) Use `Unavailable` if
-             * the client can retry just the failing call. (b) Use `Aborted` if the client
-             * should retry at a higher level (e.g., when a client-specified test-and-set
-             * fails, indicating the client should restart a read-modify-write sequence).
-             * (c) Use `FailedPrecondition` if the client should not retry until the system
-             * state has been explicitly fixed. E.g., if an "rmdir" fails because the
-             * directory is non-empty, `FailedPrecondition` should be returned since the
-             * client should not retry unless the files are deleted from the directory.
-             */
-            "FailedPrecondition"
-        ] = 9)
-    ] = "FailedPrecondition";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was aborted, typically due to a concurrency issue such as a
-             * sequencer check failure or transaction abort. See the guidelines above for
-             * deciding between `FailedPrecondition`, `Aborted`, and `Unavailable`.
-             */
-            "Aborted"
-        ] = 10)
-    ] = "Aborted";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was attempted past the valid range. E.g., seeking or reading
-             * past end-of-file. Unlike `InvalidArgument`, this error indicates a problem
-             * that may be fixed if the system state changes. For example, a 32-bit file
-             * system will generate `InvalidArgument` if asked to read at an offset that is
-             * not in the range [0,2^32-1], but it will generate `OutOfRange` if asked to
-             * read from an offset past the current file size. There is a fair bit of
-             * overlap between `FailedPrecondition` and `OutOfRange`. We recommend using
-             * `OutOfRange` (the more specific error) when it applies so that callers who
-             * are iterating through a space can easily look for an `OutOfRange` error to
-             * detect when they are done.
-             */
-            "OutOfRange"
-        ] = 11)
-    ] = "OutOfRange";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation is not implemented or is not supported/enabled in this
-             * service.
-             */
-            "Unimplemented"
-        ] = 12)
-    ] = "Unimplemented";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Internal errors. This means that some invariants expected by the underlying
-             * system have been broken. This error code is reserved for serious errors.
-             */
-            "Internal"
-        ] = 13)
-    ] = "Internal";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The service is currently unavailable. This is most likely a transient
-             * condition, which can be corrected by retrying with a backoff. Note that it
-             * is not always safe to retry non-idempotent operations.
-             */
-            "Unavailable"
-        ] = 14)
-    ] = "Unavailable";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Unrecoverable data loss or corruption.
-             */
-            "DataLoss"
-        ] = 15)
-    ] = "DataLoss";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The request does not have valid authentication credentials for the
-             * operation.
-             */
-            "Unauthenticated"
-        ] = 16)
-    ] = "Unauthenticated";
-})(ErrorCode || (ErrorCode = {}));
+var ErrorCode = (function (ErrorCode2) {
+    ErrorCode2[(ErrorCode2["Cancelled"] = 1)] = "Cancelled";
+    ErrorCode2[(ErrorCode2["Unknown"] = 2)] = "Unknown";
+    ErrorCode2[(ErrorCode2["InvalidArgument"] = 3)] = "InvalidArgument";
+    ErrorCode2[(ErrorCode2["DeadlineExceeded"] = 4)] = "DeadlineExceeded";
+    ErrorCode2[(ErrorCode2["NotFound"] = 5)] = "NotFound";
+    ErrorCode2[(ErrorCode2["AlreadyExists"] = 6)] = "AlreadyExists";
+    ErrorCode2[(ErrorCode2["PermissionDenied"] = 7)] = "PermissionDenied";
+    ErrorCode2[(ErrorCode2["ResourceExhausted"] = 8)] = "ResourceExhausted";
+    ErrorCode2[(ErrorCode2["FailedPrecondition"] = 9)] = "FailedPrecondition";
+    ErrorCode2[(ErrorCode2["Aborted"] = 10)] = "Aborted";
+    ErrorCode2[(ErrorCode2["OutOfRange"] = 11)] = "OutOfRange";
+    ErrorCode2[(ErrorCode2["Unimplemented"] = 12)] = "Unimplemented";
+    ErrorCode2[(ErrorCode2["Internal"] = 13)] = "Internal";
+    ErrorCode2[(ErrorCode2["Unavailable"] = 14)] = "Unavailable";
+    ErrorCode2[(ErrorCode2["DataLoss"] = 15)] = "DataLoss";
+    ErrorCode2[(ErrorCode2["Unauthenticated"] = 16)] = "Unauthenticated";
+    return ErrorCode2;
+})({});
 function getErrorCodeName(code) {
     switch (code) {
-        case ErrorCode.Cancelled:
+        case 1:
             return "Cancelled";
-        case ErrorCode.Unknown:
+        case 2:
             return "Unknown";
-        case ErrorCode.InvalidArgument:
+        case 3:
             return "InvalidArgument";
-        case ErrorCode.DeadlineExceeded:
+        case 4:
             return "DeadlineExceeded";
-        case ErrorCode.NotFound:
+        case 5:
             return "NotFound";
-        case ErrorCode.AlreadyExists:
+        case 6:
             return "AlreadyExists";
-        case ErrorCode.PermissionDenied:
+        case 7:
             return "PermissionDenied";
-        case ErrorCode.ResourceExhausted:
+        case 8:
             return "ResourceExhausted";
-        case ErrorCode.FailedPrecondition:
+        case 9:
             return "FailedPrecondition";
-        case ErrorCode.Aborted:
+        case 10:
             return "Aborted";
-        case ErrorCode.OutOfRange:
+        case 11:
             return "OutOfRange";
-        case ErrorCode.Unimplemented:
+        case 12:
             return "Unimplemented";
-        case ErrorCode.Internal:
+        case 13:
             return "Internal";
-        case ErrorCode.Unavailable:
+        case 14:
             return "Unavailable";
-        case ErrorCode.DataLoss:
+        case 15:
             return "DataLoss";
-        case ErrorCode.Unauthenticated:
+        case 16:
             return "Unauthenticated";
         default: {
             const never = code;
@@ -1909,6 +1750,9 @@ function getErrorCodeName(code) {
 
 // shared/error/error.js
 var ErrorBase = class _ErrorBase extends Error {
+    code;
+    displayMessage;
+    aggregateDedupeKey;
     constructor(message, {cause, displayMessage, aggregateDedupeKey} = {}) {
         super(message, {
             cause,
@@ -3184,13 +3028,12 @@ function blobFactoryModeFromSettings({shouldDrawInside, shouldDrawOutside}) {
 function glEnum(name) {
     return WebGL2RenderingContext[name];
 }
-var GlShaderType;
-(function (GlShaderType2) {
+var GlShaderType = (function (GlShaderType2) {
     GlShaderType2["Fragment"] = "FRAGMENT_SHADER";
     GlShaderType2["Vertex"] = "VERTEX_SHADER";
-})(GlShaderType || (GlShaderType = {}));
-var GlBufferUsage;
-(function (GlBufferUsage2) {
+    return GlShaderType2;
+})({});
+var GlBufferUsage = (function (GlBufferUsage2) {
     GlBufferUsage2["StaticDraw"] = "STATIC_DRAW";
     GlBufferUsage2["DynamicDraw"] = "DYNAMIC_DRAW";
     GlBufferUsage2["StreamDraw"] = "STREAM_DRAW";
@@ -3200,18 +3043,18 @@ var GlBufferUsage;
     GlBufferUsage2["StaticCopy"] = "STATIC_COPY";
     GlBufferUsage2["DynamicCopy"] = "DYNAMIC_COPY";
     GlBufferUsage2["StreamCopy"] = "STREAM_COPY";
-})(GlBufferUsage || (GlBufferUsage = {}));
-var GlVertexAttribType;
-(function (GlVertexAttribType2) {
+    return GlBufferUsage2;
+})({});
+var GlVertexAttribType = (function (GlVertexAttribType2) {
     GlVertexAttribType2["Byte"] = "BYTE";
     GlVertexAttribType2["UnsignedByte"] = "UNSIGNED_BYTE";
     GlVertexAttribType2["Short"] = "SHORT";
     GlVertexAttribType2["UnsignedShort"] = "UNSIGNED_SHORT";
     GlVertexAttribType2["Float"] = "FLOAT";
     GlVertexAttribType2["HalfFloat"] = "HALF_FLOAT";
-})(GlVertexAttribType || (GlVertexAttribType = {}));
-var GlPixelFormat;
-(function (GlPixelFormat2) {
+    return GlVertexAttribType2;
+})({});
+var GlPixelFormat = (function (GlPixelFormat2) {
     GlPixelFormat2["Rgb"] = "RGB";
     GlPixelFormat2["Rgba"] = "RGBA";
     GlPixelFormat2["LuminanceAlpha"] = "LUMINANCE_ALPHA";
@@ -3223,9 +3066,9 @@ var GlPixelFormat;
     GlPixelFormat2["RgInteger"] = "RG_INTEGER";
     GlPixelFormat2["RgbInteger"] = "RGB_INTEGER";
     GlPixelFormat2["RgbaInteger"] = "RGBA_INTEGER";
-})(GlPixelFormat || (GlPixelFormat = {}));
-var GlPixelType;
-(function (GlPixelType2) {
+    return GlPixelFormat2;
+})({});
+var GlPixelType = (function (GlPixelType2) {
     GlPixelType2["UnsignedByte"] = "UNSIGNED_BYTE";
     GlPixelType2["UnsignedShort565"] = "UNSIGNED_SHORT_5_6_5";
     GlPixelType2["UnsignedShort4444"] = "UNSIGNED_SHORT_4_4_4_4";
@@ -3234,9 +3077,9 @@ var GlPixelType;
     GlPixelType2["Float"] = "FLOAT";
     GlPixelType2["UnsignedInt10f11f11fRev"] = "UNSIGNED_INT_10F_11F_11F_REV";
     GlPixelType2["UnsignedInt2101010Rev"] = "UNSIGNED_INT_2_10_10_10_REV";
-})(GlPixelType || (GlPixelType = {}));
-var GlTextureInternalFormat;
-(function (GlTextureInternalFormat2) {
+    return GlPixelType2;
+})({});
+var GlTextureInternalFormat = (function (GlTextureInternalFormat2) {
     GlTextureInternalFormat2["Rgb"] = "RGB";
     GlTextureInternalFormat2["Rgba"] = "RGBA";
     GlTextureInternalFormat2["LuminanceAlpha"] = "LUMINANCE_ALPHA";
@@ -3266,25 +3109,30 @@ var GlTextureInternalFormat;
     GlTextureInternalFormat2["Rgba16f"] = "RGBA16F";
     GlTextureInternalFormat2["Rgba32f"] = "RGBA32F";
     GlTextureInternalFormat2["Rgba8ui"] = "RGBA8UI";
-})(GlTextureInternalFormat || (GlTextureInternalFormat = {}));
-var GlTextureFilter;
-(function (GlTextureFilter2) {
+    return GlTextureInternalFormat2;
+})({});
+var GlTextureFilter = (function (GlTextureFilter2) {
     GlTextureFilter2["Linear"] = "LINEAR";
     GlTextureFilter2["Nearest"] = "NEAREST";
     GlTextureFilter2["NearestMipmapNearest"] = "NEAREST_MIPMAP_NEAREST";
     GlTextureFilter2["LinearMipmapNearest"] = "LINEAR_MIPMAP_NEAREST";
     GlTextureFilter2["NearestMipmapLinear"] = "NEAREST_MIPMAP_LINEAR";
     GlTextureFilter2["LinearMipmapLinear"] = "LINEAR_MIPMAP_LINEAR";
-})(GlTextureFilter || (GlTextureFilter = {}));
-var GlTextureWrap;
-(function (GlTextureWrap2) {
+    return GlTextureFilter2;
+})({});
+var GlTextureWrap = (function (GlTextureWrap2) {
     GlTextureWrap2["Repeat"] = "REPEAT";
     GlTextureWrap2["ClampToEdge"] = "CLAMP_TO_EDGE";
     GlTextureWrap2["MirroredRepeat"] = "MIRRORED_REPEAT";
-})(GlTextureWrap || (GlTextureWrap = {}));
+    return GlTextureWrap2;
+})({});
 
 // client/web/helpers/gl/gl_uniform.js
 var GlUniform = class {
+    gl;
+    name;
+    location;
+    value;
     constructor(gl, name, location, initialValue) {
         this.gl = gl;
         this.name = name;
@@ -3331,6 +3179,9 @@ var GlUniformColor = class extends GlUniform {
 
 // client/web/helpers/gl/gl_vertex_array.js
 var GlVertexArray = class {
+    gl;
+    vertexArray;
+    buffer;
     constructor(gl, vertexArray, buffer) {
         this.gl = gl;
         this.vertexArray = vertexArray;
@@ -3363,10 +3214,14 @@ function assertExists(value, message) {
 
 // client/web/helpers/gl/gl_program.js
 var GlProgram = class {
+    vertexShader;
+    fragmentShader;
+    program;
+    gl;
+    uniforms = [];
     constructor(_gl, vertexShader, fragmentShader) {
         this.vertexShader = vertexShader;
         this.fragmentShader = fragmentShader;
-        this.uniforms = [];
         this.gl = _gl;
         const {gl} = _gl;
         const program = assertExists(gl.createProgram());
@@ -3436,6 +3291,9 @@ var GlProgram = class {
 
 // client/web/helpers/gl/gl_shader.js
 var GlShader = class {
+    type;
+    shader;
+    gl;
     constructor(_gl, type, source) {
         this.type = type;
         this.gl = _gl;
@@ -3455,11 +3313,16 @@ var GlShader = class {
 
 // client/web/helpers/gl/gl_texture_2d.js
 var GlTexture2d = class {
+    gl;
+    textureUnit;
+    format;
+    level;
+    texture;
+    data = null;
     constructor(gl, textureUnit, format, level) {
         this.gl = gl;
         this.textureUnit = textureUnit;
         this.format = format;
-        this.data = null;
         this.level = level ?? 0;
         this.texture = assertExists(gl.gl.createTexture());
     }
@@ -3525,28 +3388,30 @@ function getOwnProperty(obj, key) {
 
 // client/web/helpers/gl/gl.js
 var Gl = class {
+    canvas;
+    gl;
+    shaders = new GlResources(
+        (type, source) => new GlShader(this, type, source),
+        shader => this.gl.deleteShader(shader.shader),
+    );
+    programs = new GlResources(
+        (vertexShader, fragmentShader) => new GlProgram(this, vertexShader, fragmentShader),
+        program => this.gl.deleteProgram(program.program),
+    );
+    buffers = new GlResources(
+        () => assertExists(this.gl.createBuffer()),
+        buffer => this.gl.deleteBuffer(buffer),
+    );
+    vertexArrays = new GlResources(
+        () => assertExists(this.gl.createVertexArray()),
+        vertexArray => this.gl.deleteVertexArray(vertexArray),
+    );
+    textures = new GlResources(
+        (textureUnit, format, level) => new GlTexture2d(this, textureUnit, format, level),
+        texture => this.gl.deleteTexture(texture.texture),
+    );
     constructor(canvas) {
         this.canvas = canvas;
-        this.shaders = new GlResources(
-            (type, source) => new GlShader(this, type, source),
-            shader => this.gl.deleteShader(shader.shader),
-        );
-        this.programs = new GlResources(
-            (vertexShader, fragmentShader) => new GlProgram(this, vertexShader, fragmentShader),
-            program => this.gl.deleteProgram(program.program),
-        );
-        this.buffers = new GlResources(
-            () => assertExists(this.gl.createBuffer()),
-            buffer => this.gl.deleteBuffer(buffer),
-        );
-        this.vertexArrays = new GlResources(
-            () => assertExists(this.gl.createVertexArray()),
-            vertexArray => this.gl.deleteVertexArray(vertexArray),
-        );
-        this.textures = new GlResources(
-            (textureUnit, format, level) => new GlTexture2d(this, textureUnit, format, level),
-            texture => this.gl.deleteTexture(texture.texture),
-        );
         const gl = canvas.getContext("webgl2");
         assert(gl, "browser does not support webgl2");
         this.gl = gl;
@@ -3592,10 +3457,12 @@ var Gl = class {
     }
 };
 var GlResources = class {
+    initializeResource;
+    deleteResource;
+    resources = [];
     constructor(initializeResource, deleteResource) {
         this.initializeResource = initializeResource;
         this.deleteResource = deleteResource;
-        this.resources = [];
     }
     create(...args) {
         const resource = this.initializeResource(...args);
@@ -3920,6 +3787,8 @@ function unwrapResult(result) {
 
 // shared/helpers/control/lazy.js
 var Lazy = class {
+    _result;
+    _get;
     constructor(get) {
         this._result = null;
         this._get = get;
@@ -3968,6 +3837,8 @@ var Vector2 = class _Vector2 {
     static fromEvent({clientX, clientY}) {
         return new _Vector2(clientX, clientY);
     }
+    x;
+    y;
     constructor(x, y) {
         this.x = x;
         this.y = y;
@@ -4284,6 +4155,10 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
     }
 }
 var BlobFactoryBlob = class {
+    center;
+    radius;
+    themeColor;
+    hueOffset;
     static size = 12;
     constructor(center, radius, themeColor, hueOffset = 0) {
         this.center = center;
@@ -4374,6 +4249,7 @@ function cyrb53(baseString, keyString, seed = 0) {
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 var StableRandom = class {
+    _baseString;
     constructor(baseString) {
         this._baseString = baseString;
     }

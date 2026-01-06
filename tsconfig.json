@@ -35,12 +35,12 @@
         // the `~/` sigil. However, in order to configure the TypeScript `paths`
         // property we need to set a `baseUrl`. Since there's no folder we want to
         // treat as a "root" folder that overrides `node_modules`, point `baseUrl`
-        // to a file that doesn't exist. If we pointed `baseUrl` to `./node_modules`
-        // that would break `tsconfig-paths` which is used by Cypress among other
+        // to an empty folder. If we pointed `baseUrl` to `./node_modules` that
+        // would break `tsconfig-paths` which is used by Cypress among other
         // things since module resolution would always look at `node_modules`
         // instead of performing the Node.js module resolution algorithm.
-        "baseUrl": "./.null",
-        "paths": {"~/*": ["../*"]},
+        "baseUrl": "./admin/typescript/base",
+        "paths": {"~/*": ["../../../*"]},
 
         /* ========================================================================== *\
          *                              Type Checking                                 *

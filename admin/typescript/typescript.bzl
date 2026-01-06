@@ -3,7 +3,7 @@ Macros for building TypeScript projects in the style of our codebase. Along
 with any related tests for the project.
 """
 
-load("@aspect_rules_swc//swc:defs.bzl", "swc", _swc_compile = "swc_compile")
+load("@aspect_rules_swc//swc:defs.bzl", _swc = "swc", _swc_compile = "swc_compile")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
@@ -78,7 +78,7 @@ def ts_project(
         # transpiled `.js` files as ES Modules.
         data = ["//:package_light_json_file"] + data,
         tsconfig = "//:tsconfig",
-        transpiler = partial.make(swc, **_SWC_COMMONJS_KWARGS) if module == "commonjs" else partial.make(swc, **_SWC_ES6_KWARGS),
+        transpiler = partial.make(swc, module = module),
         declaration = True,
         resolve_json_module = True,
         allow_js = True,
@@ -203,12 +203,55 @@ _SWC_COMMONJS_KWARGS = {
     "source_maps": True,
 }
 
+def swc(module = "es6", **kwargs):
+    """
+    Macro that compiles TypeScript source files using SWC.
+
+    Args:
+        module: The module system to use for the compiled JavaScript files.
+        **kwargs: Arguments to forward to the underlying `swc()` macro.
+
+    Returns:
+        The result of the underlying `swc()` macro.
+    """
+
+    if module == "commonjs":
+        kwargs.update(**_SWC_COMMONJS_KWARGS)
+    else:
+        kwargs.update(**_SWC_ES6_KWARGS)
+
+    # Always generate source maps
+    kwargs["source_maps"] = True
+
+    # Make sure the base directory is available to `swc_compile()`
+    kwargs["build_srcs"] = ["//admin/typescript:base"] + kwargs.get("build_srcs", [])
+
+    return _swc(**kwargs)
+
 def swc_compile(**kwargs):
-    kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
+    """
+    Macro that compiles TypeScript source files using SWC.
+
+    Args:
+        **kwargs: Arguments to forward to the underlying `swc_compile()` macro.
+
+    Returns:
+        The result of the underlying `swc_compile()` macro.
+    """
+
     kwargs.update(**_SWC_ES6_KWARGS)
 
     # Needs to be a string before passing into `swc_compile()`
     kwargs["source_maps"] = "true"
+
+    # Make sure the base directory is available to `swc_compile()`
+    kwargs["build_srcs"] = ["//admin/typescript:base"] + kwargs.get("build_srcs", [])
+
+    # Make sure the outputs use the extension `.js`
+    kwargs["default_ext"] = ".js"
+
+    # We need to define `map_outs` manually when setting `source_maps` to `True`
+    kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
 
     return _swc_compile(**kwargs)
 

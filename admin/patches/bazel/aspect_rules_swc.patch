@@ -1,14 +1,70 @@
+diff --git a/swc/defs.bzl b/swc/defs.bzl
+index c23658a..bced512 100644
+--- a/swc/defs.bzl
++++ b/swc/defs.bzl
+@@ -32,7 +32,7 @@ for example to set your own output labels for `js_outs`.
+     toolchains = _swc_lib.toolchains,
+ )
+ 
+-def swc(name, srcs, args = [], data = [], plugins = [], output_dir = False, swcrc = None, source_maps = False, out_dir = None, root_dir = None, default_ext = ".js", allow_js = True, **kwargs):
++def swc(name, srcs, build_srcs = [], args = [], data = [], plugins = [], output_dir = False, swcrc = None, source_maps = False, out_dir = None, root_dir = None, default_ext = ".js", allow_js = True, **kwargs):
+     """Execute the SWC compiler
+ 
+     Args:
+@@ -115,6 +115,7 @@ def swc(name, srcs, args = [], data = [], plugins = [], output_dir = False, swcr
+     swc_compile(
+         name = name,
+         srcs = srcs,
++        build_srcs = build_srcs,
+         plugins = plugins,
+         js_outs = js_outs,
+         map_outs = map_outs,
+diff --git a/swc/private/BUILD.bazel b/swc/private/BUILD.bazel
+index c641207..15a0fe5 100644
+--- a/swc/private/BUILD.bazel
++++ b/swc/private/BUILD.bazel
+@@ -38,3 +38,9 @@ bzl_library(
+     srcs = ["versions.bzl"],
+     visibility = ["//swc:__subpackages__"],
+ )
++
++sh_binary(
++    name = "swc_wrapper",
++    srcs = ["swc_wrapper.sh"],
++    visibility = ["//visibility:public"],
++)
 diff --git a/swc/private/swc.bzl b/swc/private/swc.bzl
-index 3331bdd..ab19d57 100644
+index 1d6f910..032dc2a 100644
 --- a/swc/private/swc.bzl
 +++ b/swc/private/swc.bzl
-@@ -203,10 +203,32 @@ def _calculate_source_file(ctx, src):
+@@ -14,6 +14,10 @@ _attrs = {
+         allow_files = True,
+         mandatory = True,
+     ),
++    "build_srcs": attr.label_list(
++        doc = "source files required during building but aren't build themselves",
++        allow_files = True,
++    ),
+     "args": attr.string_list(
+         doc = """Additional arguments to pass to swcx cli (NOT swc!).
+         
+@@ -89,6 +93,11 @@ or source file extensions.""",
+ If False, only TypeScript sources will be transpiled.""",
+         default = True,
+     ),
++    "_swc_wrapper": attr.label(
++        executable = True,
++        cfg = "exec",
++        default = "//swc/private:swc_wrapper",
++    ),
+ }
+ 
+ _outputs = {
+@@ -257,11 +266,37 @@ def _calculate_source_file(ctx, src):
      return paths.join(s, src_pkg, src.basename)
  
- def _swc_action(ctx, swc_binary, **kwargs):
-+    execution_requirements = kwargs.pop("execution_requirements", default = {})
-+
-+    execution_requirements.update({
+ def _swc_action(ctx, swc_binary, execution_requirements, **kwargs):
++    execution_requirements = execution_requirements.update({
 +        # NOTE(calebmer): We want SWC to correctly transform our imports using the `baseUrl`
 +        # and `paths` configuration options. This requires the input file and output file to
 +        # be in the same directory. `copy_file_to_bin_action()` is executed with
@@ -27,11 +83,144 @@ index 3331bdd..ab19d57 100644
 +        "no-sandbox": "1",
 +    })
 +
++    env = kwargs.get("env", {})
++
++    env.update({
++        "SWC_BINARY": swc_binary,
++    })
++
      ctx.actions.run(
          mnemonic = "SWCCompile",
          progress_message = "Compiling %{label} [swc %{input}]",
-         executable = swc_binary,
-+        execution_requirements = execution_requirements,
+-        executable = swc_binary,
++        executable = ctx.executable._swc_wrapper,
+         execution_requirements = execution_requirements,
++        env = env,
          **kwargs
      )
  
+@@ -273,6 +308,11 @@ def _swc_impl(ctx):
+     args = ctx.actions.args()
+     args.add("compile")
+ 
++    # NOTE(calebmer): We need to add additional files to each SWC compilation.
++    # For example the empty directory used for `baseUrl` must exist otherwise
++    # SWC fails.
++    inputs.extend(ctx.files.build_srcs)
++
+     # The root config file. Config options may be overridden by additional args.
+     if ctx.attr.swcrc:
+         args.add("--config-file", ctx.file.swcrc)
+diff --git a/swc/private/swc_wrapper.sh b/swc/private/swc_wrapper.sh
+new file mode 100755
+index 0000000..d2e77a2
+--- /dev/null
++++ b/swc/private/swc_wrapper.sh
+@@ -0,0 +1,107 @@
++#!/bin/bash
++
++# HACK(calebmer): In SWC v1.3.36 symlink handling for our Bazel usecase with
++# `paths` broke. We think because of [this commit][1]. After this commit, SWC
++# resolves the source file's real path (which will be in the source directory
++# instead of Bazel output directory) and updates any import paths to be relative
++# to that. This is bad since the SWC config is in the Bazel build directory so
++# we end up with imports that look like this:
++#
++# ```
++# import { ChatMessageModel } from "../../../../../private/var/tmp/_bazel_calebmer/a7dcf50ffe77e6533f25aef732fa0d3d/sandbox/darwin-sandbox/19/execroot/cyberworlds/bazel-out/darwin_arm64-fastbuild/shared/chat/chat_model.js";
++# import { createMessagingRealtimeEventSchemas, createMessagingRealtimeProcedureSchemas } from "../../../../../private/var/tmp/_bazel_calebmer/a7dcf50ffe77e6533f25aef732fa0d3d/sandbox/darwin-sandbox/19/execroot/cyberworlds/bazel-out/darwin_arm64-fastbuild/shared/messaging/messaging_realtime_protocol.js";
++# import { defineWebSocketProtocol } from "../../../../../private/var/tmp/_bazel_calebmer/a7dcf50ffe77e6533f25aef732fa0d3d/sandbox/darwin-sandbox/19/execroot/cyberworlds/bazel-out/darwin_arm64-fastbuild/shared/web_socket/web_socket_protocol.js";
++# export const ChatRealtimeProtocol = defineWebSocketProtocol({
++#     procedures: createMessagingRealtimeProcedureSchemas(ChatMessageModel.schema()),
++#     events: createMessagingRealtimeEventSchemas(ChatMessageModel.schema())
++# });
++# ```
++#
++# Instead of imports that look like this:
++#
++# ```
++# import { ChatMessageModel } from "./chat_model.js";
++# import { createMessagingRealtimeEventSchemas, createMessagingRealtimeProcedureSchemas } from "../messaging/messaging_realtime_protocol.js";
++# import { defineWebSocketProtocol } from "../web_socket/web_socket_protocol.js";
++# export const ChatRealtimeProtocol = defineWebSocketProtocol({
++#     procedures: createMessagingRealtimeProcedureSchemas(ChatMessageModel.schema()),
++#     events: createMessagingRealtimeEventSchemas(ChatMessageModel.schema())
++# });
++# ```
++#
++# This wrapper script creates a copy of the SWC config file that sets `baseUrl`
++# to an absolute path in the source directory which allows SWC to make import
++# paths relative to the right directory.
++#
++# [1]: https://github.com/swc-project/swc/commit/1ec161a0f15886f97d4fb9cbb5d115b29ed5e2a2
++
++set -e
++
++args=("$@")
++config_file=""
++config_file_index=-1
++source_file=""
++i=0
++
++# Parse arguments
++for (( i=0; i<${#args[@]}; i++ )); do
++    arg="${args[$i]}"
++    
++    if [[ "$arg" == "--config-file" ]]; then
++        ((i++))
++        config_file="${args[$i]}"
++        config_file_index=$i
++    elif [[ "$arg" == --* ]]; then
++        # Other option with value, skip the value
++        ((i++))
++    else
++        # Standalone argument
++        source_file="$arg"
++    fi
++done
++
++if [[ -z "$source_file" ]]; then
++    echo "Error: No TypeScript source file found" >&2
++    exit 1
++fi
++
++if [[ -z "$config_file" ]]; then
++    echo "Error: No config file found" >&2
++    exit 1
++fi
++
++# Normalize source file path (remove leading ./)
++source_file="${source_file#./}"
++
++# Get absolute path of source file
++absolute_source_path=$(readlink -f "$source_file")
++
++# Calculate base path by removing the relative path from the absolute path
++base_path="${absolute_source_path%"$source_file"}"
++
++# Remove trailing slash if present
++base_path="${base_path%/}"
++
++# Get the directory of the config file
++config_dir=$(dirname "$config_file")
++
++# Create output config file path
++output_config="$config_dir/actual_typescript_swc_config.json"
++
++# Copy and modify config file using awk (more portable than sed -i)
++awk -v bp="$base_path" '{
++    gsub(/"baseUrl": "/, "\"baseUrl\": \"" bp "/")
++    print
++}' "$config_file" > "$output_config"
++
++# Rebuild args with the new config file path
++new_args=()
++for (( i=0; i<${#args[@]}; i++ )); do
++    if [[ $i -eq $config_file_index ]]; then
++        new_args+=("$output_config")
++    else
++        new_args+=("${args[$i]}")
++    fi
++done
++
++exec "$SWC_BINARY" "${new_args[@]}"

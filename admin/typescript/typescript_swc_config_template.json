@@ -2,26 +2,22 @@
     "$schema": "http://json.schemastore.org/swcrc",
     "env": {
         "targets": {
-            "node": "20.3.1"
+            "node": "22.11.0"
         }
     },
     "jsc": {
-        "baseUrl": "./.null",
+        "baseUrl": "admin/typescript/base",
         "paths": {
-            "~/*": ["../*"]
+            "~/*": ["../../../*"]
         },
         "parser": {
             "syntax": "typescript"
         },
         "transform": {
-            "react": {
-                "runtime": "automatic",
-                "development": true,
-                "refresh": true
-            }
+            "{{react}}": {}
         }
     },
     "module": {
-        "type": "es6"
+        "type": "{{module_type}}"
     }
 }

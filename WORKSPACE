@@ -39,11 +39,13 @@ bazel_skylib_workspace()
 
 http_archive(
     name = "aspect_bazel_lib",
+    integrity = "sha256-X3fMIkwa5DkfElpvz/a/tfCNonj8KBRDoqfhaIbPBgY=",
     patch_args = ["-p1"],
+    # Patches are made in this repo:
+    # https://github.com/cyberworlds/bazel-lib/tree/cyberworlds-v2
     patches = ["//admin/patches:bazel/aspect_bazel_lib.patch"],
-    sha256 = "714cf8ce95a198bab0a6a3adaffea99e929d2f01bf6d4a59a2e6d6af72b4818c",
-    strip_prefix = "bazel-lib-2.7.8",
-    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.7.8/bazel-lib-v2.7.8.tar.gz",
+    strip_prefix = "bazel-lib-2.22.2",
+    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.22.2/bazel-lib-v2.22.2.tar.gz",
 )
 
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
@@ -170,13 +172,13 @@ npm_repositories()
 
 http_archive(
     name = "aspect_rules_swc",
+    integrity = "sha256-MJq20g6k4B0CGooTT7u/a/D3G3ussccH3T19l4TBZ4I=",
     patch_args = ["-p1"],
     # Patches are made in this repo:
     # https://github.com/cyberworlds/rules_swc/tree/cyberworlds-v2
     patches = ["//admin/patches:bazel/aspect_rules_swc.patch"],
-    sha256 = "e5ac926ebe1bbef1f38d245a65626d86f114eb1f3c68362e8a33472351d83608",
-    strip_prefix = "rules_swc-2.0.1",
-    url = "https://github.com/aspect-build/rules_swc/releases/download/v2.0.1/rules_swc-v2.0.1.tar.gz",
+    strip_prefix = "rules_swc-2.6.0",
+    url = "https://github.com/aspect-build/rules_swc/releases/download/v2.6.0/rules_swc-v2.6.0.tar.gz",
 )
 
 load("@aspect_rules_swc//swc:dependencies.bzl", "rules_swc_dependencies")
@@ -187,13 +189,7 @@ load("@aspect_rules_swc//swc:repositories.bzl", "swc_register_toolchains")
 
 swc_register_toolchains(
     name = "swc",
-    # NOTE(calebmer): Upgrading from v1.3.35 to v1.3.36 breaks our path resolution.
-    # I believe it's the below PR which causes the regression. Previously a path
-    # where SWC was not following the symlink was changed to now follow the
-    # symlink.
-    #
-    # https://github.com/swc-project/swc/commit/1ec161a0f15886f97d4fb9cbb5d115b29ed5e2a2
-    swc_version = "v1.3.35",
+    swc_version = "v1.15.3",
 )
 
 # =========================================================================== #

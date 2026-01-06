@@ -274,7 +274,7 @@ export function incrementLocalDynamoTableSchemaGenerationForTest() {
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
-    public readonly [typesSymbol]!: Types;
+    public declare readonly [typesSymbol]: Types;
 
     private readonly _name: string;
 

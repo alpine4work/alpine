@@ -1,8 +1,8 @@
 diff --git a/lib/private/patch.bzl b/lib/private/patch.bzl
-index 75cd340..66f6fe9 100644
+index 75cd340..9ce8b4f 100644
 --- a/lib/private/patch.bzl
 +++ b/lib/private/patch.bzl
-@@ -118,12 +118,58 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
+@@ -118,12 +118,60 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
      ctx.delete(ctx.path(_REMOTE_PATCH_DIR))
  
      # Apply local patches
@@ -36,28 +36,30 @@ index 75cd340..66f6fe9 100644
 +        new_patches = patches
 +        if patch_directory:
 +            new_patches = []
-+            
-+            i = 0
-+            for patchfile in patches:
++
++            for i, patchfile in enumerate(patches):
 +                patch_content = ctx.read(patchfile)
 +
 +                if patch_args:
 +                    strip = int(patch_args[-1][2:])
 +                else:
 +                    strip = 0
-+                
-+                new_patch_content_lines = []
-+                for patch_content_line in patch_content.splitlines(True):
-+                    if patch_content_line.startswith("+++ ") or patch_content_line.startswith("--- "):
-+                        new_patch_content_lines.append("{}/{}{}".format(patch_content_line[:4 + strip], patch_directory, patch_content_line[4 + strip:]))
-+                    else:
-+                        new_patch_content_lines.append(patch_content_line)
++
++                # Build substitutions for the lines we want to change
++                substitutions = {}
++                for line in patch_content.splitlines():  # No line endings
++                    if line.startswith("+++ ") or line.startswith("--- "):
++                        new_line = "{}/{}{}".format(line[:4 + strip], patch_directory, line[4 + strip:])
++                        substitutions[line] = new_line
 +
 +                new_patchfile = "patch{}.patch".format(i + 1)
-+                ctx.file(new_patchfile, "".join(new_patch_content_lines), executable = False, legacy_utf8 = False)
++                ctx.template(
++                    new_patchfile,
++                    patchfile,  # Use original file as template
++                    substitutions = substitutions,
++                    executable = False,
++                )
 +                new_patches.append(new_patchfile)
-+
-+                i += 1
 +
 +        for patchfile in new_patches:
              ctx.patch(patchfile, strip)
