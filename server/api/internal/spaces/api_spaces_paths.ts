@@ -5,7 +5,7 @@ import {
     searchByKeywords,
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
-import {getSpace} from "~/server/spaces/spaces_actions.js";
+import {getSpace} from "~/server/spaces/get_space.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";

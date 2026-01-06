@@ -6,7 +6,8 @@ import {
     InboxTable,
 } from "~/server/notifications/data/internal/inbox_table.js";
 import {observeInboxItem} from "~/server/notifications/data/internal/observe_inbox_item.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";

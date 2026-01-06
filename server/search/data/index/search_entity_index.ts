@@ -2,7 +2,7 @@ import murmurhash from "murmurhash";
 import {Node} from "prosemirror-model";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {getBotAccessPolicy} from "~/server/access/get_bot_access_policy.js";
-import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
+import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
 import {
     getContentReferencesForServerPrintSingleLineTextSnippet,
     printContentSingleLineTextSnippetForServer,
@@ -84,17 +84,16 @@ import {
     searchEntityKeywordIndexWaitForRefreshDelayMs,
     withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {
-    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
-    getAccount,
-    getAccountIfExists,
-    getSpaceAccountNameSearchIndex,
-    getSpaceAccountSettings,
-    isAccountMemberOfSpaceWithoutAuthorization,
-    isBotSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/authorize_space_access.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getSpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
+import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_settings.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,

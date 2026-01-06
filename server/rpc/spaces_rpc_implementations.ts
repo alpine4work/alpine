@@ -2,22 +2,20 @@ import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/get_our_account_inboxes.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
-import {createSpace} from "~/server/spaces/create_space/create_space.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {createSpace} from "~/server/spaces/create/create_space.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
+import {finishUploadingSpaceAvatar} from "~/server/spaces/finish_uploading_space_avatar.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
+import {getSpaceIfPossible} from "~/server/spaces/get_space.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
-import {
-    acceptSpaceAccountInvite,
-    expensivelyGetAllSpaceAccounts,
-    finishUploadingSpaceAvatar,
-    getOurAccountSpaceIds,
-    getSpaceIfPossible,
-    instantiateBotSpaceAccount,
-    moveSpaceAccountOwnerRole,
-    rejectSpaceAccountInviteAsSpam,
-    removeSpaceAccount,
-    updateSpaceAccountRole,
-    updateSpaceAccountSettings,
-    updateSpaceName,
-} from "~/server/spaces/spaces_actions.js";
+import {moveSpaceAccountOwnerRole} from "~/server/spaces/move_space_account_owner_role.js";
+import {rejectSpaceAccountInviteAsSpam} from "~/server/spaces/reject_space_account_invite_as_spam.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
+import {updateSpaceAccountRole} from "~/server/spaces/update_space_account_role.js";
+import {updateSpaceAccountSettings} from "~/server/spaces/update_space_account_settings.js";
+import {updateSpaceName} from "~/server/spaces/update_space_name.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";

@@ -16,7 +16,7 @@ import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js"
 import {authorizePostDraftAccess} from "~/server/forum/data/authorize_post_draft_access.js";
 import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {AccessPolicy, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeEventStub} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {FileModel} from "~/shared/files/file_model.js";

@@ -1,49 +1,49 @@
-import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
-import {TestBot, TestBotAccount} from "~/server/bots/test_helpers/test_bot.js";
+import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoClientGetItemTestCounter} from "~/server/dynamo/core/dynamo_client_get_item_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {addSpaceAccountBeforeExecuteTestCheckpoint} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
-import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {
-    acceptSpaceAccountInvite,
-    addSpaceAccount,
-    authorizeNotBotSpaceAccount,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
-    expensivelyGetAllSpaceAccounts,
-    getAccount,
-    getAccountIfExists,
-    getBotAccountIdForSpaceIfExists,
-    getOurAccountInvitePendingSpaceIds,
-    getOurAccountSpaceIds,
-    getOwnAccountIfExists,
-    getSpace,
-    getSpaceAccountForTest,
-    getSpaceAccountNameSearchIndex,
-    getSpaceAccountsCacheForTest,
-    getSpaceIfPossible,
-    impersonateAccountAsSystemContext,
-    instantiateBotSpaceAccount,
-    isAccountMemberOfSpaceWithoutAuthorization,
-    isBotSpaceAccount,
+} from "~/server/spaces/authorize_space_access.js";
+import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getOurAccountInvitePendingSpaceIds} from "~/server/spaces/get_our_account_invite_pending_space_ids.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
+import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
+import {getSpace, getSpaceIfPossible} from "~/server/spaces/get_space.js";
+import {getSpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
+import {addSpaceAccountBeforeExecuteTestCheckpoint} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
+import {spaceAccountsCache} from "~/server/spaces/internal/space_accounts_cache.js";
+import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
+import {
     moveSpaceAccountOwnerRole,
     moveSpaceAccountOwnerRoleBeforeExecuteTestCheckpoint,
     moveSpaceAccountOwnerRoleForTest,
-    rejectSpaceAccountInviteAsSpam,
+} from "~/server/spaces/move_space_account_owner_role.js";
+import {rejectSpaceAccountInviteAsSpam} from "~/server/spaces/reject_space_account_invite_as_spam.js";
+import {
     removeSpaceAccount,
     removeSpaceAccountBeforeExecuteTestCheckpoint,
-    updateSpaceAccountRole,
-    updateSpaceName,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {updateSpaceAccountRole} from "~/server/spaces/update_space_account_role.js";
+import {updateSpaceName} from "~/server/spaces/update_space_name.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -58,11 +58,9 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SpaceAccountStateType} from "~/shared/spaces/space_account_state.js";
-import {SpaceModel, SpaceRole} from "~/shared/spaces/space_model.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {
     createTestAccountModel,
     intoAccountModelWithoutSpaceAndAvatar,
@@ -105,9 +103,9 @@ const expectAccountSpaceIds = async (
     expected: {spaceIds: ReadonlySet<SpaceId>; invitePendingSpaceIds: ReadonlySet<SpaceId>},
 ) => {
     expect((await getOurAccountSpaceIds(session.action())).spaceIds).toEqual(expected.spaceIds);
-    expect(
-        (await getOurAccountInvitePendingSpaceIds(session.action())).invitePendingSpaceIds,
-    ).toEqual(expected.invitePendingSpaceIds);
+    expect(await getOurAccountInvitePendingSpaceIds(session.action())).toEqual(
+        expected.invitePendingSpaceIds,
+    );
 };
 
 test("can not get all accounts for a space we are not in", async () => {
@@ -560,7 +558,6 @@ test("`isAccountMemberOfSpace()` uses `spaceAccountsCache` to return true", asyn
         otherSpace.createSession(),
     ]);
 
-    const spaceAccountsCache = getSpaceAccountsCacheForTest();
     await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
 
     await removeSpaceAccount(session1.action(), {
@@ -770,201 +767,6 @@ test("`isAccountMemberOfSpace()` ignores the `getAccountIfExists()` cache if acc
     expect(await isMember(cacheContext3, space, otherSession)).toEqual(false);
 });
 
-describe("`authorizeSpaceAccess()`", () => {
-    const setupUserState = async ({
-        space,
-        userRole,
-        spaceAccountStateType,
-    }: {
-        space: TestSpace;
-        userRole: SpaceRole;
-        spaceAccountStateType: SpaceAccountStateType;
-    }) => {
-        if (userRole === "Owner") {
-            assert(spaceAccountStateType === "Active", "Owners must be active in the space");
-            return space.createSession({role: "Owner"});
-        }
-
-        const ownerSession = await space.createSession({role: "Owner"});
-        const userAccount = await TestAccount.create(context);
-        const userEmail = await userAccount.createEmailAddress();
-
-        const invite = await space.inviteEmailAddressAndCreateSession(
-            ownerSession.action(),
-            userEmail,
-        );
-
-        if (spaceAccountStateType === "Removed") {
-            await removeSpaceAccount(ownerSession.action(), {
-                spaceId: space.id,
-                accountId: userAccount.id,
-            });
-        } else if (spaceAccountStateType === "Active") {
-            await invite.acceptInvite();
-
-            if (userRole === "Admin") {
-                await updateSpaceAccountRole(ownerSession.action(), {
-                    spaceId: space.id,
-                    accountId: userAccount.id,
-                    role: "Admin",
-                });
-            }
-        }
-
-        return invite.session;
-    };
-
-    const allowedTestCases: Array<{
-        userRole: SpaceRole;
-        expectedRole: SpaceRole;
-        userSpaceAccountStateType: SpaceAccountStateType;
-        allowInvitePending: boolean;
-    }> = [
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Admin",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Owner",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Admin",
-            expectedRole: "Admin",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Owner",
-            expectedRole: "Admin",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Owner",
-            expectedRole: "Owner",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "InvitePending",
-            allowInvitePending: true,
-        },
-    ];
-
-    for (const {
-        userRole,
-        expectedRole,
-        userSpaceAccountStateType,
-        allowInvitePending,
-    } of allowedTestCases) {
-        test(`allows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and allow invite pending ${allowInvitePending}`, async () => {
-            const space = await TestSpace.create(context);
-
-            const userSession = await setupUserState({
-                space,
-                userRole,
-                spaceAccountStateType: userSpaceAccountStateType,
-            });
-
-            await authorizeSpaceAccess(userSession.action(), space.id, expectedRole, {
-                allowInvitePending,
-            });
-        });
-    }
-
-    const disallowedTestCases: Array<{
-        userRole: SpaceRole;
-        expectedRole: SpaceRole;
-        userSpaceAccountStateType: SpaceAccountStateType;
-        allowInvitePending: boolean;
-    }> = [
-        {
-            userRole: "Member",
-            expectedRole: "Admin",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Admin",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Owner",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Admin",
-            expectedRole: "Owner",
-            userSpaceAccountStateType: "Active",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Removed",
-            allowInvitePending: false,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "Removed",
-            allowInvitePending: true,
-        },
-        {
-            userRole: "Member",
-            expectedRole: "Member",
-            userSpaceAccountStateType: "InvitePending",
-            allowInvitePending: false,
-        },
-    ];
-
-    for (const {
-        userRole,
-        expectedRole,
-        userSpaceAccountStateType,
-        allowInvitePending,
-    } of disallowedTestCases) {
-        test(`disallows: role ${userRole}, ${userSpaceAccountStateType} state, allowed ${expectedRole} and allow invite pending ${allowInvitePending}`, async () => {
-            const space = await TestSpace.create(context);
-
-            const userSession = await setupUserState({
-                space,
-                userRole,
-                spaceAccountStateType: userSpaceAccountStateType,
-            });
-
-            await expect(
-                authorizeSpaceAccess(userSession.action(), space.id, expectedRole, {
-                    allowInvitePending,
-                }),
-            ).rejects.toThrow(PermissionDeniedError);
-        });
-    }
-});
-
 test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if account was removed", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
@@ -982,7 +784,6 @@ test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if accou
         accountId: session2.account.id,
     });
 
-    const spaceAccountsCache = getSpaceAccountsCacheForTest();
     await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
 
     expect(await isMember(space, session1)).toEqual(true);
@@ -1298,8 +1099,6 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         space.createSession(),
         otherSpace.createSession(),
     ]);
-
-    const spaceAccountsCache = getSpaceAccountsCacheForTest();
 
     await spaceAccountsCache.dangerouslyGetDataWithoutAuthorizing(context.withCache(), space.id);
 
@@ -2031,139 +1830,6 @@ test("can’t authorize space access for impersonated actor in the wrong space",
         ok: false,
         error: expect.any(PermissionDeniedError),
     });
-});
-
-describe("authorize bot actor", () => {
-    type Options = {
-        sharedBot: TestBot;
-        space: TestSpace;
-        otherSpace: TestSpace;
-        session: TestSpaceSession;
-        otherSession: TestSpaceSession;
-    };
-
-    const botAccount = {
-        name: "bot",
-        make: (options: Options) => TestBot.createAndInstantiate(options.session),
-    };
-
-    const otherBotAccount = {
-        name: "other bot",
-        make: (options: Options) => TestBot.createAndInstantiate(options.otherSession),
-    };
-
-    const sharedBotAccount = {
-        name: "shared bot",
-        make: (options: Options) => options.sharedBot.instantiate(options.session),
-    };
-
-    const otherSharedBotAccount = {
-        name: "other shared bot",
-        make: (options: Options) => options.sharedBot.instantiate(options.otherSession),
-    };
-
-    const space = {
-        name: "space",
-        make: (options: Options) => options.space,
-    };
-
-    const otherSpace = {
-        name: "other space",
-        make: (options: Options) => options.otherSpace,
-    };
-
-    const testCases: Array<{
-        ok: boolean;
-        botAccount: {name: string; make: (options: Options) => MaybePromise<TestBotAccount>};
-        space: {name: string; make: (options: Options) => MaybePromise<TestSpace>};
-    }> = [
-        {ok: true, botAccount, space},
-        {ok: false, botAccount, space: otherSpace},
-        {ok: false, botAccount: otherBotAccount, space},
-        {ok: true, botAccount: otherBotAccount, space: otherSpace},
-        {ok: true, botAccount: sharedBotAccount, space},
-        {ok: false, botAccount: sharedBotAccount, space: otherSpace},
-        {ok: false, botAccount: otherSharedBotAccount, space},
-        {ok: true, botAccount: otherSharedBotAccount, space: otherSpace},
-    ];
-
-    for (const testCase of testCases) {
-        test(`\`authorizeSpaceAccess()\` for ${testCase.botAccount.name} ${
-            testCase.ok ? "succeeds" : "fails"
-        } in ${testCase.space.name}`, async () => {
-            const [sharedBot, space, otherSpace] = await runAllPromises([
-                TestBot.create(context),
-                TestSpace.create(context),
-                TestSpace.create(context),
-            ]);
-
-            const [session, otherSession] = await runAllPromises([
-                space.createSession({role: "Admin"}),
-                otherSpace.createSession({role: "Admin"}),
-            ]);
-
-            const options = {
-                sharedBot,
-                space,
-                otherSpace,
-                session,
-                otherSession,
-            };
-
-            const [testBotAccount, testSpace] = await runAllPromises([
-                testCase.botAccount.make(options),
-                testCase.space.make(options),
-            ]);
-
-            if (testCase.ok) {
-                await authorizeSpaceAccess(testBotAccount.action(), testSpace.id);
-            } else {
-                await expect(
-                    authorizeSpaceAccess(testBotAccount.action(), testSpace.id),
-                ).rejects.toThrow(PermissionDeniedError);
-            }
-        });
-
-        test(`\`authorizeSpaceAccessIfPossible()\` for ${testCase.botAccount.name} ${
-            testCase.ok ? "succeeds" : "fails"
-        } in ${testCase.space.name}`, async () => {
-            const [sharedBot, space, otherSpace] = await runAllPromises([
-                TestBot.create(context),
-                TestSpace.create(context),
-                TestSpace.create(context),
-            ]);
-
-            const [session, otherSession] = await runAllPromises([
-                space.createSession({role: "Admin"}),
-                otherSpace.createSession({role: "Admin"}),
-            ]);
-
-            const options = {
-                sharedBot,
-                space,
-                otherSpace,
-                session,
-                otherSession,
-            };
-
-            const [testBotAccount, testSpace] = await runAllPromises([
-                testCase.botAccount.make(options),
-                testCase.space.make(options),
-            ]);
-
-            if (testCase.ok) {
-                expect(
-                    (await authorizeSpaceAccessIfPossible(testBotAccount.action(), testSpace.id))
-                        .ok,
-                ).toEqual(true);
-            } else {
-                expect(
-                    (await authorizeSpaceAccessIfPossible(testBotAccount.action(), testSpace.id))
-                        .ok,
-                ).toEqual(false);
-            }
-        });
-    }
 });
 
 test("allows space member to update space name", async () => {
@@ -3436,7 +3102,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should fall through cache l
     expect(isMemberResult1).toBe(true);
 
     // Now check what's in the cache - should have the Member role
-    const spaceAccountsCache = getSpaceAccountsCacheForTest();
+
     const cachedDataBefore =
         await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
             context.withCache(),
@@ -3624,7 +3290,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should handle removed accou
     });
 
     // Clear space accounts cache but keep context cache with stale data
-    getSpaceAccountsCacheForTest().clearForTest();
+    spaceAccountsCache.clearForTest();
 
     const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
     dynamoClientExecuteActionTestCounter.resetForTest();
@@ -6317,193 +5983,4 @@ test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () 
             expect(getCount2()).toEqual(1);
         }
     }
-});
-
-describe("`impersonateAccountAsSystemContext()`", () => {
-    test("can impersonate an account", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession();
-
-        expect(
-            await impersonateAccountAsSystemContext(
-                space.systemAction(),
-                session.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).toEqual({
-            actorType: "ImpersonatedAccount",
-            spaceId: space.id,
-            accountId: session.account.id,
-        });
-    });
-
-    test("can’t impersonate an account as a session actor", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                // @ts-expect-error
-                session.action(),
-                session.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Session actor is not a system actor");
-    });
-
-    test("can’t impersonate an account as an impersonated account actor", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                // @ts-expect-error
-                space.impersonatedAction(session),
-                session.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Impersonated account actor is not a system actor");
-    });
-
-    test("can’t impersonate an account as a bot actor", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const botAccount = await TestBot.createAndInstantiate(session);
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                // @ts-expect-error
-                botAccount.action(),
-                session.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Bot actor is not a system actor");
-    });
-
-    test("can’t impersonate an account as a bot actor with a scope for that account", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-
-        const botAccount = await TestBot.createAndInstantiate(session);
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                // @ts-expect-error
-                botAccount.action({type: "Account", accountId: session.account.id}),
-                session.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Bot actor is not a system actor");
-    });
-
-    test("can’t impersonate an account that’s not a member of the space", async () => {
-        const space = await TestSpace.create(context);
-
-        const otherSpace = await TestSpace.create(context);
-        const otherSession = await otherSpace.createSession();
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                space.systemAction(),
-                otherSession.account.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Can’t impersonate account that’s not a member of system actor’s space");
-    });
-
-    test("can’t impersonate bot account", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Admin"});
-        const botAccount = await TestBot.createAndInstantiate(session);
-
-        await expect(
-            impersonateAccountAsSystemContext(
-                space.systemAction(),
-                botAccount.id,
-                async context => ({
-                    actorType: context.actor.type,
-                    spaceId: context.actor.getSpaceId(),
-                    accountId: context.actor.getAccountId(),
-                }),
-            ),
-        ).rejects.toThrow("Can’t impersonate bot account");
-    });
-});
-
-describe("`getBotAccountIdForSpaceIfExists()`", () => {
-    test("returns account ID when bot is instantiated in space", async () => {
-        const bot = await TestBot.create(context);
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Owner"});
-
-        const {accountId} = await instantiateBotSpaceAccount(session.action(), {
-            spaceId: space.id,
-            botId: bot.id,
-        });
-
-        expect(await getBotAccountIdForSpaceIfExists(session.action(), bot.id, space.id)).toEqual(
-            accountId,
-        );
-    });
-
-    test("returns null when bot is not instantiated in space", async () => {
-        const bot = await TestBot.create(context);
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Owner"});
-
-        expect(await getBotAccountIdForSpaceIfExists(session.action(), bot.id, space.id)).toEqual(
-            null,
-        );
-    });
-
-    test("throws when account doesn’t have access to space", async () => {
-        const bot = await TestBot.create(context);
-        const space = await TestSpace.create(context);
-        const otherSpace = await TestSpace.create(context);
-        const otherSession = await otherSpace.createSession();
-
-        await expect(
-            getBotAccountIdForSpaceIfExists(otherSession.action(), bot.id, space.id),
-        ).rejects.toThrow("Account doesn’t have access to space");
-    });
-
-    test("works with system context", async () => {
-        const bot = await TestBot.create(context);
-        const space = await TestSpace.create(context);
-        const session = await space.createSession({role: "Owner"});
-
-        const {accountId} = await instantiateBotSpaceAccount(session.action(), {
-            spaceId: space.id,
-            botId: bot.id,
-        });
-
-        expect(
-            await getBotAccountIdForSpaceIfExists(space.systemAction(), bot.id, space.id),
-        ).toEqual(accountId);
-    });
 });

@@ -1,9 +1,7 @@
 import {compareAsc as compareDatesAsc} from "date-fns";
-import {
-    authorizeInternalAccess,
-    checkAccountEmailAddressDoesNotExistTransactionEntry,
-    createAccountWithEmailAddressTransactionEntries,
-} from "~/server/accounts/accounts_actions.js";
+import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
+import {createAccountEmailAddressDoesNotExistConditionCheckTransactionEntry} from "~/server/accounts/create_account_email_address_does_not_exist_condition_check_transaction_entry.js";
+import {createAccountWithEmailAddressTransactionEntries} from "~/server/accounts/create_account_transaction_entries.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -14,7 +12,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {createSpaceForAccountAsAdmin} from "~/server/spaces/create_space/create_space.js";
+import {createSpaceForAccountAsAdmin} from "~/server/spaces/create/create_space.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     AlphaAccessRequestDecisionSchema,
@@ -120,7 +118,7 @@ export async function requestAlphaAccess(
         await DynamoTableSchema.executeTransaction(context, [
             // Make sure an account does not already exist when requesting alpha access.
             // The account could have been created manually.
-            checkAccountEmailAddressDoesNotExistTransactionEntry(emailAddress),
+            createAccountEmailAddressDoesNotExistConditionCheckTransactionEntry(emailAddress),
 
             AlphaAccessTable.transactionCreateItem({
                 partitionType: "AlphaAccessRequests",

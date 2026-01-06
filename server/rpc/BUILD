@@ -43,7 +43,7 @@ ts_project(
         "//server/search/data/index",
         "//server/search/data/table",
         "//server/spaces",
-        "//server/spaces/create_space",
+        "//server/spaces/create",
         "//server/spell_check",
         "//server/tasks/data",
         "//server/tokens",

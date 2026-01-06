@@ -6,7 +6,7 @@ import {
     getBotItemForTest,
 } from "~/server/bots/bots_table.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

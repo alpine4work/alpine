@@ -64,7 +64,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {SendShareNotificationJobDescription} from "~/server/jobs/core/job_description.js";
-import {removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";

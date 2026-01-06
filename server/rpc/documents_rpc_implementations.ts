@@ -25,7 +25,8 @@ import {
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";

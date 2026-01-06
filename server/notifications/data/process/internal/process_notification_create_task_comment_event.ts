@@ -2,7 +2,7 @@ import {NotificationCreateTaskCommentEvent} from "~/server/notifications/core/no
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
 import {createNotificationEventProcessor} from "~/server/notifications/data/process/internal/create_notification_event_processor.js";
 import {printNotificationEventAlertContentBody} from "~/server/notifications/data/process/internal/print_notification_event_alert_content_body.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {
     FileTaskAuthorizer,
     authorizeTaskAccessIfPossible,

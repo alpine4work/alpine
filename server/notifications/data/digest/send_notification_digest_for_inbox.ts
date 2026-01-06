@@ -1,5 +1,5 @@
 import {fromDate} from "@internationalized/date";
-import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {assertScheduleDateTime} from "~/server/notifications/core/schedule_date_time.js";
@@ -7,12 +7,10 @@ import {computeDigestNotificationsNextScheduledDateTime} from "~/server/notifica
 import {getNotificationDigestContent} from "~/server/notifications/data/digest/get_notification_digest_content.js";
 import {isInboxEligibleForDigestNotification} from "~/server/notifications/data/digest/is_inbox_eligible_for_digest_notification.js";
 import {InboxAttributesItem, InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
-import {
-    authorizeNotBotSpaceAccount,
-    authorizeSpaceAccess,
-    getLatestEmailAddress,
-    getSpace,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getLatestEmailAddressByAccountId} from "~/server/spaces/get_latest_email_address_by_account_id.js";
+import {getSpace} from "~/server/spaces/get_space.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.js";
@@ -82,7 +80,7 @@ export async function sendNotificationDigestForInbox(
         if (!hasSent && shouldSend) {
             const [emailAddress, {name: spaceName}, digestContent, unsubscribeUrl] =
                 await runAllPromises([
-                    getLatestEmailAddress(context, accountId),
+                    getLatestEmailAddressByAccountId(context, accountId),
                     getSpace(context, inboxItem.spaceId),
                     getNotificationDigestContent(context, {
                         spaceId: inboxItem.spaceId,

@@ -31,7 +31,8 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {ScheduleDateTimeSchema} from "~/server/notifications/core/schedule_date_time.js";
-import {getAccount, impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {getTaskCommentPayload, getTaskOwnerIfPossible} from "~/server/tasks/data/task_table.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";

@@ -1,8 +1,8 @@
 import {
     createAccountEmailAddressForTest,
     createAccountForTest,
-    dangerouslyGetAccountIfExistsWithoutAuthorization,
-} from "~/server/accounts/accounts_actions.js";
+} from "~/server/accounts/create_account_for_test.js";
+import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";

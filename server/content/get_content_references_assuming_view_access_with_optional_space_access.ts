@@ -2,10 +2,8 @@ import {Node} from "prosemirror-model";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
-import {
-    authorizeSpaceAccessIfPossible,
-    dangerouslyGetAccountStubIfExistsWithoutAuthorization,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
+import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

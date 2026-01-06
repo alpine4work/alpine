@@ -1,5 +1,5 @@
 import {addDays} from "date-fns";
-import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
+import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
 import {BotWebhookContextModule} from "~/server/bots/bot_webhook_context_module.js";
 import {
     ServerActionContext,

@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
+import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createChatForTest} from "~/server/chat/data/chat_actions.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
@@ -37,13 +37,10 @@ import {
     markSearchAffinityEntityInteraction,
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
-import {
-    acceptSpaceAccountInvite,
-    addSpaceAccount,
-    removeSpaceAccount,
-    updateSpaceAccountSettings,
-} from "~/server/spaces/spaces_actions.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -51,6 +48,7 @@ import {TestSessionActionContext} from "~/server/spaces/test_helpers/test_contex
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {updateSpaceAccountSettings} from "~/server/spaces/update_space_account_settings.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";

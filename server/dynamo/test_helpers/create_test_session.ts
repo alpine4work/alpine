@@ -1,11 +1,14 @@
-import {createAccountForTest, createSessionForTest} from "~/server/accounts/accounts_actions.js";
+import {
+    createAccountForTest,
+    createSessionForTest,
+} from "~/server/accounts/create_account_for_test.js";
 import {TestSpaceItem} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {
-    acceptSpaceAccountInvite,
     addSpaceAccountForTest,
     getSpaceAccountForTest,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/create_space_for_test.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";

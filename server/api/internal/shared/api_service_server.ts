@@ -19,10 +19,8 @@ import {
     standardizedRequestListener,
 } from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {
-    getSpaceAccountBotIdIfExistsWithoutAuthorization,
-    isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_actions.js";
+import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {
     BotTokenPayload,

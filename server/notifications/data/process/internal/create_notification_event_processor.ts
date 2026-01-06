@@ -12,11 +12,9 @@ import {NotificationEvent} from "~/server/notifications/core/notification_event.
 import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.js";
 import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {UpdateInboxEntryResult} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {
-    getSpaceAccountBotIdIfExists,
-    impersonateAccountAsSystemContext,
-    isAccountMemberOfSpace,
-} from "~/server/spaces/spaces_actions.js";
+import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {ApiBotWebhookEvent} from "~/shared/api/types/api_specification_convenience_types.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

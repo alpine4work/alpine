@@ -13,7 +13,7 @@ import {
     processIndexSearchEntityJob,
 } from "~/server/search/data/index/search_entity_index.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
-import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";

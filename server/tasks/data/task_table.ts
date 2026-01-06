@@ -64,14 +64,13 @@ import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messagi
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {
-    authorizeOwnSpaceAccountAccess,
-    authorizeSpaceAccess,
-    getAccount,
-    getAccountIfExists,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/is_account_member_of_space.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {
     ensureLocalTaskIndexesIfEnabled,

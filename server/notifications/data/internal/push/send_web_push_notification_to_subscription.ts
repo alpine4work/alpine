@@ -2,7 +2,8 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {WebPushContextModuleBase} from "~/server/context/web_push_context_module.js";
 import {deregisterWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/deregister_web_push_subscription_without_authorization.js";
 import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_if_exists_without_authorization.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

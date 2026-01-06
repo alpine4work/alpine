@@ -20,7 +20,7 @@ import {SettingsInvitePeopleModal} from "~/client/web/settings/settings_invite_p
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/spaces_actions.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {

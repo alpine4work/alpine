@@ -2,14 +2,9 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensively_get_channels_in_space_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
-import {
-    createSpace,
-    createSpaceForAccountAsAdmin,
-} from "~/server/spaces/create_space/create_space.js";
-import {
-    getOurAccountSpaceIds,
-    internalGetSpaceAccountItemIfExistsWithoutAuthorization,
-} from "~/server/spaces/spaces_actions.js";
+import {createSpace, createSpaceForAccountAsAdmin} from "~/server/spaces/create/create_space.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
+import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -45,7 +40,7 @@ describe("createSpaceForAccountAsAdmin()", () => {
                 ownerAccountId: session.account.id,
             });
 
-            const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
+            const spaceAccount = await getSpaceAccountItemIfExists(
                 session.action(),
                 space.id,
                 session.account.id,
@@ -274,7 +269,7 @@ describe("createSpaceForCurrentAccount()", () => {
 
         expect(space.name).toBe(spaceName);
 
-        const spaceAccount = await internalGetSpaceAccountItemIfExistsWithoutAuthorization(
+        const spaceAccount = await getSpaceAccountItemIfExists(
             session.action(),
             space.id,
             session.account.id,

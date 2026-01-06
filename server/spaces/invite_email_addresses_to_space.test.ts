@@ -1,6 +1,6 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
-import {getSpaceAccountForTest} from "~/server/spaces/spaces_actions.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";

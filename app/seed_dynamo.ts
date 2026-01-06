@@ -1,10 +1,11 @@
-import {seedTestAccounts} from "~/server/accounts/accounts_actions.js";
+import {seedTestAccounts} from "~/server/accounts/seed_test_accounts.js";
 import {seedTestBots} from "~/server/bots/bots_table.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/seed_test_channels.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {seedTestBotAccounts, seedTestSpaces} from "~/server/spaces/spaces_actions.js";
+import {seedTestBotAccounts} from "~/server/spaces/seed_test_bot_accounts.js";
+import {seedTestSpaces} from "~/server/spaces/seed_test_spaces.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";

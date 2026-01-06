@@ -25,7 +25,7 @@ import {
     messagingBackfillSafetyWindowMinutes,
     messagingEventExpirationDays,
 } from "~/server/messaging/helpers/run_backfill_message_updates.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {
     TestAccountActionContext,
     TestActionContext,

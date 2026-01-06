@@ -1,4 +1,4 @@
-import {updateOurAccountName} from "~/server/accounts/accounts_actions.js";
+import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

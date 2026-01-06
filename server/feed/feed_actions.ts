@@ -11,12 +11,10 @@ import {FeedTable, feedEntryBlockMaxEntryCount} from "~/server/feed/internal/fee
 import {getFileDocumentEntityModelIfPossible} from "~/server/files/data/get_document_file_entity_model_if_possible.js";
 import {getFileChannelEntityModelIfPossible} from "~/server/files/data/get_file_channel_entity_model_if_possible.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/get_file_task_collection_entity_model_if_possible.js";
-import {
-    authorizeNotBotSpaceAccount,
-    authorizeSpaceAccess,
-    getAccount,
-    isBotSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";

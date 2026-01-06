@@ -1,6 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {updateAccountReactionCharacter} from "~/server/accounts/accounts_actions.js";
+import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createDocument} from "~/server/documents/data/documents_actions.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

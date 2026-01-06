@@ -1,7 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";

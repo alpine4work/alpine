@@ -47,11 +47,9 @@ import {runCommentsQuery} from "~/server/messaging/helpers/run_comments_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
-import {
-    authorizeOwnSpaceAccountAccess,
-    getAccount,
-    isAccountMemberOfSpace,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {

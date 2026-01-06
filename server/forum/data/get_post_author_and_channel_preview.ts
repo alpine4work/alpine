@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {getPostItemForAuthorizationIfExists} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";

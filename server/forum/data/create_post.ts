@@ -30,7 +30,7 @@ import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contr
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {getNotificationPostContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
-import {isAccountMemberOfSpace} from "~/server/spaces/spaces_actions.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimePutItemEvent,

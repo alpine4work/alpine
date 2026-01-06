@@ -2,7 +2,8 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 

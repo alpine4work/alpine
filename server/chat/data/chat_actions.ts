@@ -55,14 +55,14 @@ import {runMessagesQuery} from "~/server/messaging/helpers/run_messages_query.js
 import {validateMessageContentPayloadMessagesRangeParent} from "~/server/messaging/helpers/validate_message_content_payload_messages_range_parent.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {
-    authorizeOwnSpaceAccountAccess,
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
-    getAccount,
-    isAccountMemberOfSpace,
-    isBotSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicyWithoutGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {

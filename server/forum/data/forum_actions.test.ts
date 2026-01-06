@@ -76,11 +76,9 @@ import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
 import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
 import {updatePostContent} from "~/server/forum/data/update_post_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {
-    addSpaceAccount,
-    getOurAccountSpaceIds,
-    removeSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";

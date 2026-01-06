@@ -1,4 +1,4 @@
-import {authorizeInternalAccess} from "~/server/accounts/accounts_actions.js";
+import {authorizeInternalAccess} from "~/server/accounts/authorize_internal_access.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";

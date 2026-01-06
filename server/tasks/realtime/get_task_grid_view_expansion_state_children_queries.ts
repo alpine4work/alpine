@@ -1,5 +1,5 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {impersonateAccountAsSystemContext} from "~/server/spaces/spaces_actions.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";

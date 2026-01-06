@@ -10,7 +10,7 @@ import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {useFetcherWithSchema} from "~/client/web/remix/use_fetcher_with_schema.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_actions.js";
+import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

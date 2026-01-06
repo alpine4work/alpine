@@ -5,7 +5,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {
     updateOurAccountName,
     updateOurAccountNameBeforeExecuteTestCheckpoint,
-} from "~/server/accounts/accounts_actions.js";
+} from "~/server/accounts/update_our_account_name.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
@@ -16,7 +16,8 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {addSpaceAccountForTest, removeSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

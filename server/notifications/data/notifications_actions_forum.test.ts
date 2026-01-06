@@ -32,12 +32,10 @@ import {expectInboxChannelPostsEntryModel} from "~/server/notifications/data/tes
 import {expectInboxPostCommentsEntryModel} from "~/server/notifications/data/test_helpers/expect_inbox_post_comments_entry_model.js";
 import {testGetInboxEntries} from "~/server/notifications/data/test_helpers/test_get_inbox_entries.js";
 import {unarchiveInboxEntry} from "~/server/notifications/data/unarchive_inbox_entry.js";
-import {
-    acceptSpaceAccountInvite,
-    addSpaceAccount,
-    getSpaceAccountsCacheForTest,
-    removeSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
+import {getSpaceAccountsCacheForTest} from "~/server/spaces/get_space_accounts_cache_for_test.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";

@@ -1,6 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getWebPushSubscriptionItemsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_items_without_authorization.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.js";

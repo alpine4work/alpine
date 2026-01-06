@@ -1,6 +1,6 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {isBotSpaceAccount} from "~/server/spaces/spaces_actions.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {AccessPolicy, validateAccessPolicyUpdate} from "~/shared/access/access_policy.js";
 import {
     FailedPreconditionError,

@@ -4,7 +4,7 @@ import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {DataLossError} from "~/shared/error/error.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";

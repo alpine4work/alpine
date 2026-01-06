@@ -1,5 +1,5 @@
 import {ZonedDateTime, fromDate, parseDateTime, toZoned} from "@internationalized/date";
-import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
+import {getAccountTimeZoneIfExists} from "~/server/accounts/with_spaces/get_account_time_zone_if_exists.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestApnsContextModule} from "~/server/context/apns_context_module_base.js";

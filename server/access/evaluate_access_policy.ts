@@ -5,8 +5,8 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
-    isBotSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/is_account_member_of_space.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {
     AccessLevel,
     AccessPolicyUrlGrant,

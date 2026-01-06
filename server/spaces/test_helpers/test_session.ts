@@ -1,4 +1,4 @@
-import {createSessionForTest} from "~/server/accounts/accounts_actions.js";
+import {createSessionForTest} from "~/server/accounts/create_account_for_test.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";

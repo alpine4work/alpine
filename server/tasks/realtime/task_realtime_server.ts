@@ -1,5 +1,6 @@
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {

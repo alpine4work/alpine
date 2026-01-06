@@ -1,10 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
-import {
-    authorizeNotBotSpaceAccount,
-    authorizeSpaceAccess,
-    getAccountWithoutAvatar,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {AvatarVariant} from "~/shared/avatar/avatar_entity_path.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

@@ -3,7 +3,7 @@ import {intoApiContent} from "~/server/api/content/into_api_content.js";
 import {getContentFileReference} from "~/server/content/get_content_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";

@@ -1,8 +1,6 @@
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {
-    authorizeSpaceAccess,
-    impersonateAccountAsSystemContext,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";

@@ -22,14 +22,12 @@ import {
     SpaceChannelSearchAffinityEntitiesIndex,
     SpaceTaskCollectionSearchAffinityEntitiesIndex,
 } from "~/server/search/data/table/internal/search_entity_table.js";
-import {
-    authorizeNotBotSpaceAccount,
-    authorizeOwnSpaceAccountAccess,
-    authorizeSpaceAccess,
-    expensiveScanEverySpaceAccountForMigration,
-    isAccountMemberOfSpaceWithoutAuthorization,
-    isBotSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";

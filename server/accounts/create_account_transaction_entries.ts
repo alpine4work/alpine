@@ -1,0 +1,92 @@
+import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+
+/**
+ * Make transaction entries that create a new account with the provided name
+ * and email address. The account starts with an unverified email address.
+ *
+ * This is meant to be used for creating accounts during closed alpha.
+ */
+export function createAccountWithEmailAddressTransactionEntries({
+    id,
+    currentTime,
+    name,
+    emailAddress,
+}: {
+    id: AccountId;
+    currentTime: Date;
+    name: string;
+    emailAddress: EmailAddress;
+}): Array<DynamoTransactionEntry> {
+    return [
+        ...createAccountTransactionEntries({id, currentTime, name}),
+        AccountsTable.transactionCreateItem({
+            partitionType: "AccountEmailAddress",
+            sortRangeType: "Attributes",
+            emailAddress,
+            accountId: id,
+            isVerified: false,
+            createdTime: currentTime,
+        }),
+    ];
+}
+
+/**
+ * Returns transaction entries for creating an account.
+ */
+export function createAccountTransactionEntries({
+    id,
+    currentTime,
+    name,
+    dangerouslyInstantiateBot,
+}: {
+    id: AccountId;
+    currentTime: Date;
+    name: string;
+
+    /**
+     * This is set when instantiating a bot to mark the account as a bot account.
+     * This is dangerous since when creating a bot account we need to make sure
+     * there's no other account for the bot in the space (and that the `BotId`
+     * exists). This function doesn't make those checks.
+     *
+     * Only the `instantiateBotSpaceAccount()` function in `spaces_table.ts` should
+     * use this.
+     */
+    dangerouslyInstantiateBot?: {
+        botId: BotId;
+        spaceId: SpaceId;
+        avatar?: {
+            avatarId: AvatarId;
+            content: Uint8Array;
+        } | null;
+    };
+}): Array<DynamoTransactionEntry> {
+    return [
+        AccountsTable.transactionCreateItem({
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: id,
+            name,
+            nameVersion: 0,
+            createdTime: currentTime,
+            observedTimeZone: null,
+            bot: dangerouslyInstantiateBot,
+            reactionCharacter: pickRandomReactionCharacterForAccount(),
+        }),
+        ...(dangerouslyInstantiateBot?.avatar
+            ? [
+                  AccountsTable.transactionCreateItem({
+                      partitionType: "Account",
+                      sortRangeType: "Avatar",
+                      accountId: id,
+                      avatarId: dangerouslyInstantiateBot.avatar.avatarId,
+                      content: dangerouslyInstantiateBot.avatar.content,
+                  }),
+              ]
+            : []),
+    ];
+}

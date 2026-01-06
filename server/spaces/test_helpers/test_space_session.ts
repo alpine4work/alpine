@@ -1,9 +1,7 @@
-import {createSessionForTest} from "~/server/accounts/accounts_actions.js";
-import {
-    authorizeSpaceAccess,
-    dangerouslyGetAccountStubIfExistsWithoutAuthorization,
-    getAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {createSessionForTest} from "~/server/accounts/create_account_for_test.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

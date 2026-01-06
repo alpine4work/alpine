@@ -5,7 +5,7 @@ import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/intern
 import {
     accountNameIndexFuseMinMatchCharLength,
     accountNameIndexFuseScoreMatchCutoff,
-} from "~/server/spaces/spaces_actions.js";
+} from "~/server/spaces/space_accounts_cache_constants.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";

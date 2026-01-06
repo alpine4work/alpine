@@ -1,4 +1,4 @@
-import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/accounts_actions.js";
+import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -24,7 +24,8 @@ import {
     markSearchAffinityEntityInteractionForAccount,
     removeSearchAffinityEntityActiveTaskAssigneePoints,
 } from "~/server/search/data/table/search_entity_actions.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";

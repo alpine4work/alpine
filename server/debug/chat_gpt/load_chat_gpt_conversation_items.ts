@@ -8,10 +8,8 @@ import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o2
 import prettier from "prettier";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
-import {
-    authorizeSpaceAccess,
-    getBotAccountIdForSpaceIfExists,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {ApiMessageRoomPath} from "~/shared/api/types/api_specification_convenience_types.js";
 import {chatGptKnownBotId} from "~/shared/bots/known_bot_ids.js";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";

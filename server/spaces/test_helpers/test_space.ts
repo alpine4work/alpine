@@ -1,14 +1,11 @@
 import {ServerSessionActionContextWithEmail} from "~/server/context/server_action_context.js";
+import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
+import {addSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/create_space_for_test.js";
+import {getSpace} from "~/server/spaces/get_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
-import {
-    acceptSpaceAccountInvite,
-    addSpaceAccountForTest,
-    createSpaceForTest,
-    getSpace,
-    isAccountMemberOfSpaceWithoutAuthorization,
-    rejectSpaceAccountInviteAsSpam,
-    removeSpaceAccount,
-} from "~/server/spaces/spaces_actions.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
+import {rejectSpaceAccountInviteAsSpam} from "~/server/spaces/reject_space_account_invite_as_spam.js";
+import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

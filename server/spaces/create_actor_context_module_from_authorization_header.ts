@@ -1,4 +1,4 @@
-import {getSessionIfExists} from "~/server/accounts/accounts_actions.js";
+import {getSessionIfExists} from "~/server/accounts/get_session_if_exists.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     ActorContextModule,
@@ -7,7 +7,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_actions.js";
+import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";

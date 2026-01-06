@@ -2,7 +2,7 @@ import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_act
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getChannelPreviewItemForAuthorization} from "~/server/forum/data/internal/get_channel_preview_item_for_authorization.js";
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {PostId} from "~/shared/id/types/id_types.js";

@@ -2,7 +2,7 @@ import nlp from "compromise";
 import nlpDatePlugin from "compromise-dates";
 import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
-import {SpaceAccountNameSearchIndex} from "~/server/spaces/spaces_actions.js";
+import {SpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

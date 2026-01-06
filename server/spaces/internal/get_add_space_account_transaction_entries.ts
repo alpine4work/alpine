@@ -1,14 +1,13 @@
-import {
-    checkAccountVersionConditionCheck,
-    dangerouslyGetAccountIfExistsWithoutAuthorization,
-    pickRandomReactionCharacterForAccount,
-} from "~/server/accounts/accounts_actions.js";
+import {createAccountVersionConditionCheckTransactionEntry} from "~/server/accounts/create_account_version_condition_check_transaction_entry.js";
+import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
+import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {
     AccountSpacesItem,
     SpaceAccountAvatarOverrideItem,
@@ -16,7 +15,6 @@ import {
     SpaceAttributesItem,
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
-import {internalGetSpaceAccountItemIfExistsWithoutAuthorization} from "~/server/spaces/spaces_actions.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -109,7 +107,7 @@ export async function getAddSpaceAccountTransactionEntries(
                       accountInputWithoutData.id,
                   ),
                   spaceInputWithoutData.type === "Existing"
-                      ? internalGetSpaceAccountItemIfExistsWithoutAuthorization(
+                      ? getSpaceAccountItemIfExists(
                             context,
                             spaceInputWithoutData.id,
                             accountInputWithoutData.id,
@@ -448,7 +446,7 @@ export async function getAddSpaceAccountTransactionEntries(
                   ]
                 : []),
             ...(accountInput.type === "Existing"
-                ? [checkAccountVersionConditionCheck(accountInput.account)]
+                ? [createAccountVersionConditionCheckTransactionEntry(accountInput.account)]
                 : []),
             SpacesTable.transactionDirectlyUpdateItem({
                 ...(accountInput.type === "Existing" ? accountInput.accountSpacesItem : null),

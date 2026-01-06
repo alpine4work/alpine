@@ -1,7 +1,7 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {getMessageReferences} from "~/server/messaging/helpers/get_message_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount} from "~/server/spaces/spaces_actions.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {
     FileTaskAuthorizer,
     authorizeTaskAccess,

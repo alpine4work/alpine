@@ -1,16 +1,12 @@
-import {
-    finishUploadingAccountAvatar,
-    getAccountByEmailAddressAsAdmin,
-    getAccountByIdAsAdmin,
-    updateAccountReactionCharacter,
-    updateOurAccountName,
-} from "~/server/accounts/accounts_actions.js";
-import {
-    updateOurAccountObservedTimeZone,
-    updateOurLastOpenedSpaceId,
-} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
+import {finishUploadingAccountAvatar} from "~/server/accounts/finish_uploading_account_avatar.js";
+import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_email_address_as_admin.js";
+import {getAccountByIdAsAdmin} from "~/server/accounts/get_account_by_id_as_admin.js";
+import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
+import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
+import {updateOurAccountObservedTimeZone} from "~/server/accounts/with_spaces/update_our_account_observed_time_zone.js";
+import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_actions.js";
+import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definitions from "~/shared/rpc/accounts_rpc_definitions.js";

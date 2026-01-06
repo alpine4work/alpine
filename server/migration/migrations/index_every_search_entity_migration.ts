@@ -4,7 +4,7 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {expensiveScanEveryChannelAndPostForMigration} from "~/server/forum/data/expensive_scan_every_channel_and_post_for_migration.js";
 import {expensiveScanEveryPostCommentForMigration} from "~/server/forum/data/expensive_scan_every_post_comment_for_migration.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_actions.js";
+import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/expensive_scan_every_space_account_for_migration.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";

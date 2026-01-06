@@ -70,12 +70,10 @@ import {
     markSearchAffinityCreateDocumentEntityInteraction,
     markSearchAffinityEntityInteraction,
 } from "~/server/search/data/table/search_entity_actions.js";
-import {
-    authorizeOwnSpaceAccountAccess,
-    authorizeSpaceAccess,
-    getAccount,
-    isAccountMemberOfSpace,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {getAccount} from "~/server/spaces/get_account.js";
+import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";

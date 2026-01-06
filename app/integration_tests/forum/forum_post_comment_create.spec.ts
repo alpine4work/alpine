@@ -1,6 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {updateAccountReactionCharacter} from "~/server/accounts/accounts_actions.js";
+import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";

@@ -19,11 +19,9 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useFetcherWithSchema} from "~/client/web/remix/use_fetcher_with_schema.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {
-    appleReviewerAccountEmailAddress,
-    attemptOneTimePasswordSignIn,
-} from "~/server/accounts/accounts_actions.js";
-import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/accounts_actions_settings.js";
+import {appleReviewerAccountEmailAddress} from "~/server/accounts/apple_reviewer_account_email_address.js";
+import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_password_sign_in.js";
+import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_last_opened_space_id.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

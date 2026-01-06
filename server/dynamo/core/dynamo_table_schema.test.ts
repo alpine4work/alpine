@@ -1,4 +1,4 @@
-import {createAccountForTest} from "~/server/accounts/accounts_actions.js";
+import {createAccountForTest} from "~/server/accounts/create_account_for_test.js";
 import {incrementLocalDynamoTableSchemaGenerationForTest} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";

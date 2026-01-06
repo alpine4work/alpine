@@ -1,6 +1,7 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_if_exists_without_authorization.js";
-import {authorizeNotBotSpaceAccount, authorizeSpaceAccess} from "~/server/spaces/spaces_actions.js";
+import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
 

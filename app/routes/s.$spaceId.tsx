@@ -75,16 +75,14 @@ import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
 } from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
-import {getOwnAccount} from "~/server/accounts/accounts_actions.js";
+import {getOwnAccount} from "~/server/accounts/get_own_account.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs, LoaderContextModules} from "~/server/remix/loader_context.js";
-import {
-    authorizeSpaceAccessIfPossible,
-    getOwnAccountIfExists,
-    getSpace,
-} from "~/server/spaces/spaces_actions.js";
+import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
+import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
+import {getSpace} from "~/server/spaces/get_space.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";

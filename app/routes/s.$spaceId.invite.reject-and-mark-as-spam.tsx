@@ -11,7 +11,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getOwnAccountIfExists} from "~/server/spaces/spaces_actions.js";
+import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";

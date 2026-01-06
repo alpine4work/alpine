@@ -5,7 +5,7 @@ import {SearchFavoritesView} from "~/client/web/search/search_favorites_view.js"
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAllSearchFavoriteEntities} from "~/server/search/data/index/search_entity_index.js";
-import {getSpaceAccountSettings} from "~/server/spaces/spaces_actions.js";
+import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_settings.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";

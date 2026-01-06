@@ -6,7 +6,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # but this is a special case.
 
 ts_project(
-    name = "create_space",
+    name = "create",
     test_deps = [
         "//server/dynamo/test_helpers",
         "//server/search/data/index",
