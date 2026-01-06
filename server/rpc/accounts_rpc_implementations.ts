@@ -3,7 +3,7 @@ import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_
 import {getAccountByIdAsAdmin} from "~/server/accounts/get_account_by_id_as_admin.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
-import {updateOurAccountObservedTimeZone} from "~/server/accounts/with_spaces/update_our_account_observed_time_zone.js";
+import {updateOurAccountObservedTimeZone} from "~/server/accounts/update_our_account_observed_time_zone.js";
 import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";

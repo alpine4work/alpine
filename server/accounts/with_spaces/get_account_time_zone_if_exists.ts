@@ -1,7 +1,7 @@
-import {getAccountSettingsItemIfExists} from "~/server/accounts/with_spaces/internal/get_account_settings_item_if_exists.js";
+import {getAccountSettingsItem} from "~/server/accounts/internal/get_account_settings_item.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {TimeZone, assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -14,9 +14,6 @@ export async function getAccountTimeZoneIfExists(
     accountId: AccountId,
 ): Promise<TimeZone | null> {
     await authorizeOwnSpaceAccountAccess(context, accountId);
-    const accountSettingsItem = await getAccountSettingsItemIfExists(context, accountId);
-
-    return accountSettingsItem?.observedTimeZone
-        ? assertTimeZone(accountSettingsItem.observedTimeZone)
-        : null;
+    const accountSettingsItem = await getAccountSettingsItem(context, accountId);
+    return accountSettingsItem.observedTimeZone;
 }

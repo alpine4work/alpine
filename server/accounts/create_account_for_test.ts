@@ -1,10 +1,17 @@
-import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {
+    AccountItemWithoutAvatar,
+    AccountSettingsItem,
+    AccountsTable,
+} from "~/server/accounts/internal/accounts_table.js";
+import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
 import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
@@ -19,7 +26,7 @@ export async function createAccountForTest(
         name,
         hasInternalAccess = false,
         createdTime = new Date(),
-        observedTimeZone = defaultTimeZone,
+        observedTimeZone = null,
         reactionCharacter = pickRandomReactionCharacterForAccount(),
     }: {
         id?: AccountId;
@@ -32,7 +39,7 @@ export async function createAccountForTest(
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    await AccountsTable.createItem(context, {
+    const accountItem: AccountItemWithoutAvatar = {
         partitionType: "Account",
         sortRangeType: "Attributes",
         accountId: id,
@@ -40,16 +47,24 @@ export async function createAccountForTest(
         nameVersion: 0,
         createdTime,
         hasInternalAccess,
-        observedTimeZone,
         reactionCharacter,
-    });
+    };
 
-    await AccountsTable.createItem(context, {
+    const accountSettingsItem: AccountSettingsItem = {
         partitionType: "Account",
         sortRangeType: "Settings",
         accountId: id,
         observedTimeZone,
-    });
+    };
+
+    if (isDeepEqual(accountSettingsItem, getInitialAccountSettingsItem(id))) {
+        await AccountsTable.createItem(context, accountItem);
+    } else {
+        await DynamoTableSchema.executeTransaction(context, [
+            AccountsTable.transactionCreateItem(accountItem),
+            AccountsTable.transactionCreateOrReplaceItem(accountSettingsItem),
+        ]);
+    }
 
     return {createdTime};
 }

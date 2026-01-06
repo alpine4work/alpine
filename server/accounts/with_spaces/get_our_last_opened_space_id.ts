@@ -1,4 +1,4 @@
-import {getAccountSettingsItemIfExists} from "~/server/accounts/with_spaces/internal/get_account_settings_item_if_exists.js";
+import {getAccountSettingsItem} from "~/server/accounts/internal/get_account_settings_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -11,7 +11,7 @@ export async function getOurLastOpenedSpaceId(
     context: ServerSessionActionContext,
 ): Promise<SpaceId | null | undefined> {
     const [accountSettingsItem, {spaceIds}] = await runAllPromises([
-        getAccountSettingsItemIfExists(context, context.actor.getAccountId()),
+        getAccountSettingsItem(context, context.actor.getAccountId()),
         getOurAccountSpaceIds(context),
     ]);
 
