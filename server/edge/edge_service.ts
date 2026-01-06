@@ -1,3 +1,4 @@
+import {parse as parseCookieHeader} from "cookie";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {
     WorkerRpcContextBatcher,
@@ -41,8 +42,10 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -89,6 +92,45 @@ async function handleFetch(
 
     const url = new URL(request.url);
 
+    // Hitting the home page (`/`) will serve the landing page if you're signed out
+    // and will redirect you to your last opened space if you're signed in.
+    //
+    // If you want to see the home page while signed in you can navigate to
+    // `/home`. Which will redirect to `/` if you're not signed in and will show
+    // you the landing page if you are signed in.
+    {
+        if (url.pathname === "/") {
+            const cookieHeader = request.headers.get("cookie");
+
+            if (!(cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session"))) {
+                // Requests to the landing page don't generate tracer events. We get landing
+                // page analytics through Framer.
+                //
+                // eslint-disable-next-line no-global-fetch
+                return fetch("https://chartreuse-pitch-619767.framer.app");
+            }
+        }
+
+        if (url.pathname === "/home") {
+            const cookieHeader = request.headers.get("cookie");
+
+            if (cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session")) {
+                // Requests to the landing page don't generate tracer events. We get landing
+                // page analytics through Framer.
+                //
+                // eslint-disable-next-line no-global-fetch
+                return fetch("https://chartreuse-pitch-619767.framer.app");
+            }
+
+            return new Response(null, {
+                status: 302,
+                headers: {
+                    location: new URL("/", request.url).toString(),
+                },
+            });
+        }
+    }
+
     // We implement the time API route directly in our Cloudflare Worker body and
     // put it before all other work.
     //
@@ -117,9 +159,10 @@ async function handleFetch(
         });
     }
 
-    //TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've moved file serving to the files edge service
-    // Fast path for static asset requests. We don't want to trace these requests
-    // or perform any other request/response manipulation.
+    // TODO(rmtobin, 2025-10-20, #files-edge-service): Remove this case once we've
+    // moved file serving to the files edge service Fast path for static asset
+    // requests. We don't want to trace these requests or perform any other
+    // request/response manipulation.
     if (
         appStaticManifestPaths.has(url.pathname) ||
         url.pathname.startsWith("/assets/") ||
@@ -397,7 +440,7 @@ async function actuallyHandleFetch(
     route: EdgeServiceRoute,
     span: TracerSpan,
 ) {
-    if (route !== "AppService") {
+    if (typeof route !== "string") {
         // An env object that is referentially equal will be passed in as long as
         // environment variables remain the same.
         // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
@@ -885,6 +928,8 @@ async function actuallyHandleFetch(
                 throw exhaustive(route);
         }
     }
+
+    cast<"AppService">(route);
 
     // Can't forward a request to upgrade to a WebSocket connection to
     // `AppService`. All WebSocket connection routes are enumerated above.
