@@ -1,7 +1,4 @@
-import {
-    EmailAddress,
-    validateEmailAddressWithoutCheckingDomainMxDnsRecords,
-} from "~/server/emails/email_address.js";
+import {EmailAddress, isEmailAddressValid} from "~/server/emails/email_address.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
@@ -27,12 +24,9 @@ export const DynamoEmailAddressSchema = Schema.string
             // Email address is case-insensitive. So normalize email address.
             emailAddress = emailAddress.toLowerCase();
 
-            if (!validateEmailAddressWithoutCheckingDomainMxDnsRecords(emailAddress))
+            if (!isEmailAddressValid(emailAddress))
                 throw new SchemaDeserializationError("Expected string to be an email address");
 
-            // Ok since we are deserializing from the database and we control all writers
-            // to the database. We force writers to the database to use the
-            // `EmailAddress` type.
-            return emailAddress as EmailAddress;
+            return emailAddress;
         },
     });

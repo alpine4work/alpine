@@ -28,7 +28,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoTransactionCancelledExceptionByConditionCheckError} from "~/server/dynamo/core/is_dynamo_transaction_cancelled_exception_by_condition_check_error.js";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
+import {EmailAddress, isEmailAddressValid} from "~/server/emails/email_address.js";
 import {
     ActorContextModule,
     ImpersonatedAccountActorContextModule,
@@ -2400,9 +2400,9 @@ async function validateEmailAddressForInviteInSpace(
       }
 > {
     let validatedEmailAddress: EmailAddress;
-    try {
-        validatedEmailAddress = await validateEmailAddress(context, emailAddress);
-    } catch {
+    if (isEmailAddressValid(emailAddress)) {
+        validatedEmailAddress = emailAddress;
+    } else {
         return {ok: false, reason: "Invalid"};
     }
 

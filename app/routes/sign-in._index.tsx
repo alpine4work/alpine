@@ -68,10 +68,7 @@ export async function action({request, context}: LoaderArgs) {
         if (typeof emailAddress !== "string")
             throw new InvalidArgumentError("Expected property `emailAddress` in form data");
 
-        await regenerateOneTimePasswordSignIn(
-            context,
-            await validateEmailAddress(context, emailAddress),
-        );
+        await regenerateOneTimePasswordSignIn(context, validateEmailAddress(emailAddress));
 
         // After we send the email, challenge the user to sign in using the code
         // we sent them.

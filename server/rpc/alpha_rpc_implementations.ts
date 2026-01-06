@@ -13,7 +13,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             await approveAlphaAccessRequest(
                 context.actor.authorizeSession(),
-                await validateEmailAddress(context, input.emailAddress),
+                validateEmailAddress(input.emailAddress),
             );
             return {};
         },
@@ -24,7 +24,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             await denyAlphaAccessRequest(
                 context.actor.authorizeSession(),
-                await validateEmailAddress(context, input.emailAddress),
+                validateEmailAddress(input.emailAddress),
             );
             return {};
         },

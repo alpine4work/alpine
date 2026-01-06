@@ -544,7 +544,7 @@ export async function getAccountByEmailAddressAsAdmin(
     const accountEmailAddressItem = await AccountsTable.getItem(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
-        emailAddress: await validateEmailAddress(context, emailAddress),
+        emailAddress: validateEmailAddress(emailAddress),
     });
 
     const accountItem = await getAccountItem(context, accountEmailAddressItem.accountId);
@@ -569,7 +569,7 @@ export async function getAccountIdByEmailAddressIfExists(
     const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
-        emailAddress: await validateEmailAddress(context, emailAddress),
+        emailAddress: validateEmailAddress(emailAddress),
     });
 
     if (!accountEmailAddressItem) {

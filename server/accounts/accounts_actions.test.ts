@@ -42,10 +42,7 @@ async function createTestAccount({
     isEmailAddressVerified = false,
 }: {isEmailAddressVerified?: boolean} = {}) {
     const accountId = generateId<AccountId>();
-    const emailAddress = await validateEmailAddress(
-        context,
-        `test@${accountId}.test.cyberworlds.dev`,
-    );
+    const emailAddress = validateEmailAddress(`test@${accountId}.test.cyberworlds.dev`);
 
     await createAccountForTest(context, {id: accountId, name: "Test"});
 

@@ -93,7 +93,7 @@ export async function action({request, context, params}: LoaderArgs) {
 
         const {sessionId, sessionAccountId} = await attemptOneTimePasswordSignIn(
             context,
-            await validateEmailAddress(context, emailAddress),
+            validateEmailAddress(emailAddress),
             oneTimePassword,
             {
                 // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on

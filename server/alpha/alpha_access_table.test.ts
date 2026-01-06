@@ -19,10 +19,7 @@ const context = createTestContext();
 
 async function createTestAccount() {
     const accountId = generateId<AccountId>();
-    const emailAddress = await validateEmailAddress(
-        context,
-        `test@${accountId}.test.cyberworlds.dev`,
-    );
+    const emailAddress = validateEmailAddress(`test@${accountId}.test.cyberworlds.dev`);
 
     await DynamoTableSchema.executeTransaction(
         context,
@@ -45,14 +42,14 @@ test("can not request alpha access twice", async () => {
 
     await requestAlphaAccess(context.anonymousAction(), {
         name: "Test",
-        emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
+        emailAddress: validateEmailAddress(`test.${id}@test.cyberworlds.dev`),
         message: "Hello, world!",
     });
 
     await expect(async () => {
         await requestAlphaAccess(context.anonymousAction(), {
             name: "Test 2",
-            emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
+            emailAddress: validateEmailAddress(`test.${id}@test.cyberworlds.dev`),
             message: "Hello, world!",
         });
     }).rejects.toThrow(FailedPreconditionError);
@@ -63,13 +60,13 @@ test("can request alpha twice with `+` extension email trick", async () => {
 
     await requestAlphaAccess(context.anonymousAction(), {
         name: "Test",
-        emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
+        emailAddress: validateEmailAddress(`test.${id}@test.cyberworlds.dev`),
         message: "Hello, world!",
     });
 
     await requestAlphaAccess(context.anonymousAction(), {
         name: "Test 2",
-        emailAddress: await validateEmailAddress(context, `test.${id}+2@test.cyberworlds.dev`),
+        emailAddress: validateEmailAddress(`test.${id}+2@test.cyberworlds.dev`),
         message: "Hello, world!",
     });
 });

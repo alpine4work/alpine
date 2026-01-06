@@ -86,7 +86,7 @@ export class TestAccount {
     public async createEmailAddress(
         emailAddress: string = generateEmailAddressForTest(this),
     ): Promise<EmailAddress> {
-        const actualEmailAddress = await validateEmailAddress(this.context, emailAddress);
+        const actualEmailAddress = validateEmailAddress(emailAddress);
 
         await createAccountEmailAddressForTest(this.context, {
             accountId: this.id,
