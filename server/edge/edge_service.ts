@@ -92,42 +92,18 @@ async function handleFetch(
 
     const url = new URL(request.url);
 
-    // Hitting the home page (`/`) will serve the landing page if you're signed out
-    // and will redirect you to your last opened space if you're signed in.
-    //
-    // If you want to see the home page while signed in you can navigate to
-    // `/home`. Which will redirect to `/` if you're not signed in and will show
-    // you the landing page if you are signed in.
-    {
-        if (url.pathname === "/") {
-            const cookieHeader = request.headers.get("cookie");
+    // Hitting the home page (`/`) will redirect you to the landing page if you're
+    // signed out. If you want to see the home page while signed in you can
+    // navigate to https://www.alpine.inc directly.
+    if (url.pathname === "/") {
+        const cookieHeader = request.headers.get("cookie");
 
-            if (!(cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session"))) {
-                // Requests to the landing page don't generate tracer events. We get landing
-                // page analytics through Framer.
-                //
-                // eslint-disable-next-line no-global-fetch
-                return fetch("https://chartreuse-pitch-619767.framer.app");
-            }
-        }
-
-        if (url.pathname === "/home") {
-            const cookieHeader = request.headers.get("cookie");
-
-            if (cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session")) {
-                // Requests to the landing page don't generate tracer events. We get landing
-                // page analytics through Framer.
-                //
-                // eslint-disable-next-line no-global-fetch
-                return fetch("https://chartreuse-pitch-619767.framer.app");
-            }
-
-            return new Response(null, {
-                status: 302,
-                headers: {
-                    location: new URL("/", request.url).toString(),
-                },
-            });
+        if (!(cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session"))) {
+            // Requests to the landing page don't generate tracer events. We get landing
+            // page analytics through Framer.
+            //
+            // eslint-disable-next-line no-global-fetch
+            return fetch("https://www.alpine.inc");
         }
     }
 
