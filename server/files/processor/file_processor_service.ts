@@ -25,6 +25,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type Options = ServiceOptions<typeof options>;
 
@@ -39,10 +40,12 @@ export const options = {
 export async function run({
     options,
     tracer,
+    startupSpan,
     shutdownManager,
 }: {
     options: Options;
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
 }) {
     const port = options.port ? parseInt(options.port, 10) : null;
@@ -64,6 +67,7 @@ export async function run({
     }
 
     const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
 
     const tokenAgent = await createServiceTokenAgent({
         serviceName: "FileProcessorService",

@@ -14,7 +14,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {cast} from "~/shared/helpers/control/cast.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
 // This file is for running a Node.js service. It shouldn't be used in
 // Cloudflare Workers.
@@ -62,6 +62,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         run: (options: {
             options: ServiceOptions<Options>;
             tracer: TracerRoot;
+            startupSpan: TracerSpan;
             honeycombClient: HoneycombTracerClient | null;
             shutdownManager: ShutdownManager;
             workerIndex: number;
@@ -267,17 +268,34 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             tracer.logException("Uncaught exception", error);
         });
 
+        const handleSpanName = `Startup ${serviceName} (worker)`;
+        const spanName = `Handle: ${handleSpanName}`;
+
+        const {span: startupSpan, finishSpan: finishStartupSpan} = tracer.startSpan(spanName);
+
+        startupSpan.addPropagatedDataForChildrenOnly({
+            context: {
+                handler: handleSpanName,
+            },
+        });
+
         try {
             const serviceModule = unwrapResult(serviceModuleResult);
 
             await serviceModule.run({
                 options: parsedOptions.values as ServiceOptions<Options>,
                 tracer,
+                startupSpan,
                 honeycombClient,
                 shutdownManager,
                 workerIndex,
             });
+
+            finishStartupSpan();
         } catch (error) {
+            startupSpan.addException(error);
+            finishStartupSpan();
+
             void shutdown({type: "Error", error}, null);
 
             // We don't need to `throw actualError` since calling `shutdown()` will make

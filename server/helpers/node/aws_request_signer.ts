@@ -112,6 +112,14 @@ export class AwsRequestSigner {
         return state;
     }
 
+    /**
+     * Make sure the credentials are available for signing so we don't have to wait
+     * for them to be fetched.
+     */
+    public async prefetchState(span: TracerSpan) {
+        await this._getState(span);
+    }
+
     // Property instead of a method so you can pass it around like
     // `fetch(url, {sign: signer.sign})`.
     public readonly sign = async (request: Request, span: TracerSpan): Promise<Request> => {

@@ -117,6 +117,7 @@ export function getAppService(constants: AppServiceConstants): Promise<AppServic
 
 async function createAppService({
     tracer: originalTracer,
+    startupSpan,
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
@@ -196,6 +197,11 @@ async function createAppService({
     ]);
 
     const awsSigner = new AwsRequestSigner();
+    if (!startupSpan) {
+        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
+    } else {
+        void awsSigner.prefetchState(startupSpan);
+    }
 
     const languageModel =
         process.env.NODE_ENV === "production"

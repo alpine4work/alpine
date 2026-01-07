@@ -17,6 +17,7 @@ import {Context} from "~/shared/context/context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type Options = ServiceOptions<typeof options>;
 
@@ -32,11 +33,13 @@ export const options = {
 
 export async function run({
     tracer,
+    startupSpan,
     shutdownManager,
     honeycombClient,
     options,
 }: {
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
     honeycombClient: HoneycombTracerClient | null;
     options: Options;
@@ -71,6 +74,7 @@ export async function run({
     assert(honeycombClient);
 
     const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
 
     const processContext = Context.new({
         ...createServerBasicProcessContextModules({

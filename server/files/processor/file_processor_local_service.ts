@@ -32,10 +32,12 @@ export const options = {
 export async function run({
     options,
     tracer,
+    startupSpan,
     shutdownManager,
 }: {
     options: Options;
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
 }) {
     const port = assertExists(options.port, "`port` option is required");
@@ -47,10 +49,13 @@ export async function run({
         options,
     });
 
+    const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
+
     const promiseWaiter = new PromiseWaiter();
     const actionContext = createLambdaActionContext({
         options,
-        awsSigner: new AwsRequestSigner(),
+        awsSigner,
         tokenAgent,
         tracer,
         promiseWaiter,
