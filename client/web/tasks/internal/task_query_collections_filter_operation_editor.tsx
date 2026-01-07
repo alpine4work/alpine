@@ -133,10 +133,10 @@ export function TaskQueryCollectionsFilterOperationEditor({
                     filter.operation.type === "IncludesOneOf"
                         ? includesOneOfOperatorLabel
                         : filter.operation.type === "IncludesAllOf"
-                        ? includesAllOfOperatorLabel
-                        : filter.operation.type === "ExcludesAllOf"
-                        ? excludesAllOfOperatorLabel
-                        : isEmptyOperatorLabel
+                          ? includesAllOfOperatorLabel
+                          : filter.operation.type === "ExcludesAllOf"
+                            ? excludesAllOfOperatorLabel
+                            : isEmptyOperatorLabel
                 }
                 allOperators={[
                     ...(filter.operation.type !== "IsEmpty" &&
@@ -449,9 +449,9 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
         () =>
             searchInputValue === ""
                 ? collectionsForUrlGrant
-                : collectionsForUrlGrantSearchIndex
+                : (collectionsForUrlGrantSearchIndex
                       ?.search(searchInputValue)
-                      .map(({item}) => item) ?? null,
+                      .map(({item}) => item) ?? null),
         [collectionsForUrlGrant, collectionsForUrlGrantSearchIndex, searchInputValue],
     );
 

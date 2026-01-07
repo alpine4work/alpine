@@ -62,10 +62,10 @@ export function addUnfocusableButtonBehaviorToElement(
         const newState = isDisabled?.()
             ? null
             : isPointerDownAndOver
-            ? "Pressed"
-            : isPointerOver || isTriggeredOverlayOpen
-            ? "Hovered"
-            : null;
+              ? "Pressed"
+              : isPointerOver || isTriggeredOverlayOpen
+                ? "Hovered"
+                : null;
 
         state = newState;
 

@@ -506,12 +506,12 @@ function ContentEditorMobileKeyboardToolbarButton({
                         isDisabled
                             ? undefined
                             : isPressedAndActive
-                            ? "grey-20"
-                            : isHovered && isPressed
-                            ? "grey-20"
-                            : isPressed || isActive || isHovered
-                            ? "grey-10"
-                            : undefined
+                              ? "grey-20"
+                              : isHovered && isPressed
+                                ? "grey-20"
+                                : isPressed || isActive || isHovered
+                                  ? "grey-10"
+                                  : undefined
                     }
                     borderRadius="1.5"
                     display="flex"

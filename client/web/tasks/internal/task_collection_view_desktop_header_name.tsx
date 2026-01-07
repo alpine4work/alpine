@@ -480,8 +480,8 @@ function TaskCollectionViewDesktopHeaderColor({
                     isPressed
                         ? "grey-10"
                         : isHovered || colorSelectorState.isExpanded
-                        ? "grey-5"
-                        : undefined
+                          ? "grey-5"
+                          : undefined
                 }
             >
                 <Box

@@ -817,7 +817,7 @@ export function DocumentContentEditor({
     const editorContainerWidth =
         containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
             ? containerSize.width - documentContentEditorSidebarWidthPx
-            : containerSize?.width ?? null;
+            : (containerSize?.width ?? null);
 
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *

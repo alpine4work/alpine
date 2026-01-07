@@ -28,11 +28,11 @@ function TaskBrandIcon({
                 ? colors[contentStyles.brandIconDefaultColor]
                 : invertedColorsWithShade[contentStyles.brandIconDefaultColor]
             : contextColor === colorSchemeVars["grey-90"] ||
-              contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+                contextColor === colorSchemeVars["grey-100"]
+              ? contextColor
+              : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+    const actualSize = size ? spacing[size] : (contextSize ?? spacing["5"]);
 
     return (
         <svg
@@ -58,8 +58,8 @@ function TaskBrandIcon({
                     withoutStyleSheet === "light"
                         ? colors[`green-${brandIconSplashColorShade.light}`]
                         : withoutStyleSheet === "dark"
-                        ? invertedColorsWithShade[`green-${brandIconSplashColorShade.dark}`]
-                        : undefined
+                          ? invertedColorsWithShade[`green-${brandIconSplashColorShade.dark}`]
+                          : undefined
                 }
                 opacity={brandIconSplashColorOpacity}
                 d="M6.25 5.52h11.667v12.084c0 .92-.747 1.667-1.667 1.667H7.917c-.92 0-1.667-.746-1.667-1.667V5.521Z"

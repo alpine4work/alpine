@@ -411,11 +411,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         postRoom
                             ? {type: "Post", postId: postRoom.id}
                             : documentCommentThreadRoom
-                            ? {
-                                  type: "DocumentCommentThread",
-                                  commentThreadId: documentCommentThreadRoom.id,
-                              }
-                            : undefined,
+                              ? {
+                                    type: "DocumentCommentThread",
+                                    commentThreadId: documentCommentThreadRoom.id,
+                                }
+                              : undefined,
                     );
 
                     await promise;

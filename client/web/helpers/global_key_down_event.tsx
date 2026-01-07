@@ -314,14 +314,10 @@ function GlobalKeyDownManualContextProvider(
         modalChildListeners: parentContext.modalChildListeners,
     }));
 
-    useImperativeHandle(
-        ref,
-        () => {
-            const listener = createListener(childContext.childListeners, null, null);
-            return {dispatchEvent: listener};
-        },
-        [childContext.childListeners],
-    );
+    useImperativeHandle(ref, () => {
+        const listener = createListener(childContext.childListeners, null, null);
+        return {dispatchEvent: listener};
+    }, [childContext.childListeners]);
 
     return (
         <GlobalKeyDownEventContext.Provider value={childContext}>

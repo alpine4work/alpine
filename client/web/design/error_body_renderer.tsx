@@ -44,8 +44,8 @@ export function ErrorBodyRenderer({
                     colorSchemeOverride === "light"
                         ? `${titleColor}-const`
                         : colorSchemeOverride === "dark"
-                        ? `${invertColor(titleColor)}-const`
-                        : titleColor
+                          ? `${invertColor(titleColor)}-const`
+                          : titleColor
                 }
             >
                 {errorIcon && (

@@ -222,7 +222,7 @@ function TaskRowCollectionsCell(
     const handleFocusChange = (event: FocusEvent) => {
         const activeElement =
             event.type === "blur"
-                ? event.relatedTarget ?? document.activeElement
+                ? (event.relatedTarget ?? document.activeElement)
                 : document.activeElement;
 
         setIsFocusWithin(getIsFocusWithin(activeElement));

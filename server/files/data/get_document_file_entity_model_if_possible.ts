@@ -9,9 +9,8 @@ export async function getFileDocumentEntityModelIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
 ): Promise<Result<FileDocumentEntityModel, ErrorBase>> {
-    const documentResult = await context.documentsInjection.getDocumentContentPreviewIfPossible(
-        documentId,
-    );
+    const documentResult =
+        await context.documentsInjection.getDocumentContentPreviewIfPossible(documentId);
 
     if (!documentResult) return {ok: false, error: createDocumentNotFoundError(documentId)};
 

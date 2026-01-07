@@ -30,12 +30,12 @@ function PostBrandIcon({
                 ? colors[contentStyles.brandIconDefaultColor]
                 : invertedColorsWithShade[contentStyles.brandIconDefaultColor]
             : withoutSplash ||
-              contextColor === colorSchemeVars["grey-90"] ||
-              contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+                contextColor === colorSchemeVars["grey-90"] ||
+                contextColor === colorSchemeVars["grey-100"]
+              ? contextColor
+              : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+    const actualSize = size ? spacing[size] : (contextSize ?? spacing["5"]);
 
     return (
         <svg
@@ -62,8 +62,8 @@ function PostBrandIcon({
                         withoutStyleSheet === "light"
                             ? colors[`orange-${brandIconSplashColorShade.light}`]
                             : withoutStyleSheet === "dark"
-                            ? invertedColorsWithShade[`orange-${brandIconSplashColorShade.dark}`]
-                            : undefined
+                              ? invertedColorsWithShade[`orange-${brandIconSplashColorShade.dark}`]
+                              : undefined
                     }
                     opacity={brandIconSplashColorOpacity}
                     d="M4.896 8.02c0-.23.187-.416.417-.416h13.542c.23 0 .416.187.416.417v10.417c0 .23-.186.416-.416.416H5.313a.417.417 0 0 1-.417-.416V8.02Z"

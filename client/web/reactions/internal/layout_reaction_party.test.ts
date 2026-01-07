@@ -29,16 +29,16 @@ const reaction = (
         character === "Tree"
             ? {type: "Tree", variant: "Green"}
             : character === "Cat"
-            ? {type: "Cat", variant: "Yellow"}
-            : character === "Yeti"
-            ? {type: "Yeti", variant: "Blue"}
-            : character === "Frog"
-            ? {type: "Frog", variant: "Green"}
-            : character === "Pigeon"
-            ? {type: "Pigeon", variant: "Plain"}
-            : character === "Tulip"
-            ? {type: "Tulip", variant: "Yellow"}
-            : character,
+              ? {type: "Cat", variant: "Yellow"}
+              : character === "Yeti"
+                ? {type: "Yeti", variant: "Blue"}
+                : character === "Frog"
+                  ? {type: "Frog", variant: "Green"}
+                  : character === "Pigeon"
+                    ? {type: "Pigeon", variant: "Plain"}
+                    : character === "Tulip"
+                      ? {type: "Tulip", variant: "Yellow"}
+                      : character,
     emotion,
 });
 

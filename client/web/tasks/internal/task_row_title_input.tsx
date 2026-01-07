@@ -1762,10 +1762,10 @@ function TaskRowTitleInput(
                             capabilities.hasMultilineTitle && multilineState?.withoutMarginLeft
                                 ? undefined
                                 : shouldShowParentTaskTitle
-                                ? spacing["1.5"]
-                                : shouldShowChildTasksButton
-                                ? spacing["3"]
-                                : undefined,
+                                  ? spacing["1.5"]
+                                  : shouldShowChildTasksButton
+                                    ? spacing["3"]
+                                    : undefined,
 
                         // Two states to think about here:
                         //
@@ -2057,7 +2057,7 @@ function handleTaskRowTitleInputPaste(
         };
 
         const indentation: number = node.type.groups.includes("listItem")
-            ? node.attrs.indent ?? 0
+            ? (node.attrs.indent ?? 0)
             : 0;
         let pastedParentChildTasks = pastedTasks;
 

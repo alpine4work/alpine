@@ -192,8 +192,8 @@ function TaskStatusButton(
         (initialFields?.status === "Closed"
             ? "Closed"
             : initialFields?.assigneeStatus === "Active"
-            ? "OpenActive"
-            : "OpenInactive");
+              ? "OpenActive"
+              : "OpenInactive");
 
     if (shouldShowClosedStatusWhenPressed && isPressed && displayStatus !== "Closed") {
         displayStatus = "Closed";

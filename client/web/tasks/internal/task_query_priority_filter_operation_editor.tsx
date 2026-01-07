@@ -250,8 +250,8 @@ export function TaskQueryPriorityFilterOperationEditor({
                                                 isPressed
                                                     ? "grey-10"
                                                     : isHovered || isVisible
-                                                    ? "grey-5"
-                                                    : "grey-0"
+                                                      ? "grey-5"
+                                                      : "grey-0"
                                             ]
                                         })`,
                                     }}
@@ -269,8 +269,8 @@ export function TaskQueryPriorityFilterOperationEditor({
                                     backgroundColor: isPressed
                                         ? "grey-10"
                                         : isHovered || isVisible
-                                        ? "grey-5"
-                                        : undefined,
+                                          ? "grey-5"
+                                          : undefined,
                                     borderRadius: "0.5",
                                 })}
                             >

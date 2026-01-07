@@ -280,10 +280,9 @@ async function testLoadMoreQueryTasks(
         TaskRealtimeEvent,
         TaskRealtimeConnection
     >,
-    input:
-        | WebSocketProtocolProceduresType<
-              typeof TaskRealtimeProtocol
-          >["loadMoreQueryTasks"]["input"],
+    input: WebSocketProtocolProceduresType<
+        typeof TaskRealtimeProtocol
+    >["loadMoreQueryTasks"]["input"],
 ) {
     const result = await connection.procedures.loadMoreQueryTasks(input);
 

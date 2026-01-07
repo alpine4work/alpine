@@ -355,10 +355,10 @@ function MessageInputMobileKeyboardToolbarButton({
                         isPressedAndActive
                             ? "grey-20"
                             : isPressed || isActive
-                            ? "grey-10"
-                            : isHovered
-                            ? "grey-5"
-                            : undefined
+                              ? "grey-10"
+                              : isHovered
+                                ? "grey-5"
+                                : undefined
                     }
                     borderRadius="1.5"
                     display="flex"

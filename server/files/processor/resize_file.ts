@@ -378,15 +378,15 @@ export async function resizeFile(
                         ...(isDefinitelyMissingAlphaChannel
                             ? ["-vf", filter]
                             : contentType === "image/avif"
-                            ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]
-                            : [
-                                  "-filter_complex",
-                                  `[0:v]${filter}[out];[0:v]alphaextract,${filter}[out_alpha]`,
-                                  "-map",
-                                  "[out]",
-                                  "-map",
-                                  "[out_alpha]",
-                              ]),
+                              ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]
+                              : [
+                                    "-filter_complex",
+                                    `[0:v]${filter}[out];[0:v]alphaextract,${filter}[out_alpha]`,
+                                    "-map",
+                                    "[out]",
+                                    "-map",
+                                    "[out_alpha]",
+                                ]),
                         // Output file is in `.avif` format.
                         //
                         // AVIF is our preferred format for generating preview images ([source][1],

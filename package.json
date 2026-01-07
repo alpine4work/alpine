@@ -269,7 +269,7 @@
         "playwright": "1.46.0",
         "playwright-core": "1.46.0",
         "postcss": "^8.4.41",
-        "prettier": "^2.8.7",
+        "prettier": "^3.7.4",
         "pretty-bytes": "^6.1.1",
         "pretty-ms": "^7.0.1",
         "proper-lockfile": "^4.1.2",

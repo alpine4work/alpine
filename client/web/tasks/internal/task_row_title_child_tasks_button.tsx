@@ -120,8 +120,8 @@ function TaskRowTitleChildTasksButton(
                 isMaxExpandedTaskDepth
                     ? "Open to see subtasks"
                     : areChildTasksExpanded
-                    ? "Collapse subtasks"
-                    : "Expand subtasks"
+                      ? "Collapse subtasks"
+                      : "Expand subtasks"
             }
         >
             <FocusRing offset="0">
@@ -144,8 +144,8 @@ function TaskRowTitleChildTasksButton(
                         backgroundColor: isPressed
                             ? colorSchemeVars["grey-10"]
                             : isHovered
-                            ? colorSchemeVars["grey-5"]
-                            : undefined,
+                              ? colorSchemeVars["grey-5"]
+                              : undefined,
                     }}
                 >
                     <TaskChildTasksProgressWheel

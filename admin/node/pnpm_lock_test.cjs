@@ -116,7 +116,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["ora", ["5.4.1", "8.2.0"]],
     ["pathe", ["1.1.2", "2.0.3"]],
     ["pkg-types", ["1.1.1", "2.3.0"]],
-    ["prettier", ["2.8.7", "3.6.2"]],
+    ["prettier", ["2.8.8", "3.7.4"]],
     ["restore-cursor", ["3.1.0", "5.1.0"]],
 
     // NOTE(calebmer, 2025-09-20): Duplicate packages after upgrading TypeScript

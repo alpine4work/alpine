@@ -81,10 +81,10 @@ export function SearchEntityViewTitle({
             {entityData.title !== null
                 ? renderTextWithEmojiFontFamily(entityData.title)
                 : isSearchDynamicEntityType(typeDisplay.type)
-                ? // If `title` is null then we assume the entity was deleted. Otherwise, all
-                  // mentionable entities should have a non-null title.
-                  `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
-                : null}
+                  ? // If `title` is null then we assume the entity was deleted. Otherwise, all
+                    // mentionable entities should have a non-null title.
+                    `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
+                  : null}
         </Box>
     );
 }

@@ -28,11 +28,11 @@ function ChatBrandIcon({
                 ? colors[contentStyles.brandIconDefaultColor]
                 : invertedColorsWithShade[contentStyles.brandIconDefaultColor]
             : contextColor === colorSchemeVars["grey-90"] ||
-              contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+                contextColor === colorSchemeVars["grey-100"]
+              ? contextColor
+              : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+    const actualSize = size ? spacing[size] : (contextSize ?? spacing["5"]);
 
     return (
         <svg
@@ -58,8 +58,8 @@ function ChatBrandIcon({
                     withoutStyleSheet === "light"
                         ? colors[`red-${brandIconSplashColorShade.light}`]
                         : withoutStyleSheet === "dark"
-                        ? invertedColorsWithShade[`red-${brandIconSplashColorShade.dark}`]
-                        : undefined
+                          ? invertedColorsWithShade[`red-${brandIconSplashColorShade.dark}`]
+                          : undefined
                 }
                 opacity={brandIconSplashColorOpacity}
                 fillRule="evenodd"

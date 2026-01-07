@@ -37,8 +37,8 @@ export default function NewChannelRoute() {
         return focusString === "name"
             ? ("Name" as const)
             : focusString === "description"
-            ? ("Description" as const)
-            : null;
+              ? ("Description" as const)
+              : null;
     });
 
     // Remove the `focus` search param.

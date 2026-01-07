@@ -302,13 +302,13 @@ export async function loader({params, context: unauthenticatedContext, request}:
                       updateEvent: loadQueriesOutput.updateEvent,
                   }
                 : initialFields && initialFields.collectionIds.size > 0
-                ? {
-                      queries: [],
-                      taskIds: [],
-                      collectionIds: Array.from(initialFields.collectionIds),
-                      updateEvent: assertExists(initialFieldsLoadCollectionsResult).updateEvent,
-                  }
-                : undefined,
+                  ? {
+                        queries: [],
+                        taskIds: [],
+                        collectionIds: Array.from(initialFields.collectionIds),
+                        updateEvent: assertExists(initialFieldsLoadCollectionsResult).updateEvent,
+                    }
+                  : undefined,
         },
     );
 }

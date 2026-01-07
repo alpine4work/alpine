@@ -610,12 +610,12 @@ export function printSearchContentChunk(chunk: {
                     ? // Make sure leading spaces aren't collapsed at newlines.
                       "&#x0020;" + sentenceChunk.text.slice(1)
                     : isLineStart &&
-                      sentenceChunk.text.startsWith(">  ") &&
-                      !/^>  +(?:\d\.|[-*])/.test(sentenceChunk.text)
-                    ? // Make sure leading spaces aren't collapsed at blockquote newlines. (Nested blockquotes are not
-                      // supported here.)
-                      "> &#x0020;" + sentenceChunk.text.slice(3)
-                    : sentenceChunk.text;
+                        sentenceChunk.text.startsWith(">  ") &&
+                        !/^>  +(?:\d\.|[-*])/.test(sentenceChunk.text)
+                      ? // Make sure leading spaces aren't collapsed at blockquote newlines. (Nested blockquotes are not
+                        // supported here.)
+                        "> &#x0020;" + sentenceChunk.text.slice(3)
+                      : sentenceChunk.text;
         }
 
         lastLineMargin = chunk.lineMarginBottom;

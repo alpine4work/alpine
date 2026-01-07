@@ -1546,8 +1546,13 @@ export async function searchByKeywords(
                 hitMedia?.type === "TaskCollectionColor"
                     ? hitMedia
                     : hitMedia
-                    ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
-                    : null;
+                      ? await prepareSearchEntityMediaForResult(
+                            context,
+                            spaceId,
+                            entityId,
+                            hitMedia,
+                        )
+                      : null;
 
             // If this hit is for a task collection then we'll include, as the search
             // result body, a summary of how many tasks are in the collection and when the

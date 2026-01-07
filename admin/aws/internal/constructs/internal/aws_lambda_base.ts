@@ -20,8 +20,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-export interface AwsLambdaBaseOptions
-    extends Omit<FunctionProps, "code" | "handler" | "runtime" | "architecture" | "vpc"> {
+export interface AwsLambdaBaseOptions extends Omit<
+    FunctionProps,
+    "code" | "handler" | "runtime" | "architecture" | "vpc"
+> {
     /**
      * Lambda + VPC guidance
      *

@@ -689,7 +689,7 @@ function VirtualizedScrollView(
                     initialViewHeight:
                         typeof initialViewHeight === "string"
                             ? convertRemLengthToPx(initialViewHeight, spacingScale)
-                            : initialViewHeight ?? screenHeight,
+                            : (initialViewHeight ?? screenHeight),
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,
@@ -706,7 +706,7 @@ function VirtualizedScrollView(
                     initialViewHeight:
                         typeof initialViewHeight === "string"
                             ? convertRemLengthToPx(initialViewHeight, spacingScale)
-                            : initialViewHeight ?? screenHeight,
+                            : (initialViewHeight ?? screenHeight),
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,
@@ -1607,222 +1607,212 @@ function VirtualizedScrollView(
         events.onRenderedRangeChange(renderedRangeRef.current);
     }, [events, renderedRange?.endIndex, renderedRange?.startIndex]);
 
-    useImperativeHandle(
-        ref,
-        (): VirtualizedScrollViewRef => {
-            const scrollToIndex = (index: number, {withAnchor}: {withAnchor: boolean}) => {
-                // Scheduled in a microtask so that if there is a pending immediate React state
-                // update it can be applied before we perform the scroll.
-                //
-                // To repro the bug this fixes: open a peek for a link to a comment in a post
-                // near the bottom of the post.
-                //
-                // What happens here is:
-                //
-                // 1. We run an initial layout effect in `<VirtualizedScrollView>` with the
-                //    correct view height and initially rendered item heights.
-                // 2. This schedules an immediate, synchronous, React update for
-                //    `<VirtualizedScrollView>`.
-                // 3. React synchronously flushes all parent component `useEffect()`s.
-                //    Including the `useEffect()` in `<PostView>` that scrolls to a comment.
-                // 4. `scrollToIndex()` is called but `stateRef` does not match what is in the
-                //    DOM. While in the DOM we have elements with the correct measurements, in
-                //    React we haven't run our second immediate scheduled update which will
-                //    update state.
-                // 5. `scrollToIndex()` scrolls to the wrong location unless we have the
-                //    `scheduleMicrotask()` wrapper which runs `scrollToIndex()` after the
-                //    React immediately scheduled re-render that updates state.
-                scheduleMicrotask(() => {
-                    const {state, getItemWithoutRender, scrollbarInsetTop, scrollbarInsetBottom} =
-                        stateRef.current;
-                    const scrollElement = assertExists(scrollRef.current);
+    useImperativeHandle(ref, (): VirtualizedScrollViewRef => {
+        const scrollToIndex = (index: number, {withAnchor}: {withAnchor: boolean}) => {
+            // Scheduled in a microtask so that if there is a pending immediate React state
+            // update it can be applied before we perform the scroll.
+            //
+            // To repro the bug this fixes: open a peek for a link to a comment in a post
+            // near the bottom of the post.
+            //
+            // What happens here is:
+            //
+            // 1. We run an initial layout effect in `<VirtualizedScrollView>` with the
+            //    correct view height and initially rendered item heights.
+            // 2. This schedules an immediate, synchronous, React update for
+            //    `<VirtualizedScrollView>`.
+            // 3. React synchronously flushes all parent component `useEffect()`s.
+            //    Including the `useEffect()` in `<PostView>` that scrolls to a comment.
+            // 4. `scrollToIndex()` is called but `stateRef` does not match what is in the
+            //    DOM. While in the DOM we have elements with the correct measurements, in
+            //    React we haven't run our second immediate scheduled update which will
+            //    update state.
+            // 5. `scrollToIndex()` scrolls to the wrong location unless we have the
+            //    `scheduleMicrotask()` wrapper which runs `scrollToIndex()` after the
+            //    React immediately scheduled re-render that updates state.
+            scheduleMicrotask(() => {
+                const {state, getItemWithoutRender, scrollbarInsetTop, scrollbarInsetBottom} =
+                    stateRef.current;
+                const scrollElement = assertExists(scrollRef.current);
 
-                    const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex(
-                        {
-                            state,
-                            index,
-                            scrollElement,
-                            scrollbarInsetTop,
-                            scrollbarInsetBottom,
-                        },
-                    );
-
-                    const {key} = getItemWithoutRender(index);
-
-                    if (withAnchor) {
-                        // Once an item has rendered, use its DOM position instead of looking at state.
-                        const initialItemRef = itemsRef.current.elementRefByKey.get(key);
-                        const initialElement =
-                            initialItemRef?.generation === itemsRef.current.generation
-                                ? initialItemRef.element
-                                : null;
-
-                        // Anchor to the item we are scrolling to. At first when the item hasn't
-                        // rendered we use the position we found in our state. Then once we find the
-                        // item was rendered in the DOM we use the position of the related DOM node.
-                        //
-                        // The position we initially render our item in the DOM may be different from
-                        // the computed position which is why we need to capture the computed
-                        // position here.
-                        scrollAnchorRef.current = {
-                            keyForDebugging: key,
-                            shouldAnchorWhileVisible: true,
-                            lastPosition: initialElement
-                                ? getElementPosition(
-                                      scrollElement,
-                                      initialElement,
-                                      previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current,
-                                  )
-                                : {
-                                      ...position,
-                                      // If the item isn't rendered, we can't know adjacent elements.
-                                      previousElementSibling: "ignore",
-                                      nextElementSibling: "ignore",
-                                  },
-                            getPosition: ({
-                                state,
-                                scrollAnchorAdjustmentDuringMobileWebKitScroll,
-                            }) => {
-                                // Once an item has rendered, use its DOM position instead of looking at state.
-                                const itemRef = itemsRef.current.elementRefByKey.get(key);
-                                const element =
-                                    itemRef?.generation === itemsRef.current.generation
-                                        ? itemRef.element
-                                        : null;
-                                if (element) {
-                                    return getElementPosition(
-                                        scrollElement,
-                                        element,
-                                        scrollAnchorAdjustmentDuringMobileWebKitScroll,
-                                    );
-                                }
-
-                                const position =
-                                    state.getPositionByKeyIfExists(key) ??
-                                    (index < state.getItemCount()
-                                        ? state.getPositionByIndex(index)
-                                        : null);
-
-                                if (position === null) return null;
-
-                                // We use the virtualized scroll view state to get the position instead of DOM
-                                // nodes because while scrolling to an item it may not be rendered in the
-                                // virtualization window but we still need the position.
-                                //
-                                // By using the latest state we can also see updates that haven't been written
-                                // to the DOM yet which causes less churn in scroll anchor adjustments.
-                                return {
-                                    ...position,
-                                    // If the item isn't rendered, we can't know adjacent elements.
-                                    previousElementSibling: "ignore",
-                                    nextElementSibling: "ignore",
-                                };
-                            },
-                        };
-                    }
-
-                    // Actually perform the scroll.
-                    //
-                    // We perform this after setting the scroll anchor to make sure any event
-                    // listeners see the new scroll anchor.
-                    //
-                    // We set `isScrollToIndexEventRef` to avoid considering this as a jump scroll
-                    // which prevents rendering for a bit.
-                    if (scrollElement.scrollTop !== scrollOffset) {
-                        isScrollToIndexEventRef.current = true;
-                        lastScrollTopRef.current = scrollOffset;
-                        scrollElement.scrollTop = scrollOffset;
-                    }
+                const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex({
+                    state,
+                    index,
+                    scrollElement,
+                    scrollbarInsetTop,
+                    scrollbarInsetBottom,
                 });
-            };
 
-            return {
-                getHeight: () => assertExists(scrollRef.current).clientHeight,
-                getContentHeight: () => {
-                    // Get the scroll height based exclusively on our first `<div>`. Use
-                    // `getBoundingClientRect()` so we have sub-pixel accuracy.
-                    return assertExists(
-                        scrollRef.current?.firstElementChild,
-                    ).getBoundingClientRect().height;
-                },
-                getRenderedRange: () => renderedRangeRef.current,
-                scrollToIndex,
-                scrollToKeyIfExists: (key, options) => {
-                    const state = stateRef.current.state;
-                    const index = state.getIndexByKeyIfExists(key);
-                    if (index === null) return;
-                    scrollToIndex(index, options);
-                },
-                getScrollOffset: () => {
-                    return assertExists(scrollRef.current).scrollTop;
-                },
-                setScrollOffset: (scrollOffset, {behavior = "instant"} = {}) => {
-                    const scrollElement = assertExists(scrollRef.current);
+                const {key} = getItemWithoutRender(index);
 
-                    if (behavior === "smooth") {
-                        scrollElement.scrollTo({top: scrollOffset, behavior: "smooth"});
-                    } else {
-                        scrollElement.scrollTop = scrollOffset;
-                    }
-                },
-                getKeyByIndexIfExists: index => {
-                    const state = stateRef.current.state;
-                    return state.getKeyByIndexIfExists(index);
-                },
-                getIndexByKeyIfExists: key => {
-                    const state = stateRef.current.state;
-                    return state.getIndexByKeyIfExists(key);
-                },
-                getPositionByIndex: index => {
-                    const state = stateRef.current.state;
-                    return state.getPositionByIndex(index);
-                },
-                getPositionByKeyIfExists: key => {
-                    const state = stateRef.current.state;
-                    return state.getPositionByKeyIfExists(key);
-                },
-                peekRenderedRangeAfterScrollToIndex: index => {
-                    const {state, scrollbarInsetTop, scrollbarInsetBottom} = stateRef.current;
-                    const scrollElement = assertExists(scrollRef.current);
+                if (withAnchor) {
+                    // Once an item has rendered, use its DOM position instead of looking at state.
+                    const initialItemRef = itemsRef.current.elementRefByKey.get(key);
+                    const initialElement =
+                        initialItemRef?.generation === itemsRef.current.generation
+                            ? initialItemRef.element
+                            : null;
 
-                    const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
-                        state,
-                        index,
-                        scrollElement,
-                        scrollbarInsetTop,
-                        scrollbarInsetBottom,
-                    });
+                    // Anchor to the item we are scrolling to. At first when the item hasn't
+                    // rendered we use the position we found in our state. Then once we find the
+                    // item was rendered in the DOM we use the position of the related DOM node.
+                    //
+                    // The position we initially render our item in the DOM may be different from
+                    // the computed position which is why we need to capture the computed
+                    // position here.
+                    scrollAnchorRef.current = {
+                        keyForDebugging: key,
+                        shouldAnchorWhileVisible: true,
+                        lastPosition: initialElement
+                            ? getElementPosition(
+                                  scrollElement,
+                                  initialElement,
+                                  previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current,
+                              )
+                            : {
+                                  ...position,
+                                  // If the item isn't rendered, we can't know adjacent elements.
+                                  previousElementSibling: "ignore",
+                                  nextElementSibling: "ignore",
+                              },
+                        getPosition: ({state, scrollAnchorAdjustmentDuringMobileWebKitScroll}) => {
+                            // Once an item has rendered, use its DOM position instead of looking at state.
+                            const itemRef = itemsRef.current.elementRefByKey.get(key);
+                            const element =
+                                itemRef?.generation === itemsRef.current.generation
+                                    ? itemRef.element
+                                    : null;
+                            if (element) {
+                                return getElementPosition(
+                                    scrollElement,
+                                    element,
+                                    scrollAnchorAdjustmentDuringMobileWebKitScroll,
+                                );
+                            }
 
-                    const peekState = state.updateRenderedRange({
-                        scrollOffset,
-                        itemCount: stateRef.current.itemCount,
-                        getItem: stateRef.current.getItemWithoutRender,
-                    });
+                            const position =
+                                state.getPositionByKeyIfExists(key) ??
+                                (index < state.getItemCount()
+                                    ? state.getPositionByIndex(index)
+                                    : null);
 
-                    return peekState.getRenderedRange();
-                },
-                peekRenderedRangeAfterSetScrollOffset: scrollOffset => {
-                    const state = stateRef.current.state;
+                            if (position === null) return null;
 
-                    const peekState = state.updateRenderedRange({
-                        scrollOffset,
-                        itemCount: stateRef.current.itemCount,
-                        getItem: stateRef.current.getItemWithoutRender,
-                    });
+                            // We use the virtualized scroll view state to get the position instead of DOM
+                            // nodes because while scrolling to an item it may not be rendered in the
+                            // virtualization window but we still need the position.
+                            //
+                            // By using the latest state we can also see updates that haven't been written
+                            // to the DOM yet which causes less churn in scroll anchor adjustments.
+                            return {
+                                ...position,
+                                // If the item isn't rendered, we can't know adjacent elements.
+                                previousElementSibling: "ignore",
+                                nextElementSibling: "ignore",
+                            };
+                        },
+                    };
+                }
 
-                    return peekState.getRenderedRange();
-                },
-                getElement: () => assertExists(scrollRef.current),
-                getContentElement: () => assertExists(contentRef.current),
-                getElementByKeyIfExists: key => {
-                    const itemRef = itemsRef.current.elementRefByKey.get(key);
-                    if (itemRef?.generation !== itemsRef.current.generation) return null;
-                    return itemRef.element;
-                },
-            };
-        },
-        [],
-    );
+                // Actually perform the scroll.
+                //
+                // We perform this after setting the scroll anchor to make sure any event
+                // listeners see the new scroll anchor.
+                //
+                // We set `isScrollToIndexEventRef` to avoid considering this as a jump scroll
+                // which prevents rendering for a bit.
+                if (scrollElement.scrollTop !== scrollOffset) {
+                    isScrollToIndexEventRef.current = true;
+                    lastScrollTopRef.current = scrollOffset;
+                    scrollElement.scrollTop = scrollOffset;
+                }
+            });
+        };
+
+        return {
+            getHeight: () => assertExists(scrollRef.current).clientHeight,
+            getContentHeight: () => {
+                // Get the scroll height based exclusively on our first `<div>`. Use
+                // `getBoundingClientRect()` so we have sub-pixel accuracy.
+                return assertExists(scrollRef.current?.firstElementChild).getBoundingClientRect()
+                    .height;
+            },
+            getRenderedRange: () => renderedRangeRef.current,
+            scrollToIndex,
+            scrollToKeyIfExists: (key, options) => {
+                const state = stateRef.current.state;
+                const index = state.getIndexByKeyIfExists(key);
+                if (index === null) return;
+                scrollToIndex(index, options);
+            },
+            getScrollOffset: () => {
+                return assertExists(scrollRef.current).scrollTop;
+            },
+            setScrollOffset: (scrollOffset, {behavior = "instant"} = {}) => {
+                const scrollElement = assertExists(scrollRef.current);
+
+                if (behavior === "smooth") {
+                    scrollElement.scrollTo({top: scrollOffset, behavior: "smooth"});
+                } else {
+                    scrollElement.scrollTop = scrollOffset;
+                }
+            },
+            getKeyByIndexIfExists: index => {
+                const state = stateRef.current.state;
+                return state.getKeyByIndexIfExists(index);
+            },
+            getIndexByKeyIfExists: key => {
+                const state = stateRef.current.state;
+                return state.getIndexByKeyIfExists(key);
+            },
+            getPositionByIndex: index => {
+                const state = stateRef.current.state;
+                return state.getPositionByIndex(index);
+            },
+            getPositionByKeyIfExists: key => {
+                const state = stateRef.current.state;
+                return state.getPositionByKeyIfExists(key);
+            },
+            peekRenderedRangeAfterScrollToIndex: index => {
+                const {state, scrollbarInsetTop, scrollbarInsetBottom} = stateRef.current;
+                const scrollElement = assertExists(scrollRef.current);
+
+                const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
+                    state,
+                    index,
+                    scrollElement,
+                    scrollbarInsetTop,
+                    scrollbarInsetBottom,
+                });
+
+                const peekState = state.updateRenderedRange({
+                    scrollOffset,
+                    itemCount: stateRef.current.itemCount,
+                    getItem: stateRef.current.getItemWithoutRender,
+                });
+
+                return peekState.getRenderedRange();
+            },
+            peekRenderedRangeAfterSetScrollOffset: scrollOffset => {
+                const state = stateRef.current.state;
+
+                const peekState = state.updateRenderedRange({
+                    scrollOffset,
+                    itemCount: stateRef.current.itemCount,
+                    getItem: stateRef.current.getItemWithoutRender,
+                });
+
+                return peekState.getRenderedRange();
+            },
+            getElement: () => assertExists(scrollRef.current),
+            getContentElement: () => assertExists(contentRef.current),
+            getElementByKeyIfExists: key => {
+                const itemRef = itemsRef.current.elementRefByKey.get(key);
+                if (itemRef?.generation !== itemsRef.current.generation) return null;
+                return itemRef.element;
+            },
+        };
+    }, []);
 
     let actualContentHeight = Math.max(contentHeight, extraChildrenContentHeight);
     if (withRoundedContentHeight) actualContentHeight = Math.ceil(actualContentHeight);

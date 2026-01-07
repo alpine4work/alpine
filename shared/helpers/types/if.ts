@@ -5,5 +5,5 @@
 export type If<Condition extends boolean, True, False> = Condition extends true
     ? True
     : Condition extends false
-    ? False
-    : never;
+      ? False
+      : never;

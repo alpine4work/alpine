@@ -485,13 +485,13 @@ function Overlay(
                         : paddingPx +
                           (typeof overlaySink.insetLeft === "string"
                               ? convertRemLengthToPx(overlaySink.insetLeft, spacingScale)
-                              : overlaySink.insetLeft ?? 0),
+                              : (overlaySink.insetLeft ?? 0)),
                     right: sameWidth
                         ? 0
                         : paddingPx +
                           (typeof overlaySink.insetRight === "string"
                               ? convertRemLengthToPx(overlaySink.insetRight, spacingScale)
-                              : overlaySink.insetRight ?? 0),
+                              : (overlaySink.insetRight ?? 0)),
                 };
 
                 return {

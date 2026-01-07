@@ -194,8 +194,8 @@ function deserializeError(
         const errorStackWithoutPrefix = serializedError.stack.startsWith(serverErrorStackPrefix)
             ? serializedError.stack.slice(serverErrorStackPrefix.length)
             : serializedError.stack.startsWith(errorStackPrefix)
-            ? serializedError.stack.slice(errorStackPrefix.length)
-            : serializedError.stack;
+              ? serializedError.stack.slice(errorStackPrefix.length)
+              : serializedError.stack;
 
         error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
     }

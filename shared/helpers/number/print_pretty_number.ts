@@ -24,6 +24,6 @@ export function printPrettyNumber(
     const prettyNumber = formatter.format(number);
 
     return `${prettyNumber}${
-        typeof label === "string" ? ` ${number === 1 ? label : pluralLabel ?? `${label}s`}` : ""
+        typeof label === "string" ? ` ${number === 1 ? label : (pluralLabel ?? `${label}s`)}` : ""
     }`;
 }

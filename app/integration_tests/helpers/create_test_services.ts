@@ -514,8 +514,8 @@ export function createTestServices(): {
                 expires: cookie.maxAge
                     ? Math.round(Date.now() / 1000) + cookie.maxAge
                     : cookie.expires
-                    ? Math.round(cookie.expires.getTime() / 1000)
-                    : undefined,
+                      ? Math.round(cookie.expires.getTime() / 1000)
+                      : undefined,
                 sameSite: cookie.sameSite
                     ? ({strict: "Strict", lax: "Lax", none: "None"} as const)[
                           cookie.sameSite.toLowerCase()

@@ -147,8 +147,8 @@ export default function PostCreateRoute() {
         focusSearchParam === "content"
             ? ("ContentEditor" as const)
             : focusSearchParam === "channel"
-            ? ("ChannelSelector" as const)
-            : null,
+              ? ("ChannelSelector" as const)
+              : null,
     );
 
     useEffect(() => {

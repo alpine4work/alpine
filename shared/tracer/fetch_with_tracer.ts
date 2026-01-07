@@ -144,8 +144,8 @@ export async function fetchWithTracer<ResponseData>(
         typeof url === "string" && typeof window !== "undefined"
             ? new URL(url, window.location.href)
             : typeof url === "string"
-            ? new URL(url)
-            : url;
+              ? new URL(url)
+              : url;
 
     if (process.env.NODE_ENV !== "production") {
         assert(

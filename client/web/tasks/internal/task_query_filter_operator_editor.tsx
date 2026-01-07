@@ -54,8 +54,8 @@ export function TaskQueryFilterOperatorEditor({
                                 backgroundColor: isPressed
                                     ? "grey-10"
                                     : isHovered || isVisible
-                                    ? "grey-5"
-                                    : undefined,
+                                      ? "grey-5"
+                                      : undefined,
                                 borderRadius: "0.5",
                                 fontStyle: "truncate",
                                 color: "grey-60",

@@ -192,10 +192,10 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         inputMode === "url" || autoComplete === "url"
             ? "url"
             : inputMode === "email" || autoComplete === "email"
-            ? "email"
-            : inputMode === "password" || autoComplete === "password"
-            ? "password"
-            : "text";
+              ? "email"
+              : inputMode === "password" || autoComplete === "password"
+                ? "password"
+                : "text";
 
     useLayoutEffectWithoutServerSideWarning(() => {
         const inputElement = assertExists(inputRef.current);

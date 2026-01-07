@@ -30,14 +30,14 @@ function textBetweenWithCodeBlockLineBlockSeparator(
             const nodeText = node.isText
                 ? node.text!.slice(Math.max(from, pos) - pos, to - pos)
                 : !node.isLeaf
-                ? ""
-                : leafText
-                ? typeof leafText === "function"
-                    ? leafText(node)
-                    : leafText
-                : node.type.spec.leafText
-                ? node.type.spec.leafText(node)
-                : "";
+                  ? ""
+                  : leafText
+                    ? typeof leafText === "function"
+                        ? leafText(node)
+                        : leafText
+                    : node.type.spec.leafText
+                      ? node.type.spec.leafText(node)
+                      : "";
 
             if (node.isBlock && ((node.isLeaf && nodeText) || node.isTextblock) && blockSeparator) {
                 if (first) {

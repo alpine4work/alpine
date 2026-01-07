@@ -593,7 +593,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
 
         const previousInstance = previousContextMenuState?.isOpen
             ? previousContextMenuState.instance
-            : previousContextMenuState?.lastInstance ?? null;
+            : (previousContextMenuState?.lastInstance ?? null);
 
         const instance = contextMenuState.isOpen
             ? contextMenuState.instance

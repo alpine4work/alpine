@@ -7,32 +7,32 @@ need a mobile app with full feature compatibility with Alpine's desktop apps so 
 their Alpine workspace on the go. A couple considerations when picking the technology to power our
 mobile apps:
 
--   **As much shared code as possible:** We need to do more with less at Alpine. After all, we're
-    trying to build an entire productivity suite over the next ten years _as a startup_. Building
-    completely native iOS and Android apps is a complete non-starter. This would, long term, require
-    major engineering headcount investments in native iOS and Android teams. Ideally, we'd hire
-    product engineers that build their features across desktop and mobile all at once.
+- **As much shared code as possible:** We need to do more with less at Alpine. After all, we're
+  trying to build an entire productivity suite over the next ten years _as a startup_. Building
+  completely native iOS and Android apps is a complete non-starter. This would, long term, require
+  major engineering headcount investments in native iOS and Android teams. Ideally, we'd hire
+  product engineers that build their features across desktop and mobile all at once.
 
     Not only do we want native iOS and Android apps but we also want our mobile web experience to be
     good! Since Alpine content may be shared with users who don't have the Alpine app on their
     phone.
 
--   **See a path long term to a quality level that matches the platform's own apps:** Over the next
-    ten years we'll eventually reach a place where we're competing against the platform's own built
-    in apps. (e.g. on Apple our documents product competes against Apple Notes, our tasks product
-    competes against Apple Reminders, and our chat product competes against iMessage.) We need to
-    see a path where our products can reach a similar level of quality as the platform's own apps so
-    we can compete on features + integration not fundamentals.
+- **See a path long term to a quality level that matches the platform's own apps:** Over the next
+  ten years we'll eventually reach a place where we're competing against the platform's own built in
+  apps. (e.g. on Apple our documents product competes against Apple Notes, our tasks product
+  competes against Apple Reminders, and our chat product competes against iMessage.) We need to see
+  a path where our products can reach a similar level of quality as the platform's own apps so we
+  can compete on features + integration not fundamentals.
 
     However, this is not our #1 priority when the company first meets the market. We need a high
     enough quality level to pitch ourselves as the craft obsessed company but we can sacrifice some
     quality for other goals, like shared code.
 
--   **Ideally, we have over-the-air updates:** Instead of going through Apple's app review every
-    time we need to push a change, ideally we want the capability to deploy code changes at any
-    time. This requires using a scripting language (like…JavaScript) and downloading scripts from
-    the server. This capability is supported by
-    [React Native frameworks like Expo](https://docs.expo.dev/eas-update/introduction/).
+- **Ideally, we have over-the-air updates:** Instead of going through Apple's app review every time
+  we need to push a change, ideally we want the capability to deploy code changes at any time. This
+  requires using a scripting language (like…JavaScript) and downloading scripts from the server.
+  This capability is supported by
+  [React Native frameworks like Expo](https://docs.expo.dev/eas-update/introduction/).
 
 Eventually we'll also want to have an offline mode. It's not necessary for at least a couple years
 but something to keep in mind while we make technical decisions.
@@ -59,32 +59,32 @@ simplification to say the entire app is web code.
 In order to create a best-in-class experience on top of a web view, here's some of what we implement
 in our native wrapper for iOS:
 
--   **Platform navigation animations.** When you tap to navigate to a new screen it uses the iOS
-    platform animation. We do this by taking a screenshot of the page before it re-renders then
-    animating the newly rendered page on top of the screenshot. We support both the standard iOS
-    push/pop animations as well as modals opening from the bottom of the screen.
+- **Platform navigation animations.** When you tap to navigate to a new screen it uses the iOS
+  platform animation. We do this by taking a screenshot of the page before it re-renders then
+  animating the newly rendered page on top of the screenshot. We support both the standard iOS
+  push/pop animations as well as modals opening from the bottom of the screen.
 
--   **Push notification support.** We request device tokens in native Swift code and send them to
-    our server through JavaScript code. This allows us to send proper push notifications to the app
-    (as opposed to the [web push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)
-    which is limited compared to what's natively supported).
+- **Push notification support.** We request device tokens in native Swift code and send them to our
+  server through JavaScript code. This allows us to send proper push notifications to the app (as
+  opposed to the [web push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) which is
+  limited compared to what's natively supported).
 
--   **Custom keyboard handling.** The default WebKit handling for keyboards in iOS is pretty bad. So
-    we completely reimplement keyboard handling in Swift + JavaScript. Manually scrolling our views
-    when the keyboard opens.
+- **Custom keyboard handling.** The default WebKit handling for keyboards in iOS is pretty bad. So
+  we completely reimplement keyboard handling in Swift + JavaScript. Manually scrolling our views
+  when the keyboard opens.
 
--   **Custom keyboard accessory views.** Our message input animates up with the keyboard. We
-    accomplish this by finding the `UIView` that renders the message input and animating it with the
-    keyboard in native Swift code.
+- **Custom keyboard accessory views.** Our message input animates up with the keyboard. We
+  accomplish this by finding the `UIView` that renders the message input and animating it with the
+  keyboard in native Swift code.
 
--   **Proper scrollbar insets.** On views that use our `useNavigationBar()` UI for a navigation bar
-    that disappears when you scroll we need the scrollbar to be inset so that it doesn't cover the
-    navigation bar when the user has scrolled to the top of the view. There's no control for this in
-    CSS but we can control this in Swift code.
+- **Proper scrollbar insets.** On views that use our `useNavigationBar()` UI for a navigation bar
+  that disappears when you scroll we need the scrollbar to be inset so that it doesn't cover the
+  navigation bar when the user has scrolled to the top of the view. There's no control for this in
+  CSS but we can control this in Swift code.
 
--   **Access to native APIs like haptic feedback.** We expose these native APIs through
-    `NativeMobileBridge`. See the documentation on that class for what the various methods we
-    support do.
+- **Access to native APIs like haptic feedback.** We expose these native APIs through
+  `NativeMobileBridge`. See the documentation on that class for what the various methods we support
+  do.
 
 With all this work, the app we've built feels pretty great! There's a lot of work left we can do to
 improve the user experience but we have a _very_ promising starting point.
@@ -92,11 +92,11 @@ improve the user experience but we have a _very_ promising starting point.
 There are still some frustrating limitations. Here are some that we haven't yet found workarounds
 for:
 
--   JavaScript code is terminated by WebKit when the app is closed for ~30s causing us to reset the
-    page's state whenever the user reopens the app.
+- JavaScript code is terminated by WebKit when the app is closed for ~30s causing us to reset the
+  page's state whenever the user reopens the app.
 
--   The text cursor is rendered on a layer above all other web views. So it's not covered by
-    navigation bars or footers and doesn't move during the keyboard open animation or a scroll.
+- The text cursor is rendered on a layer above all other web views. So it's not covered by
+  navigation bars or footers and doesn't move during the keyboard open animation or a scroll.
 
 However, we're betting that long term we'll be able to fork the web browser to get complete control
 over our application rendering environment to be able to fix every issue we run into. More on this
@@ -163,16 +163,16 @@ but will need to be addressed if we hope to compete against apps like Apple Note
 
 ## Alternatives considered
 
--   **Build fully native apps:** Straight up not an option right now. We don't have the engineering
-    bandwidth. Maybe worth considering converting some screens to fully native views in the future
-    but this would require staffing native development teams which is expensive. We'll likely always
-    need some web views to render `<ContentEditor>`.
+- **Build fully native apps:** Straight up not an option right now. We don't have the engineering
+  bandwidth. Maybe worth considering converting some screens to fully native views in the future but
+  this would require staffing native development teams which is expensive. We'll likely always need
+  some web views to render `<ContentEditor>`.
 
--   **Use [React Native](https://reactnative.dev/) (and maybe
-    [`react-native-web`](https://necolas.github.io/react-native-web/)):** Here we'd build the mobile
-    app (and only the mobile app, not the desktop app) with React Native and ship it as the mobile
-    web app with `react-native-web`. `<ContentEditor>` would still need to be a web view but
-    everything else could be React Native.
+- **Use [React Native](https://reactnative.dev/) (and maybe
+  [`react-native-web`](https://necolas.github.io/react-native-web/)):** Here we'd build the mobile
+  app (and only the mobile app, not the desktop app) with React Native and ship it as the mobile web
+  app with `react-native-web`. `<ContentEditor>` would still need to be a web view but everything
+  else could be React Native.
 
     I quite like this architecture concept. If we run into issues with our web app approach this is
     my preferred backup option. It's a little frustrating we won't get JIT compilation for our

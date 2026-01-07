@@ -742,81 +742,77 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
-    useImperativeHandle(
-        editorRef,
-        () => {
-            const unimplementedDispatchCommand = () => {
-                throw new UnimplementedError(
-                    "Dispatching a content editor command on initial render is not implemented",
-                );
-            };
+    useImperativeHandle(editorRef, () => {
+        const unimplementedDispatchCommand = () => {
+            throw new UnimplementedError(
+                "Dispatching a content editor command on initial render is not implemented",
+            );
+        };
 
-            return {
-                getContainerElement: () => assertExists(containerRef.current),
-                getEditorElement: () =>
-                    assertExists(containerRef.current?.firstElementChild) as HTMLDivElement,
-                getState: () => state,
-                isFocused: () => false,
-                focus: () => {
-                    throw new UnimplementedError(
-                        "Focusing content editor on initial render is not implemented",
-                    );
-                },
-                blur: () => {
-                    // Nothing to blur
-                },
-                contains: () => {
-                    throw new UnimplementedError(
-                        "Content editor contains on initial render is not implemented",
-                    );
-                },
-                selectAll: () => {
-                    throw new UnimplementedError(
-                        "Selecting all text in content editor on initial render is not implemented",
-                    );
-                },
-                scrollIntoView: () => {
-                    throw new UnimplementedError(
-                        "Scrolling content editor selection into view on initial render is not implemented",
-                    );
-                },
-                coordsAtPos: () => {
-                    throw new UnimplementedError(
-                        "Getting coordinates for position in content editor on initial render is not implemented",
-                    );
-                },
-                nodeDom: () => {
-                    throw new UnimplementedError(
-                        "Getting DOM for position in content editor on initial render is not implemented",
-                    );
-                },
-                undo: unimplementedDispatchCommand,
-                redo: unimplementedDispatchCommand,
-                insertUnorderedListItem: unimplementedDispatchCommand,
-                insertOrderedListItem: unimplementedDispatchCommand,
-                insertCheckListItem: unimplementedDispatchCommand,
-                insertHeading: unimplementedDispatchCommand,
-                insertDivider: unimplementedDispatchCommand,
-                insertQuoteBlock: unimplementedDispatchCommand,
-                insertCodeBlock: unimplementedDispatchCommand,
-                insertFiles: unimplementedDispatchCommand,
-                insertTable: unimplementedDispatchCommand,
-                setHasPresentShortcut: unimplementedDispatchCommand,
-                setCover: unimplementedDispatchCommand,
-                openMobileKeyboardToolbarCommentInputIfPossible: () => {
-                    throw new UnimplementedError(
-                        "Opening the content editor’s mobile keyboard toolbar comment input on initial render is not implemented",
-                    );
-                },
-                _getInternalView: () => {
-                    throw new UnimplementedError(
-                        "Getting internal ProseMirror view on initial render is not implemented",
-                    );
-                },
-            };
-        },
-        [state],
-    );
+        return {
+            getContainerElement: () => assertExists(containerRef.current),
+            getEditorElement: () =>
+                assertExists(containerRef.current?.firstElementChild) as HTMLDivElement,
+            getState: () => state,
+            isFocused: () => false,
+            focus: () => {
+                throw new UnimplementedError(
+                    "Focusing content editor on initial render is not implemented",
+                );
+            },
+            blur: () => {
+                // Nothing to blur
+            },
+            contains: () => {
+                throw new UnimplementedError(
+                    "Content editor contains on initial render is not implemented",
+                );
+            },
+            selectAll: () => {
+                throw new UnimplementedError(
+                    "Selecting all text in content editor on initial render is not implemented",
+                );
+            },
+            scrollIntoView: () => {
+                throw new UnimplementedError(
+                    "Scrolling content editor selection into view on initial render is not implemented",
+                );
+            },
+            coordsAtPos: () => {
+                throw new UnimplementedError(
+                    "Getting coordinates for position in content editor on initial render is not implemented",
+                );
+            },
+            nodeDom: () => {
+                throw new UnimplementedError(
+                    "Getting DOM for position in content editor on initial render is not implemented",
+                );
+            },
+            undo: unimplementedDispatchCommand,
+            redo: unimplementedDispatchCommand,
+            insertUnorderedListItem: unimplementedDispatchCommand,
+            insertOrderedListItem: unimplementedDispatchCommand,
+            insertCheckListItem: unimplementedDispatchCommand,
+            insertHeading: unimplementedDispatchCommand,
+            insertDivider: unimplementedDispatchCommand,
+            insertQuoteBlock: unimplementedDispatchCommand,
+            insertCodeBlock: unimplementedDispatchCommand,
+            insertFiles: unimplementedDispatchCommand,
+            insertTable: unimplementedDispatchCommand,
+            setHasPresentShortcut: unimplementedDispatchCommand,
+            setCover: unimplementedDispatchCommand,
+            openMobileKeyboardToolbarCommentInputIfPossible: () => {
+                throw new UnimplementedError(
+                    "Opening the content editor’s mobile keyboard toolbar comment input on initial render is not implemented",
+                );
+            },
+            _getInternalView: () => {
+                throw new UnimplementedError(
+                    "Getting internal ProseMirror view on initial render is not implemented",
+                );
+            },
+        };
+    }, [state]);
 
     return (
         <div
@@ -4703,8 +4699,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                         selectedLint.suggestions.length === 0
                             ? "No Suggestions"
                             : selectedLint.suggestions.length === 1
-                            ? "Suggestion"
-                            : "Suggestions";
+                              ? "Suggestion"
+                              : "Suggestions";
 
                     if (selectedLint.category === "spelling") {
                         lintMenuActions.push({
@@ -6065,7 +6061,7 @@ class ContentEditorFileDragState {
             // call `getBoundingClientRect()` once.
             const offsetParentRect: DOMRect | null =
                 lastOffsetParent !== dropTarget.offsetParent
-                    ? dropTarget.offsetParent?.getBoundingClientRect() ?? null
+                    ? (dropTarget.offsetParent?.getBoundingClientRect() ?? null)
                     : lastOffsetParentRect;
             lastOffsetParent = dropTarget.offsetParent;
             lastOffsetParentRect = offsetParentRect;

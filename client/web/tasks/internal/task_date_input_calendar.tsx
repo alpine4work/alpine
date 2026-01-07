@@ -487,17 +487,17 @@ function TaskDateInputCalendarCell({
                         backgroundColor: isSelected
                             ? "grey-10"
                             : // We use a hover state here since picking the right date requires some motor
-                            // precision. So hovering helps reduce the mental load as your mouse tracks to
-                            // the right position.
-                            isHovered
-                            ? "grey-5"
-                            : undefined,
+                              // precision. So hovering helps reduce the mental load as your mouse tracks to
+                              // the right position.
+                              isHovered
+                              ? "grey-5"
+                              : undefined,
                         color:
                             isCurrentDate && !isDimmed
                                 ? {light: "theme-50", dark: "theme-70"}
                                 : isDimmed && !isSelected
-                                ? "grey-40"
-                                : undefined,
+                                  ? "grey-40"
+                                  : undefined,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",

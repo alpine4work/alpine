@@ -478,8 +478,8 @@ function computeUpdateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 (loudNotificationCountDifference > 0
                     ? loudNotificationInboxGenerationIncrement
                     : hasActorUnarchivedOwnEntry
-                    ? unarchivedInboxOwnEntryGenerationIncrement
-                    : 0),
+                      ? unarchivedInboxOwnEntryGenerationIncrement
+                      : 0),
         );
 
         newInboxEntryItemEnteredTime = hasActorUnarchivedOwnEntry

@@ -44,7 +44,8 @@ export async function getChannelPreviewIfPossible(
             id: channelId,
             spaceId: channelItem.spaceId,
             createdTime: channelItem.createdTime,
-            version: "id" in channelItem ? channelItem.version : channelItem.updateLockVersion ?? 0,
+            version:
+                "id" in channelItem ? channelItem.version : (channelItem.updateLockVersion ?? 0),
             name: channelItem.name,
             accessPolicy: channelItem.accessPolicy,
         }),

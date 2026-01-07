@@ -59,17 +59,17 @@ otherwise.
 
 Some problems with this approach:
 
--   There is no CSS bundle splitting. All CSS is in one file. However, because we use atomic CSS
-    with sprinkles our CSS file is relatively small (you have one set of shared styles for every
-    route). We can also cache this CSS file for every subsequent page load.
--   Custom CSS is not written inline with components. Vanilla-extract normally recommends writing
-    `.css.ts` files next to the files which need them. For example `content_editor.tsx` and
-    `content_editor.css.ts`. However, we can't do this because styles need to be in one directory.
-    Given we use atomic CSS with sprinkles, most styles are written inline in HTML so this is not
-    really a problem.
--   No just-in-time (JIT) compiler. [Tailwind CSS has a JIT][8] compiler which scans your source
-    code and only includes CSS for classes you actually use. All styles in our sprinkles atomic CSS
-    system need to be included in the CSS bundle regardless of if they are ever used or not.
+- There is no CSS bundle splitting. All CSS is in one file. However, because we use atomic CSS with
+  sprinkles our CSS file is relatively small (you have one set of shared styles for every route). We
+  can also cache this CSS file for every subsequent page load.
+- Custom CSS is not written inline with components. Vanilla-extract normally recommends writing
+  `.css.ts` files next to the files which need them. For example `content_editor.tsx` and
+  `content_editor.css.ts`. However, we can't do this because styles need to be in one directory.
+  Given we use atomic CSS with sprinkles, most styles are written inline in HTML so this is not
+  really a problem.
+- No just-in-time (JIT) compiler. [Tailwind CSS has a JIT][8] compiler which scans your source code
+  and only includes CSS for classes you actually use. All styles in our sprinkles atomic CSS system
+  need to be included in the CSS bundle regardless of if they are ever used or not.
 
 All in all, these problems don't seem too bad.
 
@@ -81,8 +81,8 @@ All in all, these problems don't seem too bad.
 
 [Tailwind CSS][9] is a great CSS framework and close to what we want but:
 
--   Isn't type safe like vanilla-extract
--   The React ergonomics is a gnarly `className` instead of a prop-based `<Box>` component
+- Isn't type safe like vanilla-extract
+- The React ergonomics is a gnarly `className` instead of a prop-based `<Box>` component
 
 Given atomic CSS is the CSS methodology which performs best at scale (see this talk on [Facebook's
 stylex framework][10], also see [React Native for Web][11] which compiles styles to atomic CSS for

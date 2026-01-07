@@ -792,4 +792,4 @@ export const NativeMobileBridge: {
          */
         playSelectionChanged(): void;
     };
-} | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;
+} | null = typeof window !== "undefined" ? ((window as any).__NativeMobileBridge ?? null) : null;

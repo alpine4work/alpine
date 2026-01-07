@@ -49,7 +49,7 @@ export function expectInboxChatEntryModel({
             otherChatAccount instanceof TestSession
                 ? expect.objectContaining({id: otherChatAccount.account.id})
                 : otherChatAccount instanceof TestAccount
-                ? expect.objectContaining({id: otherChatAccount.id})
-                : otherChatAccount,
+                  ? expect.objectContaining({id: otherChatAccount.id})
+                  : otherChatAccount,
     });
 }

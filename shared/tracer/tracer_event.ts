@@ -40,7 +40,7 @@ export class TracerEvent {
             this._flatEventData =
                 this._eventData !== null
                     ? buildTracerEventFlatData(this._eventData, this._propagatedEventFlatData)
-                    : this._propagatedEventFlatData ?? {};
+                    : (this._propagatedEventFlatData ?? {});
         }
         return this._flatEventData;
     }

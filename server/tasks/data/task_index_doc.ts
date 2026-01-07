@@ -711,8 +711,8 @@ export function getTaskIndexDocDisplayStatus(task: {
     return task.status.value.type === "Closed"
         ? "Closed"
         : task.assignee.value && task.rawAssigneeStatus.value.type === "Active"
-        ? "OpenActive"
-        : "OpenInactive";
+          ? "OpenActive"
+          : "OpenInactive";
 }
 
 export function getTaskIndexDocAssigneeStatus(task: {

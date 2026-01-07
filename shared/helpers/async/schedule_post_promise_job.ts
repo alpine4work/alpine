@@ -46,15 +46,15 @@ export const schedulePostPromiseJob: (action: () => void) => void =
               });
           }
         : // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-        // @ts-ignore: This function is defined in `@types/node` which isn't available
-        // when Bazel is type checking `shared`.
-        typeof setImmediate === "function"
-        ? action => {
-              // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-              // @ts-ignore: This function is defined in `@types/node` which isn't available
-              // when Bazel is type checking `shared`.
-              setImmediate(action);
-          }
-        : action => {
-              setTimeout(action);
-          };
+          // @ts-ignore: This function is defined in `@types/node` which isn't available
+          // when Bazel is type checking `shared`.
+          typeof setImmediate === "function"
+          ? action => {
+                // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+                // @ts-ignore: This function is defined in `@types/node` which isn't available
+                // when Bazel is type checking `shared`.
+                setImmediate(action);
+            }
+          : action => {
+                setTimeout(action);
+            };

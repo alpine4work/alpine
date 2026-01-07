@@ -2166,8 +2166,7 @@ test("check list with big phantom jump from level 0 to 4", async () => {
                                                                                     type: "CheckList",
                                                                                     items: [
                                                                                         {
-                                                                                            checked:
-                                                                                                false,
+                                                                                            checked: false,
                                                                                             elements:
                                                                                                 [
                                                                                                     {

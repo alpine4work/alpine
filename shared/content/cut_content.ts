@@ -52,7 +52,7 @@ export function cutContent(
 
         let lastOrderedListItemOrderStart =
             toOrderedListItemState !== null
-                ? orderedListItemNumberByNode.get(toOrderedListItemState.node) ?? null
+                ? (orderedListItemNumberByNode.get(toOrderedListItemState.node) ?? null)
                 : null;
 
         if (firstOrderedListItemOrderStart === null) {
@@ -143,10 +143,10 @@ function setFirstOrderedListItemOrderStart(
             index === 0
                 ? firstOrderedListItemOrderStart
                 : fromOrderedListItemState.parentNode === toOrderedListItemState?.parentNode &&
-                  lastOrderedListItemOrderStart !== null &&
-                  index === node.content.content.length - 1
-                ? lastOrderedListItemOrderStart
-                : assertExists(orderedListItemNumberByNode.get(childNode));
+                    lastOrderedListItemOrderStart !== null &&
+                    index === node.content.content.length - 1
+                  ? lastOrderedListItemOrderStart
+                  : assertExists(orderedListItemNumberByNode.get(childNode));
 
         if (orderStart === 1) return childNode;
 

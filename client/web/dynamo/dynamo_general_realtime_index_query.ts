@@ -401,7 +401,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                         result.startCursorBound !== null &&
                         result.startCursorBound > result.pageInfo.afterCursor
                             ? result.startCursorBound
-                            : result.pageInfo.afterCursor ?? result.startCursorBound;
+                            : (result.pageInfo.afterCursor ?? result.startCursorBound);
 
                     if (
                         resultStartCursorBound === null ||
@@ -427,7 +427,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
                         result.endCursorBound !== null &&
                         result.endCursorBound < result.pageInfo.beforeCursor
                             ? result.endCursorBound
-                            : result.pageInfo.beforeCursor ?? result.endCursorBound;
+                            : (result.pageInfo.beforeCursor ?? result.endCursorBound);
 
                     if (
                         resultEndCursorBound === null ||

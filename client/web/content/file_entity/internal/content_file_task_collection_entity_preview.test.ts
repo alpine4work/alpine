@@ -1,7 +1,7 @@
 // To update generated snapshots run:
 //
 // ```
-// bazel run //client/web/content:file_entity/internal/content_file_task_collection_entity_preview_test -- --updateSnapshot
+// bazel run //client/web/content/file_entity:internal/content_file_task_collection_entity_preview_test -- --updateSnapshot
 // ```
 
 import {renderContentFileTaskCollectionEntityPreview} from "~/client/web/content/file_entity/internal/content_file_task_collection_entity_preview.js";
@@ -103,7 +103,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
             layouts.forEach(layout => {
                 platforms.forEach(platform => {
                     testCases.forEach(testCase => {
-                        test(`${layout.name} ${platform} ${testCase.name}`, () => {
+                        test(`${layout.name} ${platform} ${testCase.name}`, async () => {
                             const fileEntity = createTaskCollectionEntityModel(
                                 "Test Collection",
                                 "blue",
@@ -127,7 +127,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
                             );
 
                             expect(
-                                normalizeHtmlForFileEntityTest(html.generateHtml()),
+                                await normalizeHtmlForFileEntityTest(html.generateHtml()),
                             ).toMatchSnapshot();
                         });
                     });
@@ -151,7 +151,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
 
     describe("colors", () => {
         colors.forEach(color => {
-            test(`${color} collection`, () => {
+            test(`${color} collection`, async () => {
                 const fileEntity = createTaskCollectionEntityModel("Color Test Collection", color, [
                     {title: "Color Task"},
                 ]);
@@ -164,7 +164,7 @@ describe("renderContentFileTaskCollectionEntityPreview - Snapshots", () => {
                     spacingScale: "medium",
                 });
 
-                expect(normalizeHtmlForFileEntityTest(html.generateHtml())).toMatchSnapshot();
+                expect(await normalizeHtmlForFileEntityTest(html.generateHtml())).toMatchSnapshot();
             });
         });
     });

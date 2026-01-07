@@ -120,8 +120,8 @@ export function ErrorDisplayMessageRenderer({
                 colorSchemeOverride === "light"
                     ? `${color}-const`
                     : colorSchemeOverride === "dark"
-                    ? `${invertColor(color)}-const`
-                    : color
+                      ? `${invertColor(color)}-const`
+                      : color
             }
             fontStyle="normal"
             fontSize={fontSize}
@@ -189,8 +189,8 @@ export function ErrorDisplayMessageRenderer({
                             colorSchemeOverride === "light"
                                 ? `${debugColor}-const`
                                 : colorSchemeOverride === "dark"
-                                ? `${invertColor(debugColor)}-const`
-                                : debugColor
+                                  ? `${invertColor(debugColor)}-const`
+                                  : debugColor
                         }
                         fontSize={
                             {

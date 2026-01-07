@@ -102,8 +102,8 @@ export class TestSpace {
             account instanceof TestSpaceSession
                 ? account.account.id
                 : account instanceof TestAccount
-                ? account.id
-                : account,
+                  ? account.id
+                  : account,
         );
     }
 
@@ -202,17 +202,17 @@ export class TestSpace {
                 result.alreadyMemberEmailAddresses.length
                     ? "alreadyMember"
                     : result.invalidEmailAddresses.length
-                    ? "invalidEmail"
-                    : result.rejectedAsSpamEmailAddresses.length
-                    ? "rejectedAsSpam"
-                    : result.unexpectedFailureEmailAddresses.size
-                    ? `unexpectedFailure:\n${
-                          // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
-                          // fixing for now.
-                          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                          result.unexpectedFailureEmailAddresses.values().next().value
-                      }`
-                    : "none"
+                      ? "invalidEmail"
+                      : result.rejectedAsSpamEmailAddresses.length
+                        ? "rejectedAsSpam"
+                        : result.unexpectedFailureEmailAddresses.size
+                          ? `unexpectedFailure:\n${
+                                // TODO(calebmer, #typescript-5.9.2): Discovered after TS version upgrade, not
+                                // fixing for now.
+                                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                                result.unexpectedFailureEmailAddresses.values().next().value
+                            }`
+                          : "none"
             }`,
         );
 

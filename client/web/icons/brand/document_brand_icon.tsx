@@ -28,11 +28,11 @@ function DocumentBrandIcon({
                 ? colors[contentStyles.brandIconDefaultColor]
                 : invertedColorsWithShade[contentStyles.brandIconDefaultColor]
             : contextColor === colorSchemeVars["grey-90"] ||
-              contextColor === colorSchemeVars["grey-100"]
-            ? contextColor
-            : colorSchemeVars[contentStyles.brandIconDefaultColor];
+                contextColor === colorSchemeVars["grey-100"]
+              ? contextColor
+              : colorSchemeVars[contentStyles.brandIconDefaultColor];
 
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+    const actualSize = size ? spacing[size] : (contextSize ?? spacing["5"]);
 
     return (
         <svg
@@ -58,8 +58,8 @@ function DocumentBrandIcon({
                     withoutStyleSheet === "light"
                         ? colors[`blue-${brandIconSplashColorShade.light}`]
                         : withoutStyleSheet === "dark"
-                        ? invertedColorsWithShade[`blue-${brandIconSplashColorShade.dark}`]
-                        : undefined
+                          ? invertedColorsWithShade[`blue-${brandIconSplashColorShade.dark}`]
+                          : undefined
                 }
                 opacity={brandIconSplashColorOpacity}
                 d="M6.146 5.312c0-.23.187-.416.417-.416h6.91c.111 0 .217.044.295.122l4.131 4.13a.416.416 0 0 1 .122.295v9.411c0 .23-.186.417-.416.417H6.563a.417.417 0 0 1-.417-.417V5.312Z"

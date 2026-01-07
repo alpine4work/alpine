@@ -267,7 +267,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
                     latestArchivingCommentIndex:
                         isArchived && !oldItem?.isArchived
                             ? event.commentIndex
-                            : oldItem?.latestArchivingCommentIndex ?? null,
+                            : (oldItem?.latestArchivingCommentIndex ?? null),
                     otherCommentAuthorId,
                     // Always set this to false when a new comment is created.
                     isFromNewCommentThread: false,

@@ -1020,8 +1020,8 @@ export function TaskPersonalView({
         previousGridView: !isOverdueGridViewEmpty
             ? overdueGridViewResult
             : !isActiveGridViewEmpty
-            ? activeGridViewResult
-            : undefined,
+              ? activeGridViewResult
+              : undefined,
         previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
@@ -1208,10 +1208,10 @@ export function TaskPersonalView({
         previousGridView: !isDueTodayGridViewEmpty
             ? dueTodayGridViewResult
             : !isOverdueGridViewEmpty
-            ? overdueGridViewResult
-            : !isActiveGridViewEmpty
-            ? activeGridViewResult
-            : undefined,
+              ? overdueGridViewResult
+              : !isActiveGridViewEmpty
+                ? activeGridViewResult
+                : undefined,
         previousGridViewAnimations,
         nextGridView: {
             focusFirstTaskTitleStart: () => {
@@ -1375,12 +1375,12 @@ export function TaskPersonalView({
         previousGridView: !isDueSoonGridViewEmpty
             ? dueSoonGridViewResult
             : !isDueTodayGridViewEmpty
-            ? dueTodayGridViewResult
-            : !isOverdueGridViewEmpty
-            ? overdueGridViewResult
-            : !isActiveGridViewEmpty
-            ? activeGridViewResult
-            : undefined,
+              ? dueTodayGridViewResult
+              : !isOverdueGridViewEmpty
+                ? overdueGridViewResult
+                : !isActiveGridViewEmpty
+                  ? activeGridViewResult
+                  : undefined,
         previousGridViewAnimations,
     });
 
@@ -1729,7 +1729,7 @@ export function TaskPersonalView({
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
                     scrollbarInsetTop={
                         routeLayout === "narrow"
-                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            ? (scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop)
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={
@@ -2157,8 +2157,8 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
                             isActiveVisibleSection
                                 ? navigationBarStyles.titleFadeInAnimationClassName
                                 : hasActivePreviousVisibleSection
-                                ? navigationBarStyles.titleFadeOutAnimationClassName
-                                : undefined
+                                  ? navigationBarStyles.titleFadeOutAnimationClassName
+                                  : undefined
                         }
                     >
                         Active
@@ -2176,8 +2176,8 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
                             isOverdueVisibleSection
                                 ? navigationBarStyles.titleFadeInAnimationClassName
                                 : hasOverduePreviousVisibleSection
-                                ? navigationBarStyles.titleFadeOutAnimationClassName
-                                : undefined
+                                  ? navigationBarStyles.titleFadeOutAnimationClassName
+                                  : undefined
                         }
                         position="absolute"
                         left="0"
@@ -2198,8 +2198,8 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
                             isDueTodayVisibleSection
                                 ? navigationBarStyles.titleFadeInAnimationClassName
                                 : hasDueTodayPreviousVisibleSection
-                                ? navigationBarStyles.titleFadeOutAnimationClassName
-                                : undefined
+                                  ? navigationBarStyles.titleFadeOutAnimationClassName
+                                  : undefined
                         }
                         position="absolute"
                         left="0"
@@ -2220,8 +2220,8 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
                             isDueSoonVisibleSection
                                 ? navigationBarStyles.titleFadeInAnimationClassName
                                 : hasDueSoonPreviousVisibleSection
-                                ? navigationBarStyles.titleFadeOutAnimationClassName
-                                : undefined
+                                  ? navigationBarStyles.titleFadeOutAnimationClassName
+                                  : undefined
                         }
                         position="absolute"
                         left="0"

@@ -267,7 +267,10 @@ export class ContentTableCellSelection extends Selection {
 }
 
 class ContentTableCellSelectionBookmark implements SelectionBookmark {
-    constructor(public anchor: number, public head: number) {}
+    constructor(
+        public anchor: number,
+        public head: number,
+    ) {}
 
     map(mapping: Mappable): ContentTableCellSelectionBookmark {
         return new ContentTableCellSelectionBookmark(

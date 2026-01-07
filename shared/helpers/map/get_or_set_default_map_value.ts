@@ -9,13 +9,11 @@ interface MapInterface<Key, Value> {
     set(key: Key, value: Value): void;
 }
 
-type MapKeyType<Map extends MapInterface<any, any>> = Map extends MapInterface<infer Key, any>
-    ? Key
-    : never;
+type MapKeyType<Map extends MapInterface<any, any>> =
+    Map extends MapInterface<infer Key, any> ? Key : never;
 
-type MapValueType<Map extends MapInterface<any, any>> = Map extends MapInterface<any, infer Value>
-    ? Value
-    : never;
+type MapValueType<Map extends MapInterface<any, any>> =
+    Map extends MapInterface<any, infer Value> ? Value : never;
 
 /**
  * Get a value at the corresponding key from a map. If no entry for that key

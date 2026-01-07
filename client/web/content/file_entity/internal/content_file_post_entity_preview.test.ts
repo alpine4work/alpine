@@ -165,7 +165,7 @@ describe("renderContentFilePostEntityPreview - HTML Snapshots", () => {
             layouts.forEach(layout => {
                 platforms.forEach(platform => {
                     testCases.forEach(testCase => {
-                        test(`${layout.name} ${platform} ${testCase.name}`, () => {
+                        test(`${layout.name} ${platform} ${testCase.name}`, async () => {
                             const fileEntity = testCase.createEntity();
                             const html = new HtmlElementGenerator("div");
 
@@ -183,7 +183,7 @@ describe("renderContentFilePostEntityPreview - HTML Snapshots", () => {
                             });
 
                             expect(
-                                normalizeHtmlForFileEntityTest(html.generateHtml()),
+                                await normalizeHtmlForFileEntityTest(html.generateHtml()),
                             ).toMatchSnapshot();
                         });
                     });

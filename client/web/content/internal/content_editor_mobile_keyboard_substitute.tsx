@@ -189,7 +189,7 @@ export function ContentEditorMobileKeyboardSubstitute({
     const activeHighlightMark = useMemo(
         () =>
             schema.marks.highlight
-                ? selectionMarks.find(mark => mark.type.name === "highlight") ?? null
+                ? (selectionMarks.find(mark => mark.type.name === "highlight") ?? null)
                 : null,
         [schema.marks.highlight, selectionMarks],
     );
@@ -681,10 +681,10 @@ function ContentEditorMobileKeyboardSubstituteButton({
                     isPressedAndActive
                         ? "grey-20"
                         : isPressed || isActive
-                        ? "grey-10"
-                        : isHovered
-                        ? "grey-5"
-                        : undefined
+                          ? "grey-10"
+                          : isHovered
+                            ? "grey-5"
+                            : undefined
                 }
             >
                 <IconContext.Provider value={{color: "currentColor", size: spacing["4"]}}>

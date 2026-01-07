@@ -38,7 +38,8 @@ export type AgentLinkPaginatedMessagesListPageInfo =
           readonly cursor: number;
       };
 type AgentLinkPaginatedMessagesListCommonOptions<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > = {
     readonly paginationType: AgentLinkPaginationType;
     readonly pageNumber: number;
@@ -115,7 +116,8 @@ type AgentLinkPaginatedMessagesListCommonOptions<
 };
 
 export type AgentTaskCommentsPageLink<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
     readonly type: "TaskComments";
     readonly taskId: TaskId;
@@ -126,7 +128,8 @@ export type AgentTaskCommentsPageLink<
 };
 
 export type AgentChatMessagesPageLink<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
     readonly type: "ChatMessages";
     readonly chatId: ChatId;
@@ -136,7 +139,8 @@ export type AgentChatMessagesPageLink<
 };
 
 export type AgentDocumentCommentsCommentsPageLink<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
     readonly type: "DocumentCommentThreadComments";
     readonly documentId: DocumentId;
@@ -146,7 +150,8 @@ export type AgentDocumentCommentsCommentsPageLink<
     readonly label: string;
 };
 export type AgentPaginatedMessagesListLink<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > =
     | AgentChatMessagesPageLink<PageInfo>
     | AgentDocumentCommentsCommentsPageLink<PageInfo>
@@ -156,7 +161,8 @@ export type AgentPaginatedMessagesListLink<
 // the list of messages is the post itself. So `/posts/messages/{index}` is not the first
 // message. Therefore, the data loading logic is different than the other message list links.
 export type AgentPostCommentsLink<
-    PageInfo extends AgentLinkPaginatedMessagesListPageInfo = AgentLinkPaginatedMessagesListPageInfo,
+    PageInfo extends AgentLinkPaginatedMessagesListPageInfo =
+        AgentLinkPaginatedMessagesListPageInfo,
 > = AgentLinkPaginatedMessagesListCommonOptions<PageInfo> & {
     readonly type: "PostComments";
     readonly postId: PostId;

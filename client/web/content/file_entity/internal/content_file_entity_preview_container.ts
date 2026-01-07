@@ -54,10 +54,10 @@ export function setupContentFileEntityPreviewContainer(
     const containerPadding = isSmallerThanFourthOfBlockMaxWidth
         ? "2"
         : isSmallerThanThirdOfBlockMaxWidth
-        ? "3"
-        : isSmallerThanHalfOfBlockMaxWidth
-        ? "4"
-        : "5";
+          ? "3"
+          : isSmallerThanHalfOfBlockMaxWidth
+            ? "4"
+            : "5";
 
     const transformScale =
         (isSmallerThanFourthOfBlockMaxWidth
@@ -66,8 +66,8 @@ export function setupContentFileEntityPreviewContainer(
                   isSmallerThanThirdOfBlockMaxWidth
                       ? "50"
                       : isSmallerThanHalfOfBlockMaxWidth
-                      ? "75"
-                      : config.transformScaleBaseFontSize
+                        ? "75"
+                        : config.transformScaleBaseFontSize
               ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));

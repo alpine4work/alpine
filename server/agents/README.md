@@ -27,13 +27,12 @@ The database tracks agent usage limits to prevent overwhelming usage.
 
 We use [Drizzle ORM](https://orm.drizzle.team/) for type-safe database access and schema management:
 
--   **Schema definition**: `internal/d1/agent_usage_schema.ts` defines our database structure using
-    Drizzle's schema syntax
--   **Type safety**: Drizzle provides full TypeScript types for all database operations
--   **Migration generation**: Changes to the schema automatically generate SQL migrations via
-    `dev agents d1 generate <migration_name>`
--   **Database access**: `AgentUsageDatabase` class provides a clean interface for database
-    operations
+- **Schema definition**: `internal/d1/agent_usage_schema.ts` defines our database structure using
+  Drizzle's schema syntax
+- **Type safety**: Drizzle provides full TypeScript types for all database operations
+- **Migration generation**: Changes to the schema automatically generate SQL migrations via
+  `dev agents d1 generate <migration_name>`
+- **Database access**: `AgentUsageDatabase` class provides a clean interface for database operations
 
 #### Workflow for schema changes:
 
@@ -56,11 +55,11 @@ sharding strategies.
 
 Key findings:
 
--   Individual agent requests are stored with full metadata for flexibility and debugging
--   Usage windows track active limits per account
--   A future improvement: data can be cleaned periodically (e.g., requests older than 60 days) to
-    maintain performance
--   The current single-database approach provides sufficient capacity for years of growth
+- Individual agent requests are stored with full metadata for flexibility and debugging
+- Usage windows track active limits per account
+- A future improvement: data can be cleaned periodically (e.g., requests older than 60 days) to
+  maintain performance
+- The current single-database approach provides sufficient capacity for years of growth
 
 ### Commands
 

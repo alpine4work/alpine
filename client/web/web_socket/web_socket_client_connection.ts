@@ -223,8 +223,8 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                               displayMessage: wasConnecting
                                   ? offlineErrorDisplayMessage
                                   : wasOpen
-                                  ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
-                                  : undefined,
+                                    ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
+                                    : undefined,
                           },
                       )
                     : null);

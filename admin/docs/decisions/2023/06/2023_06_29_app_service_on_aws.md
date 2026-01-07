@@ -35,16 +35,15 @@ longer directly communicate with DynamoDB but instead will make RPC calls to our
 
 The new service names are as follows:
 
--   **App Service:** Our Remix application. Runs on Node.js in AWS. Has React server rendered routes
-    and API routes. All communication with DynamoDB goes through this service.
--   **Edge Service:** A Cloudflare Worker for code that benefits from running on the edge. Caches
-    immutable static assets served by the app service, forwards HTTP requests to Durable Objects,
-    and in the future will authenticate attachments.
--   **Edge Service Family:** Our Durable Object services Document Collaboration Service, Chat
-    Realtime Service, Post Realtime Service, and My Account Service are logically separate services
-    but are deployed with Edge Service so we call this the “Edge Service Family”. In the future we
-    may deploy our Durable Objects separately. Particularly if we run into the worker startup time
-    limit again.
+- **App Service:** Our Remix application. Runs on Node.js in AWS. Has React server rendered routes
+  and API routes. All communication with DynamoDB goes through this service.
+- **Edge Service:** A Cloudflare Worker for code that benefits from running on the edge. Caches
+  immutable static assets served by the app service, forwards HTTP requests to Durable Objects, and
+  in the future will authenticate attachments.
+- **Edge Service Family:** Our Durable Object services Document Collaboration Service, Chat Realtime
+  Service, Post Realtime Service, and My Account Service are logically separate services but are
+  deployed with Edge Service so we call this the “Edge Service Family”. In the future we may deploy
+  our Durable Objects separately. Particularly if we run into the worker startup time limit again.
 
 While the primary reason we are doing this is to unblock deployments it also has a secondary
 performance benefit. In distributed systems you generally want to do data processing as close to the
@@ -57,14 +56,14 @@ servers once.
 Our service map used to be simple. Everything lived in Cloudflare, was configured in a
 `wrangler.toml` file, and could be deployed with one command. Now we have to configure...
 
--   AWS EC2
--   AWS ECS (and auto scaling)
--   AWS Elastic Load Balancer
--   AWS Certificate Manager
--   AWS IAM
--   AWS Secrets Manager
--   AWS Logs
--   Docker images
+- AWS EC2
+- AWS ECS (and auto scaling)
+- AWS Elastic Load Balancer
+- AWS Certificate Manager
+- AWS IAM
+- AWS Secrets Manager
+- AWS Logs
+- Docker images
 
 All through AWS CloudFormation and their CDK.
 
@@ -80,35 +79,35 @@ indexing and attachment processing.
 
 ## Alternatives considered
 
--   Find a way to code split our app service on Cloudflare so that each individual split has fast
-    startup time. Finding these splits would probably need to be automated so that we don’t have to
-    fight start time limits every deploy. One way to do this could be code splitting by route but
-    that’s not currently something Remix supports (Next.js does support this though). Even if we did
-    code split by route some routes still need most of the code in our app (like `/s/$spaceId/inbox`
-    which can render a notification from anything).
+- Find a way to code split our app service on Cloudflare so that each individual split has fast
+  startup time. Finding these splits would probably need to be automated so that we don’t have to
+  fight start time limits every deploy. One way to do this could be code splitting by route but
+  that’s not currently something Remix supports (Next.js does support this though). Even if we did
+  code split by route some routes still need most of the code in our app (like `/s/$spaceId/inbox`
+  which can render a notification from anything).
 
--   Another option would be to deploy to a container deployment platform that does more out of the
-    box like [Fly.io](https://fly.io/) instead of AWS. However, we’re already in the AWS ecosystem
-    with our use of DynamoDB. Introducing another platform would make developer life harder. We’re
-    doubling down on our platform commitment to AWS and Cloudflare with this decision.
+- Another option would be to deploy to a container deployment platform that does more out of the box
+  like [Fly.io](https://fly.io/) instead of AWS. However, we’re already in the AWS ecosystem with
+  our use of DynamoDB. Introducing another platform would make developer life harder. We’re doubling
+  down on our platform commitment to AWS and Cloudflare with this decision.
 
--   Given we were previously deploying to Cloudflare Workers (a serverless platform), AWS Lambda may
-    seem like a natural choice. My (Caleb’s) impression is that AWS Lambda is a terrible choice for
-    a web server. Cold starts add significant latency to requests that can’t use an existing
-    instance and lambdas have a concurrency limit that’s pretty low (1000) given each instance can
-    only handle one request at a time. The concurrency limitations are really unfortunate when our
-    runtime (Node.js) is designed to be highly concurrent. Marcello enthusiastically agreed with
-    this assessment.
+- Given we were previously deploying to Cloudflare Workers (a serverless platform), AWS Lambda may
+  seem like a natural choice. My (Caleb’s) impression is that AWS Lambda is a terrible choice for a
+  web server. Cold starts add significant latency to requests that can’t use an existing instance
+  and lambdas have a concurrency limit that’s pretty low (1000) given each instance can only handle
+  one request at a time. The concurrency limitations are really unfortunate when our runtime
+  (Node.js) is designed to be highly concurrent. Marcello enthusiastically agreed with this
+  assessment.
 
--   A couple smaller decisions made during this migration:
-    -   AWS ECS instead of AWS EKS: We’re already locked into AWS with our use of DynamoDB, might as
-        well leverage the best the platform has to offer. This
-        [blog post makes a good argument for ECS](https://www.cloudzero.com/blog/ecs-vs-eks).
-    -   AWS EC2 instead of AWS Fargate: Fargate sounds nice in theory. It takes some operational
-        burden off our plate. This
-        [blog post recommends it](https://containersonaws.com/blog/2023/ec2-or-aws-fargate/) for a
-        startup that hasn’t yet achieved product market fit (which is us!). However, when doing
-        pricing calculations Fargate is significantly more expensive than EC2 for our current light
-        workload. Though I (Caleb) may have been measuring their “active duration” metric wrong. EC2
-        wasn’t too much more difficult to setup with the CDK and from Marcello’s experience Fargate
-        was best for running occasional batch jobs not a web server that needs to be alive 24/7.
+- A couple smaller decisions made during this migration:
+    - AWS ECS instead of AWS EKS: We’re already locked into AWS with our use of DynamoDB, might as
+      well leverage the best the platform has to offer. This
+      [blog post makes a good argument for ECS](https://www.cloudzero.com/blog/ecs-vs-eks).
+    - AWS EC2 instead of AWS Fargate: Fargate sounds nice in theory. It takes some operational
+      burden off our plate. This
+      [blog post recommends it](https://containersonaws.com/blog/2023/ec2-or-aws-fargate/) for a
+      startup that hasn’t yet achieved product market fit (which is us!). However, when doing
+      pricing calculations Fargate is significantly more expensive than EC2 for our current light
+      workload. Though I (Caleb) may have been measuring their “active duration” metric wrong. EC2
+      wasn’t too much more difficult to setup with the CDK and from Marcello’s experience Fargate
+      was best for running occasional batch jobs not a web server that needs to be alive 24/7.

@@ -137,7 +137,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
                     latestArchivingCommentIndex:
                         isArchived && !oldItem?.isArchived
                             ? event.commentIndex
-                            : oldItem?.latestArchivingCommentIndex ?? null,
+                            : (oldItem?.latestArchivingCommentIndex ?? null),
                     otherCommentAuthorId,
                 };
             },

@@ -314,7 +314,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         this._loadedBeforeCursor =
             result.loadedState.type === "Full"
                 ? "FullyLoaded"
-                : result.loadedState.endCursor ?? "Unloaded";
+                : (result.loadedState.endCursor ?? "Unloaded");
 
         for (const task of result.tasks) {
             this._onLoadedTaskAdd(context, eventBuilder, task);

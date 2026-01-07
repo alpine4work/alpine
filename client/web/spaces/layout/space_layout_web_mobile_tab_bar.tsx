@@ -109,16 +109,16 @@ export function SpaceLayoutWebMobileTabBar({
                       // user gets immediate feedback to their press.
                       spaceLayoutStyles.selectedClassNameByTab[pendingTab ?? selectedTab]
                     : // Normally `typeof window !== "undefined"` checks in React render will break
-                    // React server-side rendering hydration. However, it's ok in this case because
-                    // we have a `<ScriptBeforeAppInitialRender>` that adds the right class to the
-                    // server rendered HTML before the initial render.
-                    typeof window !== "undefined"
-                    ? cast<{[key: string]: string}>(spaceLayoutStyles.selectedClassNameByTab)[
-                          (
-                              sessionStorage.getItem(`cyberworlds/webMobileTab/${space.id}`) ?? ""
-                          ).slice(1, -1)
-                      ] ?? spaceLayoutStyles.selectedClassNameByTab.Home
-                    : undefined
+                      // React server-side rendering hydration. However, it's ok in this case because
+                      // we have a `<ScriptBeforeAppInitialRender>` that adds the right class to the
+                      // server rendered HTML before the initial render.
+                      typeof window !== "undefined"
+                      ? (cast<{[key: string]: string}>(spaceLayoutStyles.selectedClassNameByTab)[
+                            (
+                                sessionStorage.getItem(`cyberworlds/webMobileTab/${space.id}`) ?? ""
+                            ).slice(1, -1)
+                        ] ?? spaceLayoutStyles.selectedClassNameByTab.Home)
+                      : undefined
             }
             display="flex"
             alignItems="stretch"

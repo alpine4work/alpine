@@ -56,21 +56,21 @@ export function useStateWithDependencies<State, const Dependencies extends Depen
                     const oldState = areDependenciesEqual
                         ? stateWithDependencies.state
                         : // It is ok to use `initialState` here even though it is not in the dependency
-                        // array because it has the same lifetime as the dependency array thanks to the
-                        // `useMemo()` above.
-                        typeof initializeState === "function"
-                        ? (
-                              initializeState as (
-                                  dependencies: Dependencies,
-                                  previousState: State | undefined,
-                                  previousDependencies: Dependencies | undefined,
-                              ) => State
-                          )(
-                              dependencies,
-                              stateWithDependencies.state,
-                              stateWithDependencies.dependencies,
-                          )
-                        : initializeState;
+                          // array because it has the same lifetime as the dependency array thanks to the
+                          // `useMemo()` above.
+                          typeof initializeState === "function"
+                          ? (
+                                initializeState as (
+                                    dependencies: Dependencies,
+                                    previousState: State | undefined,
+                                    previousDependencies: Dependencies | undefined,
+                                ) => State
+                            )(
+                                dependencies,
+                                stateWithDependencies.state,
+                                stateWithDependencies.dependencies,
+                            )
+                          : initializeState;
 
                     const newState = (action as (oldState: State) => State)(oldState);
 

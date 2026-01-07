@@ -70,8 +70,8 @@ function useStorageBase<Value>(
             newValueString !== null
                 ? schema.deserialize(JSON.parse(newValueString))
                 : typeof defaultValue === "function"
-                ? (defaultValue as any)()
-                : defaultValue;
+                  ? (defaultValue as any)()
+                  : defaultValue;
 
         actuallySetValue(oldValue => {
             if (isDeepEqual(schema.serialize(oldValue), schema.serialize(newValue))) {

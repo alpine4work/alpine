@@ -557,8 +557,8 @@ export class TaskModel {
         return this.rawData.status.value.type === "Closed"
             ? "Closed"
             : this.rawData.assignee.value && this.rawData.assigneeStatus.value.type === "Active"
-            ? "OpenActive"
-            : "OpenInactive";
+              ? "OpenActive"
+              : "OpenInactive";
     }
 
     public getAssignee() {

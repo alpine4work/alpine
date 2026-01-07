@@ -38,40 +38,43 @@ export function MessageStreamViewThinkingProgressDefaultSummary() {
     useEffect(() => {
         const changeIntervalMs = 3000;
 
-        const timeout = createTimeout(() => {
-            setState(state => {
-                state = {
-                    ...state,
-                    lastChangeTime: new Date(),
-                };
+        const timeout = createTimeout(
+            () => {
+                setState(state => {
+                    state = {
+                        ...state,
+                        lastChangeTime: new Date(),
+                    };
 
-                let possibleVerbs =
-                    messageStreamSectionThinkingProgressDefaultSummaryAlternativeVerbs.filter(
-                        verb => !state.previousVerbs.has(verb),
-                    );
+                    let possibleVerbs =
+                        messageStreamSectionThinkingProgressDefaultSummaryAlternativeVerbs.filter(
+                            verb => !state.previousVerbs.has(verb),
+                        );
 
-                // We've used all the verbs! Start over.
-                if (possibleVerbs.length === 0) {
-                    possibleVerbs =
-                        messageStreamSectionThinkingProgressDefaultSummaryAlternativeVerbs;
+                    // We've used all the verbs! Start over.
+                    if (possibleVerbs.length === 0) {
+                        possibleVerbs =
+                            messageStreamSectionThinkingProgressDefaultSummaryAlternativeVerbs;
+
+                        state = {
+                            ...state,
+                            previousVerbs: new Set(),
+                        };
+                    }
+
+                    const nextVerb = possibleVerbs[randomInteger(0, possibleVerbs.length)]!;
 
                     state = {
                         ...state,
-                        previousVerbs: new Set(),
+                        verb: nextVerb,
+                        previousVerbs: new Set([...state.previousVerbs, nextVerb]),
                     };
-                }
 
-                const nextVerb = possibleVerbs[randomInteger(0, possibleVerbs.length)]!;
-
-                state = {
-                    ...state,
-                    verb: nextVerb,
-                    previousVerbs: new Set([...state.previousVerbs, nextVerb]),
-                };
-
-                return state;
-            });
-        }, state.lastChangeTime.getTime() + changeIntervalMs - Date.now());
+                    return state;
+                });
+            },
+            state.lastChangeTime.getTime() + changeIntervalMs - Date.now(),
+        );
 
         return () => {
             timeout.clear();

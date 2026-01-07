@@ -44,7 +44,7 @@ export function mergeGlobalLoadingIndicators(
                           (progress1, progress2) =>
                               (progress1 * weight1 + progress2 * weight2) / (weight1 + weight2),
                       )
-                    : indicator1.progressStore ?? indicator2.progressStore,
+                    : (indicator1.progressStore ?? indicator2.progressStore),
         };
     }
 

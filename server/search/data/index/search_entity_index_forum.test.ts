@@ -610,9 +610,8 @@ test("can search channels by affinity", async () => {
 
 test("channel access policies are enforced in search", async () => {
     const space = await TestSpace.create(context);
-    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
-        6,
-    );
+    const [session1, session2, session3, session4, session5, session6] =
+        await space.createSessions(6);
 
     const channels = await runAllPromises([
         TestChannel.create(session1, {name: "Test Channel 1"}),

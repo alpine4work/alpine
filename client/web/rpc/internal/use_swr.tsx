@@ -152,10 +152,11 @@ export function useSwr(
         });
     }, [cache, dedupingInterval, fetcher, key, onlyFetchIfNotAvailable]);
 
-    const [originalHistoryStack, setHistoryStack] = useState<SwrCacheEntryHistoryStack | null>(() =>
-        keepPreviousData && key !== null
-            ? createSwrCacheEntryHistoryStack([{key, entryStackStore}])
-            : null,
+    const [originalHistoryStack, setHistoryStack] = useState<SwrCacheEntryHistoryStack | null>(
+        () =>
+            keepPreviousData && key !== null
+                ? createSwrCacheEntryHistoryStack([{key, entryStackStore}])
+                : null,
     );
     let historyStack = originalHistoryStack;
 

@@ -7,17 +7,11 @@ export type IntegerMapping<Mapping extends {[key: string]: number}> = {
     readonly from: (integer: Mapping[keyof Mapping]) => keyof Mapping;
 };
 
-export type IntegerMappingStringType<T extends IntegerMapping<any>> = T extends IntegerMapping<
-    infer Mapping
->
-    ? keyof Mapping
-    : never;
+export type IntegerMappingStringType<T extends IntegerMapping<any>> =
+    T extends IntegerMapping<infer Mapping> ? keyof Mapping : never;
 
-export type IntegerMappingIntegerType<T extends IntegerMapping<any>> = T extends IntegerMapping<
-    infer Mapping
->
-    ? Mapping[keyof Mapping]
-    : never;
+export type IntegerMappingIntegerType<T extends IntegerMapping<any>> =
+    T extends IntegerMapping<infer Mapping> ? Mapping[keyof Mapping] : never;
 
 /**
  * Create a mapping of strings to integers. Integers are more efficient to

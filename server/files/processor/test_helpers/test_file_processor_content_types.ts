@@ -322,15 +322,16 @@ export function testFileProcessorContentTypes(
                                               isImagePreviewContent: false,
                                           }
                                         : expectedIsImagePreviewContentAlternative
-                                        ? {
-                                              isProcessing: false,
-                                              ok: true,
-                                              contentType: assertExists(expectedImagePreviewContent)
-                                                  .contentType,
-                                              contentLength: expect.any(Number),
-                                              isImagePreviewContent: true,
-                                          }
-                                        : null,
+                                          ? {
+                                                isProcessing: false,
+                                                ok: true,
+                                                contentType: assertExists(
+                                                    expectedImagePreviewContent,
+                                                ).contentType,
+                                                contentLength: expect.any(Number),
+                                                isImagePreviewContent: true,
+                                            }
+                                          : null,
                                     preview: expectedPreviewError
                                         ? {
                                               type: "Image",
@@ -345,50 +346,55 @@ export function testFileProcessorContentTypes(
                                                   : undefined,
                                           }
                                         : expectedImagePreviewSize
-                                        ? {
-                                              type: "Image",
-                                              isProcessing: false,
-                                              ok: true,
-                                              size: {
-                                                  width: expectedImagePreviewSize.width,
-                                                  height: expectedImagePreviewSize.height,
-                                                  scale: expectedImagePreviewSize.scale ?? 1,
-                                                  hasAlpha:
-                                                      expectedImagePreviewSize.hasAlpha ?? false,
-                                              },
-                                              placeholder: expect.any(FileImagePreviewPlaceholder),
-                                              content: expectedImagePreviewContent
-                                                  ? {
-                                                        contentType:
-                                                            expectedImagePreviewContent.contentType,
-                                                        contentLength: expect.any(Number),
-                                                    }
-                                                  : undefined,
-                                              videoDuration: expectedImagePreviewVideoDuration,
-                                          }
-                                        : expectedAudioPreviewDuration !== undefined
-                                        ? {
-                                              type: "Audio",
-                                              isProcessing: false,
-                                              ok: true,
-                                              duration: expectedAudioPreviewDuration,
-                                              metadata: {
-                                                  title:
-                                                      expectedAudioPreviewMetadata?.title ?? null,
-                                                  artist:
-                                                      expectedAudioPreviewMetadata?.artist ?? null,
-                                                  album:
-                                                      expectedAudioPreviewMetadata?.album ?? null,
-                                              },
-                                          }
-                                        : expectedCodePreviewContent !== undefined
-                                        ? {
-                                              type: "Code",
-                                              isProcessing: false,
-                                              ok: true,
-                                              content: expect.any(FileCodePreviewContent),
-                                          }
-                                        : null,
+                                          ? {
+                                                type: "Image",
+                                                isProcessing: false,
+                                                ok: true,
+                                                size: {
+                                                    width: expectedImagePreviewSize.width,
+                                                    height: expectedImagePreviewSize.height,
+                                                    scale: expectedImagePreviewSize.scale ?? 1,
+                                                    hasAlpha:
+                                                        expectedImagePreviewSize.hasAlpha ?? false,
+                                                },
+                                                placeholder: expect.any(
+                                                    FileImagePreviewPlaceholder,
+                                                ),
+                                                content: expectedImagePreviewContent
+                                                    ? {
+                                                          contentType:
+                                                              expectedImagePreviewContent.contentType,
+                                                          contentLength: expect.any(Number),
+                                                      }
+                                                    : undefined,
+                                                videoDuration: expectedImagePreviewVideoDuration,
+                                            }
+                                          : expectedAudioPreviewDuration !== undefined
+                                            ? {
+                                                  type: "Audio",
+                                                  isProcessing: false,
+                                                  ok: true,
+                                                  duration: expectedAudioPreviewDuration,
+                                                  metadata: {
+                                                      title:
+                                                          expectedAudioPreviewMetadata?.title ??
+                                                          null,
+                                                      artist:
+                                                          expectedAudioPreviewMetadata?.artist ??
+                                                          null,
+                                                      album:
+                                                          expectedAudioPreviewMetadata?.album ??
+                                                          null,
+                                                  },
+                                              }
+                                            : expectedCodePreviewContent !== undefined
+                                              ? {
+                                                    type: "Code",
+                                                    isProcessing: false,
+                                                    ok: true,
+                                                    content: expect.any(FileCodePreviewContent),
+                                                }
+                                              : null,
                                 }),
                             );
 
@@ -445,11 +451,11 @@ export function testFileProcessorContentTypes(
                                         item.type === "Newline"
                                             ? "\n"
                                             : item.classes
-                                            ? // eslint-disable-next-line string-quotes
-                                              `<span class="${item.classes}">${escapeHtml(
-                                                  item.string,
-                                              )}</span>`
-                                            : escapeHtml(item.string),
+                                              ? // eslint-disable-next-line string-quotes
+                                                `<span class="${item.classes}">${escapeHtml(
+                                                    item.string,
+                                                )}</span>`
+                                              : escapeHtml(item.string),
                                     )
                                     .join(""),
                             ).toEqual(expectedCodePreviewContent);

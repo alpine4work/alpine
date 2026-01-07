@@ -162,11 +162,11 @@ export function renderContentFileEntityPreview(
                 title: isNotFoundError
                     ? `Couldn’t find ${entityNoun}`
                     : isPermissionDeniedError
-                    ? `Private ${entityNoun}`
-                    : `Couldn’t preview ${entityNoun}`,
+                      ? `Private ${entityNoun}`
+                      : `Couldn’t preview ${entityNoun}`,
                 displayMessage:
                     error instanceof ErrorBase
-                        ? error.displayMessage ?? defaultErrorDisplayMessage
+                        ? (error.displayMessage ?? defaultErrorDisplayMessage)
                         : defaultErrorDisplayMessage,
                 platform,
                 spacingScale,

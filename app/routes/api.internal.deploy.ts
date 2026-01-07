@@ -21,11 +21,11 @@ export async function loader({request, context, span}: LoaderArgs) {
                           workflowRunId: deploy.ongoingDeployment.workflowRunId,
                       }
                     : deploy.dispatchedDeployment
-                    ? {
-                          commitSha: deploy.dispatchedDeployment.commitSha,
-                          workflowRunId: deploy.dispatchedDeployment.workflowRunId,
-                      }
-                    : null,
+                      ? {
+                            commitSha: deploy.dispatchedDeployment.commitSha,
+                            workflowRunId: deploy.dispatchedDeployment.workflowRunId,
+                        }
+                      : null,
                 scheduledDeployment: deploy.scheduledDeployment
                     ? {
                           commitSha: deploy.scheduledDeployment.commitSha,

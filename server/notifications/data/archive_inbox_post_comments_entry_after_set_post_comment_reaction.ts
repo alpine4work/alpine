@@ -46,7 +46,7 @@ export async function archiveInboxPostCommentsEntryAfterSetPostCommentReaction(
                     : oldItem.latestComment,
                 latestArchivingCommentIndex: !oldItem.isArchived
                     ? commentIndex
-                    : oldItem.latestArchivingCommentIndex ?? null,
+                    : (oldItem.latestArchivingCommentIndex ?? null),
                 otherCommentAuthorId: oldItem.otherCommentAuthorId,
             };
         },

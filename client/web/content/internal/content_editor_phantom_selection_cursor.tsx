@@ -52,8 +52,8 @@ function ContentEditorPhantomTextSelectionCursor({
                     phantomSelection.$anchor.pos < phantomSelection.$head.pos
                         ? -1
                         : phantomSelection.$anchor.pos > phantomSelection.$head.pos
-                        ? 1
-                        : 0,
+                          ? 1
+                          : 0,
                 // Give the tracker the height of our parent element's line height since that
                 // will be the height of the selection background.
                 shouldUseLineHeight: true,

@@ -320,11 +320,11 @@ function getInboxPostCommentsEntryDisplay({
     const firstAccount: AccountModel =
         entry.postAuthor.id !== currentAccount?.id
             ? entry.postAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor;
+            : (entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor);
 
     const secondAccount: AccountModel | null =
         entry.latestComment?.author.id !== firstAccount.id
-            ? entry.latestComment?.author ?? null
+            ? (entry.latestComment?.author ?? null)
             : null;
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];
@@ -462,11 +462,11 @@ function getInboxDocumentCommentThreadEntryDisplay({
     const firstAccount: AccountModel =
         entry.firstCommentAuthor.id !== currentAccount?.id
             ? entry.firstCommentAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment.author;
+            : (entry.otherCommentAuthor ?? entry.latestComment.author);
 
     const secondAccount: AccountModel | null =
         entry.latestComment?.author.id !== firstAccount.id
-            ? entry.latestComment?.author ?? null
+            ? (entry.latestComment?.author ?? null)
             : null;
 
     const documentTitle = entry.document.isPrivate
@@ -594,7 +594,7 @@ function getInboxTaskEntryDisplay({
 
     const secondAccount =
         entry.latestComment?.author.id !== firstAccount.id
-            ? entry.latestComment?.author ?? null
+            ? (entry.latestComment?.author ?? null)
             : null;
 
     const summary: Array<InboxEntryDisplayContentSummaryItem> = [];

@@ -31,11 +31,11 @@ export function mergeTaskCollectionModelData(
         deletedTime:
             collection1.deletedTime !== null && collection2.deletedTime !== null
                 ? maxHybridLogicalTime(collection1.deletedTime, collection2.deletedTime)
-                : collection1.deletedTime ?? collection2.deletedTime,
+                : (collection1.deletedTime ?? collection2.deletedTime),
         undeletedTime:
             collection1.undeletedTime !== null && collection2.undeletedTime !== null
                 ? maxHybridLogicalTime(collection1.undeletedTime, collection2.undeletedTime)
-                : collection1.undeletedTime ?? collection2.undeletedTime,
+                : (collection1.undeletedTime ?? collection2.undeletedTime),
 
         name: collection1.name.merge(collection2.name),
         color: collection1.color.merge(collection2.color),

@@ -21,11 +21,12 @@ export function expandEmptySelectionAroundWord(
     if (nodeAfter && !nodeAfter.isText) return null;
 
     const textBefore = nodeBefore
-        ? iterableFirst(Array.from(findUnicodeDefaultWordBoundarySpans(nodeBefore.text!)).reverse())
-              ?.text ?? ""
+        ? (iterableFirst(
+              Array.from(findUnicodeDefaultWordBoundarySpans(nodeBefore.text!)).reverse(),
+          )?.text ?? "")
         : "";
     const textAfter = nodeAfter
-        ? iterableFirst(findUnicodeDefaultWordBoundarySpans(nodeAfter.text!))?.text ?? ""
+        ? (iterableFirst(findUnicodeDefaultWordBoundarySpans(nodeAfter.text!))?.text ?? "")
         : "";
 
     const textAround = textBefore + textAfter;
@@ -36,10 +37,10 @@ export function expandEmptySelectionAroundWord(
         textAroundSpans.length === 1
             ? textAroundSpans[0]!
             : textAroundSpans.length === 2
-            ? textAroundSpans[0]!.length > textAroundSpans[1]!.length
-                ? textAroundSpans[0]!
-                : textAroundSpans[1]!
-            : null;
+              ? textAroundSpans[0]!.length > textAroundSpans[1]!.length
+                  ? textAroundSpans[0]!
+                  : textAroundSpans[1]!
+              : null;
     if (!textAroundSpan) return null;
 
     return new TextSelection(

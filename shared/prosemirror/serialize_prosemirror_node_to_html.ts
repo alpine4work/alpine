@@ -239,9 +239,8 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
 }
 
 type DOMOutputSpecArray = _DOMOutputSpecArray<DOMOutputSpec>;
-type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends ReadonlyArray<any>
-    ? Spec
-    : never;
+type _DOMOutputSpecArray<Spec extends DOMOutputSpec> =
+    Spec extends ReadonlyArray<any> ? Spec : never;
 
 function isDomNode(structure: object): structure is globalThis.Node {
     return (structure as any).contentType != null;

@@ -536,11 +536,11 @@ export function normalizeTaskQueryFilters(
                               },
                           }
                         : filter.operation.type === "IsEmpty"
-                        ? {type: "Filter", filter: {type: "IsEmpty"}}
-                        : normalizeTaskQueryFilterDateOperation(
-                              filter.operation,
-                              evaluationContext,
-                          );
+                          ? {type: "Filter", filter: {type: "IsEmpty"}}
+                          : normalizeTaskQueryFilterDateOperation(
+                                filter.operation,
+                                evaluationContext,
+                            );
 
                 if (normalizeResult.type === "AlwaysTrue") continue;
 
@@ -1224,12 +1224,12 @@ function mergeTaskQueryDateNormalizedFilters(
     const exclusiveLowerBoundDate =
         filter1.exclusiveLowerBoundDate !== null && filter2.exclusiveLowerBoundDate !== null
             ? maxDate(filter1.exclusiveLowerBoundDate, filter2.exclusiveLowerBoundDate)
-            : filter1.exclusiveLowerBoundDate ?? filter2.exclusiveLowerBoundDate;
+            : (filter1.exclusiveLowerBoundDate ?? filter2.exclusiveLowerBoundDate);
 
     const exclusiveUpperBoundDate =
         filter1.exclusiveUpperBoundDate !== null && filter2.exclusiveUpperBoundDate !== null
             ? minDate(filter1.exclusiveUpperBoundDate, filter2.exclusiveUpperBoundDate)
-            : filter1.exclusiveUpperBoundDate ?? filter2.exclusiveUpperBoundDate;
+            : (filter1.exclusiveUpperBoundDate ?? filter2.exclusiveUpperBoundDate);
 
     if (
         exclusiveLowerBoundDate !== null &&

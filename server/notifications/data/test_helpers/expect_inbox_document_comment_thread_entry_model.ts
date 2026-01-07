@@ -59,8 +59,8 @@ export function expectInboxDocumentCommentThreadEntryModel({
             otherCommentAuthor instanceof TestSession
                 ? expect.objectContaining({id: otherCommentAuthor.account.id})
                 : otherCommentAuthor instanceof TestAccount
-                ? expect.objectContaining({id: otherCommentAuthor.id})
-                : otherCommentAuthor,
+                  ? expect.objectContaining({id: otherCommentAuthor.id})
+                  : otherCommentAuthor,
         isFromNewCommentThread,
     });
 }

@@ -1,6 +1,10 @@
 import fs from "fs-extra";
 import {extname} from "path";
-import * as prettier from "prettier";
+// @ts-expect-error: After upgrading Prettier, we need to directly import
+// `prettier/index.mjs` to make sure we don't get the standalone build.
+// However, there's no blessed way from Prettier to import the full version
+// with types.
+import * as prettier from "prettier/index.mjs";
 import Yaml from "yaml";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
@@ -18,7 +22,7 @@ async function main() {
                 indent: 4,
             });
 
-            let templateYamlString = prettier.format(unformattedTemplateYamlString, {
+            let templateYamlString = await prettier.format(unformattedTemplateYamlString, {
                 parser: "yaml",
                 printWidth: 100,
                 tabWidth: 4,

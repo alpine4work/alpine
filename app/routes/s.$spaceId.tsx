@@ -869,7 +869,7 @@ export default function SpaceLayoutRoute() {
                                 currentAccountId={
                                     loaderData.type === "WithAccess"
                                         ? loaderData.currentAccount.id
-                                        : loaderData.currentAccountWithoutSpace?.id ?? null
+                                        : (loaderData.currentAccountWithoutSpace?.id ?? null)
                                 }
                             >
                                 <ContextMenuContextProvider>
@@ -994,10 +994,10 @@ function SpaceLayoutRouteOutlet({
                 ? `min(${resizedWindowHeightForMobileWebKit}px, 100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
                 : `min(${resizedWindowHeightForMobileWebKit}px, 100svh)`
             : loaderData.type === "WithAccess" &&
-              platform === "mobile" &&
-              !clientInfo.isNativeMobile
-            ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
-            : "100svh";
+                platform === "mobile" &&
+                !clientInfo.isNativeMobile
+              ? `calc(100svh - ${spacing[spaceLayoutWebMobileTabBarHeight]})`
+              : "100svh";
 
     const globalLoadingIndicatorForMobile = platform === "mobile" ? globalLoadingIndicator : null;
 

@@ -3,7 +3,11 @@
 import {Parser} from "@lezer/common";
 import {highlightTree} from "@lezer/highlight";
 import {createTwoFilesPatch} from "diff";
-import * as prettier from "prettier";
+// @ts-expect-error: After upgrading Prettier, we need to directly import
+// `prettier/index.mjs` to make sure we don't get the standalone build.
+// However, there's no blessed way from Prettier to import the full version
+// with types.
+import * as prettier from "prettier/index.mjs";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
@@ -17,6 +21,7 @@ import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -483,7 +488,7 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     return element;
 }
 
-function printHtml(element: HTMLElement): string {
+async function printHtml(element: HTMLElement): Promise<string> {
     const unformattedHtml = stripHtml(element).innerHTML.replaceAll(/<pre|<\/pre/g, match =>
         // Let Prettier insert whitespace into the `<pre>` element.
         match.replace("pre", "div"),
@@ -495,9 +500,8 @@ function printHtml(element: HTMLElement): string {
     });
 }
 
-function printHtmlDiff(oldElement: HTMLElement, newElement: HTMLElement): string {
-    const oldHtml = printHtml(oldElement);
-    const newHtml = printHtml(newElement);
+async function printHtmlDiff(oldElement: HTMLElement, newElement: HTMLElement): Promise<string> {
+    const [oldHtml, newHtml] = await runAllPromises([printHtml(oldElement), printHtml(newElement)]);
 
     return createTwoFilesPatch("old.html", "new.html", oldHtml, newHtml);
 }
@@ -548,15 +552,15 @@ beforeAll(async () => {
     rustParser.parse = mockedRustParse;
 });
 
-test("can initially highlight syntax", () => {
+test("can initially highlight syntax", async () => {
     const view = createView();
 
     expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
 
-    expect(printHtml(view.dom)).toMatchSnapshot();
+    expect(await printHtml(view.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after updating a single line", () => {
+test("can highlight syntax after updating a single line", async () => {
     const steps = [
         {stepType: "replace", from: 1804, to: 1805},
         {stepType: "replace", from: 1804, to: 1804, slice: {content: [{type: "text", text: "2"}]}},
@@ -586,10 +590,10 @@ test("can highlight syntax after updating a single line", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(169);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after adding a new line", () => {
+test("can highlight syntax after adding a new line", async () => {
     const steps = [
         {
             stepType: "replace",
@@ -665,10 +669,10 @@ test("can highlight syntax after adding a new line", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after deleting line", () => {
+test("can highlight syntax after deleting line", async () => {
     const steps = [
         {
             stepType: "replace",
@@ -693,10 +697,10 @@ test("can highlight syntax after deleting line", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after updating multiple lines", () => {
+test("can highlight syntax after updating multiple lines", async () => {
     const steps = [
         {stepType: "replace", from: 2014, to: 2014, slice: {content: [{type: "text", text: "{"}]}},
         {stepType: "replace", from: 2202, to: 2202, slice: {content: [{type: "text", text: "}"}]}},
@@ -717,10 +721,10 @@ test("can highlight syntax after updating multiple lines", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(159);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after inserting a code block", () => {
+test("can highlight syntax after inserting a code block", async () => {
     const steps = [
         {
             stepType: "replace",
@@ -780,10 +784,10 @@ test("can highlight syntax after inserting a code block", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, false]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after deleting a code block", () => {
+test("can highlight syntax after deleting a code block", async () => {
     const steps = [
         {stepType: "replace", from: 344, to: 1204},
         {stepType: "replace", from: 342, to: 346},
@@ -804,10 +808,10 @@ test("can highlight syntax after deleting a code block", () => {
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug)", () => {
+test("can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug)", async () => {
     const doc2 = schema.nodeFromJSON({
         type: "doc",
         content: [
@@ -849,7 +853,7 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(getMockedRustParseCalls()).toEqual([false]);
     expect(getMockedJavascriptParseCalls()).toEqual([false]);
 
-    expect(printHtml(view1.dom)).toMatchSnapshot();
+    expect(await printHtml(view1.dom)).toMatchSnapshot();
 
     const view2 = createView(doc2);
     expect(mockedHighlightTree).toHaveBeenCalledTimes(14);
@@ -876,7 +880,7 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(getMockedRustParseCalls()).toEqual([false, false]);
     expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 
     const transaction2 = view2.state.tr;
     for (const step of steps2) transaction2.step(step);
@@ -886,7 +890,7 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(getMockedRustParseCalls()).toEqual([false, false]);
     expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 
     const transaction3 = view2.state.tr;
     for (const step of steps3) transaction3.step(step);
@@ -896,10 +900,10 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(getMockedRustParseCalls()).toEqual([false, false]);
     expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after the line being edited (e.g. for comments)", () => {
+test("can highlight syntax after the line being edited (e.g. for comments)", async () => {
     const steps = [
         {stepType: "replace", from: 859, to: 859, slice: {content: [{type: "text", text: "/"}]}},
         {stepType: "replace", from: 860, to: 860, slice: {content: [{type: "text", text: "*"}]}},
@@ -921,10 +925,10 @@ test("can highlight syntax after the line being edited (e.g. for comments)", () 
     expect(mockedHighlightTree).toHaveBeenCalledTimes(169);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after the line being edited when deleting a line (e.g. for comments)", () => {
+test("can highlight syntax after the line being edited when deleting a line (e.g. for comments)", async () => {
     const steps1 = [
         {
             stepType: "replace",
@@ -967,5 +971,5 @@ test("can highlight syntax after the line being edited when deleting a line (e.g
     expect(mockedHighlightTree).toHaveBeenCalledTimes(171);
     expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });

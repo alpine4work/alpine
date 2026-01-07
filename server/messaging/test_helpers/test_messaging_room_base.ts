@@ -197,13 +197,13 @@ export abstract class TestMessagingRoomBase {
                 parent:
                     parent instanceof TestMessage
                         ? {type: "Message", index: parent.index}
-                        : parent ?? null,
+                        : (parent ?? null),
                 content:
                     typeof content === "string"
                         ? parseTestMessageContent(this.space.id, content)
                         : content instanceof Node
-                        ? assertMessageContent(content)
-                        : createSimpleMessageContent(""),
+                          ? assertMessageContent(content)
+                          : createSimpleMessageContent(""),
                 fileIds: files
                     ? Array.from(files, file => (typeof file === "string" ? file : file.id))
                     : [],
@@ -221,8 +221,8 @@ export abstract class TestMessagingRoomBase {
             session instanceof TestSession
                 ? session.account
                 : session instanceof TestAccount
-                ? session
-                : await TestAccount.get(this.context, session.actor.getPossiblyBotAccountId());
+                  ? session
+                  : await TestAccount.get(this.context, session.actor.getPossiblyBotAccountId());
 
         return TestMessage._new(this.context, this.space, author, this, index, createdTime);
     }
@@ -339,8 +339,8 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
                 typeof payload === "string"
                     ? {type: "Content", content: parseTestMessageContent(this.space.id, payload)}
                     : payload instanceof Node
-                    ? {type: "Content", content: assertMessageContent(payload)}
-                    : payload,
+                      ? {type: "Content", content: assertMessageContent(payload)}
+                      : payload,
         });
     }
 

@@ -34,13 +34,14 @@ import {
  */
 export type SchemaType<
     T extends Schema<any> | ObjectPropertySchema<any, any> | UnionSchemaVariant<any>,
-> = T extends Schema<infer U>
-    ? U
-    : T extends ObjectPropertySchema<infer U, any>
-    ? U
-    : T extends UnionSchemaVariant<infer U>
-    ? U
-    : never;
+> =
+    T extends Schema<infer U>
+        ? U
+        : T extends ObjectPropertySchema<infer U, any>
+          ? U
+          : T extends UnionSchemaVariant<infer U>
+            ? U
+            : never;
 
 /**
  * A serialized value we can send across process boundaries.
@@ -112,8 +113,7 @@ export interface SchemaWithOnlyDeserialization<Value> {
  * Useful if you want a simpler schema type when TypeScript is being annoying.
  */
 export interface SchemaWithoutValidation<Value>
-    extends SchemaWithOnlySerialization<Value>,
-        SchemaWithOnlyDeserialization<Value> {}
+    extends SchemaWithOnlySerialization<Value>, SchemaWithOnlyDeserialization<Value> {}
 
 type SchemaDescriptionRecursionState =
     | {type: "Entered"}
@@ -1028,9 +1028,8 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         const schemaBase = Schema.object(config);
 
         class InterfaceSchemaInstance<
-            Value extends InterfaceSchemaInstanceBase &
-                Readonly<ObjectSchemaConfigType<Config>> = InterfaceSchemaInstanceBase &
-                Readonly<ObjectSchemaConfigType<Config>>,
+            Value extends InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>> =
+                InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>,
         > extends InterfaceSchemaInstanceBase {
             public static readonly schema = new Schema<
                 InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>
@@ -1300,7 +1299,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
     /**
      * Serialize the value. Will always serialize into an object value.
      */
-    public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
+    declare public readonly serialize: (value: Value) => SchemaSerializedObjectValue;
 
     /**
      * Serialize by assigning object properties directly to the provided
@@ -2342,7 +2341,7 @@ export class UnionSchema<Value> extends Schema<Value> {
     /**
      * Serialize the value. Will always serialize into an object value.
      */
-    public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
+    declare public readonly serialize: (value: Value) => SchemaSerializedObjectValue;
 
     private constructor({
         variantSchemaByType,

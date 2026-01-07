@@ -29,7 +29,7 @@ declare const process: {hrtime: {bigint: () => bigint}} | undefined;
 export class MonotonicClock implements Clock {
     // Make sure TypeScript doesn't allow any `Clock` object to be a monotonic
     // clock.
-    private declare readonly _isMonotonic: true;
+    declare private readonly _isMonotonic: true;
 
     public readonly now: () => number;
 

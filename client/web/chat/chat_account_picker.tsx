@@ -261,9 +261,12 @@ export function ChatAccountPicker({
     useEffect(() => {
         if (!shouldOverlayAnimate) return;
 
-        const timeout = createTimeout(() => {
-            setShouldOverlayAnimate(false);
-        }, Math.max(overlayFadeInAnimationDurationMs, overlayFadeOutAnimationDurationMs));
+        const timeout = createTimeout(
+            () => {
+                setShouldOverlayAnimate(false);
+            },
+            Math.max(overlayFadeInAnimationDurationMs, overlayFadeOutAnimationDurationMs),
+        );
         return () => {
             timeout.clear();
         };

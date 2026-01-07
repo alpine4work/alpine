@@ -11,8 +11,8 @@ export function mapMessagePosFromContentVersion(
 
     const mappings =
         currentContentVersion > contentVersion
-            ? payload.contentUpdate?.mappings.slice(-(currentContentVersion - contentVersion)) ??
-              emptyArray
+            ? (payload.contentUpdate?.mappings.slice(-(currentContentVersion - contentVersion)) ??
+              emptyArray)
             : emptyArray;
 
     for (const mapping of mappings) {

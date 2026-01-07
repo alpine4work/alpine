@@ -329,7 +329,8 @@ export function PostContentView({
     // `useMemo()` or directly in the React render function).
     const oldContentContainerHeightForEditorHeightDifference =
         useStateWithDependenciesWithoutDispatch(
-            ([withHeight]) => (withHeight ? contentContainerRef.current?.offsetHeight ?? 0 : null),
+            ([withHeight]) =>
+                withHeight ? (contentContainerRef.current?.offsetHeight ?? 0) : null,
             [isEditingPost],
         );
 
@@ -723,9 +724,8 @@ function PostContentViewFooter({
                                 return;
                             }
 
-                            const initialLoadMessageCount = getInitialLoadMessageCount(
-                                getClientInfo(),
-                            );
+                            const initialLoadMessageCount =
+                                getInitialLoadMessageCount(getClientInfo());
 
                             let areAllInitialMessagesLoaded = true;
                             for (

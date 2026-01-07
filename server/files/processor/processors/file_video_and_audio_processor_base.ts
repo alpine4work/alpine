@@ -324,20 +324,20 @@ export function getFileAudioPreviewMetadataFromFfprobeMetadata(
             typeof metadata.format.tags.title === "string"
                 ? metadata.format.tags.title
                 : typeof metadata.format.tags.TITLE === "string"
-                ? metadata.format.tags.TITLE
-                : null,
+                  ? metadata.format.tags.TITLE
+                  : null,
         artist:
             typeof metadata.format.tags.artist === "string"
                 ? metadata.format.tags.artist
                 : typeof metadata.format.tags.ARTIST === "string"
-                ? metadata.format.tags.ARTIST
-                : null,
+                  ? metadata.format.tags.ARTIST
+                  : null,
         album:
             typeof metadata.format.tags.album === "string"
                 ? metadata.format.tags.album
                 : typeof metadata.format.tags.ALBUM === "string"
-                ? metadata.format.tags.ALBUM
-                : null,
+                  ? metadata.format.tags.ALBUM
+                  : null,
     };
 }
 

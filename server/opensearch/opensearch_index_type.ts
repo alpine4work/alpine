@@ -287,8 +287,8 @@ class OpensearchIndexValidatedType<
 type NonNullableNonArrayType<Value> = Value extends null
     ? never
     : Value extends ReadonlyArray<infer ItemValue>
-    ? NonNullableNonArrayType<ItemValue>
-    : Value;
+      ? NonNullableNonArrayType<ItemValue>
+      : Value;
 
 class OpensearchIndexStoredType<
     Value,

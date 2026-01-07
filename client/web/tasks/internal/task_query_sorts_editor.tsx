@@ -390,9 +390,9 @@ function TaskQuerySortsEditorRowBase({
                     platform === "mobile"
                         ? spacing["9"]
                         : // Add 2px of height when this is a drag overlay so it covers the dividers.
-                        isDragOverlay
-                        ? `calc(${spacing["8"]} + 2px)`
-                        : spacing["8"],
+                          isDragOverlay
+                          ? `calc(${spacing["8"]} + 2px)`
+                          : spacing["8"],
                 marginTop: isDragOverlay && platform !== "mobile" ? -1 : 0,
 
                 boxShadow:

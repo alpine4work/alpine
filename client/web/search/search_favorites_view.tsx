@@ -255,14 +255,14 @@ export function SearchFavoritesView({
             activeIndex >= overIndex
                 ? assertExists(results[overIndex])
                 : overIndex < results.length - 1
-                ? assertExists(results[overIndex + 1])
-                : null;
+                  ? assertExists(results[overIndex + 1])
+                  : null;
         const newAfterResult =
             activeIndex < overIndex
                 ? assertExists(results[overIndex])
                 : overIndex > 0
-                ? assertExists(results[overIndex - 1])
-                : null;
+                  ? assertExists(results[overIndex - 1])
+                  : null;
 
         const newFavoriteOrderKey = generateOrderKeyBetween(
             newAfterResult?.favoriteOrderKey ?? null,
@@ -792,8 +792,8 @@ function SearchFavoritesViewItem({
                         isPressed || hasActiveContextMenu
                             ? "grey-5"
                             : isDragOverlay
-                            ? "grey-0"
-                            : undefined
+                              ? "grey-0"
+                              : undefined
                     }
                     boxShadow={isDragOverlay ? "elevation-30" : undefined}
                     paddingX={

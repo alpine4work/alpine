@@ -447,7 +447,7 @@ function TaskRowView(
     const isGhostTask = cursor === null;
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntryStore =
-        taskId !== null && query !== null ? query.getLoadedTaskEntryStore(taskId) ?? null : null;
+        taskId !== null && query !== null ? (query.getLoadedTaskEntryStore(taskId) ?? null) : null;
     const taskEntry = useStore(taskEntryStore);
     const task = taskEntry?.task ?? null;
     const possiblyGhostTaskId = assertExists(taskId ?? ghostTaskId);
@@ -1897,8 +1897,8 @@ function TaskRowView(
                     cursor: capabilities.hasColumns
                         ? undefined
                         : hasEditAccessLevel
-                        ? "text"
-                        : undefined,
+                          ? "text"
+                          : undefined,
                     pointerEvents: capabilities.hasColumns ? "none" : undefined,
                 }}
                 {...marginRightOutOfBoundsClickSelectionProps}

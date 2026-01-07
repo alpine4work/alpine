@@ -196,7 +196,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     loudNotificationCount,
                     lastLoudNotificationCountTime: shouldIncrementLoudNotificationCount
                         ? event.createdTime
-                        : oldItem?.lastLoudNotificationCountTime ?? null,
+                        : (oldItem?.lastLoudNotificationCountTime ?? null),
                     latestMessage:
                         isArchived && latestMessage.isStickyMention
                             ? {...latestMessage, isStickyMention: false}
@@ -204,7 +204,7 @@ export const processNotificationCreateChatMessageEvent = createNotificationEvent
                     latestArchivingMessageIndex:
                         isArchived && !oldItem?.isArchived
                             ? event.messageIndex
-                            : oldItem?.latestArchivingMessageIndex ?? null,
+                            : (oldItem?.latestArchivingMessageIndex ?? null),
                     otherAccountId,
                 };
             },

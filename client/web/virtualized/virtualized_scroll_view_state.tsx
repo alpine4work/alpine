@@ -1744,7 +1744,7 @@ export class VirtualizedScrollViewState {
                 const itemHeight =
                     node.value.key === item.key
                         ? node.value.height
-                        : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+                        : (originalState._getItemHeightIfExists(item.key) ?? item.minHeight);
 
                 // If the item key changed from what we have in state then we need to set a new
                 // entry in our state with a new key and new height.
@@ -1888,7 +1888,7 @@ export class VirtualizedScrollViewState {
             const itemHeight =
                 node.value.key === item.key
                     ? node.value.height
-                    : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+                    : (originalState._getItemHeightIfExists(item.key) ?? item.minHeight);
 
             const currentState = state;
 

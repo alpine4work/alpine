@@ -15,31 +15,31 @@ We use [Bazel](https://bazel.build) which installs all the tools you need. Inclu
 
 We recommend the following setup steps as well:
 
--   Add `./admin/bin` to your `PATH` environment variable. This will let you run `dev` from anywhere
-    without specifying the path. We also include wrappers for tools like `node` and `pnpm`. While in
-    the `cyberworlds` directory these wrappers will run the version of the tool installed by Bazel.
-    Outside of `cyberworlds` these wrappers will run the system installed version of the tool.
+- Add `./admin/bin` to your `PATH` environment variable. This will let you run `dev` from anywhere
+  without specifying the path. We also include wrappers for tools like `node` and `pnpm`. While in
+  the `cyberworlds` directory these wrappers will run the version of the tool installed by Bazel.
+  Outside of `cyberworlds` these wrappers will run the system installed version of the tool.
 
     Example: Add the line `export PATH=$HOME/cyberworlds/admin/bin:$PATH` to your `~/.bashrc` or
     `~/.zshrc` file (depending on which you use) and replace `$HOME` with the directory you cloned
     the git repo to.
 
--   Run `pnpm install` in the Cyberworlds directory. Bazel will install `node_modules` when building
-    your project but in the Bazel build directory. If you want access to `node_modules` at the repo
-    root (which is necessary for IDE integrations with tools like TypeScript, ESLint, and Prettier)
-    you need to run `pnpm install`.
+- Run `pnpm install` in the Cyberworlds directory. Bazel will install `node_modules` when building
+  your project but in the Bazel build directory. If you want access to `node_modules` at the repo
+  root (which is necessary for IDE integrations with tools like TypeScript, ESLint, and Prettier)
+  you need to run `pnpm install`.
 
--   If you use Chrome as your web browser, go to `chrome://inspect` and under the “Devices” section
-    click “Configure” next to “Discover network targets”. Add `localhost:3001`, `localhost:3011`,
-    `localhost:3021`, `localhost:3031`, `localhost:3039`, `localhost:3041`, `localhost:3051`,
-    `localhost:3061`, and `localhost:3071`. These are the ports our development mode services will
-    expose for launching a JavaScript inspector. See `.env.development` for configuring these ports.
+- If you use Chrome as your web browser, go to `chrome://inspect` and under the “Devices” section
+  click “Configure” next to “Discover network targets”. Add `localhost:3001`, `localhost:3011`,
+  `localhost:3021`, `localhost:3031`, `localhost:3039`, `localhost:3041`, `localhost:3051`,
+  `localhost:3061`, and `localhost:3071`. These are the ports our development mode services will
+  expose for launching a JavaScript inspector. See `.env.development` for configuring these ports.
 
 ## Optional setup
 
--   If you want to test uploading Microsoft Office documents (Word, Excel, and PowerPoint) you'll
-    need to install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice) on your
-    system.
+- If you want to test uploading Microsoft Office documents (Word, Excel, and PowerPoint) you'll need
+  to install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice) on your
+  system.
 
 ## Troubleshooting
 

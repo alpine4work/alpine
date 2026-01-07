@@ -2040,39 +2040,39 @@ function color(format) {
           l === 6
               ? rgbn(m)
               : l === 3
-              ? new Rgb(
-                    ((m >> 8) & 15) | ((m >> 4) & 240),
-                    ((m >> 4) & 15) | (m & 240),
-                    ((m & 15) << 4) | (m & 15),
-                    1,
-                )
-              : l === 8
-              ? rgba((m >> 24) & 255, (m >> 16) & 255, (m >> 8) & 255, (m & 255) / 255)
-              : l === 4
-              ? rgba(
-                    ((m >> 12) & 15) | ((m >> 8) & 240),
-                    ((m >> 8) & 15) | ((m >> 4) & 240),
-                    ((m >> 4) & 15) | (m & 240),
-                    (((m & 15) << 4) | (m & 15)) / 255,
-                )
-              : null)
+                ? new Rgb(
+                      ((m >> 8) & 15) | ((m >> 4) & 240),
+                      ((m >> 4) & 15) | (m & 240),
+                      ((m & 15) << 4) | (m & 15),
+                      1,
+                  )
+                : l === 8
+                  ? rgba((m >> 24) & 255, (m >> 16) & 255, (m >> 8) & 255, (m & 255) / 255)
+                  : l === 4
+                    ? rgba(
+                          ((m >> 12) & 15) | ((m >> 8) & 240),
+                          ((m >> 8) & 15) | ((m >> 4) & 240),
+                          ((m >> 4) & 15) | (m & 240),
+                          (((m & 15) << 4) | (m & 15)) / 255,
+                      )
+                    : null)
         : (m = reRgbInteger.exec(format))
-        ? new Rgb(m[1], m[2], m[3], 1)
-        : (m = reRgbPercent.exec(format))
-        ? new Rgb((m[1] * 255) / 100, (m[2] * 255) / 100, (m[3] * 255) / 100, 1)
-        : (m = reRgbaInteger.exec(format))
-        ? rgba(m[1], m[2], m[3], m[4])
-        : (m = reRgbaPercent.exec(format))
-        ? rgba((m[1] * 255) / 100, (m[2] * 255) / 100, (m[3] * 255) / 100, m[4])
-        : (m = reHslPercent.exec(format))
-        ? hsla(m[1], m[2] / 100, m[3] / 100, 1)
-        : (m = reHslaPercent.exec(format))
-        ? hsla(m[1], m[2] / 100, m[3] / 100, m[4])
-        : named.hasOwnProperty(format)
-        ? rgbn(named[format])
-        : format === "transparent"
-        ? new Rgb(NaN, NaN, NaN, 0)
-        : null;
+          ? new Rgb(m[1], m[2], m[3], 1)
+          : (m = reRgbPercent.exec(format))
+            ? new Rgb((m[1] * 255) / 100, (m[2] * 255) / 100, (m[3] * 255) / 100, 1)
+            : (m = reRgbaInteger.exec(format))
+              ? rgba(m[1], m[2], m[3], m[4])
+              : (m = reRgbaPercent.exec(format))
+                ? rgba((m[1] * 255) / 100, (m[2] * 255) / 100, (m[3] * 255) / 100, m[4])
+                : (m = reHslPercent.exec(format))
+                  ? hsla(m[1], m[2] / 100, m[3] / 100, 1)
+                  : (m = reHslaPercent.exec(format))
+                    ? hsla(m[1], m[2] / 100, m[3] / 100, m[4])
+                    : named.hasOwnProperty(format)
+                      ? rgbn(named[format])
+                      : format === "transparent"
+                        ? new Rgb(NaN, NaN, NaN, 0)
+                        : null;
 }
 function rgbn(n) {
     return new Rgb((n >> 16) & 255, (n >> 8) & 255, n & 255, 1);
@@ -2138,15 +2138,11 @@ function rgb_formatHex() {
     return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}`;
 }
 function rgb_formatHex8() {
-    return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}${hex(
-        (isNaN(this.opacity) ? 1 : this.opacity) * 255,
-    )}`;
+    return `#${hex(this.r)}${hex(this.g)}${hex(this.b)}${hex((isNaN(this.opacity) ? 1 : this.opacity) * 255)}`;
 }
 function rgb_formatRgb() {
     const a = clampa(this.opacity);
-    return `${a === 1 ? "rgb(" : "rgba("}${clampi(this.r)}, ${clampi(this.g)}, ${clampi(this.b)}${
-        a === 1 ? ")" : `, ${a})`
-    }`;
+    return `${a === 1 ? "rgb(" : "rgba("}${clampi(this.r)}, ${clampi(this.g)}, ${clampi(this.b)}${a === 1 ? ")" : `, ${a})`}`;
 }
 function clampa(opacity) {
     return isNaN(opacity) ? 1 : Math.max(0, Math.min(1, opacity));
@@ -2237,9 +2233,7 @@ define_default(
         },
         formatHsl() {
             const a = clampa(this.opacity);
-            return `${a === 1 ? "hsl(" : "hsla("}${clamph(this.h)}, ${clampt(this.s) * 100}%, ${
-                clampt(this.l) * 100
-            }%${a === 1 ? ")" : `, ${a})`}`;
+            return `${a === 1 ? "hsl(" : "hsla("}${clamph(this.h)}, ${clampt(this.s) * 100}%, ${clampt(this.l) * 100}%${a === 1 ? ")" : `, ${a})`}`;
         },
     }),
 );
@@ -2255,10 +2249,10 @@ function hsl2rgb(h, m1, m2) {
         (h < 60
             ? m1 + ((m2 - m1) * h) / 60
             : h < 180
-            ? m2
-            : h < 240
-            ? m1 + ((m2 - m1) * (240 - h)) / 60
-            : m1) * 255
+              ? m2
+              : h < 240
+                ? m1 + ((m2 - m1) * (240 - h)) / 60
+                : m1) * 255
     );
 }
 
@@ -2586,10 +2580,10 @@ var identity = {
 };
 function decompose_default(a, b, c, d, e, f) {
     var scaleX, scaleY, skewX;
-    if ((scaleX = Math.sqrt(a * a + b * b))) (a /= scaleX), (b /= scaleX);
-    if ((skewX = a * c + b * d)) (c -= a * skewX), (d -= b * skewX);
-    if ((scaleY = Math.sqrt(c * c + d * d))) (c /= scaleY), (d /= scaleY), (skewX /= scaleY);
-    if (a * d < b * c) (a = -a), (b = -b), (skewX = -skewX), (scaleX = -scaleX);
+    if ((scaleX = Math.sqrt(a * a + b * b))) ((a /= scaleX), (b /= scaleX));
+    if ((skewX = a * c + b * d)) ((c -= a * skewX), (d -= b * skewX));
+    if ((scaleY = Math.sqrt(c * c + d * d))) ((c /= scaleY), (d /= scaleY), (skewX /= scaleY));
+    if (a * d < b * c) ((a = -a), (b = -b), (skewX = -skewX), (scaleX = -scaleX));
     return {
         translateX: e,
         translateY: f,
@@ -2655,7 +2649,7 @@ function interpolateTransform(parse, pxComma, pxParen, degParen) {
     return function (a, b) {
         var s = [],
             q = [];
-        (a = parse(a)), (b = parse(b));
+        ((a = parse(a)), (b = parse(b)));
         translate(a.translateX, a.translateY, b.translateX, b.translateY, s, q);
         rotate(a.rotate, b.rotate, s, q);
         skewX(a.skewX, b.skewX, s, q);

@@ -45,8 +45,8 @@ export function usePromise<Value>(
             promise === null
                 ? null
                 : promise instanceof PromiseImmediate
-                ? {promise, state: promise.getStateWithoutListening()}
-                : {promise, state: pendingState};
+                  ? {promise, state: promise.getStateWithoutListening()}
+                  : {promise, state: pendingState};
 
         state = newStateWithPromise?.state ?? nullState;
         setStateWithPromise(newStateWithPromise);

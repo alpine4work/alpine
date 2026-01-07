@@ -65,16 +65,16 @@ export function* iterateFileInfosInElement(
             fileElement instanceof HTMLImageElement
                 ? fileElement.src || null
                 : fileElement instanceof HTMLVideoElement || fileElement instanceof HTMLAudioElement
-                ? fileElement.src ||
-                  findMapIterable(fileElement.childNodes, fileChildElement =>
-                      fileChildElement instanceof HTMLSourceElement
-                          ? fileChildElement.src
-                          : undefined,
-                  ) ||
-                  null
-                : fileElement instanceof HTMLObjectElement
-                ? fileElement.data || null
-                : null;
+                  ? fileElement.src ||
+                    findMapIterable(fileElement.childNodes, fileChildElement =>
+                        fileChildElement instanceof HTMLSourceElement
+                            ? fileChildElement.src
+                            : undefined,
+                    ) ||
+                    null
+                  : fileElement instanceof HTMLObjectElement
+                    ? fileElement.data || null
+                    : null;
 
         if (urlString === null) {
             yield {element: fileElement, info: null};

@@ -179,8 +179,8 @@ export function renderMessageListItem<
                             ? `Message:${groupKey}:${item.messageIndex}`
                             : `UnloadedMessage:${groupKey}:${item.messageIndex}`
                         : item.type === "Loaded" || item.type === "Optimistic"
-                        ? `Message:${item.messageIndex}`
-                        : `UnloadedMessage:${item.messageIndex}`,
+                          ? `Message:${item.messageIndex}`
+                          : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeightPx[spacingScale],
                 zIndex:
                     messageEditing.state.isEditing &&

@@ -40,8 +40,8 @@ export function DesignPlaygroundTooltipPage() {
         actualOverlayPlacement === null
             ? defaultOverlayPlacement
             : isOverlayPlacement(actualOverlayPlacement)
-            ? actualOverlayPlacement
-            : defaultOverlayPlacement;
+              ? actualOverlayPlacement
+              : defaultOverlayPlacement;
 
     const overlayPlacementVertical =
         overlayPlacement.includes("top") || overlayPlacement.includes("bottom");

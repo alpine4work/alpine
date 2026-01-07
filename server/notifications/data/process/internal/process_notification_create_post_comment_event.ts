@@ -130,7 +130,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                 const isForPostContentMention =
                     oldItem?.isArchived && !isArchived
                         ? false
-                        : oldItem?.isForPostContentMention ?? false;
+                        : (oldItem?.isForPostContentMention ?? false);
 
                 return {
                     isArchived,
@@ -144,7 +144,7 @@ export const processNotificationCreatePostCommentEvent = createNotificationEvent
                     latestArchivingCommentIndex:
                         isArchived && !oldItem?.isArchived
                             ? event.commentIndex
-                            : oldItem?.latestArchivingCommentIndex ?? null,
+                            : (oldItem?.latestArchivingCommentIndex ?? null),
                     otherCommentAuthorId,
                 };
             },

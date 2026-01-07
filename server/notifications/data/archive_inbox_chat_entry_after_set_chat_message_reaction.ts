@@ -47,7 +47,7 @@ export async function archiveInboxChatEntryAfterSetChatMessageReaction(
                     : oldItem.latestMessage,
                 latestArchivingMessageIndex: !oldItem?.isArchived
                     ? messageIndex
-                    : oldItem?.latestArchivingMessageIndex ?? null,
+                    : (oldItem?.latestArchivingMessageIndex ?? null),
                 otherAccountId: oldItem.otherAccountId,
             };
         },

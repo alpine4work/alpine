@@ -136,7 +136,7 @@ export function collapseChildTaskInGridView(
 
     // If this is the final task then set `isExpanded` to false regardless of what
     // it was earlier.
-    const isExpanded = nextTaskPath.length === 0 ? false : taskState?.isExpanded ?? false;
+    const isExpanded = nextTaskPath.length === 0 ? false : (taskState?.isExpanded ?? false);
 
     if (!isExpanded && newChildTasks === null) {
         newState.delete(taskId);

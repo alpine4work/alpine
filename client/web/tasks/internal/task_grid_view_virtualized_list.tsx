@@ -2692,7 +2692,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 nextIndentation={0}
                                 titlePlaceholder={
                                     !capabilities.isReadOnly
-                                        ? taskGhostRowPlaceholder ?? "Add a task…"
+                                        ? (taskGhostRowPlaceholder ?? "Add a task…")
                                         : undefined
                                 }
                                 viewRef={viewRef}
@@ -3317,7 +3317,7 @@ function getTaskUndoActionsGridViewTargetIfExists(
             depth++;
             const parentTaskId = currentTask.getParent()?.taskId;
             currentTask = parentTaskId
-                ? store.getTaskEntrySnapshot(parentTaskId)?.task ?? null
+                ? (store.getTaskEntrySnapshot(parentTaskId)?.task ?? null)
                 : null;
         }
 

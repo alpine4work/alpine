@@ -1825,9 +1825,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
         test("comment notification event processing starts before create comment thread event processing is finished (when there are multiple comment threads in a new comment threads notification)", async () => {
             const space = await TestSpace.create(context);
-            const [session1, session2, session3, session4, session5] = await space.createSessions(
-                5,
-            );
+            const [session1, session2, session3, session4, session5] =
+                await space.createSessions(5);
 
             const document = await TestDocument.create(session2, {access: "Public"});
             const {range} = await document.type(session2, "target");

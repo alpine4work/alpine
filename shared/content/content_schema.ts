@@ -555,8 +555,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                             level === 3
                                 ? headingLevel3ClassName
                                 : level === 2
-                                ? headingLevel2ClassName
-                                : headingLevel1ClassName,
+                                  ? headingLevel2ClassName
+                                  : headingLevel1ClassName,
                     },
                     0,
                 ];

@@ -89,8 +89,8 @@ export function TaskChildTasksProgressWheel({
                     color: isPressed
                         ? colorSchemeVars["grey-40"]
                         : isHovered
-                        ? colorSchemeVars["grey-30"]
-                        : colorSchemeVars["grey-20"],
+                          ? colorSchemeVars["grey-30"]
+                          : colorSchemeVars["grey-20"],
                 }}
                 fill="currentColor"
                 viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}

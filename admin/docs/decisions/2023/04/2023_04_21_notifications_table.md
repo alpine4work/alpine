@@ -8,14 +8,13 @@ Inbox aggregates all notifications the user receives into an easy to triage surf
 the principles from that document to understand the product goals. In this document we will focus on
 the technical solutions to implement the final product designs. Specifically the following features:
 
--   **Notification grouping:** Instead of getting individual notifications for every new comment in
-    a thread, you get one new notification that groups all updates together. When you switch inbox
-    entries you are switching contexts.
+- **Notification grouping:** Instead of getting individual notifications for every new comment in a
+  thread, you get one new notification that groups all updates together. When you switch inbox
+  entries you are switching contexts.
 
--   **Loud notifications:** By default, notifications do not increase your notification count or
-    give you a little red badge. Only “loud” (aka urgent) notifications do this. Currently, you get
-    a loud notification when:
-
+- **Loud notifications:** By default, notifications do not increase your notification count or give
+  you a little red badge. Only “loud” (aka urgent) notifications do this. Currently, you get a loud
+  notification when:
     1. You are mentioned in a post or comment or chat.
 
     2. You get a new message in a chat. You get one new loud notification every hour. So if someone
@@ -24,11 +23,10 @@ the technical solutions to implement the final product designs. Specifically the
        way the loud notification is attempting to count something relevant to you as the message
        receiver (vs message count which is not usually a good map to idea count).
 
--   **Quantum inbox state:** The order of notifications in the user’s inbox is in a state of
-    “quantum superposition” until the user observes the inbox at which point notifications freeze.
-    When the user leaves their inbox, new notifications again are in a quantum state on top of
-    previous frozen notifications. The applications of the quantum inbox state right now:
-
+- **Quantum inbox state:** The order of notifications in the user’s inbox is in a state of “quantum
+  superposition” until the user observes the inbox at which point notifications freeze. When the
+  user leaves their inbox, new notifications again are in a quantum state on top of previous frozen
+  notifications. The applications of the quantum inbox state right now:
     1.  When the user observes their inbox we put loud notifications at the top. No matter when the
         loud notification was created. Then they freeze in place. So if the user gets more
         notifications without addressing a loud notification then the loud notification “decays”,
@@ -38,10 +36,10 @@ the technical solutions to implement the final product designs. Specifically the
         posts/threads while the inbox is unobserved. Then when the inbox is observed we freeze the
         entry and start a new entry for new posts/threads.
 
--   **Implicit notification dismissal:** Instead of having a read/unread state and using that to
-    dismiss notifications, a better approximation of “complete” for a notification is when the user
-    actually responds to a notification. They are then waiting for an update from the person they
-    are communicating with.
+- **Implicit notification dismissal:** Instead of having a read/unread state and using that to
+  dismiss notifications, a better approximation of “complete” for a notification is when the user
+  actually responds to a notification. They are then waiting for an update from the person they are
+  communicating with.
 
     When you send a message to a chat (or post or whatever) you have an inbox entry for it should
     dismiss the entry and put it in your “done” section.
@@ -53,10 +51,10 @@ the technical solutions to implement the final product designs. Specifically the
 The notifications table uses our DynamoDB general realtime abstraction. Each partition represents an
 account’s inbox in a given space. Some terminology:
 
--   **Notification event:** An event that creates a notification. For example, sending a chat
-    message or creating a post.
--   **Inbox entry:** An entry that appears in an account’s inbox. These entries are grouped and
-    sorted based on heuristics.
+- **Notification event:** An event that creates a notification. For example, sending a chat message
+  or creating a post.
+- **Inbox entry:** An entry that appears in an account’s inbox. These entries are grouped and sorted
+  based on heuristics.
 
 So user A might send a message creating a notification event. That notification event is put in a
 queue and fanned out to the inboxes of users B and C. User B already has an inbox entry for this
@@ -137,10 +135,9 @@ equivalent API to `DynamoTableSchema` for these databases so product code doesn�
 
 ## Alternatives considered
 
--   Instead of the inbox generation logic I considered a more direct approach to implementing
-    quantum inbox states where new notifications were tagged somehow as “unsorted” and when the
-    inbox was read we took those unsorted notifications and updated them to place them in their new
-    positions.
+- Instead of the inbox generation logic I considered a more direct approach to implementing quantum
+  inbox states where new notifications were tagged somehow as “unsorted” and when the inbox was read
+  we took those unsorted notifications and updated them to place them in their new positions.
 
     This seemed bad for performance, putting expensive writes in the inbox read path. It also seemed
     bad for cost, since we’d need to double our inbox entry updates. Once at notification event time
@@ -150,15 +147,15 @@ equivalent API to `DynamoTableSchema` for these databases so product code doesn�
     bump the current inbox’s generation number which is one write that doesn’t need to block the
     inbox read.
 
--   The inbox index uses a DynamoDB
-    [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html)
-    but since the index has the same partition key as the base table’s partition key it could have
-    used a
-    [Local Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html).
-    Local Secondary Indexes put a size limit on your partition in exchange for allowing you to do
-    strongly consistent reads on the index. Since the inbox partition is append-only adding a size
-    limit would be frustrating to manage. I don’t need strongly consistent reads on the index
-    because the realtime abstraction reads from a realtime event log to catch up clients. I agree
-    with the flowchart in this
-    [blog post](https://www.dynamodbguide.com/local-or-global-choosing-a-secondary-index-type-in-dynamo-db/)
-    which basically always recommends global secondary indexes.
+- The inbox index uses a DynamoDB
+  [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html)
+  but since the index has the same partition key as the base table’s partition key it could have
+  used a
+  [Local Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html).
+  Local Secondary Indexes put a size limit on your partition in exchange for allowing you to do
+  strongly consistent reads on the index. Since the inbox partition is append-only adding a size
+  limit would be frustrating to manage. I don’t need strongly consistent reads on the index because
+  the realtime abstraction reads from a realtime event log to catch up clients. I agree with the
+  flowchart in this
+  [blog post](https://www.dynamodbguide.com/local-or-global-choosing-a-secondary-index-type-in-dynamo-db/)
+  which basically always recommends global secondary indexes.

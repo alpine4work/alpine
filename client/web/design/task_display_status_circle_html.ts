@@ -36,8 +36,8 @@ const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boo
             displayStatus === "Closed"
                 ? accentThemeBackgroundColor
                 : isPressed
-                ? "grey-10"
-                : "grey-0",
+                  ? "grey-10"
+                  : "grey-0",
     });
 
 export const taskDisplayStatusUnpressedCircleClassNameByDisplayStatus = new DefaultMap(
@@ -91,16 +91,16 @@ export function getTaskDisplayStatusActiveHalfCircleMargin(sizeInt: number) {
           // down to 2.
           2.48
         : sizeInt >= 6
-        ? 2
-        : sizeInt >= 5
-        ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-          // down to 1.
-          1.49
-        : sizeInt >= 4
-        ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-          // down to 1.
-          1.48
-        : 1;
+          ? 2
+          : sizeInt >= 5
+            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
+              // down to 1.
+              1.49
+            : sizeInt >= 4
+              ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
+                // down to 1.
+                1.48
+              : 1;
 }
 
 export function renderTaskDisplayStatusCircle({

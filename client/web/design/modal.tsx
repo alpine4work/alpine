@@ -340,14 +340,14 @@ export function Modal({
                                         maxWidth === "full"
                                             ? "100%"
                                             : isRemLength(maxWidth)
-                                            ? maxWidth
-                                            : spacing[maxWidth],
+                                              ? maxWidth
+                                              : spacing[maxWidth],
                                     maxHeight:
                                         maxHeight === "full"
                                             ? "100%"
                                             : isRemLength(maxHeight)
-                                            ? maxHeight
-                                            : spacing[maxHeight],
+                                              ? maxHeight
+                                              : spacing[maxHeight],
                                     animation: !withoutOpenAnimation
                                         ? modalStyles.modalOverlayFadeInAnimation
                                         : undefined,
@@ -367,8 +367,8 @@ export function Modal({
                                         animation: isFadingOut
                                             ? modalStyles.modalContentFadeOutAnimation
                                             : !withoutOpenAnimation
-                                            ? modalStyles.modalContentFadeInAnimation
-                                            : undefined,
+                                              ? modalStyles.modalContentFadeInAnimation
+                                              : undefined,
                                     }}
                                 >
                                     <OverlayScopeContextProvider

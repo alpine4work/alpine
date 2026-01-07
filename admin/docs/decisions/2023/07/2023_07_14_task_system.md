@@ -5,54 +5,54 @@
 We’re building a collaborative task management product and need to decide on a backend
 implementation. A couple key things our product needs to support:
 
--   **Scale:** It should be just as easy to create a task as adding a new line to a document. That
-    means organizations will quickly end up with hundreds of thousands of tasks that are never
-    deleted. The ever-growing total number of tasks in an organization should not slow down the
-    product.
+- **Scale:** It should be just as easy to create a task as adding a new line to a document. That
+  means organizations will quickly end up with hundreds of thousands of tasks that are never
+  deleted. The ever-growing total number of tasks in an organization should not slow down the
+  product.
 
--   **Arbitrary querying:** There are a couple standard access patterns. For example, “show me tasks
-    assigned to me” or “show me tasks in a given collection.” Then there is a long tail of arbitrary
-    queries. For example, “show me tasks due after our launch date sorted by assignee then sorted by
-    priority.”
+- **Arbitrary querying:** There are a couple standard access patterns. For example, “show me tasks
+  assigned to me” or “show me tasks in a given collection.” Then there is a long tail of arbitrary
+  queries. For example, “show me tasks due after our launch date sorted by assignee then sorted by
+  priority.”
 
--   **Realtime:** Two users should be able to collaborate on tasks at the same time and see each
-    others updates. Including a single task view, a collection task view, or an arbitrary query.
+- **Realtime:** Two users should be able to collaborate on tasks at the same time and see each
+  others updates. Including a single task view, a collection task view, or an arbitrary query.
 
--   **Permissions:** A user’s personal tasks should not be visible to any other user. A user should
-    also be able to create private collections shared with a couple people that no one else can see.
-    If a user loses access to a task they should no longer be able to view or make changes. However,
-    if a user performs an action that causes them to lose access (e.g. removing a collection that
-    granted them access) they should be able to undo the change within a short window of time. (In
-    case the change was an accident.)
+- **Permissions:** A user’s personal tasks should not be visible to any other user. A user should
+  also be able to create private collections shared with a couple people that no one else can see.
+  If a user loses access to a task they should no longer be able to view or make changes. However,
+  if a user performs an action that causes them to lose access (e.g. removing a collection that
+  granted them access) they should be able to undo the change within a short window of time. (In
+  case the change was an accident.)
 
 Some tradeoffs we’re ok making on these system requirements:
 
--   **Scale:** Supporting large scale within a single organization can be sacrificed as long as we
-    can have multiple organizations of moderate scale. Ideally, we wouldn’t have a task limit per
-    organization but we can accept a limit in the range of 500k–5M for now.
+- **Scale:** Supporting large scale within a single organization can be sacrificed as long as we can
+  have multiple organizations of moderate scale. Ideally, we wouldn’t have a task limit per
+  organization but we can accept a limit in the range of 500k–5M for now.
 
--   **Arbitrary querying:** Arbitrary queries need to be at minimum executable but can be slow on
-    initial execution. Ideally arbitrary queries should be fast if the query is frequently accessed
-    (say a team uses an arbitrary query for sprint planning) but that’s an optimization we can add
-    later.
+- **Arbitrary querying:** Arbitrary queries need to be at minimum executable but can be slow on
+  initial execution. Ideally arbitrary queries should be fast if the query is frequently accessed
+  (say a team uses an arbitrary query for sprint planning) but that’s an optimization we can add
+  later.
 
--   **Realtime:** Task editing realtime latency doesn’t need to be as good as document editing
-    realtime latency. It should still be <1–3s but doesn’t need to be <1s. Realtime updates also
-    don’t need to be strictly ordered. Clients can have eventually consistent views of their data.
-    Local updates should be optimistic, though, and not require a roundtrip to show up in the UI.
+- **Realtime:** Task editing realtime latency doesn’t need to be as good as document editing
+  realtime latency. It should still be <1–3s but doesn’t need to be <1s. Realtime updates also don’t
+  need to be strictly ordered. Clients can have eventually consistent views of their data. Local
+  updates should be optimistic, though, and not require a roundtrip to show up in the UI.
 
--   **Permissions:** Permission rule changes don't have to take effect instantly. They can take <2
-    minutes to take effect. Allowing authorization decisions to be eventually consistent allows us
-    to design a more distributed system.
+- **Permissions:** Permission rule changes don't have to take effect instantly. They can take <2
+  minutes to take effect. Allowing authorization decisions to be eventually consistent allows us to
+  design a more distributed system.
 
 ## Decision
 
 We introduce the following to our architecture:
 
--   [DynamoDB](https://aws.amazon.com/dynamodb/) task action log table
--   [OpenSearch](https://opensearch.org/) task index (OpenSearch is AWS’s fork of
-    [ElasticSearch](https://www.elastic.co/elasticsearch))
--   Task realtime service [EC2](https://aws.amazon.com/ec2/) instances
+- [DynamoDB](https://aws.amazon.com/dynamodb/) task action log table
+- [OpenSearch](https://opensearch.org/) task index (OpenSearch is AWS’s fork of
+  [ElasticSearch](https://www.elastic.co/elasticsearch))
+- Task realtime service [EC2](https://aws.amazon.com/ec2/) instances
 
 There’s also another DynamoDB table containing task authorization data and some other misc data
 we’ll cover later.
@@ -80,8 +80,8 @@ CRDT, when the clients sync they will always see the same thing.
 
 Importantly, making our tasks CRDTs means task actions are:
 
--   **Commutative:** You can apply actions in any order. You’ll always end up with the same result.
--   **Idempotent:** You can apply the same action multiple times and get the same result.
+- **Commutative:** You can apply actions in any order. You’ll always end up with the same result.
+- **Idempotent:** You can apply the same action multiple times and get the same result.
 
 These are _very_ useful properties for a distributed system. It means we can have
 [at least once delivery semantics](https://blog.bytebytego.com/p/at-most-once-at-least-once-exactly)
@@ -143,10 +143,10 @@ action affects permission then Task Realtime Service may make the wrong permissi
 We should really build sub-systems to monitor Task Realtime Service and make sure these guarantees
 are maintained. Some ideas:
 
--   A CRON job that looks at task actions which failed to index and retries indexing them
--   A CRON job that samples actions to make sure they’ve been indexed in OpenSearch and pushed to
-    Task Realtime Service
--   Occasionally polling the task action log in Task Realtime Service to find missed actions
+- A CRON job that looks at task actions which failed to index and retries indexing them
+- A CRON job that samples actions to make sure they’ve been indexed in OpenSearch and pushed to Task
+  Realtime Service
+- Occasionally polling the task action log in Task Realtime Service to find missed actions
 
 ### Task Realtime Service routing
 
@@ -154,23 +154,23 @@ Task Realtime Service is a stateful service. Each EC2 instance holds the state f
 spaces. In order to make a WebSocket connection, we need to pick the right Task Realtime Service EC2
 instance for the space. Here’s how Task Realtime Service is distributed:
 
--   **Partitions:** We route spaces to a single Task Realtime Service partition with
-    `partitionIndex = spaceId % partitionCount` (with `spaceId` in its binary form). We have an
-    [ECS](https://aws.amazon.com/ecs/) service and auto-scaling group for each Task Realtime Service
-    partition.
+- **Partitions:** We route spaces to a single Task Realtime Service partition with
+  `partitionIndex = spaceId % partitionCount` (with `spaceId` in its binary form). We have an
+  [ECS](https://aws.amazon.com/ecs/) service and auto-scaling group for each Task Realtime Service
+  partition.
 
--   **Instances:** Our ECS service guarantees we always have at least one running EC2 instance per
-    partition. During a deploy we may have more than one EC2 instance (one with the old code
-    version, one with the new code version). We can also horizontally scale to have multiple EC2
-    instances per partition.
+- **Instances:** Our ECS service guarantees we always have at least one running EC2 instance per
+  partition. During a deploy we may have more than one EC2 instance (one with the old code version,
+  one with the new code version). We can also horizontally scale to have multiple EC2 instances per
+  partition.
 
     While a user will only make a WebSocket connection to one EC2 instance, when an action is
     committed we must push the action to every EC2 instance that manages the space.
 
--   **Workers:** We have one Node.js worker for each CPU core (using the
-    [`cluster`](https://nodejs.org/api/cluster.html) module). Each worker manages different spaces.
-    We pick the worker again with `workerIndex = spaceId % workerCount`. Each Node.js worker is a
-    single Node.js thread.
+- **Workers:** We have one Node.js worker for each CPU core (using the
+  [`cluster`](https://nodejs.org/api/cluster.html) module). Each worker manages different spaces. We
+  pick the worker again with `workerIndex = spaceId % workerCount`. Each Node.js worker is a single
+  Node.js thread.
 
 So we ultimately route spaces to a Node.js worker thread. There could be multiple Node.js worker
 threads per space but they’re distributed across multiple EC2 instances in the same partition.
@@ -209,67 +209,66 @@ action that changes permissions is committed).
 
 Some other notable bits of the task system.
 
--   **Task notes:** Task notes are not part of the task action / task index system since they’re 1)
-    large objects, 2) that are frequently updated, and 3) don’t need to be queried. It makes sense
-    to give them their own specialized storage so we store them separately in DynamoDB.
+- **Task notes:** Task notes are not part of the task action / task index system since they’re 1)
+  large objects, 2) that are frequently updated, and 3) don’t need to be queried. It makes sense to
+  give them their own specialized storage so we store them separately in DynamoDB.
 
     We have a separate task notes Cloudflare Durable Object for updating notes in realtime. So when
     subscribing to a task you need both a Task Realtime Service WebSocket connection and Task Notes
     Collaboration Service WebSocket connection. When we add comments and activity history to tasks,
     their realtime updates will also go through Task Notes Collaboration Service.
 
--   **Task grid view expansion state:** We maintain the state of which task subtasks are expanded on
-    the server in DynamoDB instead of `localStorage`. This way when server-side rendering we can
-    load the state from the database and execute queries for these tasks without client/server
-    network round-trips.
+- **Task grid view expansion state:** We maintain the state of which task subtasks are expanded on
+  the server in DynamoDB instead of `localStorage`. This way when server-side rendering we can load
+  the state from the database and execute queries for these tasks without client/server network
+  round-trips.
 
--   **Task collection affinity:** Whenever you interact with a collection (add a collection to task,
-    open a collection, create a collection) you get affinity points that exponentially decay over
-    time. The collection’s affinity score is used to sort the list of collections in the task
-    collection dropdown. So you have quick access to your favorite collections and the list isn’t
-    polluted by all the collections everyone else is making.
+- **Task collection affinity:** Whenever you interact with a collection (add a collection to task,
+  open a collection, create a collection) you get affinity points that exponentially decay over
+  time. The collection’s affinity score is used to sort the list of collections in the task
+  collection dropdown. So you have quick access to your favorite collections and the list isn’t
+  polluted by all the collections everyone else is making.
 
--   **Edge service:** In our system diagrams above, Edge Service is not included (Edge Service is a
-    Cloudflare Worker running on the edge). But all user connections start with Edge Service. When
-    committing an action that first goes to Edge Service then to App Service. When connecting to
-    realtime, Edge Service routes to the right Task Realtime Service instance and Cloudflare will
-    proxy the connection.
+- **Edge service:** In our system diagrams above, Edge Service is not included (Edge Service is a
+  Cloudflare Worker running on the edge). But all user connections start with Edge Service. When
+  committing an action that first goes to Edge Service then to App Service. When connecting to
+  realtime, Edge Service routes to the right Task Realtime Service instance and Cloudflare will
+  proxy the connection.
 
     Importantly, Cloudflare terminates SSL for Task Realtime Service WebSocket connections. Task
     Realtime Service exposes its API over HTTP to the public internet. But users connect to Edge
     Service via HTTPS and Cloudflare proxies traffic.
 
--   **Gateway server:** Annoyingly, Cloudflare Workers ignores any port other than port 80 when
-    making a sub-request. You’ll remember that each EC2 instance has multiple Node.js workers, each
-    Node.js worker exposes its own port (e.g. 4001, 4002, 4003, etc.). Since Cloudflare rewrites
-    `http://ec2-public-dns-name:4001` to `http://ec2-public-dns-name:80` we have a small proxy
-    server that runs on port 80 of each Task Realtime Service instance that rewrites
-    `http://ec2-public-dns-name:80/4001/*` requests to `http://ec2-public-dns-name:4001/*` for
-    Cloudflare. Ideally we’d eventually kill this gateway server if Cloudflare gives us a way to
-    connect to any port.
+- **Gateway server:** Annoyingly, Cloudflare Workers ignores any port other than port 80 when making
+  a sub-request. You’ll remember that each EC2 instance has multiple Node.js workers, each Node.js
+  worker exposes its own port (e.g. 4001, 4002, 4003, etc.). Since Cloudflare rewrites
+  `http://ec2-public-dns-name:4001` to `http://ec2-public-dns-name:80` we have a small proxy server
+  that runs on port 80 of each Task Realtime Service instance that rewrites
+  `http://ec2-public-dns-name:80/4001/*` requests to `http://ec2-public-dns-name:4001/*` for
+  Cloudflare. Ideally we’d eventually kill this gateway server if Cloudflare gives us a way to
+  connect to any port.
 
 ### Reviewing constraints
 
 Let’s review our constraints from earlier in the document:
 
--   **Scale:** The scaling bottleneck of this system is basically how many tasks can OpenSearch
-    hold. Which we expect to be…a lot. Certainly >1 million. Task Realtime Service paginates queries
-    so even if you try to load a query with millions of tasks in OpenSearch, Task Realtime Service
-    will only hold the first hundred or so (unless the user scrolls all the way to the bottom which
-    is non-standard behavior).
+- **Scale:** The scaling bottleneck of this system is basically how many tasks can OpenSearch hold.
+  Which we expect to be…a lot. Certainly >1 million. Task Realtime Service paginates queries so even
+  if you try to load a query with millions of tasks in OpenSearch, Task Realtime Service will only
+  hold the first hundred or so (unless the user scrolls all the way to the bottom which is
+  non-standard behavior).
 
--   **Arbitrary querying:** OpenSearch (or more accurately, [Lucene](https://lucene.apache.org/)
-    which it’s built on) is optimized to support arbitrary queries on multiple indexed fields. It’s
-    best in industry at this job. Certain queries can get pretty slow in spaces with many tasks,
-    especially queries involving custom sorts. If common queries are getting slow, we can start
-    building other indexes outside of OpenSearch to serve them. This is part of the magic of this
-    system design, we can build new indexes at any time based on our task action log and it’s ok if
-    these indexes are a little stale. Task Realtime Service will bring index results up-to-date in
-    realtime.
+- **Arbitrary querying:** OpenSearch (or more accurately, [Lucene](https://lucene.apache.org/) which
+  it’s built on) is optimized to support arbitrary queries on multiple indexed fields. It’s best in
+  industry at this job. Certain queries can get pretty slow in spaces with many tasks, especially
+  queries involving custom sorts. If common queries are getting slow, we can start building other
+  indexes outside of OpenSearch to serve them. This is part of the magic of this system design, we
+  can build new indexes at any time based on our task action log and it’s ok if these indexes are a
+  little stale. Task Realtime Service will bring index results up-to-date in realtime.
 
--   **Realtime:** Everything is updated in realtime. Though realtime latency isn’t blazing fast: we
-    have to commit the action on App Service then make a request to Task Realtime Service before
-    it’s pushed to clients.
+- **Realtime:** Everything is updated in realtime. Though realtime latency isn’t blazing fast: we
+  have to commit the action on App Service then make a request to Task Realtime Service before it’s
+  pushed to clients.
 
     Though blazing fast realtime latency is very possible. We could connect users through an edge
     Durable Object or even a peer-to-peer WebRTC connection and optimistically send task actions
@@ -278,9 +277,9 @@ Let’s review our constraints from earlier in the document:
     optimistically applied. I (@calebmer) don’t know if the UX benefit will ever be worth the added
     technical complexity but the option is certainly there. Might make it easier to do presence too.
 
--   **Permissions:** Permissions work though they lag a bit. A permission change can take up to 2
-    minutes to propagate. And if Task Realtime Service or our OpenSearch task index miss actions
-    that could be very bad if the missed action affects permissions.
+- **Permissions:** Permissions work though they lag a bit. A permission change can take up to 2
+  minutes to propagate. And if Task Realtime Service or our OpenSearch task index miss actions that
+  could be very bad if the missed action affects permissions.
 
     Permissions will need development over time. Extra monitoring, some tightening. It should work
     99.9% of the time time today (very scientific) but not working 0.1% of the time is unacceptable
@@ -310,19 +309,19 @@ I have strong conviction this is the right decision from a business perspective.
 wisdom is to build something that works, don’t worry about scale. I want Alpine to serve large
 businesses asap while at the same time start a cadence of launching new products. Some anecdotes:
 
--   After working at Airtable, I saw them hit a real scale limit beyond which a significant
-    re-architecture was necessary to meet customers’ growing demands (demands which were still only
-    in the realm of <1M records per base). When I left, this scale initiative had been ongoing for
-    at least a year. Now a year after that they’re at
-    [250,000 records per table](https://blog.airtable.com/new-ways-to-build-secure-solutions-at-scale/)
-    which, knowing the software, is probably painfully slow.
+- After working at Airtable, I saw them hit a real scale limit beyond which a significant
+  re-architecture was necessary to meet customers’ growing demands (demands which were still only in
+  the realm of <1M records per base). When I left, this scale initiative had been ongoing for at
+  least a year. Now a year after that they’re at
+  [250,000 records per table](https://blog.airtable.com/new-ways-to-build-secure-solutions-at-scale/)
+  which, knowing the software, is probably painfully slow.
 
--   Getting to know the Notion business through friends who work there and talking to the CEO, it
-    appears like the size of business Notion can support is severely capped by product performance.
-    My friends who use the product at small scale even say there it feels slow. When I’ve asked
-    folks who work their about performance it sounds like the Notion focus is on frontend problems
-    like JavaScript bundle size and server-side rendering. But that’s a constant cost across all
-    users and won’t address the root cause of performance issues for larger deployments.
+- Getting to know the Notion business through friends who work there and talking to the CEO, it
+  appears like the size of business Notion can support is severely capped by product performance. My
+  friends who use the product at small scale even say there it feels slow. When I’ve asked folks who
+  work their about performance it sounds like the Notion focus is on frontend problems like
+  JavaScript bundle size and server-side rendering. But that’s a constant cost across all users and
+  won’t address the root cause of performance issues for larger deployments.
 
 This tells me there’s opportunity in the enterprise market Airtable and Notion can’t capture. While
 we won’t start up-market at launch, I want us to move there as quickly as possible. By immediately
@@ -334,22 +333,22 @@ I (@calebmer) debated this architecture in my head for ~6-12 weeks before starti
 I thought it would be easier at the time). What’s in this doc is the architecture I came up with
 that best fits my requirements. Simpler options I’ve considered:
 
--   Use DynamoDB as a [columnar store](https://en.wikipedia.org/wiki/Column-oriented_DBMS) and
-    arbitrarily query data off that. This would remove the need for OpenSearch but nothing else.
-    Indexes are eventually consistent in DynamoDB. The code to implement arbitrary queries would be
-    complex and much less efficient than OpenSearch since I’d manually be writing multi-index
-    queries. You have to do crazy
-    [z-order indexing](https://aws.amazon.com/blogs/database/z-order-indexing-for-multifaceted-queries-in-amazon-dynamodb-part-1/)
-    for even one kind of query pattern to be efficient in DynamoDB.
+- Use DynamoDB as a [columnar store](https://en.wikipedia.org/wiki/Column-oriented_DBMS) and
+  arbitrarily query data off that. This would remove the need for OpenSearch but nothing else.
+  Indexes are eventually consistent in DynamoDB. The code to implement arbitrary queries would be
+  complex and much less efficient than OpenSearch since I’d manually be writing multi-index queries.
+  You have to do crazy
+  [z-order indexing](https://aws.amazon.com/blogs/database/z-order-indexing-for-multifaceted-queries-in-amazon-dynamodb-part-1/)
+  for even one kind of query pattern to be efficient in DynamoDB.
 
--   Put everything into a SQL database. I’d either want Vitess + MySQL
-    ([PlanetScale](https://planetscale.com/)?) or CockroachDB. This removes the need for my
-    DynamoDB + OpenSearch setup but I still need some realtime query service.
+- Put everything into a SQL database. I’d either want Vitess + MySQL
+  ([PlanetScale](https://planetscale.com/)?) or CockroachDB. This removes the need for my DynamoDB +
+  OpenSearch setup but I still need some realtime query service.
 
--   Use a message broker service like [Ably](https://ably.com/) to send messages from the server
-    directly to clients. Removing the need for a task stateful realtime service. However, this does
-    not allow for complex permission rules. There needs to be some stateful service filtering
-    realtime events.
+- Use a message broker service like [Ably](https://ably.com/) to send messages from the server
+  directly to clients. Removing the need for a task stateful realtime service. However, this does
+  not allow for complex permission rules. There needs to be some stateful service filtering realtime
+  events.
 
--   Simplify the product, e.g. no arbitrary querying. I don’t think this is viable for a competitive
-    task management product.
+- Simplify the product, e.g. no arbitrary querying. I don’t think this is viable for a competitive
+  task management product.

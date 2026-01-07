@@ -148,12 +148,12 @@ type FileProcessorTemplateResultFromHasPreview<HasPreview extends FileHasPreview
     HasPreview extends null
         ? {}
         : HasPreview extends {type: "Image"}
-        ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
-        : HasPreview extends {type: "Audio"}
-        ? FileProcessorTemplateResultFromHasAudioPreview
-        : HasPreview extends {type: "Code"}
-        ? FileProcessorTemplateResultFromHasCodePreview
-        : never;
+          ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
+          : HasPreview extends {type: "Audio"}
+            ? FileProcessorTemplateResultFromHasAudioPreview
+            : HasPreview extends {type: "Code"}
+              ? FileProcessorTemplateResultFromHasCodePreview
+              : never;
 
 type FileProcessorTemplateResultFromHasImagePreview<
     HasPreview extends FileHasPreview & {type: "Image"},

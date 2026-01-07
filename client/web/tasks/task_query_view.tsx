@@ -212,7 +212,7 @@ export function TaskQueryView({
     // accounts/collections referenced by the query. This is expensive (O(tasks))
     // so it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
-        !currentAccount ? queryState.activeQuery.query?.query ?? null : null,
+        !currentAccount ? (queryState.activeQuery.query?.query ?? null) : null,
     );
 
     const [shouldShowEditNameMobileModal, setShouldShowEditNameMobileModal] = useState(false);
@@ -629,7 +629,7 @@ export function TaskQueryView({
                     )}
                     scrollbarInsetTop={
                         routeLayout === "narrow"
-                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            ? (scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop)
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={

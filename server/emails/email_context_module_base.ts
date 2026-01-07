@@ -35,16 +35,16 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  * [1]: https://docs.aws.amazon.com/ses/latest/dg/tips-and-best-practices.html
  */
 export abstract class EmailContextModuleBase<
-        Modules extends {
-            tracer: TracerContextModule;
-            jobs: JobsContextModule;
-            constants: ConstantsContextModule;
-        } = {
-            tracer: TracerContextModule;
-            jobs: JobsContextModule;
-            constants: ConstantsContextModule;
-        },
-    >
+    Modules extends {
+        tracer: TracerContextModule;
+        jobs: JobsContextModule;
+        constants: ConstantsContextModule;
+    } = {
+        tracer: TracerContextModule;
+        jobs: JobsContextModule;
+        constants: ConstantsContextModule;
+    },
+>
     extends ContextModuleBase<Modules>
     implements ForkableContextModuleBase
 {

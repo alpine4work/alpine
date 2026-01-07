@@ -62,16 +62,16 @@ user simply can’t access it on a mobile device.
 We do use hover states when they add value and have a reasonable alternative on mobile devices. For
 example:
 
--   Hover states help the user understand the hit target of a “quiet” button. A button that is only
-    text or an icon without a background color. While it’s clear these buttons are interactive, it’s
-    not clear where it’s safe to click on the button to activate it. A hover state communicates the
-    hit target.
+- Hover states help the user understand the hit target of a “quiet” button. A button that is only
+  text or an icon without a background color. While it’s clear these buttons are interactive, it’s
+  not clear where it’s safe to click on the button to activate it. A hover state communicates the
+  hit target.
 
     For mobile devices the user jabs at the button and we hope for the best.
 
--   Hide controls on desktop that create visual clutter. For example the reply button and more
-    button on message bubbles. On mobile you access these controls through other interactions like a
-    long press or swipe.
+- Hide controls on desktop that create visual clutter. For example the reply button and more button
+  on message bubbles. On mobile you access these controls through other interactions like a long
+  press or swipe.
 
 ## Vertical vs horizontal more menu three dots icon
 

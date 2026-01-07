@@ -657,8 +657,8 @@ export class FileUploader {
                                           // processing video duration then we want to leave the old video duration in
                                           // place. This makes the function idempotent.
                                           (item.preview.videoDuration === "Processing"
-                                              ? alsoPreviewVideoDuration ??
-                                                item.preview.videoDuration
+                                              ? (alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration)
                                               : item.preview.videoDuration) as number | undefined,
                                   }
                                 : {
@@ -678,8 +678,8 @@ export class FileUploader {
                                           // processing video duration then we want to leave the old video duration in
                                           // place. This makes the function idempotent.
                                           item.preview.videoDuration === "Processing"
-                                              ? alsoPreviewVideoDuration ??
-                                                item.preview.videoDuration
+                                              ? (alsoPreviewVideoDuration ??
+                                                item.preview.videoDuration)
                                               : item.preview.videoDuration,
                                   },
                     };

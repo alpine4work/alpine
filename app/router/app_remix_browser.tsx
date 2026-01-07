@@ -102,16 +102,16 @@ if (import.meta && import.meta.hot) {
                                         // react-refresh takes care of updating these in-place,
                                         // if we don't preserve existing values we'll loose state.
                                         default: imported.default
-                                            ? window.__remixRouteModules[id]?.default ??
-                                              imported.default
+                                            ? (window.__remixRouteModules[id]?.default ??
+                                              imported.default)
                                             : imported.default,
                                         ErrorBoundary: imported.ErrorBoundary
-                                            ? window.__remixRouteModules[id]?.ErrorBoundary ??
-                                              imported.ErrorBoundary
+                                            ? (window.__remixRouteModules[id]?.ErrorBoundary ??
+                                              imported.ErrorBoundary)
                                             : imported.ErrorBoundary,
                                         HydrateFallback: imported.HydrateFallback
-                                            ? window.__remixRouteModules[id]?.HydrateFallback ??
-                                              imported.HydrateFallback
+                                            ? (window.__remixRouteModules[id]?.HydrateFallback ??
+                                              imported.HydrateFallback)
                                             : imported.HydrateFallback,
                                     },
                                 ];

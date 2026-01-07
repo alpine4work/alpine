@@ -40,7 +40,7 @@ export function useFetcherWithSchema<Value>(
     );
 
     return useMemo(
-        () => ({...fetcher, data: deserializedValue} as FetcherWithComponents<Value | undefined>),
+        () => ({...fetcher, data: deserializedValue}) as FetcherWithComponents<Value | undefined>,
         [deserializedValue, fetcher],
     );
 }

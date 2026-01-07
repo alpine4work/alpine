@@ -395,8 +395,8 @@ function serializeTaskQueryCollectionsFilter(filter: TaskQueryCollectionsFilter,
         ((filter.operation.type === "IncludesOneOf"
             ? 1
             : filter.operation.type === "IncludesAllOf"
-            ? 2
-            : 3) <<
+              ? 2
+              : 3) <<
             6) |
         (filter.operation.collectionIds.size & 0b00111111);
 

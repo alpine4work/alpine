@@ -5,7 +5,11 @@ import {parser as lezerJsonParser} from "@lezer/json";
 import {parser as lezerMarkdownParser, parseCode as parseLezerMarkdownCode} from "@lezer/markdown";
 import escapeHtml from "escape-html";
 import {countTokens as countO200kBaseTokens} from "gpt-tokenizer/esm/encoding/o200k_base";
-import prettier from "prettier";
+// @ts-expect-error: After upgrading Prettier, we need to directly import
+// `prettier/index.mjs` to make sure we don't get the standalone build.
+// However, there's no blessed way from Prettier to import the full version
+// with types.
+import * as prettier from "prettier/index.mjs";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
@@ -88,156 +92,161 @@ export async function loadChatGptConversationItems(
         },
     );
 
-    const itemsWithContentHtml = conversationState.items.map(item => {
-        let tokenCount: number | undefined;
+    const itemsWithContentHtml = await runAllPromises(
+        conversationState.items.map(async item => {
+            let tokenCount: number | undefined;
 
-        let content: {
-            text: string;
-            prettierParser: prettier.BuiltInParserName;
-            lezerParser: Parser;
-        } | null = null;
+            let content: {
+                text: string;
+                prettierParser: prettier.BuiltInParserName;
+                lezerParser: Parser;
+            } | null = null;
 
-        switch (item.type) {
-            case "message": {
-                let text = "";
+            switch (item.type) {
+                case "message": {
+                    let text = "";
 
-                for (const content of item.content) {
-                    if (content.type === "input_text" || content.type === "output_text") {
-                        text += content.text;
+                    for (const content of item.content) {
+                        if (content.type === "input_text" || content.type === "output_text") {
+                            text += content.text;
+                        }
                     }
+
+                    tokenCount = countO200kBaseTokens(text);
+
+                    content = {
+                        text,
+                        prettierParser: "markdown",
+                        lezerParser: lezerMarkdownParser.configure(
+                            parseLezerMarkdownCode({htmlParser: lezerHtmlParser}),
+                        ),
+                    };
+                    break;
                 }
-
-                tokenCount = countO200kBaseTokens(text);
-
-                content = {
-                    text,
-                    prettierParser: "markdown",
-                    lezerParser: lezerMarkdownParser.configure(
-                        parseLezerMarkdownCode({htmlParser: lezerHtmlParser}),
-                    ),
-                };
-                break;
-            }
-            case "function_call": {
-                content = {
-                    text: item.arguments,
-                    prettierParser: "json",
-                    lezerParser: lezerJsonParser,
-                };
-                break;
-            }
-            case "function_call_output": {
-                // TODO(ifitzsimmons, #ai): As of OpenAI API v6, function calls can return
-                // a list of items, including images, files, and text content. We don't currently
-                // support these types of function call outputs -- all of our tool calls return
-                // strings. However, we do have plans to support these types of function calls
-                // in the future and when we do, we'll need to update this logic.
-                assert(typeof item.output === "string", "Function call output must be a string");
-                tokenCount = countO200kBaseTokens(item.output);
-
-                content = {
-                    text: item.output,
-                    prettierParser: "markdown",
-                    lezerParser: lezerMarkdownParser.configure(
-                        parseLezerMarkdownCode({htmlParser: lezerHtmlParser}),
-                    ),
-                };
-                break;
-            }
-        }
-
-        if (!content) return item;
-
-        // Technically `_world_` below isn't italicized if you're following the
-        // CommonMark spec. Since text on an adjacent line to HTML is considered more
-        // HTML.
-        //
-        // ```
-        // <human name="Alice>
-        // Hello, _world_!
-        // </human>
-        // ```
-        //
-        // In the following `_world_` is properly italicized:
-        //
-        // ```
-        // <human name="Alice>
-        //
-        // Hello, _world_!
-        //
-        // </human>
-        // ```
-        //
-        // The following adds extra newlines next to HTML open/close tags so Prettier
-        // and Lezer (which are sticklers for valid syntax) parse our Markdown
-        // correctly.
-        if (content.prettierParser === "markdown") {
-            content.text = content.text
-                .replaceAll(/^<[a-z]+[^>]*>\n\n?/gm, substring =>
-                    !substring.endsWith("\n\n") ? `${substring}\n` : substring,
-                )
-                .replaceAll(/\n\n?<\/[a-z]+[^>]*>$/gm, substring =>
-                    !substring.startsWith("\n\n") ? `\n${substring}` : substring,
-                );
-        }
-
-        const contentPrettyText = prettier.format(content.text, {
-            parser: content.prettierParser,
-            printWidth: 80,
-            tabWidth: 2,
-            proseWrap: "always",
-        });
-
-        let contentHtml = "";
-
-        highlightCode(
-            contentPrettyText,
-            content.lezerParser.parse(contentPrettyText),
-            lezerClassHighlighter.get(),
-            (text: string, classes: string) => {
-                if (classes.length === 0) {
-                    contentHtml += escapeHtml(text);
-                } else {
-                    // eslint-disable-next-line string-quotes
-                    contentHtml += `<span class="${classes}">${escapeHtml(text)}</span>`;
+                case "function_call": {
+                    content = {
+                        text: item.arguments,
+                        prettierParser: "json",
+                        lezerParser: lezerJsonParser,
+                    };
+                    break;
                 }
-            },
-            () => {
-                contentHtml += "\n";
-            },
-        );
+                case "function_call_output": {
+                    // TODO(ifitzsimmons, #ai): As of OpenAI API v6, function calls can return
+                    // a list of items, including images, files, and text content. We don't currently
+                    // support these types of function call outputs -- all of our tool calls return
+                    // strings. However, we do have plans to support these types of function calls
+                    // in the future and when we do, we'll need to update this logic.
+                    assert(
+                        typeof item.output === "string",
+                        "Function call output must be a string",
+                    );
+                    tokenCount = countO200kBaseTokens(item.output);
 
-        // Convert:
-        //
-        // ```
-        // <human name="Alice>
-        //
-        // Hello, _world_!
-        //
-        // </human>
-        // ```
-        //
-        // ...back into our unofficial but more readable syntax:
-        //
-        // ```
-        // <human name="Alice>
-        // Hello, _world_!
-        // </human>
-        // ```
-        if (content.prettierParser === "markdown") {
-            contentHtml = contentHtml
-                .replaceAll(
-                    /<span class="tok-punctuation">&lt;<\/span>.*?<span class="tok-punctuation">&gt;<\/span>\n\n/g,
-                    substring => substring.slice(0, -1),
-                )
-                .replaceAll(
-                    /\n\n<span class="tok-punctuation">&lt;\/<\/span>.*?<span class="tok-punctuation">&gt;<\/span>/g,
-                    substring => substring.slice(1),
-                );
-        }
+                    content = {
+                        text: item.output,
+                        prettierParser: "markdown",
+                        lezerParser: lezerMarkdownParser.configure(
+                            parseLezerMarkdownCode({htmlParser: lezerHtmlParser}),
+                        ),
+                    };
+                    break;
+                }
+            }
 
-        return {...item, tokenCount, contentHtml};
-    });
+            if (!content) return item;
+
+            // Technically `_world_` below isn't italicized if you're following the
+            // CommonMark spec. Since text on an adjacent line to HTML is considered more
+            // HTML.
+            //
+            // ```
+            // <human name="Alice>
+            // Hello, _world_!
+            // </human>
+            // ```
+            //
+            // In the following `_world_` is properly italicized:
+            //
+            // ```
+            // <human name="Alice>
+            //
+            // Hello, _world_!
+            //
+            // </human>
+            // ```
+            //
+            // The following adds extra newlines next to HTML open/close tags so Prettier
+            // and Lezer (which are sticklers for valid syntax) parse our Markdown
+            // correctly.
+            if (content.prettierParser === "markdown") {
+                content.text = content.text
+                    .replaceAll(/^<[a-z]+[^>]*>\n\n?/gm, substring =>
+                        !substring.endsWith("\n\n") ? `${substring}\n` : substring,
+                    )
+                    .replaceAll(/\n\n?<\/[a-z]+[^>]*>$/gm, substring =>
+                        !substring.startsWith("\n\n") ? `\n${substring}` : substring,
+                    );
+            }
+
+            const contentPrettyText = await prettier.format(content.text, {
+                parser: content.prettierParser,
+                printWidth: 80,
+                tabWidth: 2,
+                proseWrap: "always",
+            });
+
+            let contentHtml = "";
+
+            highlightCode(
+                contentPrettyText,
+                content.lezerParser.parse(contentPrettyText),
+                lezerClassHighlighter.get(),
+                (text: string, classes: string) => {
+                    if (classes.length === 0) {
+                        contentHtml += escapeHtml(text);
+                    } else {
+                        // eslint-disable-next-line string-quotes
+                        contentHtml += `<span class="${classes}">${escapeHtml(text)}</span>`;
+                    }
+                },
+                () => {
+                    contentHtml += "\n";
+                },
+            );
+
+            // Convert:
+            //
+            // ```
+            // <human name="Alice>
+            //
+            // Hello, _world_!
+            //
+            // </human>
+            // ```
+            //
+            // ...back into our unofficial but more readable syntax:
+            //
+            // ```
+            // <human name="Alice>
+            // Hello, _world_!
+            // </human>
+            // ```
+            if (content.prettierParser === "markdown") {
+                contentHtml = contentHtml
+                    .replaceAll(
+                        /<span class="tok-punctuation">&lt;<\/span>.*?<span class="tok-punctuation">&gt;<\/span>\n\n/g,
+                        substring => substring.slice(0, -1),
+                    )
+                    .replaceAll(
+                        /\n\n<span class="tok-punctuation">&lt;\/<\/span>.*?<span class="tok-punctuation">&gt;<\/span>/g,
+                        substring => substring.slice(1),
+                    );
+            }
+
+            return {...item, tokenCount, contentHtml};
+        }),
+    );
 
     return itemsWithContentHtml;
 }

@@ -137,10 +137,10 @@ export class TracerSpan extends TracerBase {
         this._spanId = spanId;
         this._startTime = startTime;
         this._propagatedEventData = parentSpan
-            ? parentSpan.propagatedEventData ?? null
+            ? (parentSpan.propagatedEventData ?? null)
             : this._tracer.propagatedEventData
-            ? {value: this._tracer.propagatedEventData, next: null}
-            : null;
+              ? {value: this._tracer.propagatedEventData, next: null}
+              : null;
         this._propagatedEventFlatData = parentSpan?.propagatedEventFlatData ?? null;
 
         this._eventData = {

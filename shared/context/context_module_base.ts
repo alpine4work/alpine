@@ -38,7 +38,7 @@ export class ContextModuleBase<
     // TypeScript to infer the type of `Modules` when performing inference of the
     // form `Context<infer Modules>`. Otherwise TypeScript sometimes considers the
     // `clone()` function on the `Context` object to be a part of modules!
-    public declare readonly [modulesTypeSymbol]: Modules;
+    declare public readonly [modulesTypeSymbol]: Modules;
 
     protected get _context(): Context<Modules> {
         throw new InternalError(

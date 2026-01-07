@@ -22,11 +22,8 @@ import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export type MessageRoomKeyType<Message extends MessageModelBase> = Message extends MessageModel<
-    infer RoomKey
->
-    ? RoomKey
-    : never;
+export type MessageRoomKeyType<Message extends MessageModelBase> =
+    Message extends MessageModel<infer RoomKey> ? RoomKey : never;
 
 export interface MessageModelBase {
     /**

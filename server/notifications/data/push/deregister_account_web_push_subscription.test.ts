@@ -17,12 +17,10 @@ jest.unstable_mockModule(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const deregisterWebPushSubscriptionWithoutAuthorizationModule = await import(
-    "../internal/push/deregister_web_push_subscription_without_authorization.js"
-);
-const {deregisterAccountWebPushSubscription} = await import(
-    "~/server/notifications/data/push/deregister_account_web_push_subscription.js"
-);
+const deregisterWebPushSubscriptionWithoutAuthorizationModule =
+    await import("../internal/push/deregister_web_push_subscription_without_authorization.js");
+const {deregisterAccountWebPushSubscription} =
+    await import("~/server/notifications/data/push/deregister_account_web_push_subscription.js");
 
 const context = createTestContext();
 

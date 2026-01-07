@@ -74,7 +74,7 @@ export class DynamoContextCache<Key extends string | number, Value> {
 
         const allowsEventualReadConsistency =
             typeof consistencyOrOptions === "object"
-                ? consistencyOrOptions.allowsEventualReadConsistency ?? false
+                ? (consistencyOrOptions.allowsEventualReadConsistency ?? false)
                 : false;
 
         switch (consistency) {

@@ -64,16 +64,16 @@ export function LoudNotificationBadge({
                         top.endsWith("rem")
                             ? top
                             : top.startsWith("-")
-                            ? `-${spacing[top.slice(1) as Spacing]}`
-                            : spacing[top as Spacing],
+                              ? `-${spacing[top.slice(1) as Spacing]}`
+                              : spacing[top as Spacing],
                     ) -
                     parseRemLength("3") * (borderWidth / badgeHeight)
                 }rem`,
                 right: right.endsWith("rem")
                     ? right
                     : right.startsWith("-")
-                    ? `-${spacing[right.slice(1) as Spacing]}`
-                    : spacing[right as Spacing],
+                      ? `-${spacing[right.slice(1) as Spacing]}`
+                      : spacing[right as Spacing],
                 transform: "translateX(50%)",
             }}
         >

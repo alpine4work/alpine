@@ -178,10 +178,10 @@ export function TaskQueryFilterEditor({
                                     filter.operation.type === "Overdue"
                                         ? overdueOperatorLabel
                                         : filter.operation.type === "IsEmpty"
-                                        ? isEmptyOperatorLabel
-                                        : filter.operation.type === "LessThan"
-                                        ? taskQueryFilterDateOperationLessThanOperatorLabel
-                                        : taskQueryFilterDateOperationGreaterThanOperatorLabel
+                                          ? isEmptyOperatorLabel
+                                          : filter.operation.type === "LessThan"
+                                            ? taskQueryFilterDateOperationLessThanOperatorLabel
+                                            : taskQueryFilterDateOperationGreaterThanOperatorLabel
                                 }
                                 allOperators={[
                                     {

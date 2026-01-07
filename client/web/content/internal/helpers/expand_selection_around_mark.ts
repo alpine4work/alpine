@@ -76,7 +76,7 @@ export function expandSelectionAroundMark(
     // If we found no mark, this isn't a link selection.
     if (!mark) return null;
 
-    let extendFrom = selectionNodeBeforeMark ? selectionNodeBefore?.nodeSize ?? 0 : 0;
+    let extendFrom = selectionNodeBeforeMark ? (selectionNodeBefore?.nodeSize ?? 0) : 0;
     if (selectionNodeBeforeMark) {
         // If `textOffset` is 0 then `nodeBefore` will be the full child before the
         // node `$from` points to.
@@ -93,7 +93,7 @@ export function expandSelectionAroundMark(
         }
     }
 
-    let extendTo = selectionNodeAfterMark ? selectionNodeAfter?.nodeSize ?? 0 : 0;
+    let extendTo = selectionNodeAfterMark ? (selectionNodeAfter?.nodeSize ?? 0) : 0;
     if (selectionNodeAfterMark) {
         const startIndex = selection.$to.index() + 1;
 

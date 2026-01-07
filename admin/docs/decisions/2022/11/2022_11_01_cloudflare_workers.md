@@ -13,27 +13,27 @@ considering Next.js.
 
 For our web server host we ideally want:
 
--   A managed platform that removes ops concerns from our team for as long as possible.
--   On demand pricing so costs start low and automatically scale with usage. Horizontally scaling
-    with a couple clicks also acceptable.
--   A platform with a global [edge network](https://en.wikipedia.org/wiki/Edge_computing) to achieve
-    lowest possible latencies for users interacting with our services.
+- A managed platform that removes ops concerns from our team for as long as possible.
+- On demand pricing so costs start low and automatically scale with usage. Horizontally scaling with
+  a couple clicks also acceptable.
+- A platform with a global [edge network](https://en.wikipedia.org/wiki/Edge_computing) to achieve
+  lowest possible latencies for users interacting with our services.
 
 Again, these aren't requirements. [AWS EC2](https://aws.amazon.com/pm/ec2) could serve us well
 without meeting these points.
 
 For delivering realtime events to users here are some considerations I have:
 
--   What is the end-to-end latency for events?
--   Does the realtime broker have ordering guarantees to simplify code?
--   Does the realtime broker have the ability to replay recent events? If the server-side load
-    fetches data at time `t` and the WebSocket connection happens at time `t + 100ms` what happens
-    if a realtime event occurs at `t + 20ms`? The realtime broker needs to be able to replay events
-    in a short window of time.
--   Can we make sure clients are only ever capable of receiving events for data they are authorized
-    to see?
--   Can realtime events include data with potential permissions filters per-user? Or would we need
-    to broadcast an invalidation message to all users that triggers read requests on the client?
+- What is the end-to-end latency for events?
+- Does the realtime broker have ordering guarantees to simplify code?
+- Does the realtime broker have the ability to replay recent events? If the server-side load fetches
+  data at time `t` and the WebSocket connection happens at time `t + 100ms` what happens if a
+  realtime event occurs at `t + 20ms`? The realtime broker needs to be able to replay events in a
+  short window of time.
+- Can we make sure clients are only ever capable of receiving events for data they are authorized to
+  see?
+- Can realtime events include data with potential permissions filters per-user? Or would we need to
+  broadcast an invalidation message to all users that triggers read requests on the client?
 
 ## Alternatives considered
 

@@ -269,8 +269,8 @@ export function FocusRingBox({
         offset === "border"
             ? -1
             : offset === "inset"
-            ? -ringWidthPx
-            : convertRemLengthToPx(offset, spacingScale);
+              ? -ringWidthPx
+              : convertRemLengthToPx(offset, spacingScale);
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.

@@ -168,22 +168,22 @@ export function TaskQueryFilterDateOperationValueEditor({
                         operation.date.type === "Absolute"
                             ? absoluteDateLabel
                             : operation.date.type === "RelativeToday"
-                            ? relativeTodayDateLabel
-                            : operation.date.type === "RelativeBeforeToday"
-                            ? operation.date.duration.count === 1
-                                ? relativeBeforeTodaySingularLabelByDurationType[
-                                      operation.date.duration.type
-                                  ]
-                                : relativeBeforeTodayPluralLabelByDurationType[
-                                      operation.date.duration.type
-                                  ]
-                            : operation.date.duration.count === 1
-                            ? relativeAfterTodaySingularLabelByDurationType[
-                                  operation.date.duration.type
-                              ]
-                            : relativeAfterTodayPluralLabelByDurationType[
-                                  operation.date.duration.type
-                              ]
+                              ? relativeTodayDateLabel
+                              : operation.date.type === "RelativeBeforeToday"
+                                ? operation.date.duration.count === 1
+                                    ? relativeBeforeTodaySingularLabelByDurationType[
+                                          operation.date.duration.type
+                                      ]
+                                    : relativeBeforeTodayPluralLabelByDurationType[
+                                          operation.date.duration.type
+                                      ]
+                                : operation.date.duration.count === 1
+                                  ? relativeAfterTodaySingularLabelByDurationType[
+                                        operation.date.duration.type
+                                    ]
+                                  : relativeAfterTodayPluralLabelByDurationType[
+                                        operation.date.duration.type
+                                    ]
                     }
                     allOperators={[
                         [

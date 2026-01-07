@@ -23,7 +23,7 @@ function DocumentCommentBrandIcon({size}: {size?: Spacing}) {
         fill: mapObjectValues(brandIconSplashColorShade, shade => `blue-${shade}` as const),
     });
 
-    const actualSize = size ? spacing[size] : contextSize ?? spacing["5"];
+    const actualSize = size ? spacing[size] : (contextSize ?? spacing["5"]);
 
     return (
         <svg

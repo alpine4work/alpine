@@ -1890,9 +1890,8 @@ test("can favorite and unfavorite search entities", async () => {
 
 test("will show top three favorites at the start of affinity list when querying specific entities", async () => {
     const space = await TestSpace.create(context);
-    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
-        6,
-    );
+    const [session1, session2, session3, session4, session5, session6] =
+        await space.createSessions(6);
 
     const currentTime = Date.now();
 

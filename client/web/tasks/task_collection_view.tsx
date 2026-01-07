@@ -291,8 +291,8 @@ export function TaskCollectionView({
         filters.length > 0
             ? "Tasks are ordered by created date."
             : hasEditAccessLevel
-            ? "You can change the order of tasks by dragging them."
-            : "Tasks are ordered manually.";
+              ? "You can change the order of tasks by dragging them."
+              : "Tasks are ordered manually.";
 
     const desktopHeaderRef = useRef<TaskCollectionViewDesktopHeaderRef>(null);
     const navigationBarDesktopNameRef = useRef<TaskCollectionViewDesktopHeaderNameRef>(null);
@@ -310,7 +310,7 @@ export function TaskCollectionView({
     // accounts/collections referenced by the query. This is expensive (O(tasks))
     // so it's important to only run this when `currentAccount` is null.
     const queryReferencesForUrlGrant = useTaskQueryReferencesForUrlGrantFilterEditor(
-        !currentAccount ? queryState.activeQuery.query?.query ?? null : null,
+        !currentAccount ? (queryState.activeQuery.query?.query ?? null) : null,
     );
 
     const [editNameMobileModalState, setEditNameMobileModalState] = useState<{
@@ -913,7 +913,7 @@ export function TaskCollectionView({
                     )}
                     scrollbarInsetTop={
                         routeLayout === "narrow"
-                            ? scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop
+                            ? (scrollbarInsetTop ?? safeAreaOnlyScrollbarInsetTop)
                             : undefined
                     }
                     scrollbarInsetTopItemIndex={

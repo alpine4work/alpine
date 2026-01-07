@@ -61,8 +61,8 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                                 ? "~"
                                 : "#"
                             : sort.missing === "Last"
-                            ? "#"
-                            : "~";
+                              ? "#"
+                              : "~";
 
                     return [
                         {
@@ -268,8 +268,8 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                                 ? "~"
                                 : "#"
                             : sort.missing === "Last"
-                            ? "#"
-                            : "~",
+                              ? "#"
+                              : "~",
                     );
                 } else {
                     // This sort item is sorted by

@@ -725,7 +725,7 @@ function DocumentCommentThreadListView(
         isSingleCommentThreadWithPinnedCommentInput
             ? inputRefByCommentThreadId.get(tree.getItem(tree.getItemCount() - 1).commentThread.id)
             : null,
-        isSingleCommentThreadWithPinnedCommentInput ? pinnedCommentInputRef ?? null : null,
+        isSingleCommentThreadWithPinnedCommentInput ? (pinnedCommentInputRef ?? null) : null,
     );
 
     const {dragOverlay, dropTargetProps} = useMessagingViewDropTarget({
@@ -1035,8 +1035,8 @@ function DocumentCommentThreadListView(
                                         ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
                                         : "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
                                     : backgroundSlopBottomIfPinnedCommentInput
-                                    ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
-                                    : messagingViewMarginBottom
+                                      ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
+                                      : messagingViewMarginBottom
                                 : undefined,
                         render: node => (
                             <div

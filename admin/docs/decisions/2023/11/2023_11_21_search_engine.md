@@ -8,14 +8,14 @@ open anywhere in the product (press shift twice) and you start typing what you w
 your arrow keys to see a fully interactive preview in a peek of the search result before selecting
 it. In order for this to lead to a fluid user experience, our search engine needs to be:
 
--   **Fast:** The search dialog opens instantly and results pop up quickly as you’re typing.
+- **Fast:** The search dialog opens instantly and results pop up quickly as you’re typing.
 
--   **Relevant:** The search results suggested to the user are precisely what they’re looking for.
-    Even with a sloppy query. So they don’t need to spend mental energy carefully crafting the right
-    search query.
+- **Relevant:** The search results suggested to the user are precisely what they’re looking for.
+  Even with a sloppy query. So they don’t need to spend mental energy carefully crafting the right
+  search query.
 
--   **Heterogenic:** There are many different kinds of content in Alpine. Chat messages, documents,
-    tasks, forum posts, people. All of this content needs to be cleanly surfaced in search.
+- **Heterogenic:** There are many different kinds of content in Alpine. Chat messages, documents,
+  tasks, forum posts, people. All of this content needs to be cleanly surfaced in search.
 
 ### Relevance signals
 
@@ -23,23 +23,23 @@ There are many relevance signals you could use when implementing a search engine
 shown to improve when you mix multiple signals together. The signals we’ve decided to start our
 search engine with are:
 
--   **Keyword matching:** This forms the base layer of a search engine. Many search engines _only_
-    provide keyword matching. State-of-the-art keyword matching
-    [uses the BM25 algorithm](https://en.wikipedia.org/wiki/Okapi_BM25).
+- **Keyword matching:** This forms the base layer of a search engine. Many search engines _only_
+  provide keyword matching. State-of-the-art keyword matching
+  [uses the BM25 algorithm](https://en.wikipedia.org/wiki/Okapi_BM25).
 
--   **Semantic meaning:** You can use a large language model (like those provided by
-    [OpenAI](https://openai.com/)) to more deeply understand the meaning of text. These approaches
-    work by embedding text into a high dimensional vector then comparing document embeddings against
-    search query embeddings to see which documents are closest to the query.
+- **Semantic meaning:** You can use a large language model (like those provided by
+  [OpenAI](https://openai.com/)) to more deeply understand the meaning of text. These approaches
+  work by embedding text into a high dimensional vector then comparing document embeddings against
+  search query embeddings to see which documents are closest to the query.
 
--   **Affinity:** If there’s a document the user has interacted before and a document the user
-    hasn’t interacted with before, it’s much more likely the user wants the document they’ve
-    interacted with. A very common use case of search is to recall some piece of content the user
-    has already seen. It’s less common that a user is using search to discover something new.
+- **Affinity:** If there’s a document the user has interacted before and a document the user hasn’t
+  interacted with before, it’s much more likely the user wants the document they’ve interacted with.
+  A very common use case of search is to recall some piece of content the user has already seen.
+  It’s less common that a user is using search to discover something new.
 
--   **Natural language filtering:** If the user searches for “my tasks” they are probably looking
-    for tasks they created. Not documents with the word “tasks” in it. Not documents written in
-    first person (since there would be semantical similarity with “my”).
+- **Natural language filtering:** If the user searches for “my tasks” they are probably looking for
+  tasks they created. Not documents with the word “tasks” in it. Not documents written in first
+  person (since there would be semantical similarity with “my”).
 
     This is not only a challenging technical problem (which is not solved well anywhere as far as
     I’m aware) but also a challenging UX problem. Since you need to communicate to the user what
@@ -52,23 +52,23 @@ search engine with are:
 
 Some other notable search engine signals we won’t be implementing for now:
 
--   **Authority:** Assign some perceived importance score to documents and return documents of
-    higher importance first. This approach was famously used by the first version of Google. Their
-    specific algorithm was called [PageRank](https://en.wikipedia.org/wiki/PageRank).
+- **Authority:** Assign some perceived importance score to documents and return documents of higher
+  importance first. This approach was famously used by the first version of Google. Their specific
+  algorithm was called [PageRank](https://en.wikipedia.org/wiki/PageRank).
 
--   **User behavior:** Boost search results that users consistently interact with. If two users have
-    a similar query, it’s likely they’re looking for the same thing. You can leverage past usage
-    data to help future users find documents faster.
+- **User behavior:** Boost search results that users consistently interact with. If two users have a
+  similar query, it’s likely they’re looking for the same thing. You can leverage past usage data to
+  help future users find documents faster.
 
     You can get fancy here by training a machine learning model that can predict the likelihood of a
     user interacting with a given search result based on past interactions. This is how
     [recommender systems](https://towardsdatascience.com/introduction-to-recommender-systems-6c66cf15ada)
     work (recommender systems power newsfeeds like Instagram and Twitter among other things).
 
--   **Recency:** Newer content is likely more relevant to the user than older content. Using this as
-    a relevance signal can be a double edged sword, though. Recent content may show up in the user’s
-    inbox or home feed. If the user is going to search they may be looking for a more obscure,
-    older, piece of content.
+- **Recency:** Newer content is likely more relevant to the user than older content. Using this as a
+  relevance signal can be a double edged sword, though. Recent content may show up in the user’s
+  inbox or home feed. If the user is going to search they may be looking for a more obscure, older,
+  piece of content.
 
 #### How did we choose the relevance signals to include vs exclude in this first version?
 
@@ -115,46 +115,45 @@ type SearchEntity = {
 };
 ```
 
--   `id`: A globally unique identifier for the entity. Combines the entity type with its unique key.
-    For example a chat message entity ID would be: `ChatMessage:dvrbb4m9faeh1n66pg7gehqxam:42`
-    (entity type + chat ID + message index).
+- `id`: A globally unique identifier for the entity. Combines the entity type with its unique key.
+  For example a chat message entity ID would be: `ChatMessage:dvrbb4m9faeh1n66pg7gehqxam:42` (entity
+  type + chat ID + message index).
 
--   `accessPolicy`: Who is allowed to access the search entity? Follows a similar format to access
-    policies for content elsewhere in the product except we omit permission levels since all we need
-    to know is if the account can read the entity.
+- `accessPolicy`: Who is allowed to access the search entity? Follows a similar format to access
+  policies for content elsewhere in the product except we omit permission levels since all we need
+  to know is if the account can read the entity.
 
--   `createdTime`: When was this entity created? Derived from the underlying data.
+- `createdTime`: When was this entity created? Derived from the underlying data.
 
--   `lastUpdatedTime`: When was this entity last updated? The search entity indexer automatically
-    updates this property when re-indexing an entity.
+- `lastUpdatedTime`: When was this entity last updated? The search entity indexer automatically
+  updates this property when re-indexing an entity.
 
--   `title`: A short, optional, title string representing the entity. If searches match an entity’s
-    title they’re ranked higher than searches that match an entity’s body.
+- `title`: A short, optional, title string representing the entity. If searches match an entity’s
+  title they’re ranked higher than searches that match an entity’s body.
 
--   `body`: The bulk of the entity’s content. This is indexed for keyword search. The body is
-    formatted using Markdown. `chunkSearchContent()` prints ProseMirror content nodes to Markdown
-    and `parseSearchContent()` can parse Markdown back into ProseMirror content nodes. These
-    functions are entirely reversible with the exception of some accepted lossiness by
-    `chunkSearchContent()` (e.g. links are not preserved and mentions are formatted as text which
-    helps keyword indexing).
+- `body`: The bulk of the entity’s content. This is indexed for keyword search. The body is
+  formatted using Markdown. `chunkSearchContent()` prints ProseMirror content nodes to Markdown and
+  `parseSearchContent()` can parse Markdown back into ProseMirror content nodes. These functions are
+  entirely reversible with the exception of some accepted lossiness by `chunkSearchContent()` (e.g.
+  links are not preserved and mentions are formatted as text which helps keyword indexing).
 
--   `media`: If there's an essential piece of media associated with the entity, it’s set on this
-    property and we display it during search. For example the author of a post comment or members in
-    a chat.
+- `media`: If there's an essential piece of media associated with the entity, it’s set on this
+  property and we display it during search. For example the author of a post comment or members in a
+  chat.
 
--   `embeddingChunks`: This is another representation of the `title` and `body` content. For
-    embedding with a large language model, we need to take our content and break it into smaller
-    chunks. Models like [Cohere](https://docs.cohere.com/reference/embed) recommend reducing chunk
-    length to be less than 512.
+- `embeddingChunks`: This is another representation of the `title` and `body` content. For embedding
+  with a large language model, we need to take our content and break it into smaller chunks. Models
+  like [Cohere](https://docs.cohere.com/reference/embed) recommend reducing chunk length to be less
+  than 512.
 
--   `creatorId`: The account who created the entity.
+- `creatorId`: The account who created the entity.
 
--   `contributorIds`: All accounts who contributed updates to the entity. Contributors are
-    classified as either major contributors or minor contributors. How contributors are classified
-    depends on the search entity type, but we recommend saying anyone who contributed >20% of
-    updates is a major contributor and everyone else is a minor contributor. This is loosely based
-    on the [Pareto principle](https://en.wikipedia.org/wiki/Pareto_principle). 80% of the document’s
-    meaning can be attributed to 20% of the updates.
+- `contributorIds`: All accounts who contributed updates to the entity. Contributors are classified
+  as either major contributors or minor contributors. How contributors are classified depends on the
+  search entity type, but we recommend saying anyone who contributed >20% of updates is a major
+  contributor and everyone else is a minor contributor. This is loosely based on the
+  [Pareto principle](https://en.wikipedia.org/wiki/Pareto_principle). 80% of the document’s meaning
+  can be attributed to 20% of the updates.
 
 ### Indexing search entities
 
@@ -164,15 +163,15 @@ introduced alongside our search engine). The job is idempotent. It reads the lat
 database and updates our search entity in two [OpenSearch](https://opensearch.org/) indexes. Those
 OpenSearch indexes are:
 
--   `search_entity_keywords`: Indexes search entities for keyword search. Includes all search entity
-    properties except for `embeddingChunks`.
+- `search_entity_keywords`: Indexes search entities for keyword search. Includes all search entity
+  properties except for `embeddingChunks`.
 
--   `search_entity_semantics`: Indexes search entities for semantic search. Uses a
-    [nested field](https://opensearch.org/docs/latest/field-types/supported-field-types/nested/) for
-    `embeddingChunks` so we can perform passage search on search entities while only returning the
-    best matching chunk. This index only includes the `id`, `title`, `media`, and `accessPolicy`
-    properties. `accessPolicy` is copied into each embedding chunk nested document to avoid joins
-    when searching embedding chunks.
+- `search_entity_semantics`: Indexes search entities for semantic search. Uses a
+  [nested field](https://opensearch.org/docs/latest/field-types/supported-field-types/nested/) for
+  `embeddingChunks` so we can perform passage search on search entities while only returning the
+  best matching chunk. This index only includes the `id`, `title`, `media`, and `accessPolicy`
+  properties. `accessPolicy` is copied into each embedding chunk nested document to avoid joins when
+  searching embedding chunks.
 
     We’re also using
     [byte vectors](https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/#lucene-byte-vector)
@@ -228,29 +227,29 @@ vectors by chunk and only embed chunks that have changed since the last time we 
 
 Let’s break down how we’re implementing each of our relevance signals:
 
--   Keyword matching: Our `search_entity_keywords` uses OpenSearch’s battle hardened BM25
-    implementation.
+- Keyword matching: Our `search_entity_keywords` uses OpenSearch’s battle hardened BM25
+  implementation.
 
--   Semantic meaning: We chunk our content using document structure (e.g. we recursively try to
-    chunk by headings, then bullet lists, then paragraphs until we get small enough chunks) then
-    generate embeddings with Cohere and save them to a nested document in the
-    `search_entity_semantics` OpenSearch index. Notably,
-    [OpenSearch’s k-NN implementation](https://opensearch.org/docs/latest/search-plugins/knn/index/)
-    is different from
-    [ElasticSearch’s k-NN implementation](https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html)
-    since k-NN search was introduced after the ElasticSearch fork. They both have the option to use
-    the k-NN search natively built into [Lucene](https://lucene.apache.org/). Given OpenSearch’s
-    k-NN implementation is AWS’s only hosted service offering for semantic search and AWS’s
-    commitment to supporting AI use cases, we can be confident development will continue.
+- Semantic meaning: We chunk our content using document structure (e.g. we recursively try to chunk
+  by headings, then bullet lists, then paragraphs until we get small enough chunks) then generate
+  embeddings with Cohere and save them to a nested document in the `search_entity_semantics`
+  OpenSearch index. Notably,
+  [OpenSearch’s k-NN implementation](https://opensearch.org/docs/latest/search-plugins/knn/index/)
+  is different from
+  [ElasticSearch’s k-NN implementation](https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html)
+  since k-NN search was introduced after the ElasticSearch fork. They both have the option to use
+  the k-NN search natively built into [Lucene](https://lucene.apache.org/). Given OpenSearch’s k-NN
+  implementation is AWS’s only hosted service offering for semantic search and AWS’s commitment to
+  supporting AI use cases, we can be confident development will continue.
 
--   Affinity: We have a DynamoDB table for search entity affinities by account. Whenever the account
-    interacts with an object in our system (views the object, updates the object) we add affinity
-    points. Affinity points exponentially decay over time so content you haven’t used in a while
-    lose relevance.
+- Affinity: We have a DynamoDB table for search entity affinities by account. Whenever the account
+  interacts with an object in our system (views the object, updates the object) we add affinity
+  points. Affinity points exponentially decay over time so content you haven’t used in a while lose
+  relevance.
 
--   Natural language filtering: We use the [compromise](https://www.npmjs.com/package/compromise)
-    package to do basic tokenization, entity extraction, and part of speech tagging. It’s not
-    perfect but good enough to write a basic natural language parser on top of.
+- Natural language filtering: We use the [compromise](https://www.npmjs.com/package/compromise)
+  package to do basic tokenization, entity extraction, and part of speech tagging. It’s not perfect
+  but good enough to write a basic natural language parser on top of.
 
     After that, we have a hand-written
     [LR(1) style parser](https://en.wikipedia.org/wiki/Canonical_LR_parser) to turn natural language
@@ -283,14 +282,13 @@ from multiple different tables into one big search index.
 
 ## Alternatives considered
 
--   Discussed using one OpenSearch index in “[Indexing search entities](#indexing-search-entities).”
+- Discussed using one OpenSearch index in “[Indexing search entities](#indexing-search-entities).”
 
--   While OpenSearch’s k-NN implementation is good enough, it could be better. So I (Caleb) briefly
-    considered using a vector database like [Pinecone](https://www.pinecone.io/),
-    [qdrant](https://qdrant.tech/), or [ChromaDB](https://www.trychroma.com/). Ultimately settled on
-    OpenSearch since it’s good enough and it reduces our operational burden to reduce the number of
-    databases we need to manage. OpenSearch’s k-NN deficiencies:
-
+- While OpenSearch’s k-NN implementation is good enough, it could be better. So I (Caleb) briefly
+  considered using a vector database like [Pinecone](https://www.pinecone.io/),
+  [qdrant](https://qdrant.tech/), or [ChromaDB](https://www.trychroma.com/). Ultimately settled on
+  OpenSearch since it’s good enough and it reduces our operational burden to reduce the number of
+  databases we need to manage. OpenSearch’s k-NN deficiencies:
     1. It’s very unfortunate that OpenSearch doesn’t have a
        [namespaces feature like Pinecone](https://docs.pinecone.io/docs/namespaces). As I understand
        it, the k-NN plugin puts data from all Alpine spaces into one search graph! This can hurt
@@ -322,9 +320,9 @@ though it’s quality is pretty bad in comparison to Cohere.
 
 The major commercial language models today that perform content embeddings I know of are:
 
--   [OpenAI `text-embedding-ada-002`](https://platform.openai.com/docs/guides/embeddings/what-are-embeddings)
--   [Google Gemini Pro](https://ai.google.dev/)
--   [Cohere `embed-english-v3.0`](https://cohere.com/embeddings)
+- [OpenAI `text-embedding-ada-002`](https://platform.openai.com/docs/guides/embeddings/what-are-embeddings)
+- [Google Gemini Pro](https://ai.google.dev/)
+- [Cohere `embed-english-v3.0`](https://cohere.com/embeddings)
 
 [Anthropic](https://www.anthropic.com/product) doesn’t currently provide embeddings. From the Q&A on
 their website “Q: Can Claude do embeddings? A: Not at this time! We find the open source SBERT

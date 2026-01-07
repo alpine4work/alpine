@@ -34,10 +34,10 @@ type SuccessResponseData<T> = T extends {responses: infer R}
     ? R extends {200: {content: {"application/json": infer Data}}}
         ? Data
         : R extends {201: {content: {"application/json": infer Data}}}
-        ? Data
-        : R extends {204: never}
-        ? void
-        : unknown
+          ? Data
+          : R extends {204: never}
+            ? void
+            : unknown
     : unknown;
 
 // Configuration for a single mock response

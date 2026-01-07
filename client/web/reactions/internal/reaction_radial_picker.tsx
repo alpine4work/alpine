@@ -451,10 +451,10 @@ function ReactionRadialPicker(
                                                     : "grey-10"
                                                 : "grey-5"
                                             : activeIndex === index
-                                            ? isPressed || isMouseDownFromOverlayOpen
-                                                ? "grey-10"
-                                                : "grey-5"
-                                            : undefined
+                                              ? isPressed || isMouseDownFromOverlayOpen
+                                                  ? "grey-10"
+                                                  : "grey-5"
+                                              : undefined
                                     }
                                     color={
                                         activeIndex === index &&

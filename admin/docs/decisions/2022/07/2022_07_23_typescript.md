@@ -7,29 +7,29 @@ building a web app, we’re constrained right now to programming languages that 
 for the frontend. On the backend we’re unconstrained. Some things to consider when making this
 decision:
 
--   **Developer productivity:** How fast is it for our founding team and new team members to write
-    code in our chosen language?
+- **Developer productivity:** How fast is it for our founding team and new team members to write
+  code in our chosen language?
 
--   **Community support:** Do our chosen languages have a rich, mature, ecosystem of libraries for
-    challenging technical problems? We don’t care about whether the ecosystem has many small helper
-    libraries or database ORMs, we’re comfortable building out our own helper library and database
-    access layer. We care more about libraries for building reactive UIs at scale (e.g. React),
-    libraries for building rich text editors, and libraries for advanced data structures like
-    [red-black trees](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
+- **Community support:** Do our chosen languages have a rich, mature, ecosystem of libraries for
+  challenging technical problems? We don’t care about whether the ecosystem has many small helper
+  libraries or database ORMs, we’re comfortable building out our own helper library and database
+  access layer. We care more about libraries for building reactive UIs at scale (e.g. React),
+  libraries for building rich text editors, and libraries for advanced data structures like
+  [red-black trees](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
 
--   **Type safety:** We’ll have to write a lot of code. It will be impossible for a single developer
-    to reason about the whole system at once, or even a major subsystem. We need tooling to help
-    guarantee program correctness at scale. Programming language type systems do a good job at this
-    while keeping code composable.
+- **Type safety:** We’ll have to write a lot of code. It will be impossible for a single developer
+  to reason about the whole system at once, or even a major subsystem. We need tooling to help
+  guarantee program correctness at scale. Programming language type systems do a good job at this
+  while keeping code composable.
 
--   **Process boundary safety:** When we communicate between two processes (e.g. client → server, or
-    service 1 → service 2 or even one server “communicating” with another through a database) we
-    want these communications to be safe. Both processes should speak the same protocol that’s
-    resilient to version upgrades and data migrations.
+- **Process boundary safety:** When we communicate between two processes (e.g. client → server, or
+  service 1 → service 2 or even one server “communicating” with another through a database) we want
+  these communications to be safe. Both processes should speak the same protocol that’s resilient to
+  version upgrades and data migrations.
 
--   **Performance:** Is the programming language fast? Basically every programming language is fast
-    enough. Programming language choice impacts user perceived performance significantly less than
-    good system design and algorithmic choice.
+- **Performance:** Is the programming language fast? Basically every programming language is fast
+  enough. Programming language choice impacts user perceived performance significantly less than
+  good system design and algorithmic choice.
 
 ## Decision
 
@@ -48,31 +48,31 @@ This makes TypeScript a natural choice.
 
 It hits all our considerations above:
 
--   **Developer productivity:** This is the language I’m fastest in and is widely known. I’ve also
-    seen developers pick up TypeScript quickly at previous companies.
+- **Developer productivity:** This is the language I’m fastest in and is widely known. I’ve also
+  seen developers pick up TypeScript quickly at previous companies.
 
--   **Community support:** JavaScript has one of the richest package ecosystems out there. There are
-    many bad packages, too many small utility packages, but still there are great solutions for
-    advanced technical problems.
+- **Community support:** JavaScript has one of the richest package ecosystems out there. There are
+  many bad packages, too many small utility packages, but still there are great solutions for
+  advanced technical problems.
 
--   **Type safety:** TypeScript is widely adopted across the JavaScript ecosystem. At this point,
-    you basically must have TypeScript support for your package to get any adoption. It also has
-    this wonderful mix of type safety and dynamism. You can always `any` your way into dynamic
-    JavaScript where the type system is missing. This is great for productivity.
+- **Type safety:** TypeScript is widely adopted across the JavaScript ecosystem. At this point, you
+  basically must have TypeScript support for your package to get any adoption. It also has this
+  wonderful mix of type safety and dynamism. You can always `any` your way into dynamic JavaScript
+  where the type system is missing. This is great for productivity.
 
--   **Process boundary safety:** By using TypeScript and both the frontend and the backend we can
-    easily share types and code. This makes implementing rich collaborative experiences much easier
-    where the frontend and backend need to work in concert to provide a great user experience.
+- **Process boundary safety:** By using TypeScript and both the frontend and the backend we can
+  easily share types and code. This makes implementing rich collaborative experiences much easier
+  where the frontend and backend need to work in concert to provide a great user experience.
 
--   **Performance:** There’s heavy investment in JavaScript engine performance across the industry
-    given it’s THE language right now for developing on the web. (WebAssembly exists but isn’t
-    commonly used for building web apps.) Recently JavaScript developers have also been getting more
-    tools to work with
-    [binary data](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray),
-    interact with the
-    [garbage collector](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry),
-    and
-    [share data across processes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
+- **Performance:** There’s heavy investment in JavaScript engine performance across the industry
+  given it’s THE language right now for developing on the web. (WebAssembly exists but isn’t
+  commonly used for building web apps.) Recently JavaScript developers have also been getting more
+  tools to work with
+  [binary data](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray),
+  interact with the
+  [garbage collector](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry),
+  and
+  [share data across processes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
 
     JavaScript is fast enough. What makes the biggest difference on perceived user performance is
     system design and algorithmic choice.
@@ -82,25 +82,25 @@ It hits all our considerations above:
 
 ## Alternatives considered
 
--   [Elixir](https://elixir-lang.org/) and TypeScript: Elixir is appealing as a backend language
-    because it has [Phoenix](https://www.phoenixframework.org/), a
-    [Ruby on Rails](https://rubyonrails.org/) quality web app framework, and is based on Erlang
-    which is designed for supporting highly distributed and concurrent backend systems. I started
-    prototyping in Elixir but found I wasn’t as productive as with TypeScript (maybe due to not
-    knowing the language well) and struggled when it came time to build realtime text editing
-    because my chosen library ([ProseMirror](https://prosemirror.net/)) needs JavaScript on the
-    server to properly implement its
-    [Operational Transform](https://en.wikipedia.org/wiki/Operational_transformation) algorithm.
+- [Elixir](https://elixir-lang.org/) and TypeScript: Elixir is appealing as a backend language
+  because it has [Phoenix](https://www.phoenixframework.org/), a
+  [Ruby on Rails](https://rubyonrails.org/) quality web app framework, and is based on Erlang which
+  is designed for supporting highly distributed and concurrent backend systems. I started
+  prototyping in Elixir but found I wasn’t as productive as with TypeScript (maybe due to not
+  knowing the language well) and struggled when it came time to build realtime text editing because
+  my chosen library ([ProseMirror](https://prosemirror.net/)) needs JavaScript on the server to
+  properly implement its
+  [Operational Transform](https://en.wikipedia.org/wiki/Operational_transformation) algorithm.
 
     You also can’t server-side render your React code when using Phoenix as your web server. Given
     just about everything in our application is interactive, there’s almost nothing for a static
     Phoenix web server to render.
 
--   [Rust](https://www.rust-lang.org/) and TypeScript: I spent a lot of time prototyping in Rust. I
-    even ended up building a
-    [streaming GraphQL server implementation in Rust](https://github.com/calebmer/cyberworlds-legacy/blob/main-legacy-1/server/graphql/core/executor.rs).
-    However, my productivity in Rust (while pretty high) is still lower than TypeScript. When doing
-    anything advanced you often run into fights with the borrow checker.
+- [Rust](https://www.rust-lang.org/) and TypeScript: I spent a lot of time prototyping in Rust. I
+  even ended up building a
+  [streaming GraphQL server implementation in Rust](https://github.com/calebmer/cyberworlds-legacy/blob/main-legacy-1/server/graphql/core/executor.rs).
+  However, my productivity in Rust (while pretty high) is still lower than TypeScript. When doing
+  anything advanced you often run into fights with the borrow checker.
 
     Performance-wise memory allocation in Rust is theoretically slower if you don’t use a custom
     allocator. By default memory allocation in Rust is like `malloc()` memory allocation in C. The

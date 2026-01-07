@@ -952,8 +952,8 @@ function Tooltip(
                                 state.isFadingOut
                                     ? overlayAnimateFadeOutClassName
                                     : state.isFadingIn
-                                    ? overlayAnimateFadeInClassName
-                                    : undefined,
+                                      ? overlayAnimateFadeInClassName
+                                      : undefined,
                             )}
                         >
                             {content}

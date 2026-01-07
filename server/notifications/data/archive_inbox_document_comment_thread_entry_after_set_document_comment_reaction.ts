@@ -48,7 +48,7 @@ export async function archiveDocumentCommentThreadEntryAfterSetDocumentCommentRe
                     : oldItem.latestComment,
                 latestArchivingCommentIndex: !oldItem.isArchived
                     ? commentIndex
-                    : oldItem.latestArchivingCommentIndex ?? null,
+                    : (oldItem.latestArchivingCommentIndex ?? null),
                 otherCommentAuthorId: oldItem.otherCommentAuthorId,
                 isFromNewCommentThread: oldItem.isFromNewCommentThread,
             };

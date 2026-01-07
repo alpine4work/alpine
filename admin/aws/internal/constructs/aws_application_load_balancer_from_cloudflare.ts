@@ -6,8 +6,7 @@ import {
 import {Construct} from "constructs";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
 
-export interface AwsApplicationLoadBalancerFromCloudflareOptions
-    extends ApplicationLoadBalancerProps {
+export interface AwsApplicationLoadBalancerFromCloudflareOptions extends ApplicationLoadBalancerProps {
     readonly vpc: IVpc;
 
     readonly loadBalancerName: string;

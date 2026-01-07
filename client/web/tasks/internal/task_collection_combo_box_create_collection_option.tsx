@@ -73,8 +73,8 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                         ? isPressed
                             ? {light: "grey-10", dark: "grey-20"}
                             : isHovered
-                            ? {light: "grey-5", dark: "grey-10"}
-                            : undefined
+                              ? {light: "grey-5", dark: "grey-10"}
+                              : undefined
                         : "grey-90"
                 }
                 display="flex"

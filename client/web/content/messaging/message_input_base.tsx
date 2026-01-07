@@ -736,8 +736,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                   mobileBottomBarKeyboardToolbarHeight,
                               )}`
                             : isBottomBar && platform === "mobile"
-                            ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
-                            : undefined,
+                              ? `-${spacing[mobileBottomBarKeyboardToolbarHeight]}`
+                              : undefined,
                     // Our native mobile wrapper looks for compositing layers created from an
                     // element with an ID that starts with `nmbb-` and ties their position to
                     // the tab bar and software keyboard. So we get smooth animations while the

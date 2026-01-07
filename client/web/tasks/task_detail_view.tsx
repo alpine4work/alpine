@@ -464,8 +464,8 @@ export function TaskDetailView({
                     initialFields.status === "Closed"
                         ? "Closed"
                         : initialFields.assigneeStatus === "Active"
-                        ? "OpenActive"
-                        : "OpenInactive",
+                          ? "OpenActive"
+                          : "OpenInactive",
                 ),
             [initialFields.assigneeStatus, initialFields.status, taskSubscription?.taskEntryStore],
         ),
@@ -1170,12 +1170,12 @@ function TaskDetailViewMain(
             ? assertExists(accountRegistry.getAccountStore(initialFields.assignee))
             : null
         : task
-        ? store.getTaskAssigneeAccountStore(task)
-        : null;
+          ? store.getTaskAssigneeAccountStore(task)
+          : null;
     const assigneeAccountData = useStore(assigneeAccountStore);
 
-    const priority = !taskSubscription ? initialFields.priority : task?.getPriority() ?? null;
-    const dueDate = !taskSubscription ? initialFields.dueDate : task?.getDueDate() ?? null;
+    const priority = !taskSubscription ? initialFields.priority : (task?.getPriority() ?? null);
+    const dueDate = !taskSubscription ? initialFields.dueDate : (task?.getDueDate() ?? null);
 
     const title = useMemo(() => {
         if (!taskSubscription) {

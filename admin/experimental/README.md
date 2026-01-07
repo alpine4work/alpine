@@ -1,6 +1,7 @@
 # 🧪 Experimental Directory 🧪
 
-Welcome to your personal playground! This directory is where developers can experiment, prototype, and explore new ideas without the constraints of production code review.
+Welcome to your personal playground! This directory is where developers can experiment, prototype,
+and explore new ideas without the constraints of production code review.
 
 ### 📁 Structure
 
@@ -16,6 +17,7 @@ experimental/
 ### 🎯 Purpose
 
 This is your **personal sandbox** for:
+
 - 🛠️ **Tools & utilities** you're building
 - 🎨 **Demos & prototypes**
 - 🔬 **Proof-of-concepts**
@@ -23,7 +25,9 @@ This is your **personal sandbox** for:
 - 🎪 **Whatever else you want to give a permanent home**
 
 ### Experimental Scripts
-Want to create scripts that integrate with the `dev experimental` command? Here's how to set up your own experimental tools:
+
+Want to create scripts that integrate with the `dev experimental` command? Here's how to set up your
+own experimental tools:
 
 #### 📋 Setup Process
 
@@ -36,6 +40,7 @@ Want to create scripts that integrate with the `dev experimental` command? Here'
 Here's how `generate-build-file` was implemented:
 
 **BUILD file** (`admin/experimental/ifitzsimmons/BUILD`):
+
 ```python
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
@@ -55,6 +60,7 @@ js_binary(
 ```
 
 **Registration** (`admin/experimental/experimental_commands.bzl`):
+
 ```python
 EXPERIMENTAL_COMMANDS = {
     "generate-build-file": {
@@ -67,6 +73,7 @@ EXPERIMENTAL_COMMANDS = {
 #### 🚀 Usage
 
 Once registered, your script becomes available via:
+
 ```bash
 dev experimental your-script-name
 ```
@@ -76,8 +83,9 @@ dev experimental your-script-name
 - **No code review**: We do zero code review for anything committed to your personal folder
 - **No production deployment**: Code in this directory should never reach production
 - **Personal responsibility**: Keep your experiments organized and documented
-- **Team awareness**: Let others know if you're working on something that might be useful to the team
+- **Team awareness**: Let others know if you're working on something that might be useful to the
+  team
 
 ---
 
-*Happy experimenting! 🎉*
+_Happy experimenting! 🎉_

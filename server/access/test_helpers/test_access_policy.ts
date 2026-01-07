@@ -37,10 +37,10 @@ export class TestAccessPolicy {
             typeof account === "string"
                 ? account
                 : "account" in account
-                ? account.account.id
-                : "id" in account
-                ? account.id
-                : account;
+                  ? account.account.id
+                  : "id" in account
+                    ? account.id
+                    : account;
 
         const oldAccessPolicy = await this.get();
 
@@ -82,8 +82,8 @@ export class TestAccessPolicy {
                     "account" in account
                         ? account.account.id
                         : "id" in account
-                        ? account.id
-                        : account;
+                          ? account.id
+                          : account;
 
                 // The `AddAccountGrants` action noops if the account is already granted. Don't
                 // support granting an account that was already granted.
@@ -111,10 +111,10 @@ export class TestAccessPolicy {
             typeof account === "string"
                 ? account
                 : "account" in account
-                ? account.account.id
-                : "id" in account
-                ? account.id
-                : account;
+                  ? account.account.id
+                  : "id" in account
+                    ? account.id
+                    : account;
 
         const oldAccessPolicy = await this.get();
 

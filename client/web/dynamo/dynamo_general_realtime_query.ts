@@ -349,7 +349,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                         result.startItemKey !== null &&
                         result.startItemKey > result.pageInfo.afterItemKey
                             ? result.startItemKey
-                            : result.pageInfo.afterItemKey ?? result.startItemKey;
+                            : (result.pageInfo.afterItemKey ?? result.startItemKey);
 
                     if (
                         resultStartItemKey === null ||
@@ -375,7 +375,7 @@ export class DynamoGeneralRealtimeQuery<Model, Extra = never> {
                         result.endItemKey !== null &&
                         result.endItemKey < result.pageInfo.beforeItemKey
                             ? result.endItemKey
-                            : result.pageInfo.beforeItemKey ?? result.endItemKey;
+                            : (result.pageInfo.beforeItemKey ?? result.endItemKey);
 
                     if (
                         resultEndItemKey === null ||

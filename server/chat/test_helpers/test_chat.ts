@@ -64,8 +64,8 @@ export class TestChat extends TestMessageRoomBase {
                 otherAccount instanceof TestSession
                     ? otherAccount.account.id
                     : typeof otherAccount === "string"
-                    ? otherAccount
-                    : otherAccount.id,
+                      ? otherAccount
+                      : otherAccount.id,
             ),
         });
 

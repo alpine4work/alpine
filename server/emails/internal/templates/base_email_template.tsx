@@ -54,8 +54,8 @@ export function BaseEmailTemplate({
                             font-size: max(16px, 1rem);
                             background: ${colors["grey-0"]};
                             backgroundImage: linear-gradient(${colors["grey-0"]},${
-                            colors["grey-0"]
-                        });
+                                colors["grey-0"]
+                            });
                         }
                         hr {
                             border-color: ${colors["grey-5"]} !important;
@@ -106,8 +106,8 @@ export function BaseEmailTemplate({
                             body {
                                 background: ${colors["grey-100"]};
                                 backgroundImage: linear-gradient(${colors["grey-100"]},${
-                            colors["grey-100"]
-                        });
+                                    colors["grey-100"]
+                                });
                             }
                             h1, h2, h3, h4, h5, h6, p, a {
                                 color: ${colors["grey-0"]} !important;

@@ -813,9 +813,8 @@ test("will not schedule another indexing job if document title is updated twice 
 
 test("document access policies are enforced in search", async () => {
     const space = await TestSpace.create(context);
-    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
-        6,
-    );
+    const [session1, session2, session3, session4, session5, session6] =
+        await space.createSessions(6);
 
     const documents = await runAllPromises([
         TestDocument.create(session1, {title: "test 1"}),
@@ -1075,9 +1074,8 @@ test("document access policies are enforced in search", async () => {
 
 test("document comment access policies are enforced in search", async () => {
     const space = await TestSpace.create(context);
-    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
-        6,
-    );
+    const [session1, session2, session3, session4, session5, session6] =
+        await space.createSessions(6);
 
     const documents = await runAllPromises([
         TestDocument.create(session1, {body: "test 1"}),

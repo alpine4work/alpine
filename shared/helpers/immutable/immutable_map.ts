@@ -44,9 +44,10 @@ assertAssignableTypes<ReadonlyMap<unknown, unknown>, OldReadonlyMap<unknown, unk
  * [2]: https://immutable-js.com/
  * [3]: https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
  */
-export class ImmutableMap<Key extends string | number, Value>
-    implements OldReadonlyMap<Key, Value>
-{
+export class ImmutableMap<Key extends string | number, Value> implements OldReadonlyMap<
+    Key,
+    Value
+> {
     private readonly _tree: Tree<Key, Value>;
 
     private constructor(tree: Tree<Key, Value>) {

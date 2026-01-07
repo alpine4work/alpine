@@ -138,12 +138,12 @@ requires taste that we build over our careers.
 
 Some more good resources on this topic:
 
--   [“The Wrong Abstraction”](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction) by Sandi
-    Metz
--   [“Minimal API Surface Area”](https://www.youtube.com/watch?v=4anAwXYqLG8) a talk by Sebastian
-    Markbåge (React tech lead)
--   [“The WET Codebase”](https://overreacted.io/the-wet-codebase/) a talk by Dan Abramov (WET is a
-    play on the acronym [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself))
+- [“The Wrong Abstraction”](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction) by Sandi
+  Metz
+- [“Minimal API Surface Area”](https://www.youtube.com/watch?v=4anAwXYqLG8) a talk by Sebastian
+  Markbåge (React tech lead)
+- [“The WET Codebase”](https://overreacted.io/the-wet-codebase/) a talk by Dan Abramov (WET is a
+  play on the acronym [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself))
 
 ### Put the smallest branch of the condition first and return early if possible
 
@@ -295,13 +295,13 @@ async function getChannelIfPossible(
 }
 ```
 
--   `getChannel()` throws if the channel is not found or the user doesn’t have access to the channel
--   `getChannelIfExists()` returns null if the channel is not found or throws if the user doesn’t
-    have access to the channel
--   `getChannelIfPossible()` returns null if the channel is not found, returns an object with
-    `ok: false` and the `PermissionDeniedError` if the user doesn’t have access to the channel, and
-    returns an object with `ok: true` and the `ChannelModel` if the user does have access to the
-    channel
+- `getChannel()` throws if the channel is not found or the user doesn’t have access to the channel
+- `getChannelIfExists()` returns null if the channel is not found or throws if the user doesn’t have
+  access to the channel
+- `getChannelIfPossible()` returns null if the channel is not found, returns an object with
+  `ok: false` and the `PermissionDeniedError` if the user doesn’t have access to the channel, and
+  returns an object with `ok: true` and the `ChannelModel` if the user does have access to the
+  channel
 
 By convention we add `IfExists` if the function returns null and `IfPossible` if the function
 returns a `Result`.
@@ -309,16 +309,16 @@ returns a `Result`.
 When would you want to call each variant? Let’s walk through an example. Say you’re writing the data
 loading code for a new route and you need to choose which function to call:
 
--   Call `getChannel()` if the route can’t render without a channel. Both channel not found and
-    channel permission denied errors should show the user an error screen.
--   Call `getChannelIfExists()` if you can render the route without a channel. Channel permission
-    denied will show the user an error screen but you can render custom UI if the channel wasn’t
-    found. Maybe a special “get started” experience.
--   Call `getChannelIfPossible()` if you must render the route regardless of whether you have a
-    channel or not. For example, when rendering a channel embedded in a document. The Alice who
-    created the document may have access to the channel but if Bob has access to the document but
-    _not_ the channel they should be able to read everything else in the document while the embedded
-    channel shows a “Private channel” error message.
+- Call `getChannel()` if the route can’t render without a channel. Both channel not found and
+  channel permission denied errors should show the user an error screen.
+- Call `getChannelIfExists()` if you can render the route without a channel. Channel permission
+  denied will show the user an error screen but you can render custom UI if the channel wasn’t
+  found. Maybe a special “get started” experience.
+- Call `getChannelIfPossible()` if you must render the route regardless of whether you have a
+  channel or not. For example, when rendering a channel embedded in a document. The Alice who
+  created the document may have access to the channel but if Bob has access to the document but
+  _not_ the channel they should be able to read everything else in the document while the embedded
+  channel shows a “Private channel” error message.
 
 If you need to handle permission denied errors, don’t do this:
 
@@ -493,18 +493,17 @@ so you can think of this as our noun naming convention.
 {namespace}{subClass}{superClass}{member}
 ```
 
--   `namespace`: A namespace for a related group of types. By using a namespace with a related group
-    of types you make the type globally unique, make sure the type names sort together, and
-    generally communicate what part of the system a name is a part of.
--   `subClass` and `superClass`: `subClass` is a kind of `superClass`. For a class declaration this
-    naming convention may look like `class {subClass}{superClass} extends {superClass}`. Even if
-    your type is not a class, sometimes you will have some specialization relationship between
-    types. For example a discriminated union will have a `superClass` (e.g. `Expression`) and a
-    `subClass` (e.g. `Variable` or `Function` which becomes `VariableExpression` and
-    `FunctionExpression`).
--   `member`: If your type "owns" another type (perhaps through a property) that other type is said
-    to be a member. For example `type Foo = {bar: FooBar}`. Here `bar` is owned by `Foo` (it doesn't
-    appear anywhere else) so we give it the name `FooBar`.
+- `namespace`: A namespace for a related group of types. By using a namespace with a related group
+  of types you make the type globally unique, make sure the type names sort together, and generally
+  communicate what part of the system a name is a part of.
+- `subClass` and `superClass`: `subClass` is a kind of `superClass`. For a class declaration this
+  naming convention may look like `class {subClass}{superClass} extends {superClass}`. Even if your
+  type is not a class, sometimes you will have some specialization relationship between types. For
+  example a discriminated union will have a `superClass` (e.g. `Expression`) and a `subClass` (e.g.
+  `Variable` or `Function` which becomes `VariableExpression` and `FunctionExpression`).
+- `member`: If your type "owns" another type (perhaps through a property) that other type is said to
+  be a member. For example `type Foo = {bar: FooBar}`. Here `bar` is owned by `Foo` (it doesn't
+  appear anywhere else) so we give it the name `FooBar`.
 
 Each part of the name is optional.
 
@@ -513,24 +512,24 @@ This naming convention is recursive. Say you have a `member` that itself has a `
 
 Some examples:
 
--   `SearchEntitySemanticIndexEmbeddingChunk`
-    -   Namespace: `SearchEntity`
-    -   Sub-class: `Semantic` (there’s also a `SearchEntityKeywordIndex` type)
-    -   Super-class: `Index`
-    -   Member: `EmbeddingChunk`
--   `TaskQueryNormalizedFilters`:
-    -   Namespace: `TaskQuery`
-    -   Sub-class: `Normalized` (there’s also a `TaskQueryFilter` type. `TaskQueryNormalizedFilters`
-        is a refinement of `Array<TaskQueryFilter>`)
-    -   Super-class: `Filters`
-    -   Member: n/a
--   `CollaborativeContentEditorReceiveStepsAction`:
-    -   Namespace: `CollaborativeContentEditor` (the naming scheme is applied recursively here,
-        `ContentEditor` is also a namespace in our codebase. `Collaborative` is a specialization,
-        aka sub-class, added to `ContentEditor`)
-    -   Sub-class: `ReceiveSteps`
-    -   Super-class: `Action`
-    -   Member: n/a
+- `SearchEntitySemanticIndexEmbeddingChunk`
+    - Namespace: `SearchEntity`
+    - Sub-class: `Semantic` (there’s also a `SearchEntityKeywordIndex` type)
+    - Super-class: `Index`
+    - Member: `EmbeddingChunk`
+- `TaskQueryNormalizedFilters`:
+    - Namespace: `TaskQuery`
+    - Sub-class: `Normalized` (there’s also a `TaskQueryFilter` type. `TaskQueryNormalizedFilters`
+      is a refinement of `Array<TaskQueryFilter>`)
+    - Super-class: `Filters`
+    - Member: n/a
+- `CollaborativeContentEditorReceiveStepsAction`:
+    - Namespace: `CollaborativeContentEditor` (the naming scheme is applied recursively here,
+      `ContentEditor` is also a namespace in our codebase. `Collaborative` is a specialization, aka
+      sub-class, added to `ContentEditor`)
+    - Sub-class: `ReceiveSteps`
+    - Super-class: `Action`
+    - Member: n/a
 
 **💡 Why?** By using this naming convention, readers of your code can reliably predict the
 relationship between multiple types. We put a namespace first because 1) related types will be
@@ -585,9 +584,9 @@ myFunction(context, null, {foo: 42, bar: true, qux: "hi"});
 
 Generally, prefer named arguments after adding:
 
--   About four arguments; or
--   Two arguments with the same type; or
--   A boolean argument
+- About four arguments; or
+- Two arguments with the same type; or
+- A boolean argument
 
 This is a recommendation, use your judgement of what's best for your function.
 
@@ -856,47 +855,44 @@ function myFunction() {
 
 Avoid operators that introduce type unsafety. This includes:
 
--   `x!`: The null suppression operator turns type `T | null | undefined` into `T`. If your type
-    includes null it means you need to handle null. Otherwise you may get null pointer exceptions at
-    runtime. For example `const x: string | null = null; x!.toLowerCase()` is valid TypeScript but
-    since null isn’t a string the function `toLowerCase()` this throws at runtime.
+- `x!`: The null suppression operator turns type `T | null | undefined` into `T`. If your type
+  includes null it means you need to handle null. Otherwise you may get null pointer exceptions at
+  runtime. For example `const x: string | null = null; x!.toLowerCase()` is valid TypeScript but
+  since null isn’t a string the function `toLowerCase()` this throws at runtime.
 
--   `x as T`: The cast operator allows you to turn `T | U` into simply `T` ignoring `U`. If your
-    type includes `U` it means you need to handle that case. Otherwise you may get errors at runtime
-    because you didn’t handle `U`. For example
-    `const x: string | number = 42; (x as string).toLowerCase()` is valid TypeScript but since 42
-    doesn’t support the function `toLowerCase()` this throws at runtime.
+- `x as T`: The cast operator allows you to turn `T | U` into simply `T` ignoring `U`. If your type
+  includes `U` it means you need to handle that case. Otherwise you may get errors at runtime
+  because you didn’t handle `U`. For example
+  `const x: string | number = 42; (x as string).toLowerCase()` is valid TypeScript but since 42
+  doesn’t support the function `toLowerCase()` this throws at runtime.
 
--   `any`: Completely turns off type checking for a variable. Should go without saying this is
-    unsafe.
+- `any`: Completely turns off type checking for a variable. Should go without saying this is unsafe.
 
 Alternatives to use instead:
 
--   Instead of `x!.p`:
+- Instead of `x!.p`:
+    - Use optional chaining: `x?.p`. this get property `p` if `x` isn’t `undefined` or `null` and
+      will return `undefined` if `x` is `undefined` or `null`.
 
-    -   Use optional chaining: `x?.p`. this get property `p` if `x` isn’t `undefined` or `null` and
-        will return `undefined` if `x` is `undefined` or `null`.
-
-    -   Use nullable coalescing: `(x ?? y).p`. If `x` is `undefined` or `null` then instead `x` will
-        be replaced with the variable `y` and you’ll access property `p` on `y` instead of `x`.
+    - Use nullable coalescing: `(x ?? y).p`. If `x` is `undefined` or `null` then instead `x` will
+      be replaced with the variable `y` and you’ll access property `p` on `y` instead of `x`.
 
         Prefer nullable coalescing to `||` (don’t do this `(x || y).p`) which was the convention
         before the nullable coalescing operator was introduced.
 
-    -   `assertExists(x)` immediately throws an error if `x` is `undefined` or `null` which is
-        better than getting a nullable pointer exception later down the road when you try to access
-        property `p` (or anything else) on `undefined` or `null`. You catch the error right where it
-        happens instead of later on.
+    - `assertExists(x)` immediately throws an error if `x` is `undefined` or `null` which is better
+      than getting a nullable pointer exception later down the road when you try to access property
+      `p` (or anything else) on `undefined` or `null`. You catch the error right where it happens
+      instead of later on.
 
--   Instead of `x as T`:
+- Instead of `x as T`:
+    - `cast<T>(x)` is a way to make sure `x` is type `T` in a type safe way.
 
-    -   `cast<T>(x)` is a way to make sure `x` is type `T` in a type safe way.
+    - `x satisfies T` is very similar to `cast<T>(x)`. It checks that `x` is valid for type `T`
+      without changing the type of `x`.
 
-    -   `x satisfies T` is very similar to `cast<T>(x)`. It checks that `x` is valid for type `T`
-        without changing the type of `x`.
-
-    -   `x as const` is type safe and encouraged. It switches TypeScript’s literal type inference
-        into read-only mode which can be quite useful.
+    - `x as const` is type safe and encouraged. It switches TypeScript’s literal type inference into
+      read-only mode which can be quite useful.
 
 We don’t have an ESLint warning that warns when you try to use these unsafe operators. Because
 they’re sometimes genuinely useful given JavaScript is fundamentally a dynamically typed language
@@ -920,13 +916,13 @@ served by putting those functions in different files.
 add a new helper function and when you need to find the file a helper function is defined in. Also,
 unrelated code in a single file will bloat frontend bundle sizes.
 
--   When you need to add a couple new helper functions and there's an existing `_utils.ts` file you
-    don't know about you're instinct may be to create a new `_utils.ts` file somewhere else. Putting
-    helper functions in separate files avoids this.
+- When you need to add a couple new helper functions and there's an existing `_utils.ts` file you
+  don't know about you're instinct may be to create a new `_utils.ts` file somewhere else. Putting
+  helper functions in separate files avoids this.
 
--   If you're looking for the definition of a particular helper function you may use the fuzzy file
-    search feature in your editor and search for the function's name. If the function is in a
-    `_utils.ts` file you won't be able to find it with this method.
+- If you're looking for the definition of a particular helper function you may use the fuzzy file
+  search feature in your editor and search for the function's name. If the function is in a
+  `_utils.ts` file you won't be able to find it with this method.
 
 ### Prefer function declarations for module scope functions
 
@@ -1305,13 +1301,13 @@ test so you shouldn’t use context.
 If your code is handling the `keydown` event, call both `event.preventDefault()` and
 `event.stopPropagation()`.
 
--   `event.preventDefault()` tells the browser to not perform its default action for the keypress.
-    (e.g. Browsers scroll the page down on space keypress by default.)
--   `event.stopPropagation()` stops other event handlers in _our_ code from handling the keypress.
-    We install keyboard event listeners at the root `document` level for global keyboard shortcuts,
-    if you handle a keypress a global handler shouldn’t. (e.g. Peeks are closed by a global keyboard
-    listener when you press escape. If you close a menu inside a peek on escape it shouldn’t also
-    close the peek. It would if you don’t stop event propagation.)
+- `event.preventDefault()` tells the browser to not perform its default action for the keypress.
+  (e.g. Browsers scroll the page down on space keypress by default.)
+- `event.stopPropagation()` stops other event handlers in _our_ code from handling the keypress. We
+  install keyboard event listeners at the root `document` level for global keyboard shortcuts, if
+  you handle a keypress a global handler shouldn’t. (e.g. Peeks are closed by a global keyboard
+  listener when you press escape. If you close a menu inside a peek on escape it shouldn’t also
+  close the peek. It would if you don’t stop event propagation.)
 
 The `<GlobalKeyDownEvent>` component is what we recommend using for global keyboard shortcuts. This
 component respects `event.stopPropagation()`. Once any event handler calls this function, no other
@@ -1345,10 +1341,10 @@ Don’t use `event.stopPropagation()` unless you are handling a `keydown` event.
 **💡 Why?** For many events, parents depend on event propagation to implement some system level
 behavior. For example:
 
--   A parent component may listen for a `mouseenter` event to apply a hover style or a tooltip
--   A parent component may listen for a `focus` event to apply a focus within style
--   A parent component may listen for a `click` event as a heuristic that a user is interacting with
-    their children
+- A parent component may listen for a `mouseenter` event to apply a hover style or a tooltip
+- A parent component may listen for a `focus` event to apply a focus within style
+- A parent component may listen for a `click` event as a heuristic that a user is interacting with
+  their children
 
 Without extensively auditing code, it’s really hard to know what events your parent components
 depend on. Even if you happen to know that your parent component isn’t listening to a propagated

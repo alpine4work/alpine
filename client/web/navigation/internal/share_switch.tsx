@@ -52,10 +52,10 @@ export function ShareSwitch({
           // is open.
           ("Lock" as const)
         : accessPolicy.urlGrant
-        ? ("Globe" as const)
-        : accessPolicy.defaultGrant
-        ? ("Buildings" as const)
-        : ("Lock" as const);
+          ? ("Globe" as const)
+          : accessPolicy.defaultGrant
+            ? ("Buildings" as const)
+            : ("Lock" as const);
 
     return (
         <>

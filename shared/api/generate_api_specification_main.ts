@@ -3,7 +3,11 @@ import {produce} from "immer";
 import Mustache from "mustache";
 import openapiTypescript, {astToString} from "openapi-typescript";
 import {join as joinPath} from "path";
-import prettier from "prettier";
+// @ts-expect-error: After upgrading Prettier, we need to directly import
+// `prettier/index.mjs` to make sure we don't get the standalone build.
+// However, there's no blessed way from Prettier to import the full version
+// with types.
+import * as prettier from "prettier/index.mjs";
 import ts from "typescript";
 import Yaml from "yaml";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -245,9 +249,11 @@ async function main() {
         specificationTypesContent +
         "}\n";
 
-    const prettierConfig = await prettier.resolveConfig(joinPath(runfilesPath, "cyberworlds"));
+    const prettierConfig = await prettier.resolveConfig(
+        joinPath(runfilesPath, "cyberworlds/prettier.config.cjs"),
+    );
 
-    specificationTypesContent = prettier.format(specificationTypesContent, {
+    specificationTypesContent = await prettier.format(specificationTypesContent, {
         ...prettierConfig,
         parser: "typescript",
     });

@@ -122,9 +122,8 @@ export async function startOpensearchLocal({
                         // If the symlink file already exists and is linked to the right place, then we
                         // can ignore this error. Everything's all right.
                         if (isObject(error) && error.code === "EEXIST") {
-                            const currentHomeChildPath = await unpatchedFs.readlink(
-                                newHomeChildPath,
-                            );
+                            const currentHomeChildPath =
+                                await unpatchedFs.readlink(newHomeChildPath);
                             if (currentHomeChildPath !== actualHomeChildPath) {
                                 throw new FailedPreconditionError(
                                     quote`OpenSearch home symlink already exists

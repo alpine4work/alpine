@@ -4937,29 +4937,8 @@ test("authorization succeeds for session actor in the same space", async () => {
             session === "Anonymous"
                 ? context.anonymousAction()
                 : session instanceof TestSpace
-                ? session.systemAction()
-                : "impersonate" in session
-                ? Array.isArray(session.impersonate)
-                    ? context.impersonatedAccountAction(
-                          session.impersonate[0].id,
-                          session.impersonate[1].account.id,
-                      )
-                    : context.impersonatedAccountAction(
-                          session.impersonate.space.id,
-                          session.impersonate.account.id,
-                      )
-                : session.action(),
-            document.id,
-            expectedAccessLevel,
-        );
-
-        try {
-            await authorizeDocumentAccess(
-                session === "Anonymous"
-                    ? context.anonymousAction()
-                    : session instanceof TestSpace
-                    ? session.systemAction()
-                    : "impersonate" in session
+                  ? session.systemAction()
+                  : "impersonate" in session
                     ? Array.isArray(session.impersonate)
                         ? context.impersonatedAccountAction(
                               session.impersonate[0].id,
@@ -4970,6 +4949,27 @@ test("authorization succeeds for session actor in the same space", async () => {
                               session.impersonate.account.id,
                           )
                     : session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(
+                session === "Anonymous"
+                    ? context.anonymousAction()
+                    : session instanceof TestSpace
+                      ? session.systemAction()
+                      : "impersonate" in session
+                        ? Array.isArray(session.impersonate)
+                            ? context.impersonatedAccountAction(
+                                  session.impersonate[0].id,
+                                  session.impersonate[1].account.id,
+                              )
+                            : context.impersonatedAccountAction(
+                                  session.impersonate.space.id,
+                                  session.impersonate.account.id,
+                              )
+                        : session.action(),
                 document.id,
                 expectedAccessLevel,
             );

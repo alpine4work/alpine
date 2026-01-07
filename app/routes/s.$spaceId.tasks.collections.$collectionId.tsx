@@ -434,7 +434,7 @@ function TaskCollectionRouteInner() {
             updateMetaTitle(
                 `${
                     collectionEntryStore
-                        ? collectionEntryStore.getSnapshot().collection?.getName() ?? ""
+                        ? (collectionEntryStore.getSnapshot().collection?.getName() ?? "")
                         : newTaskCollectionNamePlaceholder
                 }${metaTitlePostfix}`,
             );

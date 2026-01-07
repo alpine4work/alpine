@@ -162,10 +162,10 @@ export namespace DynamoTableSchemaTypes {
     > = Config extends "Optional"
         ? {readonly expirationTime?: Date}
         : Config extends "Required"
-        ? {readonly expirationTime: Date}
-        : Config extends "RequiredNullable"
-        ? {readonly expirationTime: Date | null}
-        : {};
+          ? {readonly expirationTime: Date}
+          : Config extends "RequiredNullable"
+            ? {readonly expirationTime: Date | null}
+            : {};
 
     /**
      * Types shared by both `partitionKeyAttributes` and `sortKeyAttributes`.
@@ -379,7 +379,8 @@ export namespace DynamoTableSchemaTypes {
         > =
             | Record<Config["name"], QueryKeyMapTypeEndMap<AllConfigs, SortTypes, Config["name"]>>
             | (Config extends {
-                  childSortRanges: infer ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>;
+                  childSortRanges: infer ChildConfig extends
+                      ReadonlyArray<SortRange.ChildConfigBase>;
               }
                   ? ChildQueryKeyMapTypeStartMap<AllConfigs, SortTypes, Config, ChildConfig>
                   : never);
@@ -426,7 +427,8 @@ export namespace DynamoTableSchemaTypes {
                   TupleDropBeforeAndTakeUntil<SortTypes, StartSortType, Config["name"]>[number]
               >
             | (Config extends {
-                  childSortRanges: infer ChildConfig extends ReadonlyArray<SortRange.ChildConfigBase>;
+                  childSortRanges: infer ChildConfig extends
+                      ReadonlyArray<SortRange.ChildConfigBase>;
               }
                   ? ChildQueryKeyMapTypeEndMap<SortTypes, StartSortType, Config, ChildConfig>
                   : never);
@@ -484,11 +486,11 @@ export namespace DynamoTableSchemaTypes {
         > = Tuple extends readonly [DropBefore, ...any]
             ? TupleTakeUntil<Tuple, TakeUntil, []>
             : Tuple extends readonly [any, ...infer Tail]
-            ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
-            : Tuple extends readonly []
-            ? // If don't find `DropBefore` in the tuple then return `never`.
-              never
-            : never;
+              ? TupleDropBeforeAndTakeUntil<Tail, DropBefore, TakeUntil>
+              : Tuple extends readonly []
+                ? // If don't find `DropBefore` in the tuple then return `never`.
+                  never
+                : never;
 
         type TupleTakeUntil<
             Tuple,
@@ -497,25 +499,25 @@ export namespace DynamoTableSchemaTypes {
         > = Tuple extends readonly [TakeUntil, ...infer Tail]
             ? TupleTakeWhilePrefix<Tail, TakeUntil, [TakeUntil, ...AccTuple]>
             : Tuple extends readonly [infer Head, ...infer Tail]
-            ? // Optimization: We use tail recursion to optimize this type. Linked list
-              // iteration can typically be written in a tail recursive fashion but it
-              // reverses the order of the list.
-              //
-              // The non-tail recursive version would be something like:
-              // `[Head, ...TupleTakeUntil<Tail, TakeUntil>]`.
-              //
-              // Because we use tail recursion it does mean the order of the list is
-              // reversed. But since we convert this list back into a union the list order
-              // doesn't matter.
-              //
-              // Learn more about tail recursion in TypeScript and why it's more
-              // efficient here:
-              // https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#tailrec-conditional
-              TupleTakeUntil<Tail, TakeUntil, [Head, ...AccTuple]>
-            : Tuple extends readonly []
-            ? // If we don't find `TakeUntil` in the tuple then return `never`.
-              never
-            : never;
+              ? // Optimization: We use tail recursion to optimize this type. Linked list
+                // iteration can typically be written in a tail recursive fashion but it
+                // reverses the order of the list.
+                //
+                // The non-tail recursive version would be something like:
+                // `[Head, ...TupleTakeUntil<Tail, TakeUntil>]`.
+                //
+                // Because we use tail recursion it does mean the order of the list is
+                // reversed. But since we convert this list back into a union the list order
+                // doesn't matter.
+                //
+                // Learn more about tail recursion in TypeScript and why it's more
+                // efficient here:
+                // https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#tailrec-conditional
+                TupleTakeUntil<Tail, TakeUntil, [Head, ...AccTuple]>
+              : Tuple extends readonly []
+                ? // If we don't find `TakeUntil` in the tuple then return `never`.
+                  never
+                : never;
 
         // Take any values in the tuple that are prefixed by `${TakeWhilePrefix}#`.
         // These represent child sort ranges which should be included in any query that

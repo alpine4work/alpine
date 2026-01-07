@@ -117,10 +117,10 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
             selection instanceof NodeSelection
                 ? $from
                 : event.shiftKey
-                ? $head
-                : movingDown
-                ? $to
-                : $from;
+                  ? $head
+                  : movingDown
+                    ? $to
+                    : $from;
 
         const node = $pos.parent.inlineContent ? $pos.parent : $pos.nodeAfter;
 
@@ -322,8 +322,8 @@ export function createHandleContentEditorVerticalArrowKeyDown() {
         const targetX = !event.altKey
             ? trackedTargetX
             : dir < 0
-            ? view.dom.getBoundingClientRect().left
-            : view.dom.getBoundingClientRect().right;
+              ? view.dom.getBoundingClientRect().left
+              : view.dom.getBoundingClientRect().right;
 
         for (const nextNode of nextNodes) {
             const dom = view.nodeDOM(nextNode.$pos.pos);

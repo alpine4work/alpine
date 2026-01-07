@@ -22,15 +22,15 @@ runs:
           name: Restore Bazel repositories cache
           uses: actions/cache/restore@v3
           with:
-                path: |
-                    ~/.cache/bazelisk
-                    ~/.cache/bazel
-                # IMPORTANT: Should have the same `hashFiles()` as `deploy.yaml`. We want to
-                # share our cache between the two workflows.
-                key: |
-                    bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
-                restore-keys: |
-                    bazel-${{ runner.os }}-${{ runner.arch }}-
+              path: |
+                  ~/.cache/bazelisk
+                  ~/.cache/bazel
+              # IMPORTANT: Should have the same `hashFiles()` as `deploy.yaml`. We want to
+              # share our cache between the two workflows.
+              key: |
+                  bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
+              restore-keys: |
+                  bazel-${{ runner.os }}-${{ runner.arch }}-
 
         # If we don't have an exact cache entry match then we need to fetch
         # repositories we'll need for our build. We also build `//:node_modules` which
@@ -48,8 +48,8 @@ runs:
           name: Fetch Bazel repositories
           shell: bash
           run: |
-                admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos
-                admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache=
+              admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos
+              admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache=
 
         # Save our repository cache after we finish fetching but before we run our
         # ci job! The ordering here is important since we don't want to include any
@@ -61,10 +61,10 @@ runs:
           name: Save Bazel repositories cache
           uses: actions/cache/save@v3
           with:
-                path: |
-                    ~/.cache/bazelisk
-                    ~/.cache/bazel
-                key: ${{ steps.cache.outputs.cache-primary-key }}
+              path: |
+                  ~/.cache/bazelisk
+                  ~/.cache/bazel
+              key: ${{ steps.cache.outputs.cache-primary-key }}
 
         # This starts the Bazel remote cache proxy server. We store [Bazel remote
         # cache][1] files in AWS S3. The AWS S3 API is mostly compatible with what
@@ -134,4 +134,4 @@ runs:
         - name: Start Bazel remote cache
           shell: bash
           run: |
-                admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
+              admin/aws/internal/aws_github_runners_bazel_remote_cache.sh

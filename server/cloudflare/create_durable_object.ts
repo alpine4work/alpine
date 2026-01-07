@@ -114,7 +114,10 @@ export function createDurableObject<
         destroy: () => void;
     }) => Promise<DurableObject>;
 }): {
-    new (state: DurableObjectState, env: DurableObjectEnv): {
+    new (
+        state: DurableObjectState,
+        env: DurableObjectEnv,
+    ): {
         fetch(request: Request): Promise<Response>;
         alarm?(): Promise<void>;
     };

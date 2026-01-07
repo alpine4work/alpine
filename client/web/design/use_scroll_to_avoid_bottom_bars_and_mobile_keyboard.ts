@@ -764,11 +764,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                       newBottomBarHeight.hiddenMobileKeyboard > 0
                         ? tabBarHeight
                         : // Otherwise, check if we scroll enough to reveal/hide the tab bar.
-                        -scrollDelta >= navigationBarHeight
-                        ? NativeMobileBridge.tabBar.height
-                        : scrollDelta >= navigationBarHeight
-                        ? 0
-                        : tabBarHeight
+                          -scrollDelta >= navigationBarHeight
+                          ? NativeMobileBridge.tabBar.height
+                          : scrollDelta >= navigationBarHeight
+                            ? 0
+                            : tabBarHeight
                     : tabBarHeight;
 
             if (tabBarHeightAfterScroll === tabBarHeight) {

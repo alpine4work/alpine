@@ -1304,7 +1304,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // `useMemo()` or directly in the React render function).
     const oldContentContainerHeightForEditorHeightDifference =
         useStateWithDependenciesWithoutDispatch(
-            ([withHeight]) => (withHeight ? contentContainerRef.current?.offsetHeight ?? 0 : null),
+            ([withHeight]) =>
+                withHeight ? (contentContainerRef.current?.offsetHeight ?? 0) : null,
             [message.payload.type === "Content" && isEditingThisMessage],
         );
 
@@ -1388,7 +1389,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             // to see it.
                             contentUpdatedTime={
                                 !canPrimaryInputHover && message.payload.type === "Content"
-                                    ? message.payload.contentUpdate?.time ?? null
+                                    ? (message.payload.contentUpdate?.time ?? null)
                                     : null
                             }
                             deletedTime={
@@ -1560,7 +1561,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 )}
                                 {message.payload.type === "Content" ? (
                                     !isEditingThisMessage ? (
-                                        contentPayloadNode ?? streamNode
+                                        (contentPayloadNode ?? streamNode)
                                     ) : (
                                         <>
                                             <MessageViewEditor
@@ -1598,9 +1599,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                       ]
                                                         ? contentStyles.paragraphMargin
                                                         : message.payload.content.doc.lastChild!
-                                                              .type.name === "divider"
-                                                        ? contentStyles.messageDividerMargin
-                                                        : contentStyles.standaloneBlockMargin
+                                                                .type.name === "divider"
+                                                          ? contentStyles.messageDividerMargin
+                                                          : contentStyles.standaloneBlockMargin
                                                     : undefined
                                             }
                                         />
@@ -2146,7 +2147,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
                                 createdTime={message.createdTime}
                                 contentUpdatedTime={
                                     message.payload.type === "Content"
-                                        ? message.payload.contentUpdate?.time ?? null
+                                        ? (message.payload.contentUpdate?.time ?? null)
                                         : null
                                 }
                                 deletedTime={

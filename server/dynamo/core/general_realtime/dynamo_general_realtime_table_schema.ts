@@ -415,7 +415,8 @@ export class DynamoGeneralRealtimeTableSchema<
 
     public static new<
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
-        const ModelsConfig extends DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
+        const ModelsConfig extends
+            DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
     >({
         name,
         partitions,

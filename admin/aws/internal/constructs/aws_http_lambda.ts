@@ -6,8 +6,10 @@ import {
     AwsLambdaBaseOptions,
 } from "~/admin/aws/internal/constructs/internal/aws_lambda_base.js";
 
-export interface AwsHttpLambdaOptions
-    extends Omit<AwsLambdaBaseOptions, "deploymentType" | "honeycombApiKey"> {
+export interface AwsHttpLambdaOptions extends Omit<
+    AwsLambdaBaseOptions,
+    "deploymentType" | "honeycombApiKey"
+> {
     /**
      * AWS Secrets Manager secret containing application secrets (API keys, database credentials, etc.)
      * The secret ARN will be passed to the Lambda via SECRETS_ARN environment variable.

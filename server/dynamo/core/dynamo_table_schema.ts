@@ -274,7 +274,7 @@ export function incrementLocalDynamoTableSchemaGenerationForTest() {
  * - Queries use async iterators to transparently paginate.
  */
 export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
-    public declare readonly [typesSymbol]: Types;
+    declare public readonly [typesSymbol]: Types;
 
     private readonly _name: string;
 
@@ -434,20 +434,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                       }),
                                   )
                                 : sortRangeConfig.withExpirationTime === "Required"
-                                ? attributesSchema.merge(
-                                      Schema.object({
-                                          expirationTime:
-                                              DynamoTableItemSharedExpirationTimeAttributeSchema,
-                                      }),
-                                  )
-                                : sortRangeConfig.withExpirationTime === "RequiredNullable"
-                                ? attributesSchema.merge(
-                                      Schema.object({
-                                          expirationTime:
-                                              DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
-                                      }),
-                                  )
-                                : attributesSchema;
+                                  ? attributesSchema.merge(
+                                        Schema.object({
+                                            expirationTime:
+                                                DynamoTableItemSharedExpirationTimeAttributeSchema,
+                                        }),
+                                    )
+                                  : sortRangeConfig.withExpirationTime === "RequiredNullable"
+                                    ? attributesSchema.merge(
+                                          Schema.object({
+                                              expirationTime:
+                                                  DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
+                                          }),
+                                      )
+                                    : attributesSchema;
 
                         return attributesSchema;
                     }
@@ -2260,8 +2260,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     updateLockVersion: !item
                         ? undefined
                         : typeof item.updateLockVersion === "number"
-                        ? item.updateLockVersion + 1
-                        : 1,
+                          ? item.updateLockVersion + 1
+                          : 1,
                 };
 
                 await this._putItem(context, actualNewItem, {

@@ -49,9 +49,8 @@ export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase
                 }
 
                 const encryptedRoutesString = await response.text();
-                const routesString = await this._tokenAgent.privateSide.decrypt(
-                    encryptedRoutesString,
-                );
+                const routesString =
+                    await this._tokenAgent.privateSide.decrypt(encryptedRoutesString);
                 const routes = TaskRealtimeServiceRoutesSchema.deserialize(
                     JSON.parse(routesString),
                 );

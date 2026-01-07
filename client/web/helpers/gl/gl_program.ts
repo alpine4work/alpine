@@ -22,7 +22,11 @@ export class GlProgram {
     private readonly gl: Gl;
     private readonly uniforms: Array<GlUniform<unknown>> = [];
 
-    constructor(_gl: Gl, readonly vertexShader: GlShader, readonly fragmentShader: GlShader) {
+    constructor(
+        _gl: Gl,
+        readonly vertexShader: GlShader,
+        readonly fragmentShader: GlShader,
+    ) {
         this.gl = _gl;
         const {gl} = _gl;
         const program = assertExists(gl.createProgram());

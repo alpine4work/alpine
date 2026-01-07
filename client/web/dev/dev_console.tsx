@@ -110,8 +110,8 @@ type DevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConf
     readonly [K in keyof Config]: Config[K] extends DevConsoleSettingsObjectConfigMethod
         ? Config[K]
         : Config[K] extends DevConsoleSettingsObjectConfigProperty<infer T>
-        ? T
-        : never;
+          ? T
+          : never;
 };
 
 function getDefaultsFromConfig<Config extends UnknownDevConsoleSettingsObjectConfig>(

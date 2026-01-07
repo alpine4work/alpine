@@ -211,15 +211,15 @@ export function TaskDateInputText({
                         !shouldIncludeCalendarIcon && index === 0
                             ? paddingX
                             : state.segments[index - 1]?.type === "literal"
-                            ? "1"
-                            : undefined;
+                              ? "1"
+                              : undefined;
 
                     const paddingRight =
                         index === state.segments.length - 1
                             ? paddingX
                             : state.segments[index + 1]?.type === "literal"
-                            ? "1"
-                            : undefined;
+                              ? "1"
+                              : undefined;
 
                     return segment.type === "literal" ? (
                         <div
@@ -313,15 +313,15 @@ export function TaskDateInputText({
                                 !shouldIncludeCalendarIcon && index === 0
                                     ? paddingX
                                     : state.segments[index - 1]?.type === "literal"
-                                    ? "1"
-                                    : undefined;
+                                      ? "1"
+                                      : undefined;
 
                             const paddingRight =
                                 index === state.segments.length - 1
                                     ? undefined
                                     : state.segments[index + 1]?.type === "literal"
-                                    ? "1"
-                                    : undefined;
+                                      ? "1"
+                                      : undefined;
 
                             return (
                                 <div

@@ -2,7 +2,11 @@ import {highlightCode} from "@lezer/highlight";
 import {parser as lezerJsonParser} from "@lezer/json";
 import escapeHtml from "escape-html";
 import {STATUS_CODES} from "http";
-import prettier from "prettier";
+// @ts-expect-error: After upgrading Prettier, we need to directly import
+// `prettier/index.mjs` to make sure we don't get the standalone build.
+// However, there's no blessed way from Prettier to import the full version
+// with types.
+import * as prettier from "prettier/index.mjs";
 import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
@@ -76,7 +80,7 @@ export async function renderApiBrowser({
     // Use Prettier to print the JSON. This way small objects are printed on a
     // single line instead of always printing on multiple lines like
     // `JSON.stringify()` will do.
-    const prettyBody = prettier.format(body, {
+    const prettyBody = await prettier.format(body, {
         parser: "json",
         printWidth: 80,
         tabWidth: 2,

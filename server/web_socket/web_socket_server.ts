@@ -792,14 +792,12 @@ class WebSocketServerConnectionWrapper<
         Protocol,
         EventStub
     >,
-> implements
-        WebSocketServerConnectionWrapperBase<
-            ProcessContextModules,
-            ActionContextModules,
-            EventStub,
-            Connection
-        >
-{
+> implements WebSocketServerConnectionWrapperBase<
+    ProcessContextModules,
+    ActionContextModules,
+    EventStub,
+    Connection
+> {
     public readonly id: WebSocketConnectionId;
     private readonly _accountId: AccountId;
     private readonly _processContext: Context<ProcessContextModules>;
@@ -1431,12 +1429,12 @@ class WebSocketServerConnectionWrapper<
         const messageType = withoutLogging
             ? null
             : message.type === "ProcedureResponse"
-            ? `ProcedureResponse (${
-                  message.result.ok ? message.result.output.type : message.result.outputType
-              })`
-            : message.type === "Event"
-            ? `Event (${message.event.type})`
-            : message.type;
+              ? `ProcedureResponse (${
+                    message.result.ok ? message.result.output.type : message.result.outputType
+                })`
+              : message.type === "Event"
+                ? `Event (${message.event.type})`
+                : message.type;
 
         const serializedMessage = this._messageFromServerSchema.serialize(message);
         const serializedMessageString = JSON.stringify(serializedMessage);
@@ -1713,14 +1711,12 @@ class WebSocketServerTestConnectionWrapper<
         Protocol,
         EventStub
     >,
-> implements
-        WebSocketServerConnectionWrapperBase<
-            ProcessContextModules,
-            ActionContextModules,
-            EventStub,
-            Connection
-        >
-{
+> implements WebSocketServerConnectionWrapperBase<
+    ProcessContextModules,
+    ActionContextModules,
+    EventStub,
+    Connection
+> {
     public readonly id: WebSocketConnectionId;
     public readonly _accountId: AccountId;
     public readonly connection: Connection;

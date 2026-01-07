@@ -219,10 +219,10 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                     selection === "start"
                         ? Selection.atStart(content.doc)
                         : selection === "end"
-                        ? Selection.atEnd(content.doc)
-                        : selection instanceof Selection
-                        ? selection
-                        : selection.resolve(content.doc),
+                          ? Selection.atEnd(content.doc)
+                          : selection instanceof Selection
+                            ? selection
+                            : selection.resolve(content.doc),
             }),
         );
     }
@@ -314,10 +314,10 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                     selection === "start"
                         ? Selection.atStart(content.doc)
                         : selection === "end"
-                        ? Selection.atEnd(content.doc)
-                        : selection instanceof Selection
-                        ? selection
-                        : selection.resolve(content.doc),
+                          ? Selection.atEnd(content.doc)
+                          : selection instanceof Selection
+                            ? selection
+                            : selection.resolve(content.doc),
             }),
         );
 
@@ -825,8 +825,8 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
                 const newReferences = Array.isArray(action)
                     ? action.reduce(reduceReferences, oldPluginState.references)
                     : action
-                    ? reduceReferences(oldPluginState.references, action)
-                    : oldPluginState.references;
+                      ? reduceReferences(oldPluginState.references, action)
+                      : oldPluginState.references;
 
                 if (newReferences === oldPluginState.references && !transaction.docChanged)
                     return oldPluginState;

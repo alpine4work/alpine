@@ -34,9 +34,10 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
         value: SerializedValue,
     ): SchemaLazyTransformBase<SerializedValue, DeserializedValue>;
 } {
-    return class SchemaLazyTransform
-        implements SchemaLazyTransformBase<SerializedValue, DeserializedValue>
-    {
+    return class SchemaLazyTransform implements SchemaLazyTransformBase<
+        SerializedValue,
+        DeserializedValue
+    > {
         public static readonly schema = schema.transform<
             SchemaLazyTransformBase<SerializedValue, DeserializedValue>
         >({

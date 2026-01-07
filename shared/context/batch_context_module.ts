@@ -35,7 +35,7 @@ export class BatchContextModule extends ContextModuleBase implements ForkableCon
     ): Promise<Output> {
         const batches =
             batcher.whenActorChanges === "DangerouslyShare"
-                ? this._sharedBatches ?? this._batches
+                ? (this._sharedBatches ?? this._batches)
                 : this._batches;
 
         const batch = getOrSetDefaultMapValue(batches, batcher, () => {

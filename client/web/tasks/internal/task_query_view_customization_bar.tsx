@@ -243,8 +243,8 @@ function TaskQueryViewCustomizationBar(
                         {sorts.length === 0
                             ? "Sort"
                             : sorts.length === 1
-                            ? "Sort: 1"
-                            : `Sorts: ${sorts.length}`}
+                              ? "Sort: 1"
+                              : `Sorts: ${sorts.length}`}
                     </Button>
                 </OverlayTriggerButton>
             </Box>

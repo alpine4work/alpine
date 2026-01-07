@@ -773,7 +773,7 @@ export class DynamoClientInternal {
                             keyConditionExpression: input.KeyConditionExpression,
                             indexName:
                                 input.IndexName !== undefined
-                                    ? debugIndexName ?? input.IndexName
+                                    ? (debugIndexName ?? input.IndexName)
                                     : undefined,
                             scanIndexForward: input.ScanIndexForward ?? true,
                             limit: input.Limit,

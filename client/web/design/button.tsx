@@ -423,8 +423,8 @@ function Button(
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
                           : isHoveredBackground
-                          ? "grey-5-translucent"
-                          : undefined,
+                            ? "grey-5-translucent"
+                            : undefined,
                       color: "grey-100",
                   }
                 : {
@@ -441,8 +441,8 @@ function Button(
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
                           : isHoveredBackground
-                          ? "grey-5-translucent"
-                          : undefined,
+                            ? "grey-5-translucent"
+                            : undefined,
                       color: isPressed ? "grey-100" : "grey-60",
                   }
                 : {
@@ -459,8 +459,8 @@ function Button(
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
                           : isHoveredBackground
-                          ? "grey-5-translucent"
-                          : undefined,
+                            ? "grey-5-translucent"
+                            : undefined,
                       color: isPressed ? "grey-100" : "grey-50",
                   }
                 : {
@@ -491,8 +491,8 @@ function Button(
                       backgroundColor: isPressed
                           ? "grey-10-translucent"
                           : isHoveredBackground
-                          ? "grey-5-translucent"
-                          : undefined,
+                            ? "grey-5-translucent"
+                            : undefined,
                       color: isPressed ? "grey-100" : "grey-50",
                   }
                 : {

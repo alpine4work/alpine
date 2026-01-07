@@ -127,8 +127,8 @@ export class TestBotAccount extends TestAccount {
             scope instanceof TestAccount
                 ? {type: "Account", accountId: scope.id}
                 : scope instanceof TestSession
-                ? {type: "Account", accountId: scope.account.id}
-                : scope;
+                  ? {type: "Account", accountId: scope.account.id}
+                  : scope;
 
         return this.bot.context.botAction(this.space.id, this.id, scope, options);
     }
@@ -144,8 +144,8 @@ export class TestBotAccount extends TestAccount {
             scope instanceof TestAccount
                 ? {type: "Account", accountId: scope.id}
                 : scope instanceof TestSession
-                ? {type: "Account", accountId: scope.account.id}
-                : scope;
+                  ? {type: "Account", accountId: scope.account.id}
+                  : scope;
 
         return createScopedApiKeyForTest(this.bot.context, this.bot.id, {
             spaceId: this.space.id,

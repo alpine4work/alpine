@@ -7398,9 +7398,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
         test("post comment notification event processing starts before post event processing is finished (when there are multiple posts in a channel posts notification)", async () => {
             const space = await TestSpace.create(context);
-            const [session1, session2, session3, session4, session5] = await space.createSessions(
-                5,
-            );
+            const [session1, session2, session3, session4, session5] =
+                await space.createSessions(5);
 
             const channel = await TestChannel.create(session1);
             await channel.subscribe(session2);

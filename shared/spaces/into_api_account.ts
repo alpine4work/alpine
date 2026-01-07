@@ -16,11 +16,11 @@ export function intoApiAccount(account: Omit<AccountModelData, "avatar">): ApiAc
                 account.space.state.type === "Active"
                     ? undefined
                     : account.space.state.type === "InvitePending"
-                    ? {type: "InvitePending"}
-                    : {
-                          type: "Removed",
-                          removedTime: serializeDateString(account.space.state.removedTime),
-                      },
+                      ? {type: "InvitePending"}
+                      : {
+                            type: "Removed",
+                            removedTime: serializeDateString(account.space.state.removedTime),
+                        },
         },
     };
 }

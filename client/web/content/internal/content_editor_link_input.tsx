@@ -213,8 +213,8 @@ function ContentEditorLinkInputClearButton({
                             backgroundColor: isPressed
                                 ? "grey-10"
                                 : isHovered
-                                ? "grey-5"
-                                : undefined,
+                                  ? "grey-5"
+                                  : undefined,
                         })}
                     >
                         <X size={spacing["3"]} />
@@ -272,8 +272,8 @@ function ContentEditorLinkInputSaveButton({
                             backgroundColor: isPressed
                                 ? "grey-10"
                                 : isHovered
-                                ? "grey-5"
-                                : undefined,
+                                  ? "grey-5"
+                                  : undefined,
                         })}
                     >
                         Save

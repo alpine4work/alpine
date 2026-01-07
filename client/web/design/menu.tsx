@@ -555,7 +555,7 @@ const Menu = forwardRef(function Menu(
         const activeIndex = getFocusedActionIndexIfExists();
         const activeMenuItemId =
             activeIndex !== null
-                ? menuItemRefs[activeIndex]!.current?.getAttribute("id") ?? null
+                ? (menuItemRefs[activeIndex]!.current?.getAttribute("id") ?? null)
                 : null;
 
         if (activeMenuItemId !== null) {
@@ -1122,8 +1122,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     color: isDisabled
                         ? colorSchemeVars["grey-40"]
                         : isPressed
-                        ? colorSchemeVars["grey-100"]
-                        : colorSchemeVars["grey-80"],
+                          ? colorSchemeVars["grey-100"]
+                          : colorSchemeVars["grey-80"],
                     size: spacing["4"],
                     weight: "regular",
                 }}
@@ -1401,8 +1401,8 @@ function MenuCustomItem({
                     isPressed || isPressedOverride
                         ? "grey-10"
                         : isHoveredBackground
-                        ? "grey-5"
-                        : undefined
+                          ? "grey-5"
+                          : undefined
                 }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
@@ -1464,8 +1464,9 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
 
     const placement = action.placement ?? "right";
 
-    const [actionsPromise, setActionsPromise] = useState<PromiseImmediate<MenuActions> | null>(() =>
-        typeof action.actions !== "function" ? PromiseImmediate.resolve(action.actions) : null,
+    const [actionsPromise, setActionsPromise] = useState<PromiseImmediate<MenuActions> | null>(
+        () =>
+            typeof action.actions !== "function" ? PromiseImmediate.resolve(action.actions) : null,
     );
 
     const onOpen = () => {
@@ -1924,8 +1925,8 @@ const MenuChildrenItem = forwardRef(function MenuChildrenItem(
                         isPressed || isHoverTrianglePressed
                             ? "grey-10"
                             : isHovered || isOpened
-                            ? "grey-5"
-                            : undefined
+                              ? "grey-5"
+                              : undefined
                     }
                     display="flex"
                     alignItems="center"

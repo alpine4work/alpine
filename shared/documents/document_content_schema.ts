@@ -217,8 +217,8 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
 
                         const highlightColorAttribute =
                             node instanceof HTMLElement
-                                ? node.getAttribute("data-highlight-color") ??
-                                  node.getAttribute("data-cy-highlight")
+                                ? (node.getAttribute("data-highlight-color") ??
+                                  node.getAttribute("data-cy-highlight"))
                                 : null;
 
                         if (highlightColorAttribute && isHighlightColor(highlightColorAttribute)) {

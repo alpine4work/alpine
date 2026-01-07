@@ -1,7 +1,7 @@
 // To update generated snapshots run:
 //
 // ```
-// bazel run //client/web/content:file_entity/internal/content_file_channel_entity_preview_test -- --updateSnapshot
+// bazel run //client/web/content/file_entity:internal/content_file_channel_entity_preview_test -- --updateSnapshot
 // ```
 
 import {CalendarDate} from "@internationalized/date";
@@ -170,7 +170,7 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
             layouts.forEach(layout => {
                 platforms.forEach(platform => {
                     testCases.forEach(testCase => {
-                        test(`${layout.name} ${platform} ${testCase.name}`, () => {
+                        test(`${layout.name} ${platform} ${testCase.name}`, async () => {
                             const fileEntity = testCase.createEntity();
                             const html = new HtmlElementGenerator("div");
 
@@ -192,7 +192,7 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
                             );
 
                             expect(
-                                normalizeHtmlForFileEntityTest(html.generateHtml()),
+                                await normalizeHtmlForFileEntityTest(html.generateHtml()),
                             ).toMatchSnapshot();
                         });
                     });

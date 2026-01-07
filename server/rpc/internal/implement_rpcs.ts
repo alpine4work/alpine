@@ -140,7 +140,7 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
                     parentSpan?.clock ?? new MonotonicClock(tracer.getNonMonotonicClock()),
                     `Handle: RPC ${definition.name}`,
                     parentSpan === null
-                        ? options?.replaceTracerPropagationContext ?? null
+                        ? (options?.replaceTracerPropagationContext ?? null)
                         : {
                               traceId: parentSpan.traceId,
                               parentId: parentSpan._getSpanId(),

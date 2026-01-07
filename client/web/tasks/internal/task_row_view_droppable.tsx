@@ -175,12 +175,12 @@ export function TaskRowViewDroppable({
                                   (nextAdjacentIndentation - previousAdjacentIndentation - 1)
                               }rem`
                             : nextAdjacentIndentation !== null
-                            ? `${droppableListItemIndent * nextAdjacentIndentation}rem`
-                            : previousAdjacentIndentation !== null
-                            ? `calc(100% - ${
-                                  droppableListItemIndent * (previousAdjacentIndentation + 1)
-                              }rem)`
-                            : "100%",
+                              ? `${droppableListItemIndent * nextAdjacentIndentation}rem`
+                              : previousAdjacentIndentation !== null
+                                ? `calc(100% - ${
+                                      droppableListItemIndent * (previousAdjacentIndentation + 1)
+                                  }rem)`
+                                : "100%",
                 }}
             />
             {isOver && (

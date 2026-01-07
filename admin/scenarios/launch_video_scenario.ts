@@ -1049,14 +1049,14 @@ async function actuallyCreateLaunchVideoFeed(
         markdown`
 ### Incident Retrospective: Upload Backlog
 
--   **What happened:** Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn’t
-    process due to a misconfigured worker autoscaler.
+- **What happened:** Between 02:10-03:05 UTC on May 20, 2026, image uploads queued but didn’t
+  process due to a misconfigured worker autoscaler.
 
--   **Impact:** 7.2% of uploads were delayed up to 55 minutes; no data loss.
+- **Impact:** 7.2% of uploads were delayed up to 55 minutes; no data loss.
 
--   **Root cause:** Autoscaler min replicas set to 0 after a staging → prod copy.
+- **Root cause:** Autoscaler min replicas set to 0 after a staging → prod copy.
 
--   **Fix:** Hot-patched min replicas to 3 and drained the backlog.
+- **Fix:** Hot-patched min replicas to 3 and drained the backlog.
 
 Follow-ups:
 
@@ -1427,8 +1427,8 @@ May 31. Our audience is row-crop producers. Specifically operations with 500-5k 
 
 Key messages:
 
--   “Know your margins per acre and per head”
--   “Drill from dashboard to ledger in one click”
+- “Know your margins per acre and per head”
+- “Drill from dashboard to ledger in one click”
 
 Deliverables:
 
@@ -1439,11 +1439,11 @@ Deliverables:
 
 Tone and style:
 
--   Plainspoken, confident, a bit gritty. Avoid buzzwords.
+- Plainspoken, confident, a bit gritty. Avoid buzzwords.
 
 CTA:
 
--   Start a 14-day trial. No credit card required.
+- Start a 14-day trial. No credit card required.
         `,
         {
             overrideCreatedTime: baseTime
@@ -1544,15 +1544,15 @@ Feedback needed
         markdown`
 KPI snapshot: May 12-19
 
--   WAU: 2,940 (+8% w/w)
--   Avg time to log receipt: 2m 14s (goal: < 2m)
--   Grant applications started: 61; submitted: 19
--   Dashboard drill-through rate: 34% (+5pp)
+- WAU: 2,940 (+8% w/w)
+- Avg time to log receipt: 2m 14s (goal: < 2m)
+- Grant applications started: 61; submitted: 19
+- Dashboard drill-through rate: 34% (+5pp)
 
 What’s next
 
--   Trim first-run tooltips by 30% to reduce bounce.
--   Enable “unknown vendor” queue review for CS team.
+- Trim first-run tooltips by 30% to reduce bounce.
+- Enable “unknown vendor” queue review for CS team.
 
 Small win: a producer in Nebraska cut weekly sorting time from 90 to 25 minutes after adopting tags.
 Nice work, team!

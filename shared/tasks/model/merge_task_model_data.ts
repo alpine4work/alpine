@@ -33,11 +33,11 @@ export function mergeTaskModelData(task1: TaskModelData, task2: TaskModelData): 
         deletedTime:
             task1.deletedTime !== null && task2.deletedTime !== null
                 ? maxHybridLogicalTime(task1.deletedTime, task2.deletedTime)
-                : task1.deletedTime ?? task2.deletedTime,
+                : (task1.deletedTime ?? task2.deletedTime),
         undeletedTime:
             task1.undeletedTime !== null && task2.undeletedTime !== null
                 ? maxHybridLogicalTime(task1.undeletedTime, task2.undeletedTime)
-                : task1.undeletedTime ?? task2.undeletedTime,
+                : (task1.undeletedTime ?? task2.undeletedTime),
 
         parent: {
             taskId: task1.parent.taskId.merge(task2.parent.taskId),

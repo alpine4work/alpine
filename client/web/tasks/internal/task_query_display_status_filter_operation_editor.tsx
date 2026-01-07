@@ -291,8 +291,8 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                     backgroundColor: isPressed
                                         ? "grey-10"
                                         : isHovered || isVisible
-                                        ? "grey-5"
-                                        : undefined,
+                                          ? "grey-5"
+                                          : undefined,
                                     borderRadius: "0.5",
                                 })}
                             >

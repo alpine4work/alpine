@@ -412,10 +412,10 @@ function PostListView(
 
     const shouldNotShowChannelId = header
         ? header.type === "NavigationBar"
-            ? header.shouldNotShowChannelId ?? null
+            ? (header.shouldNotShowChannelId ?? null)
             : header.type === "Channel"
-            ? header.channel.id
-            : null
+              ? header.channel.id
+              : null
         : null;
 
     // Always pin the post comment input to the bottom of the list view on mobile
@@ -956,7 +956,7 @@ function PostListView(
                     ({
                         type: "PostComments",
                         postId,
-                    } satisfies FileAttachmentTarget as Memo<FileAttachmentTarget>),
+                    }) satisfies FileAttachmentTarget as Memo<FileAttachmentTarget>,
             ),
         [],
     );
@@ -1281,7 +1281,7 @@ function PostListView(
                                         isPostView={isPostView}
                                         initialScroll={
                                             index === 0 || (hasHeader && index === 1)
-                                                ? initialScrollForFirstPost ?? null
+                                                ? (initialScrollForFirstPost ?? null)
                                                 : null
                                         }
                                         jumpState={
@@ -1516,8 +1516,8 @@ function PostListView(
                             item.type === "LoadedPostComment"
                                 ? `PostComment:${item.post.id}:${item.postComment.index}`
                                 : item.type === "OptimisticPostComment"
-                                ? `PostComment:${item.post.id}:${item.postCommentIndex}`
-                                : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
+                                  ? `PostComment:${item.post.id}:${item.postCommentIndex}`
+                                  : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeightPx[spacingScale],
                         zIndex:
                             messageEditing.state.isEditing &&

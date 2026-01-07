@@ -157,12 +157,12 @@ function TaskCollectionChipBase(
                         ? desktopLayoutChipClassName
                         : desktopLayoutChipWithoutColorClassName
                     : color !== null
-                    ? onRemove
-                        ? chipClassName
-                        : chipWithoutRemoveClassName
-                    : onRemove
-                    ? chipWithoutColorClassName
-                    : chipWithoutColorAndWithoutRemoveClassName
+                      ? onRemove
+                          ? chipClassName
+                          : chipWithoutRemoveClassName
+                      : onRemove
+                        ? chipWithoutColorClassName
+                        : chipWithoutColorAndWithoutRemoveClassName
             }
             tabIndex={tabIndex}
             style={{backgroundColor}}

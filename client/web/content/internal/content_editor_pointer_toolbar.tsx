@@ -702,8 +702,8 @@ function ContentEditorPointerToolbarOverlay({
                             animation === "FadingIn"
                                 ? overlayAnimateFadeInClassName
                                 : animation === "FadingOut"
-                                ? overlayAnimateFadeOutClassName
-                                : undefined,
+                                  ? overlayAnimateFadeOutClassName
+                                  : undefined,
                         )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
@@ -1164,10 +1164,10 @@ function ContentEditorPointerToolbarButton({
                             isPressedAndActive
                                 ? "grey-20"
                                 : isPressed || isActive
-                                ? "grey-10"
-                                : isHovered
-                                ? "grey-5"
-                                : undefined
+                                  ? "grey-10"
+                                  : isHovered
+                                    ? "grey-5"
+                                    : undefined
                         }
                     >
                         <IconContext.Provider

@@ -3067,8 +3067,7 @@ describe("checklist", () => {
                                                                                             type: "CheckList",
                                                                                             items: [
                                                                                                 {
-                                                                                                    checked:
-                                                                                                        false,
+                                                                                                    checked: false,
                                                                                                     elements:
                                                                                                         [
                                                                                                             {
@@ -3625,8 +3624,7 @@ describe("checklist", () => {
                                                                                             type: "CheckList",
                                                                                             items: [
                                                                                                 {
-                                                                                                    checked:
-                                                                                                        true,
+                                                                                                    checked: true,
                                                                                                     elements:
                                                                                                         [
                                                                                                             {
@@ -3646,8 +3644,7 @@ describe("checklist", () => {
                                                                                                                 type: "CheckList",
                                                                                                                 items: [
                                                                                                                     {
-                                                                                                                        checked:
-                                                                                                                            false,
+                                                                                                                        checked: false,
                                                                                                                         elements:
                                                                                                                             [
                                                                                                                                 {
