@@ -155,12 +155,14 @@ export class TracerRoot extends TracerBase {
         serviceName,
         jsHost,
         untrusted,
+        aws,
         clock,
         sendEvent,
     }: {
         serviceName: TracerServiceName;
         jsHost: TracerEventJsHost;
         untrusted: boolean;
+        aws?: {ec2InstanceId: string; ecsTaskId: string};
         clock: Clock;
         sendEvent: (event: TracerEvent) => void;
     }) {
@@ -181,6 +183,14 @@ export class TracerRoot extends TracerBase {
                         "`NODE_ENV` environment variable is not set",
                     ),
                 },
+                ...(aws
+                    ? {
+                          aws: {
+                              ec2: {instanceId: aws.ec2InstanceId},
+                              ecs: {taskId: aws.ecsTaskId},
+                          },
+                      }
+                    : {}),
             },
             propagatedEventData: null,
         });

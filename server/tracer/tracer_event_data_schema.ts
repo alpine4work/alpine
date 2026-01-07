@@ -286,6 +286,7 @@ const TracerEventDataSchema = {
             approximateReceiveCount: Schema.integer,
         },
         ecs: {
+            taskId: Schema.string,
             cluster: Schema.string,
             taskDefinitionFamily: Schema.string,
             taskCount: Schema.integer,
@@ -316,6 +317,7 @@ const TracerEventDataSchema = {
             },
         },
         ec2: {
+            instanceId: Schema.string,
             securityGroupId: Schema.string,
             instanceCount: Schema.integer,
         },

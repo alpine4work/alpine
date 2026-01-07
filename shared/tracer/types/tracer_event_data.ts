@@ -846,6 +846,9 @@ export type TracerEventData = {
          * version of Kubernetes.
          */
         readonly ecs?: {
+            /** The ECS task ID */
+            readonly taskId?: string;
+
             /**
              * The name of the ECS cluster we're operating against.
              */
@@ -944,6 +947,9 @@ export type TracerEventData = {
          * Information regarding AWS EC2.
          */
         readonly ec2?: {
+            /** The EC2 instance ID */
+            readonly instanceId?: string;
+
             /** A EC2 security group ID related to this span. */
             readonly securityGroupId?: string;
 

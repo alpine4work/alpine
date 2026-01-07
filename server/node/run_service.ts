@@ -7,6 +7,7 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -122,9 +123,55 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         if (!honeycombApiKey && process.env.NODE_ENV === "production")
             throw new InternalError("Must provide `honeycombApiKey` option in production");
 
+        let awsTracerSharedData: {ec2InstanceId: string; ecsTaskId: string} | undefined;
+
+        if (process.env.NODE_ENV === "production") {
+            const [ecsTaskId, ec2InstanceId] = await runAllPromiseThunks(
+                async () => {
+                    const metadataUri = process.env.ECS_CONTAINER_METADATA_URI_V4;
+                    assert(metadataUri, "Expected service to be running in ECS");
+
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(`${metadataUri}/task`);
+                    const metadata = await response.json();
+
+                    // Task ARN format: arn:aws:ecs:region:account:task/cluster-name/task-id
+                    const taskArn = metadata.TaskARN;
+                    assert(typeof taskArn === "string", "Expected `TaskARN` string");
+
+                    const taskId = assertExists(taskArn.split("/").pop());
+                    return taskId;
+                },
+                async () => {
+                    // IMDSv2 requires a token first
+                    // eslint-disable-next-line no-global-fetch
+                    const tokenResponse = await fetch("http://169.254.169.254/latest/api/token", {
+                        method: "PUT",
+                        headers: {"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+                    });
+                    const token = await tokenResponse.text();
+
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(
+                        "http://169.254.169.254/latest/meta-data/instance-id",
+                        {headers: {"X-aws-ec2-metadata-token": token}},
+                    );
+
+                    const instanceId = await response.text();
+                    return instanceId.trim();
+                },
+            );
+
+            awsTracerSharedData = {
+                ec2InstanceId,
+                ecsTaskId,
+            };
+        }
+
         const [tracer, honeycombClient] = createServerTracerAndHoneycombClient({
             serviceName,
             jsHost: "Node",
+            aws: awsTracerSharedData,
             honeycombApiKey,
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(
