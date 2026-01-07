@@ -72,6 +72,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -187,6 +188,11 @@ async function createAppService({
                   };
               })()
             : null,
+
+        // Make sure to load all code block languages are loaded before `AppService`
+        // starts serving HTTP requests. That way if we server render a `<ContentView>`
+        // with a code block it'll have syntax highlighting.
+        runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
     const awsSigner = new AwsRequestSigner();
