@@ -123,25 +123,15 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         if (!honeycombApiKey && process.env.NODE_ENV === "production")
             throw new InternalError("Must provide `honeycombApiKey` option in production");
 
-        let awsTracerSharedData: {ec2InstanceId: string; ecsTaskId: string} | undefined;
+        let awsTracerSharedData:
+            | {
+                  ec2InstanceId: string;
+                  ecsTaskId: string | undefined;
+              }
+            | undefined;
 
         if (process.env.NODE_ENV === "production") {
-            const [ecsTaskId, ec2InstanceId] = await runAllPromiseThunks(
-                async () => {
-                    const metadataUri = process.env.ECS_CONTAINER_METADATA_URI_V4;
-                    assert(metadataUri, "Expected service to be running in ECS");
-
-                    // eslint-disable-next-line no-global-fetch
-                    const response = await fetch(`${metadataUri}/task`);
-                    const metadata = await response.json();
-
-                    // Task ARN format: arn:aws:ecs:region:account:task/cluster-name/task-id
-                    const taskArn = metadata.TaskARN;
-                    assert(typeof taskArn === "string", "Expected `TaskARN` string");
-
-                    const taskId = assertExists(taskArn.split("/").pop());
-                    return taskId;
-                },
+            const [ec2InstanceId, ecsTaskId] = await runAllPromiseThunks(
                 async () => {
                     // IMDSv2 requires a token first
                     // eslint-disable-next-line no-global-fetch
@@ -160,6 +150,24 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                     const instanceId = await response.text();
                     return instanceId.trim();
                 },
+                async () => {
+                    const metadataUri = process.env.ECS_CONTAINER_METADATA_URI_V4;
+
+                    // Some services (like `DeployService`) don't run in ECS and instead run
+                    // directly on EC2 instances.
+                    if (!metadataUri) return;
+
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(`${metadataUri}/task`);
+                    const metadata = await response.json();
+
+                    // Task ARN format: arn:aws:ecs:region:account:task/cluster-name/task-id
+                    const taskArn = metadata.TaskARN;
+                    assert(typeof taskArn === "string", "Expected `TaskARN` string");
+
+                    const taskId = assertExists(taskArn.split("/").pop());
+                    return taskId;
+                },
             );
 
             awsTracerSharedData = {
@@ -171,7 +179,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         const [tracer, honeycombClient] = createServerTracerAndHoneycombClient({
             serviceName,
             jsHost: "Node",
-            aws: awsTracerSharedData,
+            awsEc2InstanceId: awsTracerSharedData?.ec2InstanceId,
+            awsEcsTaskId: awsTracerSharedData?.ecsTaskId,
             honeycombApiKey,
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(

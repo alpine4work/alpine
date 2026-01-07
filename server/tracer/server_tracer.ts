@@ -20,13 +20,15 @@ export function createServerTracer(options: {
 export function createServerTracerAndHoneycombClient({
     serviceName,
     jsHost,
-    aws,
+    awsEc2InstanceId,
+    awsEcsTaskId,
     honeycombApiKey,
     waitUntil,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
-    aws?: {ec2InstanceId: string; ecsTaskId: string};
+    awsEc2InstanceId?: string;
+    awsEcsTaskId?: string;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
 }): [TracerRoot, HoneycombTracerClient | null] {
@@ -34,7 +36,8 @@ export function createServerTracerAndHoneycombClient({
         serviceName,
         jsHost,
         untrusted: false,
-        aws,
+        awsEc2InstanceId,
+        awsEcsTaskId,
         clock: unsynchronizedSystemClock,
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
