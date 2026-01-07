@@ -713,7 +713,9 @@ function RootErrorBoundaryWrapper() {
                 <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
                     <AppContextProvider value={context}>
                         <NavigationContextProvider>
-                            <RootErrorBoundary />
+                            <RootOverlayScopeContextProvider>
+                                <RootErrorBoundary />
+                            </RootOverlayScopeContextProvider>
                         </NavigationContextProvider>
                     </AppContextProvider>
                 </IconContext.Provider>,

@@ -54,10 +54,8 @@ export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
     {
         maxAttemptCount = defaultMaxRetryAttemptCount,
-        initialAttemptNumber = 1,
     }: {
         maxAttemptCount?: number;
-        initialAttemptNumber?: number;
     } = emptyObject,
 ): Promise<Value> {
     // Important that this retry symbol is local to this function call. That way
@@ -127,5 +125,5 @@ export function retryWithExponentialBackoff<Value>(
         }
     };
 
-    return attempt(initialAttemptNumber);
+    return attempt(1);
 }

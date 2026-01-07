@@ -40,8 +40,8 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
@@ -947,32 +947,38 @@ async function actuallyHandleFetch(
     // retry in `EdgeService`. Since we don't have client control over the web
     // browser making the request!
     if (!response.ok && (await shouldRetryRequest(request, url, response))) {
-        response = await retryWithExponentialBackoff(
-            async retry => {
-                const retriedResponse = await span.withSpan("Retry request", span => {
-                    const retryHeaders = new Headers(request.headers);
-                    addTracerPropagationContextHeader(retryHeaders, span);
+        for (let attemptNumber = 1; attemptNumber <= 4; attemptNumber++) {
+            response = await span.withSpan("Retry request", async span => {
+                {
+                    const delayMs = Math.min(2 ** attemptNumber * 20, 1000 * 10);
 
-                    // eslint-disable-next-line no-global-fetch
-                    return fetch(request, {headers: retryHeaders});
-                });
+                    // We add jitter to our exponential backoff so that many requests retried at
+                    // the same time do not cause the same resource contention which may have
+                    // caused the errors in the first place.
+                    // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
+                    const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
-                // If the retried request also has a transient error, then try again!
-                if (
-                    !retriedResponse.ok &&
-                    (await shouldRetryRequest(request, url, retriedResponse))
-                ) {
-                    throw retry();
+                    span.addData({common: {delayDurationMs: delayMsWithJitter}});
+                    await wait(delayMsWithJitter);
                 }
 
-                return retriedResponse;
-            },
-            {
-                maxAttemptCount: 5,
-                // We've already made one attempt. Start our retry loop at attempt #2.
-                initialAttemptNumber: 2,
-            },
-        );
+                const retryHeaders = new Headers(request.headers);
+                addTracerPropagationContextHeader(retryHeaders, span);
+
+                // eslint-disable-next-line no-global-fetch
+                return fetch(request, {headers: retryHeaders});
+            });
+
+            // If the retried request also has a transient error, then try again!
+            if (!response.ok && (await shouldRetryRequest(request, url, response))) {
+                continue;
+            }
+
+            // All good! Stop the retry loop.
+            break;
+        }
+
+        // If we've exhausted all retries then we'll use the last response.
     }
 
     // If AWS ALB returns a 504 it's usually because the request timed out. Convert

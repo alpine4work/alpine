@@ -442,6 +442,13 @@ export type TracerEventData = {
         readonly processDurationMs?: number;
 
         /**
+         * If there was some delay in running our span then this is the duration of
+         * that delay. Useful if your span a delay and some other work so you can
+         * isolate that delay (e.g. a retry span) without creating another span.
+         */
+        readonly delayDurationMs?: number;
+
+        /**
          * Was the data we're loading in this span cached? True if so false if not.
          */
         readonly wasCached?: boolean;

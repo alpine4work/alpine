@@ -172,6 +172,7 @@ const TracerEventDataSchema = {
         isBlocking: Schema.boolean,
         didNothing: Schema.boolean,
         processDurationMs: Schema.float,
+        delayDurationMs: Schema.float,
         wasCached: Schema.boolean,
         width: Schema.float,
         height: Schema.float,
