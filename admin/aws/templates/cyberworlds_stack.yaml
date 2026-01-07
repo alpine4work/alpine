@@ -2106,7 +2106,7 @@ Resources:
                 Ref: TaskRealtimeServiceAutoScalingGroupInstanceProfileDDF1F2CB
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
+            InstanceType: m6g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
@@ -2137,8 +2137,8 @@ Resources:
         Properties:
             LaunchConfigurationName:
                 Ref: TaskRealtimeServiceAutoScalingGroupLaunchConfig22706485
-            MaxSize: "4"
-            MinSize: "2"
+            MaxSize: "8"
+            MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: Name
@@ -2725,7 +2725,7 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/GatewayContainer/LogGroup/Resource
-    TaskRealtimeServicePartition1Of2Service0939E28C:
+    TaskRealtimeServicePartition1Of4ServiceD4755515:
         Type: AWS::ECS::Service
         Properties:
             CapacityProviderStrategy:
@@ -2755,8 +2755,8 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of2/Service/Service
-    TaskRealtimeServicePartition2Of2ServiceA52AA8BD:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of4/Service/Service
+    TaskRealtimeServicePartition2Of4Service58B5770B:
         Type: AWS::ECS::Service
         Properties:
             CapacityProviderStrategy:
@@ -2786,7 +2786,69 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of2/Service/Service
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of4/Service/Service
+    TaskRealtimeServicePartition3Of4Service9D31FC0E:
+        Type: AWS::ECS::Service
+        Properties:
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
+                MaximumPercent: 200
+                MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
+            DesiredCount: 1
+            EnableECSManagedTags: true
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: TaskRealtimeServiceTaskDefinition4487CD82
+        DependsOn:
+            - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition3Of4/Service/Service
+    TaskRealtimeServicePartition4Of4Service542A453A:
+        Type: AWS::ECS::Service
+        Properties:
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
+                MaximumPercent: 200
+                MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
+            DesiredCount: 1
+            EnableECSManagedTags: true
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: TaskRealtimeServiceTaskDefinition4487CD82
+        DependsOn:
+            - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
     AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -2893,7 +2955,7 @@ Resources:
                 Ref: AppServiceAutoScalingGroupInstanceProfile48AE1782
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
+            InstanceType: c8g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
@@ -2924,8 +2986,8 @@ Resources:
         Properties:
             LaunchConfigurationName:
                 Ref: AppServiceAutoScalingGroupLaunchConfig5E9CA167
-            MaxSize: "4"
-            MinSize: "2"
+            MaxSize: "16"
+            MinSize: "8"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: Name
@@ -3598,7 +3660,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 2
+            DesiredCount: 8
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
             LoadBalancers:
@@ -3935,7 +3997,7 @@ Resources:
                 Ref: ApiServiceAutoScalingGroupInstanceProfile1E0819BF
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
+            InstanceType: c8g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
@@ -4907,7 +4969,7 @@ Resources:
                 Ref: JobQueueServiceAutoScalingGroupInstanceProfile43FB4AEC
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
+            InstanceType: c8g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
@@ -4938,8 +5000,8 @@ Resources:
         Properties:
             LaunchConfigurationName:
                 Ref: JobQueueServiceAutoScalingGroupLaunchConfig9C233F6F
-            MaxSize: "2"
-            MinSize: "1"
+            MaxSize: "8"
+            MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
             Tags:
                 - Key: Name
@@ -5683,7 +5745,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 1
+            DesiredCount: 4
             EnableECSManagedTags: false
             SchedulingStrategy: REPLICA
             TaskDefinition:

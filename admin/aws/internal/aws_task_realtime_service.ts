@@ -1,6 +1,7 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
+    InstanceClass,
     InstanceSize,
     InstanceType,
     Peer,
@@ -27,7 +28,6 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -79,7 +79,7 @@ export class AwsTaskRealtimeService extends Construct {
         // `TaskRealtimeService` instances keeping a copy of the same space's data.
         // Namely you decrease your chance of cache hits. Generally your tool for
         // scaling `TaskRealtimeService` should be increasing the number of partitions.
-        const partitionCount = 2;
+        const partitionCount = 4;
         const partitionInstanceCount = 1;
 
         // First 750 hours per month of the `t3.micro` instance type are free. That
@@ -90,7 +90,7 @@ export class AwsTaskRealtimeService extends Construct {
         // (`instanceCpuCount`). If you change the instance type you should also change
         // `instanceCpuCount` to the correct number of vCPUs according to:
         // https://aws.amazon.com/ec2/instance-types/
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO);
+        const instanceType = InstanceType.of(InstanceClass.M6G, InstanceSize.LARGE);
         const instanceCpuCount = 2;
 
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {

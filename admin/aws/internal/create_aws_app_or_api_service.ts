@@ -61,12 +61,17 @@ export function createAwsAppOrApiService(
     {
         serviceName,
         secretsName,
+        autoScalingGroup: autoScalingGroupOptions,
         taskDefinition: taskDefinitionOptions,
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
     }: {
         serviceName: string;
         secretsName: string;
+        autoScalingGroup: {
+            minCapacity: number;
+            maxCapacity: number;
+        };
         taskDefinition: {
             tarballPath: string;
             containerCommandPath: string;
@@ -82,15 +87,11 @@ export function createAwsAppOrApiService(
 ) {
     const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
         vpc,
-        // First 750 hours per month of this instance type are free. That effectively
-        // translates to 1 free capacity of this instance type across our AWS account.
-        instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
+        instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
         machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
 
-        minCapacity: 2,
-        // During a deploy, we double our capacity needs since we keep running old
-        // instances to maintain availability while a new fleet of instances start.
-        maxCapacity: 4,
+        minCapacity: autoScalingGroupOptions.minCapacity,
+        maxCapacity: autoScalingGroupOptions.maxCapacity,
 
         // Run our service instances on a public subnet. This means we can send
         // outgoing connections to anyone on the internet, but it also means anyone on
@@ -337,7 +338,7 @@ export function createAwsAppOrApiService(
     const service = new Ec2Service(parentConstruct, "Service", {
         cluster: ecsCluster.cluster,
         taskDefinition,
-        desiredCount: 2,
+        desiredCount: autoScalingGroupOptions.minCapacity,
         // Specifies the max/min task count during a deploy.
         minHealthyPercent: 50,
         maxHealthyPercent: 200,

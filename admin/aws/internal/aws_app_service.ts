@@ -31,6 +31,12 @@ export class AwsAppService extends Construct {
         const {taskDefinition} = createAwsAppOrApiService(this, options, {
             serviceName: "App",
             secretsName: "AppServiceSecrets",
+            autoScalingGroup: {
+                minCapacity: 8,
+                // During a deploy, we double our capacity needs since we keep running old
+                // instances to maintain availability while a new fleet of instances start.
+                maxCapacity: 16,
+            },
             taskDefinition: {
                 tarballPath: "cyberworlds/app/app_image_tarball_load/tarball.tar",
                 containerCommandPath: "/var/www/app/app_production",
