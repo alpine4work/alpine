@@ -210,7 +210,7 @@ export class AwsTaskRealtimeService extends Construct {
         // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
         // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
         // stuck in the "Provisioning" status forever.
-        const memoryLimitMiB = 936;
+        const memoryLimitMiB = 7842;
 
         const gatewayResourcePercent = 0.02;
 

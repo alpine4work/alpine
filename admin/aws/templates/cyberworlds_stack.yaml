@@ -2522,7 +2522,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 918
+                  MemoryReservation: 7686
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -2635,7 +2635,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionGatewayContainerLogGroupC33881DF
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 18
+                  MemoryReservation: 156
                   Name: GatewayContainer
                   PortMappings:
                       - ContainerPort: 80
@@ -3452,7 +3452,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -4460,7 +4460,7 @@ Resources:
                               Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -5494,7 +5494,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY

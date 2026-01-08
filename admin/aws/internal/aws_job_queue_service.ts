@@ -187,7 +187,7 @@ export class AwsJobQueueService extends Construct {
             // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
             // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
             // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 936,
+            memoryLimitMiB: 3906,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
