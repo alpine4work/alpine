@@ -124,7 +124,12 @@ async function actuallyCreateSpace(
             // Faster to add affinity points separately from our create space transaction.
             // We don't care if there are some affinity point items floating around for a
             // space that doesn't exist.
-            dangerouslyApplySpaceWelcomePackage(context, ownerAccountId, welcomePackageItem),
+            dangerouslyApplySpaceWelcomePackage(context, {
+                accountId: ownerAccountId,
+                welcomePackageItem,
+                // New space so there are no suggested accounts.
+                suggestedAccountIds: [],
+            }),
         ]);
 
         return spaceItem;

@@ -4,13 +4,14 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
+import {dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization} from "~/server/spaces/dangerously_expensively_get_suggested_space_account_ids_without_authorization.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
 
 /**
@@ -132,20 +133,30 @@ export async function updateSpaceAccountWithInviteDecision(
 
         // Load the welcome package item in parallel with the transaction updating the
         // space account's state if we're going to need it.
-        const welcomePackageItemPromise: Promise<SpaceWelcomePackageItem | null> | null =
+        const welcomePackageItemPromise: Promise<{
+            welcomePackageItem: SpaceWelcomePackageItem | null;
+            suggestedAccountIds: ReadonlyArray<AccountId>;
+        }> | null =
             newAccountStateType === "Active" && !spaceAccountItem.state.wasPreviouslyRemoved
-                ? SpacesTable.getItemIfExists(
-                      context,
-                      {
-                          partitionType: "Space",
-                          sortRangeType: "WelcomePackage",
-                          spaceId,
-                      },
-                      // If there's an eventual consistency lag and we don't read the welcome package
-                      // item then the new user will have nothing in their suggested list which is a
-                      // bad experience!
-                      {consistency: "Strong"},
-                  )
+                ? runAllObjectPromises({
+                      welcomePackageItem: SpacesTable.getItemIfExists(
+                          context,
+                          {
+                              partitionType: "Space",
+                              sortRangeType: "WelcomePackage",
+                              spaceId,
+                          },
+                          // If there's an eventual consistency lag and we don't read the welcome package
+                          // item then the new user will have nothing in their suggested list which is a
+                          // bad experience!
+                          {consistency: "Strong"},
+                      ),
+                      suggestedAccountIds:
+                          dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
+                              context,
+                              spaceId,
+                          ),
+                  })
                 : null;
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
@@ -183,14 +194,15 @@ export async function updateSpaceAccountWithInviteDecision(
             // After we've accepted the space invite, run some additional non-critical
             // initialization logic. If any initialization here fails, the account will
             // still be successfully in the space, but there may be some small issues.
-            if (!spaceAccountItem.state.wasPreviouslyRemoved) {
-                const welcomePackageItem = await welcomePackageItemPromise;
+            if (!spaceAccountItem.state.wasPreviouslyRemoved && welcomePackageItemPromise) {
+                const {welcomePackageItem, suggestedAccountIds} = await welcomePackageItemPromise;
                 if (welcomePackageItem) {
-                    await dangerouslyApplySpaceWelcomePackage(
-                        context,
+                    await dangerouslyApplySpaceWelcomePackage(context, {
                         accountId,
                         welcomePackageItem,
-                    );
+                        // NOCOMMIT: Test!
+                        suggestedAccountIds,
+                    });
                 }
             }
         }

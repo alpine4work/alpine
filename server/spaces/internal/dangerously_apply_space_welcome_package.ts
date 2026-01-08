@@ -9,8 +9,15 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  */
 export async function dangerouslyApplySpaceWelcomePackage(
     context: ServerActionContext,
-    accountId: AccountId,
-    {spaceId, generalChannelId, randomChannelId, chatGptBotAccountId}: SpaceWelcomePackageItem,
+    {
+        accountId,
+        welcomePackageItem: {spaceId, generalChannelId, randomChannelId, chatGptBotAccountId},
+        suggestedAccountIds,
+    }: {
+        accountId: AccountId;
+        welcomePackageItem: SpaceWelcomePackageItem;
+        suggestedAccountIds: ReadonlyArray<AccountId>;
+    },
 ) {
     const increment = 0.001;
 
@@ -20,25 +27,34 @@ export async function dangerouslyApplySpaceWelcomePackage(
             accountId,
             entityId: "TaskPersonal",
         }),
-        chatGptBotAccountId
-            ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
-                  spaceId,
-                  accountId,
-                  entityId: `Account:${chatGptBotAccountId}`,
-                  points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 0,
-              })
-            : null,
         context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
             spaceId,
             accountId,
             entityId: `Channel:${generalChannelId}`,
-            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 1,
+            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 0,
         }),
         context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
             spaceId,
             accountId,
             entityId: `Channel:${randomChannelId}`,
-            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 2,
+            points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 1,
         }),
+        chatGptBotAccountId
+            ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                  spaceId,
+                  accountId,
+                  entityId: `Account:${chatGptBotAccountId}`,
+                  points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 2,
+              })
+            : null,
+        ...suggestedAccountIds.map((suggestedAccountId, index) =>
+            context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
+                spaceId,
+                accountId,
+                entityId: `Account:${suggestedAccountId}`,
+                points:
+                    searchAffinityEntityHighIntentUpdateInteractionPoints - increment * (3 + index),
+            }),
+        ),
     ]);
 }

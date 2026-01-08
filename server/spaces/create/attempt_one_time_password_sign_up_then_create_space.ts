@@ -9,6 +9,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {createSpaceWelcomePackageTransactionEntries} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
+import {dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization} from "~/server/spaces/dangerously_expensively_get_suggested_space_account_ids_without_authorization.js";
 import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {
@@ -99,6 +100,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
         type CreateSpaceResult = {
             spaceId: SpaceId;
             welcomePackageItem: SpaceWelcomePackageItem | null;
+            suggestedAccountIds: Array<AccountId>;
             accountVersionConditionCheckTransactionEntry: DynamoTransactionEntry | null;
             accountSpacesItemTransactionEntry: DynamoTransactionEntry & {
                 newItem: AccountSpacesItem;
@@ -153,6 +155,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                     return {
                         spaceId: personalSpaceId,
                         welcomePackageItem,
+                        // New space so there are no suggested accounts.
+                        suggestedAccountIds: [],
                         accountVersionConditionCheckTransactionEntry,
                         accountSpacesItemTransactionEntry,
                         transactionEntries: [
@@ -204,6 +208,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                     accountSpacesItemTransactionEntry,
                                 },
                                 welcomePackageItem,
+                                suggestedAccountIds,
                             ] = await runAllPromises([
                                 getAddSpaceAccountTransactionEntries(context, {
                                     currentTime,
@@ -239,11 +244,21 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                     // bad experience!
                                     {consistency: "Strong"},
                                 ),
+
+                                // Load the first few `AccountId`s in the space so we can populate them in the
+                                // suggested list.
+                                //
+                                // NOCOMMIT: Test!
+                                dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
+                                    context,
+                                    autoAddAccountsFromEmailDomainItem.spaceId,
+                                ),
                             ]);
 
                             return {
                                 spaceId: autoAddAccountsFromEmailDomainItem.spaceId,
                                 welcomePackageItem,
+                                suggestedAccountIds,
                                 accountVersionConditionCheckTransactionEntry,
                                 accountSpacesItemTransactionEntry,
                                 transactionEntries: [
@@ -295,6 +310,8 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                         return {
                             spaceId: autoAddAccountsFromEmailDomainSpaceId,
                             welcomePackageItem,
+                            // New space so there are no suggested accounts.
+                            suggestedAccountIds: [],
                             accountVersionConditionCheckTransactionEntry,
                             accountSpacesItemTransactionEntry,
                             transactionEntries: [
@@ -453,21 +470,21 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
             // Faster to add affinity points separately from our create space transaction.
             // We don't care if there are some affinity point items floating around for a
             // space that doesn't exist.
-            dangerouslyApplySpaceWelcomePackage(
-                context,
+            dangerouslyApplySpaceWelcomePackage(context, {
                 accountId,
-                personalSpaceResult.welcomePackageItem,
-            ),
+                welcomePackageItem: personalSpaceResult.welcomePackageItem,
+                suggestedAccountIds: personalSpaceResult.suggestedAccountIds,
+            }),
 
             // Faster to add affinity points separately from our create space transaction.
             // We don't care if there are some affinity point items floating around for a
             // space that doesn't exist.
             autoAddToEmailDomainSpaceResult?.welcomePackageItem
-                ? dangerouslyApplySpaceWelcomePackage(
-                      context,
+                ? dangerouslyApplySpaceWelcomePackage(context, {
                       accountId,
-                      autoAddToEmailDomainSpaceResult.welcomePackageItem,
-                  )
+                      welcomePackageItem: autoAddToEmailDomainSpaceResult.welcomePackageItem,
+                      suggestedAccountIds: autoAddToEmailDomainSpaceResult.suggestedAccountIds,
+                  })
                 : null,
         ]);
 
