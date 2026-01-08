@@ -145,10 +145,18 @@ export function FeedViewSideBar({
         availableHeight / searchAffinityEntityViewMinHeightPx[spacingScale],
     );
 
-    // Remove the result with the lowest score from the sections until we have
-    // `visibleResultCount` items in total.
-    if (visibleResultCount > 0) {
-        while (peopleResults.length + suggestedResults.length > visibleResultCount) {
+    const visibleResultCountWithoutFavorites = Math.floor(
+        visibleResultCount - favoriteResults.length,
+    );
+
+    // Remove the result with the lowest score from the "People" and "Suggested"
+    // sections (not the "Favorites" section) until we have `visibleResultCount`
+    // items in total.
+    if (visibleResultCountWithoutFavorites > 0) {
+        while (
+            peopleResults.length + suggestedResults.length >
+            visibleResultCountWithoutFavorites
+        ) {
             if (peopleResults.length === 0) {
                 suggestedResults.pop();
             } else if (suggestedResults.length === 0) {
