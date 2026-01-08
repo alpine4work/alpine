@@ -4,7 +4,7 @@ import {
 } from "~/server/accounts/attempt_one_time_password_sign_in.js";
 import {dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
 import {dangerouslyGetAccountLastOpenedSpaceIdWithoutAuthorization} from "~/server/accounts/dangerously_get_account_last_opened_space_id_without_authorization.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
@@ -17,16 +17,20 @@ import {
     SpaceWelcomePackageItem,
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
+import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {genericEmailAddressDomains} from "~/shared/accounts/generic_email_address_domains.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -36,7 +40,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * then we create a personal space for the account.
  */
 export async function attemptOneTimePasswordSignUpThenCreateSpace(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {logoDev: LogoDevContextModuleBase}>,
     emailAddress: EmailAddress,
     oneTimePassword: string,
     options: AttemptOneTimePasswordSignInOptions,
@@ -80,7 +84,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
     return {sessionId, sessionAccountId, openSpaceId};
 
     async function run(
-        context: ServerActionContext,
+        context: Context<ServerActionContextModules & {logoDev: LogoDevContextModuleBase}>,
         span: TracerSpan,
         {accountId}: {accountId: AccountId},
         isInitialAttempt: boolean,
@@ -295,6 +299,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 welcomePackageItem,
                                 transactionEntries: welcomePackageTransactionEntries,
                             },
+                            logoDevResult,
                         ] = await runAllPromises([
                             getAddSpaceAccountTransactionEntries(context, {
                                 currentTime,
@@ -307,6 +312,9 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 ownerAccountId: accountId,
                                 spaceId: autoAddAccountsFromEmailDomainSpaceId,
                             }),
+                            captureResultPromise(
+                                fetchCompanyFromLogoDev(context, autoAddAccountsFromEmailDomain),
+                            ),
                         ]);
 
                         return {
@@ -321,10 +329,14 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                     partitionType: "Space",
                                     sortRangeType: "Attributes",
                                     spaceId: autoAddAccountsFromEmailDomainSpaceId,
-                                    name: `@${autoAddAccountsFromEmailDomain}`.slice(
-                                        0,
-                                        maxLabelStringLength,
-                                    ),
+                                    // We ignore errors from the Logo.dev API. We use the result if it's there and
+                                    // ignore if it's not.
+                                    name: logoDevResult.value
+                                        ? logoDevResult.value.name.slice(0, maxLabelStringLength)
+                                        : `@${autoAddAccountsFromEmailDomain}`.slice(
+                                              0,
+                                              maxLabelStringLength,
+                                          ),
                                     createdTime: currentTime,
                                 }),
                                 SpacesTable.transactionCreateItem({
@@ -344,6 +356,37 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 }),
                                 ...transactionEntries,
                                 ...welcomePackageTransactionEntries,
+
+                                // If we got logos from Logo.dev then add them to DynamoDB. We'll need to store
+                                // a larger version of the image in R2 later.
+                                //
+                                // NOCOMMIT: Store a larger version of the image in R2!
+                                ...(logoDevResult.value?.logoLightContent
+                                    ? [
+                                          SpacesTable.transactionCreateOrReplaceItem({
+                                              partitionType: "Space",
+                                              sortRangeType: "AvatarLightTheme",
+                                              spaceId: autoAddAccountsFromEmailDomainSpaceId,
+                                              avatarId: generateChronologicalId<AvatarId>(),
+                                              content: new Uint8Array(
+                                                  logoDevResult.value.logoLightContent,
+                                              ),
+                                          }),
+                                      ]
+                                    : []),
+                                ...(logoDevResult.value?.logoDarkContent
+                                    ? [
+                                          SpacesTable.transactionCreateOrReplaceItem({
+                                              partitionType: "Space",
+                                              sortRangeType: "AvatarDarkTheme",
+                                              spaceId: autoAddAccountsFromEmailDomainSpaceId,
+                                              avatarId: generateChronologicalId<AvatarId>(),
+                                              content: new Uint8Array(
+                                                  logoDevResult.value.logoDarkContent,
+                                              ),
+                                          }),
+                                      ]
+                                    : []),
                             ],
                         };
                     }
@@ -537,4 +580,29 @@ function getEmailDomainForAutoAddSpaceAccounts(emailAddress: string): string | n
     if (genericEmailAddressDomains.get().set.has(emailDomain)) return null;
 
     return emailDomain;
+}
+
+function fetchCompanyFromLogoDev(
+    context: Context<ServerActionContextModules & {logoDev: LogoDevContextModuleBase}>,
+    emailDomain: string,
+) {
+    return context.tracer.withSpan("Fetch company from Logo.dev", async context => {
+        const [description, logoLightContent, logoDarkContent] = await runAllPromises([
+            context.logoDev.describe(emailDomain),
+
+            // Get 2x the size of the `<SpaceAvatar>` in the top left corner of the app so
+            // the logo looks good on retina displays but is (hopefully) still small enough
+            // to fit in one DynamoDB item.
+            context.logoDev.logo(emailDomain, {size: 64, theme: "light"}),
+            context.logoDev.logo(emailDomain, {size: 64, theme: "dark"}),
+        ]);
+
+        if (!description) return null;
+
+        return {
+            name: description.name,
+            logoLightContent,
+            logoDarkContent,
+        };
+    });
 }

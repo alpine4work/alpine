@@ -27,6 +27,12 @@ export const AvatarSchema = Schema.object({
      * See design document for more: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/documents/0d23mcm7xt551yn1fr0xw50p58
      */
     avatarId: Schema.id<AvatarId>().nullable().default(null),
+
+    /**
+     * The underlying bytes for a small version of the avatar image. Usually AVIF
+     * but sometimes will be PNG (e.g. for automatically created space avatars from
+     * Logo.dev). Always will be a web safe image format.
+     */
     content: Schema.bytes.nullable().default(null),
 });
 export type Avatar = SchemaType<typeof AvatarSchema> & {version: number};

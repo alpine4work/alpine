@@ -40,15 +40,15 @@ const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
  *
  * Human readable phrases match our span name style which is why we do this.
  */
-export type ExternalServiceName = "Cloudflare 1.1.1.1" | "OpenSearch" | "Cohere";
+export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev";
 
 function isExternalServiceName(
     serviceName: TracerServiceName | ExternalServiceName,
 ): serviceName is ExternalServiceName {
     switch (serviceName) {
-        case "Cloudflare 1.1.1.1":
         case "OpenSearch":
         case "Cohere":
+        case "LogoDev":
             return true;
         default:
             // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should

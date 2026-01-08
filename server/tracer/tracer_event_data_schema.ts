@@ -611,6 +611,13 @@ const TracerEventDataSchema = {
             variant: IdentifierStringSchema,
         },
     },
+    logoDev: {
+        query: Schema.string,
+        name: Schema.string,
+        domain: Schema.string,
+        description: Schema.string,
+        colors: Schema.string,
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

@@ -31,6 +31,8 @@ export type AppServiceConstants = {
             readonly chatGptLocalScopedApiKey?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;
             readonly resourceServiceUrl?: string;
+            readonly logoDevSecretKey?: string;
+            readonly logoDevPublishableKey?: string;
         };
 };
 

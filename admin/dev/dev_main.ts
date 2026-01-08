@@ -83,6 +83,8 @@ process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 const openAiDevApiKey = env.OPEN_AI_DEV_API_KEY;
+const logoDevSecretKey = env.LOGO_DEV_SECRET_KEY;
+const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
@@ -380,6 +382,10 @@ function createArtifacts() {
                 `--chatGptLocalUnscopedApiKey=${chatGptUnscopedApiKeyPath}`,
                 `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
+                ...(logoDevSecretKey ? [`--logoDevSecretKey=${logoDevSecretKey}`] : []),
+                ...(logoDevPublishableKey
+                    ? [`--logoDevPublishableKey=${logoDevPublishableKey}`]
+                    : []),
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

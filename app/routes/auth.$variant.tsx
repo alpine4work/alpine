@@ -13,8 +13,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 // - [ ] Sign up after invitation to space (lands in invited space)
 // - [ ] Sign up after invitation to space we would have auto-joined based on email domain
 
-// NOCOMMIT: Accept invite while signing in
-
 // NOCOMMIT: On mobile throw up interstitial that says "Alpine is better on
 // desktop, send an email reminding me to try Alpine on desktop"
 
@@ -25,7 +23,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 // NOCOMMIT: Nice design right side
 
-// NOCOMMIT: Get actual company logo
+// NOCOMMIT: Welcome post
 
 export function meta({params}: {params: Params}) {
     return [{title: params.variant === "sign-up" ? "Sign up for Alpine" : "Sign in to Alpine"}];

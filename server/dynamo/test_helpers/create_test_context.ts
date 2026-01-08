@@ -56,6 +56,7 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {TestLogoDevContextModule} from "~/server/spaces/logo_dev_context_module.js";
 import {
     TestAnonymousActionContext,
     TestBotActionContext,
@@ -552,6 +553,7 @@ export function createTestContext(
         edge: new TestLocalEdgeServiceContextModule(),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
+        logoDev: new TestLogoDevContextModule(),
         chatInjection: ChatInjectionContextModule.test(options.chatInjection),
         documentsInjection: DocumentsInjectionContextModule.test(options.documentsInjection),
         forumInjection: ForumInjectionContextModule.test(options.forumInjection),

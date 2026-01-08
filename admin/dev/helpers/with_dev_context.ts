@@ -47,6 +47,10 @@ import {notificationsInjection} from "~/server/notifications/data/notifications_
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
+import {
+    LogoDevContextModule,
+    TestLogoDevContextModule,
+} from "~/server/spaces/logo_dev_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {
     TestAnonymousActionContext,
@@ -243,6 +247,13 @@ export async function withDevContext<Value>(
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
         r2: new CloudflareR2ContextModule(cloudflareClient),
+        logoDev:
+            env.LOGO_DEV_SECRET_KEY && env.LOGO_DEV_PUBLISHABLE_KEY
+                ? new LogoDevContextModule({
+                      secretKey: env.LOGO_DEV_SECRET_KEY,
+                      publishableKey: env.LOGO_DEV_PUBLISHABLE_KEY,
+                  })
+                : new TestLogoDevContextModule(),
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),

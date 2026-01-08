@@ -11,6 +11,7 @@ import {
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {ActorContextModule, ActorServiceName} from "~/server/helpers/actor_context_module.js";
+import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -23,6 +24,7 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 type TestContextExtraModules = {
     email: EmailContextModuleBase;
+    logoDev: LogoDevContextModuleBase;
 };
 
 export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;

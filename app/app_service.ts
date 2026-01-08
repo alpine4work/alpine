@@ -65,6 +65,11 @@ import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_c
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {getSpaceAccountsCacheForTest} from "~/server/spaces/get_space_accounts_cache_for_test.js";
+import {
+    LogoDevContextModule,
+    LogoDevContextModuleBase,
+    TestLogoDevContextModule,
+} from "~/server/spaces/logo_dev_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {createServiceTaskRealtimeServiceRouter} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -236,6 +241,28 @@ async function createAppService({
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
 
+    let logoDevContextModule: LogoDevContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        logoDevContextModule = new LogoDevContextModule({
+            secretKey: assertExists(
+                options.logoDevSecretKey,
+                "`logoDevSecretKey` option is required in production",
+            ),
+            publishableKey: assertExists(
+                options.logoDevPublishableKey,
+                "`logoDevPublishableKey` option is required in production",
+            ),
+        });
+    } else {
+        logoDevContextModule =
+            !options.logoDevSecretKey || !options.logoDevPublishableKey
+                ? new TestLogoDevContextModule()
+                : new LogoDevContextModule({
+                      secretKey: options.logoDevSecretKey,
+                      publishableKey: options.logoDevPublishableKey,
+                  });
+    }
+
     // Sometimes we want to upgrade a session actor to a system actor. This gives
     // the action escalated the system permission level which is dangerous! The
     // system permission level has broad access to a space. We should tightly
@@ -317,6 +344,7 @@ async function createAppService({
                       vapidPublicKey: webPushVapidPublicKey,
                       vapidPrivateKey: webPushVapidPrivateKey,
                   }),
+        logoDev: logoDevContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),

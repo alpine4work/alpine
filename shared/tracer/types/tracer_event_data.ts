@@ -1811,6 +1811,17 @@ export type TracerEventData = {
             readonly variant?: string;
         };
     };
+
+    /**
+     * Information we get from the Logo.dev brand API.
+     */
+    readonly logoDev?: {
+        readonly query?: string;
+        readonly name?: string;
+        readonly domain?: string;
+        readonly description?: string;
+        readonly colors?: string;
+    };
 };
 
 /**
