@@ -10,10 +10,12 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {Context} from "~/shared/context/context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export async function actuallyRegenerateOneTimePasswordSignIn(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
     initialAccountEmailAddressItem: AccountEmailAddressItem,
+    {emailVariant}: {emailVariant: MaybePromise<"SignIn" | "SignUp">},
 ): Promise<void> {
     const {emailAddress} = initialAccountEmailAddressItem;
     const generatedTime = new Date();
@@ -67,13 +69,26 @@ export async function actuallyRegenerateOneTimePasswordSignIn(
     });
 
     // Send an email to `emailAddress` with the new password.
-    await afterRegenerateOneTimePasswordSignIn(context, emailAddress, password);
+    await afterRegenerateOneTimePasswordSignIn(context, {
+        emailAddress,
+        // Allow `emailVariant` to be decided asynchronously while we regenerate the
+        // one-time password.
+        emailVariant: await emailVariant,
+        password,
+    });
 }
 
 export async function afterRegenerateOneTimePasswordSignIn(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
-    emailAddress: EmailAddress,
-    password: string,
+    {
+        emailAddress,
+        emailVariant,
+        password,
+    }: {
+        emailAddress: EmailAddress;
+        emailVariant: "SignIn" | "SignUp";
+        password: string;
+    },
 ) {
     // We allow tests to capture one time password emails. Make sure this only
     // happens in test environments since we don't want developers to have access
@@ -93,13 +108,12 @@ export async function afterRegenerateOneTimePasswordSignIn(
     }
 
     await context.email.sendImmediately({
-        fromEmailAddressAlias: "SignIn",
+        fromEmailAddressAlias: emailVariant,
         toEmailAddress: emailAddress,
-        templateName: "SignIn",
+        templateName: "SignInOrSignUp",
         templateProps: {
+            variant: emailVariant,
             code: password,
-            baseUrl: context.constants.edgeServiceUrl,
-            emailAddress,
         },
     });
 }

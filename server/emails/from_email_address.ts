@@ -34,6 +34,10 @@ export const FromEmailAddressAlias = {
         displayName: "Alpine",
         address: "sign-in@alpine.inc",
     },
+    SignUp: {
+        displayName: "Alpine",
+        address: "sign-up@alpine.inc",
+    },
     Invitation: {
         displayName: "Alpine",
         address: "invitation@alpine.inc",

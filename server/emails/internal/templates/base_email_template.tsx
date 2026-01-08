@@ -1,9 +1,9 @@
 /* eslint-disable string-quotes */
 import {Body, Container, Head, Html, Img, Preview, Section} from "@react-email/components";
 import {EmailFont} from "~/server/emails/internal/components/email_font.js";
+import {emailSpacing} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 // NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML practices because email clients
@@ -14,30 +14,30 @@ import {assert} from "~/shared/helpers/control/assert.js";
 // .match-background and .match-background-border are classes to use for applying cutouts to content that can
 // handle dark mode. Good luck.
 export function BaseEmailTemplate({
-    title,
+    subject,
     resourceServiceUrl,
     children,
     globalStyles,
     preview,
 }: {
-    title: string;
+    subject: string;
     resourceServiceUrl: string;
     children: React.ReactNode;
     globalStyles?: string;
     preview?: string;
 }) {
-    assert(title.length > 0, "Expected title to be non-empty");
+    assert(subject.length > 0, "Expected subject to be non-empty");
+
     const lightColorsCssClasses = Object.entries(colorsWithShade).map(
-        ([shade, color]) => `&.${shade} { color: ${color} !important; }`,
+        ([shade, color]) => `&.text-${shade} { color: ${color} !important; }`,
     );
     const darkColorsCssClasses = Object.entries(invertedColorsWithShade).map(
-        ([shade, color]) => `&.${shade} { color: ${color} !important; }`,
+        ([shade, color]) => `&.text-${shade} { color: ${color} !important; }`,
     );
 
-    const brandLogoIconSize = spacing["32"];
-    const brandLogoIconAspectRatio = 719 / 227;
-    const brandLogoIconWidth = parseFloat(brandLogoIconSize);
-    const brandLogoIconHeight = brandLogoIconWidth / brandLogoIconAspectRatio;
+    const brandLogoIconAspectRatio = 1235 / 388;
+    const brandLogoIconWidth = emailSpacing["28"];
+    const brandLogoIconHeight = Math.round(brandLogoIconWidth / brandLogoIconAspectRatio);
 
     return (
         <Html>
@@ -50,24 +50,19 @@ export function BaseEmailTemplate({
                     dangerouslySetInnerHTML={{
                         __html: `
                         body {
-                            font-size: medium;
-                            font-size: max(16px, 1rem);
                             background: ${colors["grey-0"]};
-                            backgroundImage: linear-gradient(${colors["grey-0"]},${
-                                colors["grey-0"]
-                            });
                         }
+
                         hr {
                             border-color: ${colors["grey-5"]} !important;
-                            margin-top: ${convertRemLengthToPx(spacing["2"], "medium")} !important;
-                            margin-bottom: ${convertRemLengthToPx(
-                                spacing["2"],
-                                "medium",
-                            )} !important;
+                            margin-top: ${emailSpacing["2"]} !important;
+                            margin-bottom: ${emailSpacing["2"]} !important;
                         }
+
                         .match-background {
                             background-color: ${colors["grey-0"]} !important;
                         }
+
                         .match-background-border {
                             border-color: ${colors["grey-0"]} !important;
                         }
@@ -114,7 +109,7 @@ export function BaseEmailTemplate({
                                 ${darkColorsCssClasses.join("\n")}
                             }
                             hr {
-                                border-color: ${colors["grey-90"]} !important;
+                                border-color: ${invertedColorsWithShade["grey-5"]} !important;
                             }
                             #logo-wordmark {
                                 background-image: url('${resourceServiceUrl}/icons/logo_wordmark_dark.png') !important;
@@ -151,7 +146,7 @@ export function BaseEmailTemplate({
                         `,
                     }}
                 />
-                <title>{title}</title>
+                <title>{subject}</title>
             </Head>
             <Body className="body">
                 {/* We use data-email-preview as a tag to debug the preview text in our
@@ -160,12 +155,17 @@ export function BaseEmailTemplate({
                 */}
                 {preview && <Preview data-email-preview="true">{preview}</Preview>}
                 <Container>
-                    <Section style={{paddingTop: "1em", paddingBottom: "1em"}}>
+                    <Section
+                        style={{
+                            paddingTop: emailSpacing["12"],
+                            paddingBottom: emailSpacing["4"],
+                        }}
+                    >
                         <div
                             id="logo-wordmark"
                             style={{
-                                width: `${brandLogoIconWidth}em`,
-                                height: `${brandLogoIconHeight}em`,
+                                width: brandLogoIconWidth,
+                                height: brandLogoIconHeight,
                                 backgroundImage: `url(${resourceServiceUrl}/icons/logo_wordmark_light.png)`,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",

@@ -10,6 +10,8 @@ filegroup(
         "files/fonts/commit-mono.v1.woff2",
         "files/fonts/inter.v1.woff2",
         "files/fonts/inter-italic.v1.woff2",
+        "files/icons/all_brand_icons_dark.png",
+        "files/icons/all_brand_icons_light.png",
         ":files",
         ":icon_pngs",
         ":static_service_worker_file",

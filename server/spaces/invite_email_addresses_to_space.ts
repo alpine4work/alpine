@@ -1,5 +1,6 @@
 import {createAccountWithEmailAddressTransactionEntries} from "~/server/accounts/create_account_transaction_entries.js";
 import {getAccountIdByEmailAddressIfExists} from "~/server/accounts/get_account_id_by_email_address_if_exists.js";
+import {getOwnAccount} from "~/server/accounts/get_own_account.js";
 import {
     ServerActionContext,
     ServerSessionActionContextWithEmail,
@@ -10,6 +11,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -161,15 +163,18 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
         const currentTime = new Date();
 
-        const {spaceItem, account, newSpaceAccountItem, transactionEntries} =
-            await getAddSpaceAccountTransactionEntries(context, {
-                currentTime,
-                space: {type: "Existing", id: spaceId},
-                account: existingAccountId
-                    ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}
-                    : {type: "New", id: accountId, emailAddress},
-                role: "Member",
-            });
+        const [actorAccount, {spaceItem, account, newSpaceAccountItem, transactionEntries}] =
+            await runAllPromises([
+                getOwnAccount(context),
+                getAddSpaceAccountTransactionEntries(context, {
+                    currentTime,
+                    space: {type: "Existing", id: spaceId},
+                    account: existingAccountId
+                        ? {type: "Existing", id: accountId, invitedEmailAddress: emailAddress}
+                        : {type: "New", id: accountId, emailAddress},
+                    role: "Member",
+                }),
+            ]);
 
         assert(spaceItem);
 
@@ -187,12 +192,12 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             ...transactionEntries,
         ]);
 
-        const spaceUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}`;
+        const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept?consistency=strong`)}`;
+        const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
             // Use strong consistency for the `/invite/accept` route to make sure we
             // correctly read any data from sign in.
-            const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept?consistency=strong`)}`;
 
             // eslint-disable-next-line no-console
             console.log(
@@ -207,8 +212,12 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             toEmailAddress: emailAddress,
             templateName: "SpaceInvite",
             templateProps: {
-                spaceUrl,
                 spaceName: spaceItem.name,
+                inviterShortName: getAccountShortNameWithoutFullNameTooltip(
+                    actorAccount.initialData,
+                ),
+                acceptInviteUrl,
+                rejectInviteAndMarkAsSpamUrl,
             },
         });
 

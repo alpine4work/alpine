@@ -3,7 +3,7 @@ import {decode as decodeHtmlEntities} from "html-entities";
 import {ComponentProps} from "react";
 import {renderToReadableStream} from "react-dom/server";
 import {NotificationDigestEmailTemplate} from "~/server/emails/internal/templates/notification_digest_email_template.js";
-import {SignInEmailTemplate} from "~/server/emails/internal/templates/sign_in_email_template.js";
+import {SignInOrSignUpEmailTemplate} from "~/server/emails/internal/templates/sign_in_or_sign_up_email_template.js";
 import {SpaceInviteEmailTemplate} from "~/server/emails/internal/templates/space_invite_email_template.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
@@ -11,7 +11,7 @@ import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_read
 // To preserve types, we must explicitly set keys and their respective templates / names.
 // If we use maps or other iterables, we'll lose prop type validation.
 export const emailTemplates = {
-    SignIn: createEmailTemplate(SignInEmailTemplate, "SignIn"),
+    SignInOrSignUp: createEmailTemplate(SignInOrSignUpEmailTemplate, "SignInOrSignUp"),
     SpaceInvite: createEmailTemplate(SpaceInviteEmailTemplate, "SpaceInvite"),
     NotificationDigest: createEmailTemplate(NotificationDigestEmailTemplate, "NotificationDigest"),
 };

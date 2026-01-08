@@ -16,13 +16,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 // NOCOMMIT: On mobile throw up interstitial that says "Alpine is better on
 // desktop, send an email reminding me to try Alpine on desktop"
 
-// NOCOMMIT: Email design! Specifically:
-//
-// - [ ] Sign in / sign up code
-// - [ ] Invite email
-
-// NOCOMMIT: Nice design right side
-
 // NOCOMMIT: Welcome post
 
 export function meta({params}: {params: Params}) {

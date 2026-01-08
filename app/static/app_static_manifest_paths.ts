@@ -28,6 +28,8 @@ export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/fonts/inter.v1.woff2",
     "/fonts/source-serif-italic.v1.woff2",
     "/fonts/source-serif.v1.woff2",
+    "/icons/all_brand_icons_dark.png",
+    "/icons/all_brand_icons_light.png",
     "/icons/chat_brand_icon_dark.png",
     "/icons/chat_brand_icon_light.png",
     "/icons/document_brand_icon_dark.png",

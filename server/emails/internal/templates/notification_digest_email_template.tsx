@@ -2,14 +2,14 @@ import {ZonedDateTime, fromDate, isSameDay, toCalendarDate} from "@international
 import {Column, Container, Hr, Row, Section} from "@react-email/components";
 import React, {Fragment} from "react";
 import {EmailAccountAvatar} from "~/server/emails/internal/components/email_account_avatar.js";
-import {EmailFooter} from "~/server/emails/internal/components/email_footer.js";
+import {EmailFooterText} from "~/server/emails/internal/components/email_footer_text.js";
 import {EmailLink} from "~/server/emails/internal/components/email_link.js";
+import {emailSpacing} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {EmailText, emailFontStyles} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
@@ -69,19 +69,19 @@ export function NotificationDigestEmailTemplate({
 
     // If the user has some urgent notifications, let's give them an urgent subject
     // line to hopefully get them to open the email.
-    let title;
+    let subject;
     if (loudNotificationAccountByIds.size === 1) {
         const account = assertExists(iterableFirst(loudNotificationAccountByIds.values()));
         const accountShortName = getAccountShortNameWithoutFullNameTooltip(account);
 
-        title = `${accountShortName} is trying to get your attention in ${spaceName}`;
+        subject = `${accountShortName} is trying to get your attention in ${spaceName}`;
     } else if (loudNotificationAccountByIds.size === 2) {
         const [account1, account2] = loudNotificationAccountByIds.values();
         assert(account1 && account2);
         const account1ShortName = getAccountShortNameWithoutFullNameTooltip(account1);
         const account2ShortName = getAccountShortNameWithoutFullNameTooltip(account2);
 
-        title = `${account1ShortName} and ${account2ShortName} are trying to get your attention in ${spaceName}`;
+        subject = `${account1ShortName} and ${account2ShortName} are trying to get your attention in ${spaceName}`;
     } else if (loudNotificationAccountByIds.size === 3) {
         const [account1, account2, account3] = loudNotificationAccountByIds.values();
         assert(account1 && account2 && account3);
@@ -89,7 +89,7 @@ export function NotificationDigestEmailTemplate({
         const account2ShortName = getAccountShortNameWithoutFullNameTooltip(account2);
         const account3ShortName = getAccountShortNameWithoutFullNameTooltip(account3);
 
-        title = `${account1ShortName}, ${account2ShortName}, and ${account3ShortName} are trying to get your attention in ${spaceName}`;
+        subject = `${account1ShortName}, ${account2ShortName}, and ${account3ShortName} are trying to get your attention in ${spaceName}`;
     } else if (loudNotificationAccountByIds.size >= 4) {
         const [account1, account2, account3] = loudNotificationAccountByIds.values();
         assert(account1 && account2 && account3);
@@ -97,11 +97,11 @@ export function NotificationDigestEmailTemplate({
         const account2ShortName = getAccountShortNameWithoutFullNameTooltip(account2);
         const account3ShortName = getAccountShortNameWithoutFullNameTooltip(account3);
 
-        title = `${account1ShortName}, ${account2ShortName}, ${account3ShortName}, and ${
+        subject = `${account1ShortName}, ${account2ShortName}, ${account3ShortName}, and ${
             loudNotificationAccountByIds.size - 3
         } others are trying to get your attention in ${spaceName}`;
     } else {
-        title = `What’s been happening in ${spaceName}`;
+        subject = `What’s been happening in ${spaceName}`;
     }
 
     const preview = `You have ${printPrettySmallNumberSummary(
@@ -129,16 +129,16 @@ export function NotificationDigestEmailTemplate({
                     }
                 }
             `}
-            title={title}
-            preview={preview}
             /* eslint-enable string-quotes */
+            subject={subject}
+            preview={preview}
         >
             <Section>
-                <EmailText fontSize="500" fontStyle="bold">
+                <EmailText fontSize="400" color="grey-100" fontStyle="bold">
                     Recent activity in {spaceName}
                 </EmailText>
             </Section>
-            <Section style={{marginBottom: convertRemLengthToPx(spacing["2"], "medium")}}>
+            <Section style={{paddingBottom: emailSpacing["2"]}}>
                 {parsedEntries.map((entry, index) => (
                     <React.Fragment key={entry.url.toString()}>
                         {index === 0 && <Hr />}
@@ -166,10 +166,10 @@ export function NotificationDigestEmailTemplate({
                             <Column>
                                 <EmailText
                                     color="grey-40"
-                                    fontSize="50"
+                                    fontSize="25"
                                     style={{
-                                        marginTop: convertRemLengthToPx(spacing["3"], "medium"),
-                                        marginBottom: 0,
+                                        paddingTop: emailSpacing["3"],
+                                        paddingBottom: 0,
                                     }}
                                 >
                                     {entry.dateString}
@@ -177,17 +177,11 @@ export function NotificationDigestEmailTemplate({
                                 <EmailLink color="grey-100" href={entry.url.toString()}>
                                     <Row>
                                         <EmailText
-                                            fontSize="200"
+                                            fontSize="100"
                                             color="grey-100"
                                             style={{
-                                                marginBottom: convertRemLengthToPx(
-                                                    spacing["1"],
-                                                    "medium",
-                                                ),
-                                                marginTop: convertRemLengthToPx(
-                                                    spacing["0.5"],
-                                                    "medium",
-                                                ),
+                                                paddingBottom: emailSpacing["1"],
+                                                paddingTop: emailSpacing["0.5"],
                                             }}
                                         >
                                             {entry.summary.map((item, index) => {
@@ -212,14 +206,11 @@ export function NotificationDigestEmailTemplate({
                                     </Row>
                                     <Row>
                                         <EmailText
-                                            fontSize="100"
+                                            fontSize="75"
                                             color="grey-60"
                                             style={{
-                                                marginBottom: convertRemLengthToPx(
-                                                    spacing["3"],
-                                                    "medium",
-                                                ),
-                                                marginTop: 0,
+                                                paddingBottom: emailSpacing["3"],
+                                                paddingTop: 0,
                                             }}
                                         >
                                             {entry.preview}
@@ -235,14 +226,11 @@ export function NotificationDigestEmailTemplate({
                     <>
                         <Hr />
                         <Row>
-                            <EmailText
-                                style={{
-                                    marginTop: convertRemLengthToPx(spacing["6"], "medium"),
-                                }}
-                            >
+                            <EmailText style={{paddingTop: emailSpacing["6"]}}>
                                 <EmailLink
                                     color={`${defaultThemeColor}-60`}
                                     href={`${digestContent.inboxUrl.toString()}`}
+                                    style={{textDecoration: "underline"}}
                                 >
                                     See{" "}
                                     {digestContent.remainingEntryCount > 50
@@ -255,17 +243,18 @@ export function NotificationDigestEmailTemplate({
                     </>
                 )}
             </Section>
-
-            <EmailFooter>
-                You’re receiving this email because you’re a member of {spaceName}.{" "}
-                <EmailLink
-                    href={unsubscribeUrl.toString()}
-                    color="grey-50"
-                    style={{textDecoration: "underline"}}
-                >
-                    Unsubscribe
-                </EmailLink>
-            </EmailFooter>
+            <Section style={{paddingTop: emailSpacing["6"]}}>
+                <EmailFooterText>
+                    You’re receiving this email because you’re a member of {spaceName}.{" "}
+                    <EmailLink
+                        href={unsubscribeUrl.toString()}
+                        color="grey-50"
+                        style={{textDecoration: "underline"}}
+                    >
+                        Unsubscribe
+                    </EmailLink>
+                </EmailFooterText>
+            </Section>
         </BaseEmailTemplate>
     );
 }

@@ -1,9 +1,11 @@
 import {Text} from "@react-email/components";
 import {ReactNode} from "react";
+import {
+    emailSpacing,
+    emailSpacingScale,
+} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {Color, colors} from "~/shared/design/core/colors.js";
 import {FontSize, createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const emailFontStyles = createFontStyles({
@@ -13,35 +15,36 @@ export const emailFontStyles = createFontStyles({
 
 export function EmailText({
     children,
-    fontSize = "200",
+    fontSize = "100",
     fontStyle = "normal",
+    color = "grey-80",
     letterSpacingOverride,
     style,
-    color,
 }: {
     children?: ReactNode;
     fontSize?: FontSize;
-    fontStyle?: "normal" | "semi-bold" | "bold";
+    fontStyle?: "light" | "normal" | "semi-bold" | "bold";
     letterSpacingOverride?: string;
     style?: React.CSSProperties;
     color?: Color;
 }) {
+    const actualFontSize = fontSizesBySpacingScale[fontSize][emailSpacingScale];
+
     return (
         <Text
-            className={color ? `email-text ${color}` : "email-text"}
+            className={`text-${color}`}
             style={{
-                fontSize: fontSizesBySpacingScale[fontSize].small.fontSize,
-                letterSpacing:
-                    letterSpacingOverride ?? fontSizesBySpacingScale[fontSize].small.letterSpacing,
-                lineHeight: `${convertRemLengthToPx(
-                    fontSizesBySpacingScale[fontSize].small.lineHeight,
-                    "small",
-                )}px`,
+                fontSize: actualFontSize.fontSize,
+                letterSpacing: letterSpacingOverride ?? actualFontSize.letterSpacing,
+                lineHeight: "1.5em",
                 fontStyle: emailFontStyles[fontStyle].fontStyle,
                 fontWeight: emailFontStyles[fontStyle].fontWeight,
-                marginBottom: convertRemLengthToPx(cast<RemLength>("0.75rem"), "small"),
+                // It's easier to reason about paddings then margins with margin collapse. I
+                // also don't trust email clients to correctly collapse margins.
+                paddingBottom: emailSpacing["2"],
                 marginTop: "0px",
-                color: color ? colors[color] : colors["grey-100"],
+                marginBottom: "0px",
+                color: colors[color],
                 ...style,
             }}
         >

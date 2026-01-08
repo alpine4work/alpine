@@ -69,7 +69,11 @@ export async function signUpAccountWithEmailAddress(
     }
 
     // Send an email to `emailAddress` with the new password.
-    await afterRegenerateOneTimePasswordSignIn(context, emailAddress, password);
+    await afterRegenerateOneTimePasswordSignIn(context, {
+        emailAddress,
+        emailVariant: "SignUp",
+        password,
+    });
 
     return accountId;
 }
@@ -103,7 +107,9 @@ async function handleSignUpAccountWithEmailAddressConditionCheckError(
 
     // If the account already exists then regenerate the one time password and send
     // an email with the new password.
-    await actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem);
+    await actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem, {
+        emailVariant: "SignUp",
+    });
 
     return accountEmailAddressItem.accountId;
 }

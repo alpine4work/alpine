@@ -28,12 +28,20 @@ export async function regenerateOneTimePasswordSignIn(
 
     if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
 
+    const accountItemPromise = getAccountItemWithoutAvatarWithEventualThenStrongConsistency(
+        context,
+        accountEmailAddressItem.accountId,
+    );
+
     const [accountItem] = await runAllPromises([
-        getAccountItemWithoutAvatarWithEventualThenStrongConsistency(
-            context,
-            accountEmailAddressItem.accountId,
-        ),
-        actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem),
+        accountItemPromise,
+        actuallyRegenerateOneTimePasswordSignIn(context, accountEmailAddressItem, {
+            // If the account hasn't signed up then we'll be redirecting them to the sign
+            // up flow. So send them the sign up email instead of the sign in email.
+            emailVariant: accountItemPromise.then(accountItem =>
+                accountItem.hasNotSignedUp ? "SignUp" : "SignIn",
+            ),
+        }),
     ]);
 
     return {

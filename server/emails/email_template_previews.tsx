@@ -26,21 +26,34 @@ const emailTemplatePreviews: {
         props: EmailTemplateProps<K>;
     }>;
 } = {
-    SignIn: [
+    SignInOrSignUp: [
         {
             title: "Sign in",
             props: {
-                emailAddress: "anthony.mose@company.com",
+                variant: "SignIn",
                 code: "123456",
-                baseUrl: emailPreviewBaseUrl,
             },
         },
         {
             title: "Sign in (with code in subject)",
             props: {
-                emailAddress: "anthony.mose@company.com",
+                variant: "SignIn",
                 code: "123456",
-                baseUrl: emailPreviewBaseUrl,
+                shouldDangerouslyIncludeCodeInSubject: true,
+            },
+        },
+        {
+            title: "Sign up",
+            props: {
+                variant: "SignUp",
+                code: "123456",
+            },
+        },
+        {
+            title: "Sign up (with code in subject)",
+            props: {
+                variant: "SignUp",
+                code: "123456",
                 shouldDangerouslyIncludeCodeInSubject: true,
             },
         },
@@ -49,8 +62,10 @@ const emailTemplatePreviews: {
         {
             title: "Space invite",
             props: {
-                spaceUrl: `${emailPreviewBaseUrl}/spaces/invite/1234567890abcdef`,
-                spaceName: "Test Space",
+                spaceName: "Airtable",
+                inviterShortName: "Caleb",
+                acceptInviteUrl: "https://example.com",
+                rejectInviteAndMarkAsSpamUrl: "https://example.com",
             },
         },
     ],

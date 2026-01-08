@@ -40,7 +40,11 @@ export async function loader({context: unauthenticatedContext, params, request}:
     }
 
     if (currentAccount.initialData.space.state.type !== "InvitePending") {
-        return redirect(`/s/${spaceId}`);
+        if (consistency === "Eventual") {
+            return redirect(`/s/${spaceId}`);
+        } else {
+            return redirect(`/s/${spaceId}?consistency=strong`);
+        }
     }
 
     return jsonWithSchema(LoaderSchema, {});
@@ -82,7 +86,11 @@ export default function InviteAcceptRoute() {
 
             // We use from=invite to tell remix to revalidate our space loader data
             // This will re-evalutate permissions and let the user immediately click on resources
-            navigate(`/s/${context.space.id}?from=invite`);
+            //
+            // Use strong consistency to make sure we don't error saying you're not
+            // authorized because of eventual consistency lag right after accepting the
+            // invite
+            navigate(`/s/${context.space.id}?consistency=strong&from=invite`);
         });
     }, [appContext, context.space.id, navigate]);
 
