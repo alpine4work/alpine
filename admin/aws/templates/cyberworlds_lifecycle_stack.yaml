@@ -17,7 +17,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             AvailabilityZone: us-east-1a
-            CidrBlock: 10.0.0.0/18
+            CidrBlock: 10.0.0.0/19
             MapPublicIpOnLaunch: true
             Tags:
                 - Key: aws-cdk:subnet-name
@@ -65,7 +65,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             AvailabilityZone: us-east-1b
-            CidrBlock: 10.0.64.0/18
+            CidrBlock: 10.0.32.0/19
             MapPublicIpOnLaunch: true
             Tags:
                 - Key: aws-cdk:subnet-name
@@ -113,7 +113,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             AvailabilityZone: us-east-1c
-            CidrBlock: 10.0.128.0/18
+            CidrBlock: 10.0.64.0/19
             MapPublicIpOnLaunch: true
             Tags:
                 - Key: aws-cdk:subnet-name
@@ -161,7 +161,7 @@ Resources:
         Type: AWS::EC2::Subnet
         Properties:
             AvailabilityZone: us-east-1d
-            CidrBlock: 10.0.192.0/18
+            CidrBlock: 10.0.96.0/19
             MapPublicIpOnLaunch: true
             Tags:
                 - Key: aws-cdk:subnet-name
@@ -205,6 +205,102 @@ Resources:
             - VpcVPCGWBF912B6E
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet4/DefaultRoute
+    VpcPublicSubnet5Subnet9D29380E:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: us-east-1e
+            CidrBlock: 10.0.128.0/19
+            MapPublicIpOnLaunch: true
+            Tags:
+                - Key: aws-cdk:subnet-name
+                  Value: Public
+                - Key: aws-cdk:subnet-type
+                  Value: Public
+                - Key: Name
+                  Value: CyberworldsLifecycleStack/Vpc/PublicSubnet5
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet5/Subnet
+    VpcPublicSubnet5RouteTable00FBF6A7:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: CyberworldsLifecycleStack/Vpc/PublicSubnet5
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet5/RouteTable
+    VpcPublicSubnet5RouteTableAssociationB5D1B64D:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId:
+                Ref: VpcPublicSubnet5RouteTable00FBF6A7
+            SubnetId:
+                Ref: VpcPublicSubnet5Subnet9D29380E
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet5/RouteTableAssociation
+    VpcPublicSubnet5DefaultRouteA387713C:
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId:
+                Ref: VpcIGWD7BA715C
+            RouteTableId:
+                Ref: VpcPublicSubnet5RouteTable00FBF6A7
+        DependsOn:
+            - VpcVPCGWBF912B6E
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet5/DefaultRoute
+    VpcPublicSubnet6Subnet86A826C5:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: us-east-1f
+            CidrBlock: 10.0.160.0/19
+            MapPublicIpOnLaunch: true
+            Tags:
+                - Key: aws-cdk:subnet-name
+                  Value: Public
+                - Key: aws-cdk:subnet-type
+                  Value: Public
+                - Key: Name
+                  Value: CyberworldsLifecycleStack/Vpc/PublicSubnet6
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet6/Subnet
+    VpcPublicSubnet6RouteTable3EA495DA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: CyberworldsLifecycleStack/Vpc/PublicSubnet6
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet6/RouteTable
+    VpcPublicSubnet6RouteTableAssociationC7CC2778:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId:
+                Ref: VpcPublicSubnet6RouteTable3EA495DA
+            SubnetId:
+                Ref: VpcPublicSubnet6Subnet86A826C5
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet6/RouteTableAssociation
+    VpcPublicSubnet6DefaultRouteB21AA37D:
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId:
+                Ref: VpcIGWD7BA715C
+            RouteTableId:
+                Ref: VpcPublicSubnet6RouteTable3EA495DA
+        DependsOn:
+            - VpcVPCGWBF912B6E
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/Vpc/PublicSubnet6/DefaultRoute
     VpcIGWD7BA715C:
         Type: AWS::EC2::InternetGateway
         Properties:
@@ -2978,7 +3074,8 @@ Resources:
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
                       - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
-                        subnet4":{"End":true,"Type":"Task","Comment":"'
+                        subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
+                        subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -3020,6 +3117,97 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                        subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
+                        subnet6"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersTestRunnerImageBuilderLaunchtemplate8D463004
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
+                        ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-test', $.runner.registrationUrl,
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - Fn::GetAtt:
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersTestRunnerProviderSGC459F644
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":40}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
+                        subnet6":{"End":true,"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersTestRunnerImageBuilderLaunchtemplate8D463004
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
+                        ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-test', $.runner.registrationUrl,
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - Fn::GetAtt:
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersTestRunnerProviderSGC459F644
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
                       - "\",\"Ebs\":{\"DeleteOnTermination\":true,\"VolumeSize\":40}}],\"TagSpecifi\
@@ -3390,7 +3578,8 @@ Resources:
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
                       - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
-                        subnet4":{"End":true,"Type":"Task","Comment":"'
+                        subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
                       - Ref: AWS::Partition
@@ -3493,6 +3682,219 @@ Resources:
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet6"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy', $.runner.registrationUrl,
+                        States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \",\"fileProcessorHeavyJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \",\"fileProcessorLightJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet6":{"End":true,"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy', $.runner.registrationUrl,
+                        States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \",\"fileProcessorJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \",\"fileProcessorHeavyJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \",\"fileProcessorLightJobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
                       - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
                       - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":100}}],"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}}}}]},"Delete

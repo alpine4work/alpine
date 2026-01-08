@@ -185,11 +185,17 @@ function addAwsLifecycleResources(
     // in public subnets anyway so this doesn't add too much security. What this
     // does that's really useful is allows us to launch GitHub runner instances in
     // all availability zones. In case the first few availability zone we try don't
-    // have capacity. us-east-1e is specifically excluded because it does not support the
-    // `c8g.large` instance type that we use for our production services.
+    // have capacity.
     const vpc = new Vpc(stack, "Vpc", {
         natGateways: 0,
-        availabilityZones: ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d"],
+        availabilityZones: [
+            "us-east-1a",
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d",
+            "us-east-1e",
+            "us-east-1f",
+        ],
         subnetConfiguration: [{subnetType: SubnetType.PUBLIC, name: "Public"}],
     });
 
