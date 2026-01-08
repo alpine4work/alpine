@@ -130,9 +130,9 @@ export function MessageViewContextMenuReactionButton<
                 });
             }}
         >
-            {({currentAccountReaction, isMouseDownFromOverlayOpen}) =>
+            {({currentAccountReaction, isPointerDownFromOverlayOpen}) =>
                 renderStructure({
-                    isPressed: isMouseDownFromOverlayOpen,
+                    isPressed: isPointerDownFromOverlayOpen,
                     children: (
                         <Box
                             display="flex"
@@ -157,7 +157,7 @@ export function MessageViewContextMenuReactionButton<
                                 >
                                     <CurrentAccountReactionButtonIcon
                                         currentAccountReaction={currentAccountReaction}
-                                        isPressed={isMouseDownFromOverlayOpen}
+                                        isPressed={isPointerDownFromOverlayOpen}
                                     />
                                 </IconContext.Provider>
                             </Box>

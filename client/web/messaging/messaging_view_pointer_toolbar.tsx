@@ -373,19 +373,19 @@ export function MessagingViewPointerToolbar<
                                 hideToolbar();
                             }}
                         >
-                            {({currentAccountReaction, isMouseDownFromOverlayOpen}) => (
+                            {({currentAccountReaction, isPointerDownFromOverlayOpen}) => (
                                 <MessagingViewPointerToolbarButton
                                     dividerLeft
                                     icon={
                                         <CurrentAccountReactionButtonIcon
                                             currentAccountReaction={currentAccountReaction}
-                                            isPressed={isMouseDownFromOverlayOpen}
+                                            isPressed={isPointerDownFromOverlayOpen}
                                         />
                                     }
                                     label={
                                         <PrettyNumber number={reactionState.reactions.get().size} />
                                     }
-                                    isPressed={isMouseDownFromOverlayOpen}
+                                    isPressed={isPointerDownFromOverlayOpen}
                                 />
                             )}
                         </ReactionButtonBase>
