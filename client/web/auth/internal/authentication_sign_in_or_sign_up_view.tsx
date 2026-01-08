@@ -18,7 +18,7 @@ import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId} from "~/shared/id/id.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
@@ -132,9 +132,20 @@ export function AuthenticationSignInOrSignUpView({
                                 // variant here from `sign-in` to `sign-up`. So we have special handling for
                                 // `sign-up` with an email address.
                                 if (hasNotSignedUp) {
-                                    await navigate(
-                                        `/auth/sign-up?profile=${accountId},${encodeURIComponent(emailAddress)}`,
+                                    const urlPath = new UrlPath("/auth/sign-up");
+
+                                    // Keep any existing search params.
+                                    for (const [key, value] of searchParams) {
+                                        urlPath.searchParams.set(key, value);
+                                    }
+
+                                    // Navigate to `<AuthenticationSignUpProfileView>` for the account
+                                    urlPath.searchParams.set(
+                                        "profile",
+                                        `${accountId},${emailAddress}`,
                                     );
+
+                                    await navigate(urlPath.toString());
                                     return;
                                 }
 
