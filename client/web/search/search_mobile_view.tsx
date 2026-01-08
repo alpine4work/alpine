@@ -119,7 +119,7 @@ export function SearchMobileView({
                                             paddingRight: "9",
                                             paddingY: searchMobileInputPaddingY,
                                             backgroundColor: "grey-0",
-                                            border: "grey-20",
+                                            boxShadow: "elevation-5-with-grey-10-border",
                                             fontSize: searchMobileInputFontSize,
                                             fontStyle: "normal",
                                         })}

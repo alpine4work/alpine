@@ -211,7 +211,7 @@ export function ChannelMobileEditor({
                                 Description
                             </label>
                             <FocusRing offset="border" isVisibleWhenFocusWithin>
-                                <Box border="grey-20" borderRadius="1">
+                                <Box borderRadius="1" boxShadow="elevation-5-with-grey-10-border">
                                     <ContentEditor
                                         ref={descriptionEditorRef}
                                         aria-labelledby={descriptionLabelId}

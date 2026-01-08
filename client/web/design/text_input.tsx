@@ -220,8 +220,6 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
             <input
                 ref={useMergedRefs(ref, inputRef)}
                 className={sprinkles({
-                    // NOCOMMIT: Can we make all `<TextInput>`s have a `grey-10` border? Looks nicer.
-                    // Text area components may need to change too.
                     boxShadow: "elevation-5-with-grey-10-border",
                     borderRadius: "1",
                     display: "block",

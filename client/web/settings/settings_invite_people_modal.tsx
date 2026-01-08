@@ -176,7 +176,7 @@ export function SettingsInvitePeopleModal({
                             pointerEvents="none"
                             zIndex="10"
                             borderRadius="1"
-                            border="grey-20"
+                            boxShadow="elevation-5-with-grey-10-border"
                         />
                         <Box
                             ref={useScrollbar()}

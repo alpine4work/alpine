@@ -284,14 +284,7 @@ export function ChannelCreator({
                                 Description
                             </label>
                             <FocusRing offset="border" isVisibleWhenFocusWithin>
-                                <Box
-                                    borderRadius="1"
-                                    style={{
-                                        // Use `box-shadow` instead of `border` so the border doesn't
-                                        // contribute to CSS layout.
-                                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-20"]}`,
-                                    }}
-                                >
+                                <Box borderRadius="1" boxShadow="elevation-5-with-grey-10-border">
                                     <ContentEditor
                                         ref={descriptionEditorRef}
                                         aria-labelledby={descriptionLabelId}

@@ -516,9 +516,7 @@ function PostCreatorChannelSelectorInput(
                             fontSize: "75",
                             backgroundColor: "transparent",
                             borderRadius: "1",
-                            // Typically text input borders are `grey-20` but I felt like that was too heavy
-                            // for this input rendered inline with the post header.
-                            border: "grey-10",
+                            boxShadow: "elevation-5-with-grey-10-border",
                         })}
                         placeholder="Channel"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
