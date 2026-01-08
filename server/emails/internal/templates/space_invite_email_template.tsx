@@ -35,6 +35,7 @@ export function SpaceInviteEmailTemplate({
                         backgroundColor: colors[`${defaultThemeColor}-60`],
                         borderRadius: "3px",
                     }}
+                    // NOCOMMIT: `/auth/sign-in?email=...&to=/s/${spaceId}/invite/accept`
                     href={`${spaceUrl}/invite/accept`}
                 >
                     Join {spaceName}

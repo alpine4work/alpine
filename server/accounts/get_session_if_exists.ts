@@ -23,6 +23,21 @@ export async function getSessionIfExists(
             partitionType: "Session",
             sortRangeType: "Attributes",
             sessionId,
+        }).then(sessionItem => {
+            if (sessionItem) return sessionItem;
+
+            // Try loading the session item again with strong consistency if we couldn't
+            // find it the first time instead of throwing a "you don't have access to
+            // Alpine" error.
+            return AccountsTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Session",
+                    sortRangeType: "Attributes",
+                    sessionId,
+                },
+                {consistency: "Strong"},
+            );
         }),
 
         // Preload the session account item and its avatar. This will populate the

@@ -76,6 +76,7 @@ import {
     clientLoaderTaskStoreLoaderData,
 } from "~/client/web/tasks/core/task_realtime_client_context_provider.js";
 import {getOwnAccount} from "~/server/accounts/get_own_account.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {getInbox} from "~/server/notifications/data/get_inbox.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -199,8 +200,17 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export async function loader({context: loaderContext, params, request}: LoaderArgs) {
+    const url = new URL(request.url);
+    const consistencySearchParam = url.searchParams.get("consistency");
+    const consistency: DynamoCacheReadConsistency =
+        consistencySearchParam === "strong" ? "StrongWithinCache" : "Eventual";
+
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-    const context = await loaderContext.actor.authenticate();
+
+    const context =
+        consistencySearchParam === "strong"
+            ? (await loaderContext.actor.authenticate()).dynamo.expectStrongReadConsistency()
+            : await loaderContext.actor.authenticate();
 
     switch (context.actor.type) {
         case "System": {
@@ -267,17 +277,20 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         sessionContext,
                         spaceId,
                         sessionContext.actor.getAccountId(),
+                        {consistency},
                     ),
 
                     // If we're in an `InvitePending` state, we need to return the space
                     // data for the invite screen.
-                    getSpace(sessionContext, spaceId, {allowInvitePending: true}),
+                    getSpace(sessionContext, spaceId, {consistency, allowInvitePending: true}),
 
                     // If `getInbox()` throws because we don't have space access, that's fine. This
                     // might be a user with a pending invite. We want to load the inbox item here in
                     // parallel with our other data in case we need it. If there's an error, catch
                     // the error and throw later after we know we have space access.
-                    captureResultPromise(getInbox(context.actor.authorizeSession(), {spaceId})),
+                    captureResultPromise(
+                        getInbox(context.actor.authorizeSession(), {spaceId, consistency}),
+                    ),
                 ]);
 
                 space = currentSpace;
@@ -285,7 +298,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 // Handle invite state before we throw on any permissions errors
                 // in getSpace, getInbox, etc. If we are in any invite subtree,
                 // don't try to redirect to the invite page.
-                const url = new URL(request.url);
                 const currentPathname = url.pathname;
                 const invitePathRoot = `/s/${spaceId}/invite`;
                 const accountIsInvitePending =
@@ -343,7 +355,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 );
                 if (spaceAuthorizationResult.ok) throw error;
 
-                const account = await getOwnAccount(sessionContext);
+                const account = await getOwnAccount(sessionContext, {consistency});
 
                 const limitedSpace = new SpaceModel({
                     id: spaceId,
@@ -562,14 +574,23 @@ export default function SpaceLayoutRoute() {
         }
     }, [loaderData.type, platform, searchParams, setSearchQueryText]);
 
-    useEffect(() => {
-        // Delete our 'from' flag if present. We don't need it by the time react mounts.
-        if (searchParams.get("from")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("from");
-            setSearchParams(newSearchParams);
-        }
-    }, [searchParams, setSearchParams]);
+    // Delete search params we don't want to leave in the URL.
+    {
+        const hasSearchParamToDelete = searchParams.has("from") || searchParams.has("consistency");
+        useEffect(() => {
+            if (hasSearchParamToDelete) {
+                setSearchParams(
+                    oldSearchParams => {
+                        const newSearchParams = new URLSearchParams(oldSearchParams);
+                        newSearchParams.delete("from");
+                        newSearchParams.delete("consistency");
+                        return newSearchParams;
+                    },
+                    {replace: true},
+                );
+            }
+        }, [hasSearchParamToDelete, setSearchParams]);
+    }
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",

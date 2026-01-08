@@ -1,5 +1,8 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getInitialInboxItem} from "~/server/notifications/data/internal/get_initial_inbox_item.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
@@ -14,7 +17,13 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
  */
 export async function getInbox(
     context: ServerSessionActionContext,
-    {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
+    {
+        spaceId,
+        consistency = "Eventual",
+    }: {
+        spaceId: SpaceId;
+        consistency?: DynamoCacheReadConsistency;
+    },
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     const accountId = context.actor.getAccountId();
 

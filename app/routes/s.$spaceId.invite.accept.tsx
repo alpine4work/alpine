@@ -1,4 +1,5 @@
 import {redirect} from "@remix-run/node";
+import {loadRouteModuleWithBlockingLinks} from "@remix-run/react";
 import {useEffect, useRef} from "react";
 import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
@@ -7,16 +8,23 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {FeedRouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {acceptSpaceAccountInvite} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({});
 
-export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+export async function loader({context: unauthenticatedContext, params, request}: LoaderArgs) {
+    const url = new URL(request.url);
+    const consistencySearchParam = url.searchParams.get("consistency");
+    const consistency: DynamoCacheReadConsistency =
+        consistencySearchParam === "strong" ? "StrongWithinCache" : "Eventual";
+
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
@@ -24,6 +32,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
         context,
         spaceId,
         context.actor.getAccountId(),
+        {consistency},
     );
 
     if (!currentAccount) {
@@ -56,7 +65,17 @@ export default function InviteAcceptRoute() {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
-        void (async () => {
+        // Optimization: Preload the `s.$spaceId._index` route so that redirecting to
+        // the space at the end of sign in or sign up isn't blocked by loading a bunch
+        // of JavaScript code.
+        runPromiseWithoutAwaiting(
+            loadRouteModuleWithBlockingLinks(
+                window.__remixManifest.routes["routes/s.$spaceId._index"]!,
+                window.__remixRouteModules,
+            ),
+        );
+
+        runPromiseWithoutAwaiting(async () => {
             await acceptSpaceAccountInvite(appContext, {
                 spaceId: context.space.id,
             });
@@ -64,7 +83,7 @@ export default function InviteAcceptRoute() {
             // We use from=invite to tell remix to revalidate our space loader data
             // This will re-evalutate permissions and let the user immediately click on resources
             navigate(`/s/${context.space.id}?from=invite`);
-        })();
+        });
     }, [appContext, context.space.id, navigate]);
 
     return <FeedRouteShimmer />;

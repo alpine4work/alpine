@@ -190,11 +190,15 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         const spaceUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
+            // Use strong consistency for the `/invite/accept` route to make sure we
+            // correctly read any data from sign in.
+            const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept?consistency=strong`)}`;
+
             // eslint-disable-next-line no-console
             console.log(
                 quote`Accept the invite for ${emailAddress} in ${
                     spaceItem.name
-                } here: ${`${spaceUrl}/invite`}`,
+                } here: ${acceptInviteUrl}`,
             );
         }
 

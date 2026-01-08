@@ -135,7 +135,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                         await navigate(toSearchParam);
                     } else if (openSpaceId) {
                         // Open the space sign in (or sign up) tells us to open.
-                        await navigate(`/s/${openSpaceId}`);
+                        await navigate(`/s/${openSpaceId}?consistency=strong`);
                     } else {
                         // The account has no space? Show them the space switcher.
                         await navigate("/switch-space");

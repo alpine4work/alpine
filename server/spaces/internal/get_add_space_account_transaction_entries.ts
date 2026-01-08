@@ -83,6 +83,10 @@ export async function getAddSpaceAccountTransactionEntries(
                   type: "Existing";
                   id: AccountId;
                   invitedEmailAddress?: EmailAddress;
+                  // Dangerous both because we skip the `InvitePending` state for this account
+                  // but also because we don't apply the welcome package for the account when
+                  // adding it as `Active`. You're responsible for applying the welcome package
+                  // for the account if you set `dangerouslyWithoutInvite: true`.
                   dangerouslyWithoutInvite?: boolean;
               }
             | {
@@ -202,7 +206,13 @@ export async function getAddSpaceAccountTransactionEntries(
             ? new Set(accountInput.accountSpacesItem?.invitePendingSpaceIds)
             : new Set();
 
-    if (accountSpaceIds.has(spaceInput.id) || accountInvitePendingSpaceIds.has(spaceInput.id)) {
+    if (
+        accountSpaceIds.has(spaceInput.id) ||
+        (accountInvitePendingSpaceIds.has(spaceInput.id) &&
+            // If the account has a pending invite in the space but we're adding the
+            // account as `Active` then don't error here.
+            !(accountInput.type === "Existing" && accountInput.dangerouslyWithoutInvite))
+    ) {
         // This is an extra check to make sure our spaceIds on the Account#Spaces isn't
         // drifting apart from the source of the truth.
         throw new FailedPreconditionError("Account is already a member of space");
@@ -245,27 +255,36 @@ export async function getAddSpaceAccountTransactionEntries(
 
     // If the account was previously removed, we should re-add it
     if (accountInput.type === "Existing" && accountInput.spaceAccountItem) {
-        if (accountInput.spaceAccountItem.state.type !== "Removed") {
-            throw new FailedPreconditionError("Account is already a member of space");
-        }
-        if (accountInput.spaceAccountItem.state.reason !== "ActionByAdmin") {
-            throw new FailedPreconditionError("Account cannot be invited to this space.");
-        }
-
         let state: SpaceAccountState;
 
-        if (accountInput.account.botId) {
-            // Bots are added back to spaces as `Active` since a bot won't be accepting
-            // invites. That'd be silly.
+        // If the account already exists in the space with an `InvitePending` state
+        // then `dangerouslyWithoutInvite` will switch them to an `Active` state.
+        if (
+            accountInput.spaceAccountItem.state.type === "InvitePending" &&
+            accountInput.dangerouslyWithoutInvite
+        ) {
             state = {type: "Active"};
         } else {
-            state = {
-                type: "InvitePending",
-                invitedTime: new Date(),
-                pendingAccountData: accountInput.spaceAccountItem.state.oldAccountData,
-                // Should always be true in this code path.
-                wasPreviouslyRemoved: accountInput.spaceAccountItem.state.type === "Removed",
-            };
+            if (accountInput.spaceAccountItem.state.type !== "Removed") {
+                throw new FailedPreconditionError("Account is already a member of space");
+            }
+            if (accountInput.spaceAccountItem.state.reason !== "ActionByAdmin") {
+                throw new FailedPreconditionError("Account cannot be invited to this space.");
+            }
+
+            if (accountInput.account.botId) {
+                // Bots are added back to spaces as `Active` since a bot won't be accepting
+                // invites. That'd be silly.
+                state = {type: "Active"};
+            } else {
+                state = {
+                    type: "InvitePending",
+                    invitedTime: new Date(),
+                    pendingAccountData: accountInput.spaceAccountItem.state.oldAccountData,
+                    // Should always be true in this code path.
+                    wasPreviouslyRemoved: accountInput.spaceAccountItem.state.type === "Removed",
+                };
+            }
         }
 
         spaceAccountItemTransactionEntry = SpacesTable.transactionDirectlyUpdateItem(

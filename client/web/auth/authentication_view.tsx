@@ -14,8 +14,8 @@ import {
     authenticationViewPaddingTop,
     authenticationViewPaddingX,
 } from "~/client/web/auth/internal/authentication_shared_styles.js";
-import {AuthenticationSignInOrSignUpView} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_view.js";
 import {AuthenticationSignInOrSignUpOneTimePasswordView} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_one_time_password_view.js";
+import {AuthenticationSignInOrSignUpView} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_view.js";
 import {AuthenticationSignUpProfileView} from "~/client/web/auth/internal/authentication_sign_up_profile_view.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";

@@ -249,14 +249,20 @@ export default function ChannelRoute() {
 
     // Remove the `create` search param if we have a subscription to an
     // existing collection.
+    const hasSearchParamToDelete = searchParams.has("create") || searchParams.has("consistency");
     useEffect(() => {
-        if (searchParams.has("create") || searchParams.has("consistency")) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.delete("create");
-            newSearchParams.delete("consistency");
-            setSearchParams(newSearchParams, {replace: true});
+        if (hasSearchParamToDelete) {
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("create");
+                    newSearchParams.delete("consistency");
+                    return newSearchParams;
+                },
+                {replace: true},
+            );
         }
-    }, [searchParams, setSearchParams]);
+    }, [hasSearchParamToDelete, setSearchParams]);
 
     useSearchAffinityViewEntityInteraction(
         channelResult.items[0]?.model instanceof ChannelModel
