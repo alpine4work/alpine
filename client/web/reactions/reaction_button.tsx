@@ -187,25 +187,24 @@ export function ReactionButtonBase({
             withoutButtonElementRequirement={withoutButtonElementRequirement}
             overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Box>
-                    {isMegaPickerOpen ? (
-                        <ReactionMegaPicker
+                    {platform === "mobile" ? (
+                        <ReactionBarPicker
+                            ref={reactionPickerRef}
+                            isVisible={isVisible}
                             currentAccountReaction={currentAccountReaction}
                             onSetReaction={onSetReaction}
                             onDeleteReaction={onDeleteReaction}
-                            onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            isPointerDownFromOverlayOpen={isPointerDownFromOverlayOpen}
                         />
                     ) : (
                         <>
-                            {platform === "mobile" ? (
-                                <ReactionBarPicker
-                                    ref={reactionPickerRef}
-                                    isVisible={isVisible}
+                            {isMegaPickerOpen ? (
+                                <ReactionMegaPicker
                                     currentAccountReaction={currentAccountReaction}
                                     onSetReaction={onSetReaction}
                                     onDeleteReaction={onDeleteReaction}
-                                    onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
-                                    onCloseWithAnimation={onCloseWithAnimation}
-                                    isPointerDownFromOverlayOpen={isPointerDownFromOverlayOpen}
+                                    onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 />
                             ) : (
                                 <Box
