@@ -1,4 +1,4 @@
-import {orderedReactionCharacters} from "~/client/web/reactions/internal/ordered_reaction_characters_and_emotions.js";
+import {orderedReactionCharacters} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {sortReactionCharactersAroundOurCharacter} from "~/client/web/reactions/internal/sort_reaction_characters_around_our_character.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 

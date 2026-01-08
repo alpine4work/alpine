@@ -75,15 +75,13 @@ const reactionIconUnwrappedSvgs = mapReactionMap(
         }),
 );
 
-export function ReactionParty({
+function useReactionParty({
     reactions,
     randomSeed,
-    onPress,
     offsetTopIfManyReactions = "0",
 }: {
     reactions: ReactionSet;
     randomSeed: string;
-    onPress: () => void;
     offsetTopIfManyReactions?: Spacing;
 }) {
     const spacingScale = useSpacingScale();
@@ -172,6 +170,30 @@ export function ReactionParty({
         };
     }, [blockWidth, idBase, offsetTopIfManyReactions, randomSeed, reactions, spacingScale]);
 
+    return {
+        reactionEntries,
+        widthStyle,
+        node,
+    };
+}
+
+export function ReactionParty({
+    reactions,
+    randomSeed,
+    onPress,
+    offsetTopIfManyReactions = "0",
+}: {
+    reactions: ReactionSet;
+    randomSeed: string;
+    onPress: () => void;
+    offsetTopIfManyReactions?: Spacing;
+}) {
+    const {reactionEntries, widthStyle, node} = useReactionParty({
+        reactions,
+        randomSeed,
+        offsetTopIfManyReactions,
+    });
+
     const {isPressed, pressProps} = usePress({onPress});
 
     if (!node) return null;
@@ -207,6 +229,37 @@ export function ReactionParty({
                 </FocusRing>
             </ContextMenuActions>
         </ReactionTooltip>
+    );
+}
+
+export function ReactionPartyBase({
+    reactions,
+    randomSeed,
+    offsetTopIfManyReactions = "0",
+}: {
+    reactions: ReactionSet;
+    randomSeed: string;
+    offsetTopIfManyReactions?: Spacing;
+}) {
+    const {widthStyle, node} = useReactionParty({
+        reactions,
+        randomSeed,
+        offsetTopIfManyReactions,
+    });
+
+    if (!node) return null;
+
+    return (
+        <div
+            style={{
+                position: "relative",
+                zIndex: "0",
+                height: spacing[postContentViewFooterHeight],
+                width: widthStyle,
+            }}
+        >
+            {node}
+        </div>
     );
 }
 

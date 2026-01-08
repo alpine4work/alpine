@@ -50,6 +50,12 @@ export type TextInputProps = {
     placeholder?: string;
 
     /**
+     * Is this input disabled? A disabled input is neither focusable nor editable.
+     * Unlike a read-only input which is focusable but not editable.
+     */
+    isDisabled?: boolean;
+
+    /**
      * Is this input read-only? A read-only input is focusable but not editable.
      * Unlike a disabled input which is neither focused nor editable.
      */
@@ -92,7 +98,7 @@ export type TextInputProps = {
     /**
      * What font size should we use for the text in this input? Defaults to `75`.
      */
-    fontSize?: "75" | "100" | "200";
+    fontSize?: "75" | "100";
 
     /**
      * What font should we use for this text input? Defaults to `normal`.
@@ -166,6 +172,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
         onEnter,
         onEscape,
         placeholder,
+        isDisabled,
         isReadOnly,
         inputMode,
         autoComplete,
@@ -213,16 +220,18 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
             <input
                 ref={useMergedRefs(ref, inputRef)}
                 className={sprinkles({
-                    border: "grey-20",
+                    // NOCOMMIT: Can we make all `<TextInput>`s have a `grey-10` border? Looks nicer.
+                    // Text area components may need to change too.
+                    boxShadow: "elevation-5-with-grey-10-border",
                     borderRadius: "1",
                     display: "block",
                     width: "full",
-                    height: ({"75": "7", "100": "9", "200": "10"} as const)[fontSize],
-                    paddingX: ({"75": "2", "100": "2.5", "200": "3"} as const)[fontSize],
+                    height: ({"75": "7", "100": "9"} as const)[fontSize],
+                    paddingX: ({"75": "2", "100": "2.5"} as const)[fontSize],
                     fontSize,
                     fontStyle,
-                    backgroundColor: isReadOnly ? "grey-5" : "grey-0",
-                    color: isReadOnly ? "grey-70" : "grey-100",
+                    backgroundColor: isDisabled || isReadOnly ? "grey-5" : "grey-0",
+                    color: isDisabled || isReadOnly ? "grey-70" : "grey-100",
                 })}
                 style={{
                     // Allow contextual alternate glyphs in regular text content.
@@ -236,6 +245,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 value={value}
                 onChange={event => onChange(event.currentTarget.value)}
                 placeholder={placeholder}
+                disabled={isDisabled}
                 readOnly={isReadOnly}
                 autoComplete={autoComplete}
                 autoCapitalize={autoCapitalize}

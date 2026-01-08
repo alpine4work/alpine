@@ -8,8 +8,8 @@ export function accountEmailAddressNotFoundError(emailAddress: string) {
 }
 
 function accountEmailAddressNotFoundErrorDisplayMessage(emailAddress: string) {
-    return errorDisplayMessage`An account for “${emailAddress}” does not exist. Try again with a different email or ${errorDisplayMessage.link(
-        "request access",
-        "/",
+    return errorDisplayMessage`Can’t find an account for “${emailAddress}”. Try again with a different email or ${errorDisplayMessage.link(
+        "sign up",
+        `/auth/sign-up?email=${encodeURIComponent(emailAddress)}`,
     )}.`;
 }

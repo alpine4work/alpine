@@ -189,6 +189,7 @@ export const SpacesTable = DynamoTableSchema.new({
                     }),
                 },
 
+                // NOCOMMIT: Add to settings page
                 /**
                  * Accounts that sign up with an email from this email domain are automatically
                  * added to the space.

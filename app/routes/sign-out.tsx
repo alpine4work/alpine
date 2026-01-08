@@ -26,5 +26,5 @@ export async function loader({context}: LoaderArgs) {
     }
 
     context.loader.sessionCookie.dangerouslySet(null);
-    return redirect("/");
+    return redirect("/auth/sign-in");
 }

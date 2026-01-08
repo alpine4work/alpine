@@ -12,7 +12,7 @@ import {
     InlineEditorToolbar,
     InlineEditorToolbarRef,
 } from "~/client/web/messaging/inline_editor_toolbar.js";
-import {ReactionCharacterSelector} from "~/client/web/reactions/reaction_character_selector.js";
+import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
@@ -180,7 +180,7 @@ export default function SpaceProfileSettingsRoute() {
                         </Box>
                     </Box>
                     <Box marginY="-2">
-                        <ReactionCharacterSelector />
+                        <ReactionCharacterCarouselSelector />
                     </Box>
                 </Box>
             </Box>

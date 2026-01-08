@@ -119,6 +119,19 @@ function Button(
         isPending?: boolean;
 
         /**
+         * Should we show the pending spinner even if the delay after switching to
+         * `isPending` hasn't occurred? If `undefined` then we only show the
+         * pending spinner after a short delay when `isPending` is set. If `false`
+         * then we never show the pending loading spinner and if `true` then we
+         * always show the pending loading spinner (if `isPending` is also true).
+         *
+         * Generally you should avoid using this prop and let the button handle its own
+         * loading spinner. This is an advanced feature when you need to exactly
+         * control when the pending spinner shows.
+         */
+        shouldShowPendingSpinner?: boolean;
+
+        /**
          * Never show loading indicator even if `isPending` is true. Useful if when
          * `isPending` is set to true, some other loading indicator is visible.
          */
@@ -168,8 +181,12 @@ function Button(
             | "6"
             | "7"
             | "8"
+            | "9"
             | "full"
-            | {desktop: "5" | "6" | "7" | "8" | "full"; mobile: "5" | "6" | "7" | "8" | "full"};
+            | {
+                  desktop: "5" | "6" | "7" | "8" | "9" | "full";
+                  mobile: "5" | "6" | "7" | "8" | "9" | "full";
+              };
 
         /**
          * Gap between the icon and button label. Default is `1`.
@@ -182,7 +199,7 @@ function Button(
         // TODO(calebmer): Instead of having separate `paddingX`, `height`, and
         // `fontSize` we should probably put together size presets that look nice like
         // `<IconButton>`'s `size` prop?
-        fontSize?: "50" | "75" | "100";
+        fontSize?: "50" | "75" | "100" | "200";
 
         /**
          * Amount of border radius to use. Defaults to `1`.
@@ -242,6 +259,7 @@ function Button(
         keyboardShortcutHint,
         keyboardShortcutHintTooltipOffset,
         isPending: isPendingFromProps,
+        shouldShowPendingSpinner: shouldShowPendingSpinnerFromProps,
         withoutLoadingIndicator = false,
         fullWidth = false,
         withoutMinWidth = false,
@@ -359,7 +377,11 @@ function Button(
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
     const shouldShowPendingSpinner =
-        useDelayLoadingIndicator(isPending) && !withoutLoadingIndicator;
+        (useDelayLoadingIndicator(
+            isPending && typeof shouldShowPendingSpinnerFromProps === "undefined",
+        ) &&
+            !withoutLoadingIndicator) ||
+        (shouldShowPendingSpinnerFromProps && isPending);
 
     const isBold = variant === "neutral" && !isDisabled;
 

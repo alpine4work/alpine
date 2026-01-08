@@ -1769,7 +1769,7 @@ export type TracerEventData = {
 
     /**
      * Information regarding authorization and authentication. For example the
-     * `/sign-in` and `/sign-up` endpoints.
+     * `/auth/sign-in` and `/auth/sign-up` endpoints.
      */
     readonly auth?: {
         readonly signIn?: {

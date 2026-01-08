@@ -61,6 +61,7 @@ ts_project(
         "//server/tasks/notes_collaboration",
         "//server/tasks/router",
         "//server/tracer",
+        "//shared/auth",
         "//shared/avatar",
         "//shared/avatar/protocol",
         "//shared/files",

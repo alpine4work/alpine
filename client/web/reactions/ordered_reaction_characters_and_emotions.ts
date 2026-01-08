@@ -1,5 +1,6 @@
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     ReactionCharacter,
     ReactionCharacterType,
@@ -9,7 +10,10 @@ import {
 /**
  * Reaction characters ordered for display in the UI.
  */
-export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Object.values(
+export const orderedReactionCharactersByType: Record<
+    ReactionCharacterType,
+    ReadonlyArray<ReactionCharacter>
+> = mapObjectValues(
     cast<{
         readonly [Type in ReactionCharacterType]: {
             readonly [Variant in Extract<ReactionCharacter, {readonly type: Type}>["variant"]]: {
@@ -33,11 +37,6 @@ export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Objec
             Blue: {type: "Tree", variant: "Blue"},
             Pink: {type: "Tree", variant: "Pink"},
         },
-        Frog: {
-            Green: {type: "Frog", variant: "Green"},
-            Cyan: {type: "Frog", variant: "Cyan"},
-            Yellow: {type: "Frog", variant: "Yellow"},
-        },
         Pigeon: {
             Plain: {type: "Pigeon", variant: "Plain"},
             Brown: {type: "Pigeon", variant: "Brown"},
@@ -48,8 +47,21 @@ export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Objec
             Pink: {type: "Tulip", variant: "Pink"},
             Violet: {type: "Tulip", variant: "Violet"},
         },
+        Frog: {
+            Green: {type: "Frog", variant: "Green"},
+            Cyan: {type: "Frog", variant: "Cyan"},
+            Yellow: {type: "Frog", variant: "Yellow"},
+        },
     }),
-).flatMap(Object.values);
+    value => Object.values(value),
+);
+
+/**
+ * Reaction characters ordered for display in the UI.
+ */
+export const orderedReactionCharacters: ReadonlyArray<ReactionCharacter> = Object.values(
+    orderedReactionCharactersByType,
+).flat();
 
 /**
  * Reaction emotions ordered for display in the UI.

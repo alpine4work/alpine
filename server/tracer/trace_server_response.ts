@@ -83,13 +83,7 @@ export async function traceServerResponse(
                 scheme: requestUrl.protocol.slice(0, -1),
                 target: `${requestUrl.pathname}${requestUrl.search}`,
                 search: spanSearch,
-                // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
-                // our request to get the IP address.
-                // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
-                clientIp:
-                    request.headers.get("x-real-ip") ??
-                    request.headers.get("cf-connecting-ip") ??
-                    undefined,
+                clientIp: getRequestIpAddress(request) ?? undefined,
                 userAgent: request.headers.get("user-agent") ?? undefined,
                 request: {
                     header: getHeadersTracerData(request.headers),
@@ -168,4 +162,11 @@ export function startTracerSpanFromPropagationContextHeader(
         tracer.getRoot().logException("Invalid trace propagation context", error);
         return tracer.startSpan(name);
     }
+}
+
+export function getRequestIpAddress(request: Request): string | null {
+    // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
+    // our request to get the IP address.
+    // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
+    return request.headers.get("x-real-ip") ?? request.headers.get("cf-connecting-ip");
 }

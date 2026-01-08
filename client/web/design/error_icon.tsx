@@ -11,7 +11,7 @@ import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 export function ErrorIcon({size}: {size?: string}) {
     return (
         <span
-            className={sprinkles({position: "relative", zIndex: "0"})}
+            className={sprinkles({position: "relative", zIndex: "0", display: "block"})}
             role="img"
             aria-label="Error icon"
         >

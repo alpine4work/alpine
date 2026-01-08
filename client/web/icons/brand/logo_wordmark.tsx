@@ -18,6 +18,8 @@ function LogoWordmark({size, color}: {size?: Spacing; color?: Color | `#${string
 
     return (
         <svg
+            role="img"
+            aria-label="Alpine logo"
             xmlns="http://www.w3.org/2000/svg"
             style={{width: `${width}rem`, height: `${height}rem`}}
             fill={finalColor}

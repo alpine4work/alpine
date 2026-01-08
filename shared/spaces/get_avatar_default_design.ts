@@ -20,7 +20,7 @@ const backgroundColorsByReactionCharacter: ReactionCharacterMap<
 > = {
     Cat: {
         Grey: ["orange", "green", "cyan", "pink"],
-        Pink: ["green", "cyan", "blue"],
+        Pink: ["green", "cyan"],
         Yellow: ["green", "cyan", "blue", "purple"],
     },
     Tree: {

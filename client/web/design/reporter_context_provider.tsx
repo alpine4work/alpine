@@ -544,9 +544,8 @@ function ToastView({
     // error is probably expected.
     const withErrorIcon =
         toast.type === "Error" &&
-        toast.error instanceof ErrorBase &&
-        !isSystemError(toast.error) &&
-        !!toast.error.displayMessage;
+        isSystemError(toast.error) &&
+        (!(toast.error instanceof ErrorBase) || !!toast.error.displayMessage);
 
     return (
         <Box

@@ -54,7 +54,7 @@ export const allReactionEmotions: ReadonlyArray<ReactionEmotion> = getObjectKeys
 
 export type ReactionCharacterType = ReactionCharacter["type"];
 
-export type ReactionCatCharacterVariant = "Grey" | "Pink" | "Yellow";
+export type ReactionCatCharacterVariant = "Yellow" | "Grey" | "Pink";
 
 export type ReactionTreeCharacterVariant = "Blue" | "Green" | "Pink";
 
@@ -118,10 +118,19 @@ export function areReactionsEqual(
     }
 
     return (
-        reaction1.character.type === reaction2.character.type &&
-        reaction1.character.variant === reaction2.character.variant &&
+        areReactionCharactersEqual(reaction1.character, reaction2.character) &&
         reaction1.emotion === reaction2.emotion
     );
+}
+
+/**
+ * Are the two reaction characters equal to one another?
+ */
+export function areReactionCharactersEqual(
+    character1: ReactionCharacter,
+    character2: ReactionCharacter,
+): boolean {
+    return character1.type === character2.type && character1.variant === character2.variant;
 }
 
 /**

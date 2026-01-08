@@ -94,9 +94,10 @@ async function handleSignUpAccountWithEmailAddressConditionCheckError(
 
     if (!accountItem.hasNotSignedUp) {
         throw new FailedPreconditionError("Email address has already signed up", {
-            displayMessage: errorDisplayMessage`The email address “${emailAddress}” has already been used to sign up. Try ${errorDisplayMessage.signInLink(
+            displayMessage: errorDisplayMessage`The email “${emailAddress}” has already been used. Try ${errorDisplayMessage.link(
                 "signing in",
-            )} instead.`,
+                `/auth/sign-in?email=${encodeURIComponent(emailAddress)}`,
+            )}.`,
         });
     }
 

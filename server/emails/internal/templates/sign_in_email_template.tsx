@@ -53,6 +53,7 @@ export function SignInEmailTemplate({
                     <EmailText>
                         Return to where you were signing in and type the code above. Or sign in{" "}
                         <Link
+                            // NOCOMMIT: This route is being removed!
                             href={`${baseUrl}/sign-in/${encodeURIComponent(emailAddress)}`}
                             target="_blank"
                             rel="noreferrer"

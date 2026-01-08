@@ -1,6 +1,6 @@
 import {useLocation} from "@remix-run/react";
 import {createPath} from "@remix-run/router";
-import {Fragment, useEffect, useRef} from "react";
+import {Fragment, ReactNode, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Link} from "~/client/web/design/link.js";
@@ -33,7 +33,7 @@ export function ErrorDisplayMessageRenderer({
     /**
      * A message to put in front of the error display message.
      */
-    prefixMessage?: string;
+    prefixMessage?: ReactNode;
 
     /**
      * Should we render the error display message as a single sentence? Effects the
@@ -44,7 +44,7 @@ export function ErrorDisplayMessageRenderer({
     /**
      * What's the color of text for this error message? Defaults to `grey-100`.
      */
-    color?: Color & `grey-${number}`;
+    color?: Color & (`grey-${number}` | `red-${number}`);
 
     /**
      * Override the color scheme. If undefined then we'll use whatever the current
@@ -128,19 +128,39 @@ export function ErrorDisplayMessageRenderer({
             style={{lineHeight: 1.5}}
             userSelect="text"
         >
-            {prefixMessage && `${prefixMessage} `}
+            {prefixMessage && <>{prefixMessage} </>}
             {(displayMessage ?? defaultErrorDisplayMessage).map((displayMessageSegment, index) => {
                 switch (displayMessageSegment.type) {
+                    // Split error message text into individual words and let any long words wrap
+                    // onto multiple lines. For example, a long email address that overflows the
+                    // current line.
                     case "Text":
-                    case "SensitiveText":
-                        return <Fragment key={index}>{displayMessageSegment.text}</Fragment>;
-                    case "Link":
+                    case "SensitiveText": {
+                        return (
+                            <Fragment key={index}>
+                                {displayMessageSegment.text
+                                    .split(/(\p{White_Space}+)/u)
+                                    .map((string, index) => {
+                                        if (string.length <= 20) {
+                                            return <Fragment key={index}>{string}</Fragment>;
+                                        } else {
+                                            return (
+                                                <span key={index} style={{wordBreak: "break-word"}}>
+                                                    {string}
+                                                </span>
+                                            );
+                                        }
+                                    })}
+                            </Fragment>
+                        );
+                    }
+                    case "Link": {
                         return (
                             <Link
                                 key={index}
                                 url={
                                     displayMessageSegment.url === errorDisplayMessage.signInLink.url
-                                        ? // Special-case `/sign-in` URL to provide a `to` search param that will take us
+                                        ? // Special-case `/auth/sign-in` URL to provide a `to` search param that will take us
                                           // back to the URL which erred.
                                           `${displayMessageSegment.url}?to=${encodeURIComponent(
                                               createPath(location),
@@ -175,6 +195,7 @@ export function ErrorDisplayMessageRenderer({
                                 {displayMessageSegment.text}
                             </Link>
                         );
+                    }
                     default:
                         throw exhaustive(displayMessageSegment);
                 }

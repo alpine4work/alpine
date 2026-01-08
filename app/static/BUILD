@@ -12,7 +12,7 @@ filegroup(
         "files/fonts/inter-italic.v1.woff2",
         ":files",
         ":icon_pngs",
-        ":static_service_worker_file"
+        ":static_service_worker_file",
     ],
     visibility = ["//app:__subpackages__"],
 )
@@ -221,5 +221,3 @@ js_run_binary(
     chdir = package_name(),
     tool = ":generate_icon_pngs",
 )
-
-

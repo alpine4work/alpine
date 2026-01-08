@@ -115,7 +115,7 @@ function cast<Type>(value: Type): Type {
     return value;
 }
 
-signInLink.url = "/sign-in";
+signInLink.url = "/auth/sign-in";
 
 errorDisplayMessage.signInLink = cast<
     ((text: string) => ErrorDisplayMessageLinkSegment) & {readonly url: string}

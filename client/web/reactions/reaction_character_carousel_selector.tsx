@@ -47,7 +47,7 @@ const width = addRemLengths(
 // Make sure the entire component sums up to a width of spacing `32`.
 assert(width === spacing["32"]);
 
-export function ReactionCharacterSelector() {
+export function ReactionCharacterCarouselSelector() {
     const context = useAppContext();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
     const reporter = useReporter();

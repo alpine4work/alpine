@@ -26,8 +26,10 @@ import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {
     createTraceServerResponseHandleSpanName,
+    getRequestIpAddress,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
+import {AuthSignInOrSignUpOutputSchema} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {
     AvatarEntityPath,
     isAvatarEntityPath,
@@ -67,6 +69,7 @@ type EdgeServiceSharedResources = {
 
 type EdgeServiceRoute =
     | "AppService"
+    | {type: "IpAddress"}
     | {type: "DocumentCollaborationService"; documentId: string; pathname: string}
     | {type: "PostRealtimeService"; postId: string; pathname: string}
     | {type: "ChannelRealtimeService"; channelId: string; pathname: string}
@@ -253,6 +256,9 @@ async function handleFetch(
         }
     } else if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
+    } else if (url.pathname === "/api/ip-address") {
+        routeString = "/api/ip-address";
+        route = {type: "IpAddress"};
     } else if (url.pathname.startsWith("/api/durable-objects/")) {
         const pathSegments = url.pathname.slice(21).split("/");
 
@@ -495,6 +501,19 @@ async function actuallyHandleFetch(
         const tokenAgent = await sharedResources.tokenAgentPromise;
 
         switch (route.type) {
+            case "IpAddress": {
+                if (request.method !== "GET") {
+                    throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
+                }
+
+                // Return the client's IP address as seen by Cloudflare. Used during sign in
+                // and sign up to record the IP address of the current session in our database.
+                return new Response(getRequestIpAddress(request), {
+                    status: 200,
+                    headers: {"content-type": "plain/text"},
+                });
+            }
+
             case "DocumentCollaborationService": {
                 return fetchFromDurableObjectStub({
                     durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
@@ -1052,6 +1071,22 @@ function create504Response(url: URL, error: unknown) {
         return new Response(
             JSON.stringify(
                 RpcHttpCallOutputSchema.serialize({
+                    ok: false,
+                    error,
+                }),
+            ),
+            {
+                status: 504,
+                headers: {"content-type": "application/json"},
+            },
+        );
+    }
+
+    // Format as an auth endpoint error.
+    if (url.pathname === "/api/auth/sign-in" || url.pathname === "/api/auth/sign-up") {
+        return new Response(
+            JSON.stringify(
+                AuthSignInOrSignUpOutputSchema.serialize({
                     ok: false,
                     error,
                 }),

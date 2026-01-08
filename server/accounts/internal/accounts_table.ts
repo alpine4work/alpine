@@ -48,11 +48,11 @@ export const AccountsTable = DynamoTableSchema.new({
                          * Was this account created without going through the `/sign-up` flow? If true
                          * then:
                          *
-                         * 1. The account can go through the `/sign-up` flow even if an account item
-                         *    already exists
+                         * 1. The account can go through the `/auth/sign-up` flow even if an account
+                         *    item already exists
                          *
-                         * 2. The first time the account tries to `/sign-in` they'll be redirected to
-                         *    the `/sign-up` flow
+                         * 2. The first time the account tries to `/auth/sign-in` they'll be redirected
+                         *    to the `/sign-up` flow
                          */
                         hasNotSignedUp: Schema.value(true).optional(),
 

@@ -1,10 +1,14 @@
 import {finishUploadingAccountAvatar} from "~/server/accounts/finish_uploading_account_avatar.js";
 import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_email_address_as_admin.js";
 import {getAccountByIdAsAdmin} from "~/server/accounts/get_account_by_id_as_admin.js";
+import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
+import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
+import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {updateOurAccountObservedTimeZone} from "~/server/accounts/update_our_account_observed_time_zone.js";
 import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -134,6 +138,36 @@ export default implementRpcs(definitions, {
                 input.character,
             );
             return {account};
+        },
+    },
+
+    regenerateOneTimePasswordSignIn: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {accountId, hasNotSignedUp} = await regenerateOneTimePasswordSignIn(
+                context,
+                validateEmailAddress(input.emailAddress),
+            );
+            return {accountId, hasNotSignedUp};
+        },
+    },
+
+    signUpAccountWithEmailAddress: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const accountId = await signUpAccountWithEmailAddress(
+                context,
+                validateEmailAddress(input.emailAddress),
+            );
+            return {accountId};
+        },
+    },
+
+    saveAccountSignUpProfile: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await saveAccountSignUpProfile(context, input);
+            return {};
         },
     },
 });

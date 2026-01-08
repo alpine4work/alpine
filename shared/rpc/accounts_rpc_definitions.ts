@@ -117,3 +117,39 @@ export const updateAccountReactionCharacter = defineRpc({
         account: AccountModelWithoutSpace.schema,
     },
 });
+
+export const regenerateOneTimePasswordSignIn = defineRpc({
+    name: "regenerateOneTimePasswordSignIn",
+    // Generates a new one time password every call.
+    isIdempotent: false,
+    input: {
+        emailAddress: Schema.string,
+    },
+    output: {
+        accountId: Schema.id<AccountId>(),
+        hasNotSignedUp: Schema.boolean,
+    },
+});
+
+export const signUpAccountWithEmailAddress = defineRpc({
+    name: "signUpAccountWithEmailAddress",
+    // Generates a new one time password every call.
+    isIdempotent: false,
+    input: {
+        emailAddress: Schema.string,
+    },
+    output: {
+        accountId: Schema.id<AccountId>(),
+    },
+});
+
+export const saveAccountSignUpProfile = defineRpc({
+    name: "saveAccountSignUpProfile",
+    isIdempotent: true,
+    input: {
+        accountId: Schema.id<AccountId>(),
+        name: LabelStringSchema,
+        reactionCharacter: ReactionCharacterSchema,
+    },
+    output: {},
+});

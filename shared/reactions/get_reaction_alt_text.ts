@@ -1,5 +1,10 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Reaction, ReactionCharacter, ReactionEmotion} from "~/shared/reactions/reaction.js";
+import {
+    Reaction,
+    ReactionCharacter,
+    ReactionCharacterType,
+    ReactionEmotion,
+} from "~/shared/reactions/reaction.js";
 
 export function getReactionAltText(icon: Reaction): string {
     return (
@@ -110,5 +115,24 @@ function getReactionEmotionAltText(emotion: ReactionEmotion): string {
             return "holding a sign saying “thank you”";
         default:
             throw exhaustive(emotion);
+    }
+}
+
+export function getReactionCharacterTypeAltText(characterType: ReactionCharacterType): string {
+    switch (characterType) {
+        case "Cat":
+            return "Cat";
+        case "Tree":
+            return "Tree";
+        case "Yeti":
+            return "Yeti";
+        case "Frog":
+            return "Frog";
+        case "Pigeon":
+            return "Pigeon";
+        case "Tulip":
+            return "Tulip";
+        default:
+            throw exhaustive(characterType);
     }
 }
