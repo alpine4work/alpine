@@ -357,14 +357,12 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
     OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD0844369CA9230:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD08:443
+            Description: from CyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD08:443
             FromPort: 443
             GroupId:
                 Fn::GetAtt:
@@ -377,8 +375,7 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD08:443
     OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F56844399D2FF0A:
         Type: AWS::EC2::SecurityGroupIngress
@@ -396,8 +393,7 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:443
     OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup432566304431BAD3659:
         Type: AWS::EC2::SecurityGroupIngress
@@ -415,8 +411,7 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:443
     OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3443A4E30F75:
         Type: AWS::EC2::SecurityGroupIngress
@@ -434,8 +429,7 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:443
     OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C:
         Type: AWS::EC2::SecurityGroupIngress
@@ -453,8 +447,7 @@ Resources:
                     - GroupId
             ToPort: 443
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Opensearch/Domain/SecurityGroup/from
+            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
     OpensearchDomainSlowSearchLogsCB6C5516:
         Type: AWS::Logs::LogGroup
@@ -656,8 +649,7 @@ Resources:
     OpensearchDeployScriptSecurityGroup318E660E:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            GroupDescription:
-                Automatic security group for Lambda Function
+            GroupDescription: Automatic security group for Lambda Function
                 CyberworldsStackOpensearchDeployScript45A8BD82
             SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
@@ -780,8 +772,7 @@ Resources:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
                 S3Key: bdc104ed9cab1b5b6421713c8155f0b753380595356f710400609664d3635eca.zip
-            Description:
-                AWS CDK resource provider framework - onEvent
+            Description: AWS CDK resource provider framework - onEvent
                 (CyberworldsStack/Opensearch/DeployScriptProvider)
             Environment:
                 Variables:
@@ -1114,9 +1105,7 @@ Resources:
             Roles:
                 - Ref: SesKinesisFirehoseStreamS3DestinationRole062C7787
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/Ses/KinesisFirehoseStream/S3 Destination
-                Role/DefaultPolicy/Resource
+            aws:cdk:path: CyberworldsStack/Ses/KinesisFirehoseStream/S3 Destination Role/DefaultPolicy/Resource
     SesKinesisFirehoseStreamLogGroupC79C70AD:
         Type: AWS::Logs::LogGroup
         Properties:
@@ -1983,8 +1972,7 @@ Resources:
     TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568ALLPORTS7B069E84:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:ALL PORTS
+            Description: from CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
@@ -1997,14 +1985,12 @@ Resources:
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
                 CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:ALL PORTS
     TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630ALLPORTS34975FDB:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:ALL PORTS
+            Description: from CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
@@ -2017,14 +2003,12 @@ Resources:
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
                 CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:ALL PORTS
     TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3ALLPORTS813529AF:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:ALL PORTS
+            Description: from CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
@@ -2037,8 +2021,7 @@ Resources:
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
                 CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:ALL PORTS
     TaskRealtimeServiceLaunchTemplateRole88D6C595:
         Type: AWS::IAM::Role
@@ -2872,37 +2855,6 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
-    AppServiceLaunchTemplateSecurityGroup25142A6C:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: CyberworldsStack/AppService/LaunchTemplateSecurityGroup
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateSecurityGroup/Resource
-    AppServiceLaunchTemplateSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000DA794BF7:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - AppServiceLaunchTemplateSecurityGroup25142A6C
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
-                    - GroupId
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path:
-                CyberworldsStack/AppService/LaunchTemplateSecurityGroup/from
-                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
     AppServiceLaunchTemplateRole07DED169:
         Type: AWS::IAM::Role
         Properties:
@@ -2959,6 +2911,36 @@ Resources:
                 - Ref: AppServiceLaunchTemplateRole07DED169
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateRole/DefaultPolicy/Resource
+    AppServiceLaunchTemplateSecurityGroup25142A6C:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/AppService/LaunchTemplateSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateSecurityGroup/Resource
+    AppServiceLaunchTemplateSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000DA794BF7:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - AppServiceLaunchTemplateSecurityGroup25142A6C
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
     AppServiceLaunchTemplateProfile42DDF9C1:
         Type: AWS::IAM::InstanceProfile
         Properties:
@@ -3358,8 +3340,7 @@ Resources:
     AppServiceTaskDefinitionTaskRoleOverflowPolicy18D7D266A:
         Type: AWS::IAM::ManagedPolicy
         Properties:
-            Description:
-                Part of the policies for CyberworldsStack/AppService/TaskDefinition/TaskRole
+            Description: Part of the policies for CyberworldsStack/AppService/TaskDefinition/TaskRole
             Path: /
             PolicyDocument:
                 Statement:
@@ -3929,37 +3910,6 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Certificate/Resource
-    ApiServiceLaunchTemplateSecurityGroup96FC5ABE:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/Resource
-    ApiServiceLaunchTemplateSecurityGroupfromCyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A4000410CE0FC:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
-                    - GroupId
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path:
-                CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/from
-                CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
     ApiServiceLaunchTemplateRole9E5ADACB:
         Type: AWS::IAM::Role
         Properties:
@@ -4016,6 +3966,36 @@ Resources:
                 - Ref: ApiServiceLaunchTemplateRole9E5ADACB
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateRole/DefaultPolicy/Resource
+    ApiServiceLaunchTemplateSecurityGroup96FC5ABE:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/Resource
+    ApiServiceLaunchTemplateSecurityGroupfromCyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A4000410CE0FC:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
     ApiServiceLaunchTemplateProfile943D531F:
         Type: AWS::IAM::InstanceProfile
         Properties:
@@ -7261,8 +7241,7 @@ Resources:
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B40007F4B684B:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
+            Description: from CyberworldsStackFileProcessorServiceLoadBalancerSecurityGroup96CC947B:4000
             FromPort: 4000
             GroupId:
                 Fn::GetAtt:
@@ -8039,8 +8018,8 @@ Parameters:
         Type: AWS::SSM::Parameter::Value<String>
         Default: /cdk-bootstrap/hnb659fds/version
         Description:
-            Version of the CDK Bootstrap resources in this environment, automatically retrieved from
-            SSM Parameter Store. [cdk:skip]
+            Version of the CDK Bootstrap resources in this environment, automatically retrieved
+            from SSM Parameter Store. [cdk:skip]
 Rules:
     CheckBootstrapVersion:
         Assertions:
