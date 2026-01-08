@@ -16,8 +16,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 // NOCOMMIT: On mobile throw up interstitial that says "Alpine is better on
 // desktop, send an email reminding me to try Alpine on desktop"
 
-// NOCOMMIT: Welcome post
-
 export function meta({params}: {params: Params}) {
     return [{title: params.variant === "sign-up" ? "Sign up for Alpine" : "Sign in to Alpine"}];
 }

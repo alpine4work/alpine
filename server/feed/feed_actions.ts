@@ -14,6 +14,7 @@ import {getFileTaskCollectionEntityModelIfPossible} from "~/server/files/data/ge
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
@@ -29,6 +30,7 @@ import {
 import {FeedEntry, getFeedEntryTime} from "~/shared/feed/feed_entry_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
@@ -481,7 +483,9 @@ async function updateFeedEntries(
     // user will see everything.
     const limit = 500;
 
-    const [candidateEntries, accountCandidateEntries] = await runAllPromises([
+    const currentTime = new Date();
+
+    const [candidateEntries, accountCandidateEntries, welcomeEntry] = await runAllPromises([
         parallelMapAsyncIterableToArray(
             FeedTable.query(context, {
                 limit,
@@ -537,9 +541,27 @@ async function updateFeedEntries(
                 return item;
             },
         ),
+
+        // If we're creating the account's feed then add a welcome entry to the end of
+        // the feed.
+        !feedItem
+            ? (async (): Promise<FeedEntry> => {
+                  const items = await getSpaceAutoAddAccountsFromEmailDomains(context, spaceId, {
+                      // Use strong consistency to make sure we include the correct information in
+                      // the welcome entry.
+                      consistency: "Strong",
+                  });
+
+                  return {
+                      type: "Welcome",
+                      addedTime: currentTime,
+                      emailDomainWithAutoAddAccountsEnabled:
+                          items.find(item => item.isEnabled)?.emailDomain ?? null,
+                  };
+              })()
+            : null,
     ]);
 
-    const currentTime = new Date();
     const index = feedItem?.nextIndex ?? 0;
 
     let mergedCandidateEntries: Array<FeedEntry> = [];
@@ -579,7 +601,7 @@ async function updateFeedEntries(
     // If we're creating the account's feed then add a welcome entry to the end of
     // the feed.
     if (!feedItem) {
-        mergedCandidateEntries.push({type: "Welcome", addedTime: currentTime});
+        mergedCandidateEntries.push(assertExists(welcomeEntry));
     }
 
     const entryBlockFinalCount = Math.ceil(
@@ -835,7 +857,14 @@ async function createFeedEntryModelIfPossible(
 ): Promise<Result<FeedEntryModel, ErrorBase>> {
     switch (entry.type) {
         case "Welcome": {
-            return {ok: true, value: new FeedWelcomeEntryModel({addedTime: entry.addedTime})};
+            return {
+                ok: true,
+                value: new FeedWelcomeEntryModel({
+                    addedTime: entry.addedTime,
+                    emailDomainWithAutoAddAccountsEnabled:
+                        entry.emailDomainWithAutoAddAccountsEnabled,
+                }),
+            };
         }
         case "Post": {
             const result = await context.forumInjection.getPostIfPossible(entry.postId);

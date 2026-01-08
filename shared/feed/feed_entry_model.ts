@@ -35,6 +35,7 @@ assertAssignableTypes<
 export class FeedWelcomeEntryModel extends Model(
     Schema.object({
         addedTime: Schema.date,
+        emailDomainWithAutoAddAccountsEnabled: Schema.string.nullable().default(null),
     }),
 ) {
     public readonly type = "Welcome";

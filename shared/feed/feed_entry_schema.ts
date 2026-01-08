@@ -23,6 +23,7 @@ export const FeedEntrySchema = Schema.union({
     Welcome: Schema.object({
         type: Schema.value("Welcome"),
         addedTime: Schema.date,
+        emailDomainWithAutoAddAccountsEnabled: Schema.string.nullable().default(null),
     }),
 
     /**

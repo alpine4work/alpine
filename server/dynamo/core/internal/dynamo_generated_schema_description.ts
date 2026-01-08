@@ -5679,6 +5679,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "type": "Date"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "emailDomainWithAutoAddAccountsEnabled": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "String"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },

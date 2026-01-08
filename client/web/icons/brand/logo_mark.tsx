@@ -1,16 +1,11 @@
 import {memo} from "react";
-import {colorSchemeVars} from "~/client/web/styles/styles.js";
-import {Color} from "~/shared/design/core/colors.js";
+import {ColorSchemeVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 
 const LogoMarkMemo = memo(LogoMark);
 export {LogoMarkMemo as LogoMark};
 
-function LogoMark({size, color}: {size?: Spacing; color?: Color | `#${string}`}) {
-    const finalColor = color?.startsWith("#")
-        ? color
-        : colorSchemeVars[(color as Color | undefined) ?? "grey-90"];
-
+function LogoMark({size, color = "grey-100"}: {size?: Spacing; color?: ColorSchemeVar}) {
     const actualSize = size ? spacing[size] : spacing["32"];
     const svgSize = parseFloat(actualSize);
 
@@ -18,7 +13,7 @@ function LogoMark({size, color}: {size?: Spacing; color?: Color | `#${string}`})
         <svg
             xmlns="http://www.w3.org/2000/svg"
             style={{width: `${svgSize}rem`, height: `${svgSize}rem`}}
-            fill={finalColor}
+            fill={colorSchemeVars[color]}
             viewBox="0 0 198.4551 198.4551"
         >
             <path
