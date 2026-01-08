@@ -319,6 +319,14 @@ const emailTemplatePreviews: {
             },
         },
     ],
+    TryOnDesktop: [
+        {
+            title: "Try on desktop",
+            props: {
+                signInUrl: "https://example.com",
+            },
+        },
+    ],
 };
 
 /**

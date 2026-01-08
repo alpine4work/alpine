@@ -153,3 +153,27 @@ export const saveAccountSignUpProfile = defineRpc({
     },
     output: {},
 });
+
+export const scheduleTryOnDesktopEmail = defineRpc({
+    name: "scheduleTryOnDesktopEmail",
+    isIdempotent: true,
+    input: {
+        emailAddress: Schema.string,
+        openSpaceId: Schema.id<SpaceId>().nullable(),
+    },
+    output: {},
+});
+
+export const optOutOfTryOnDesktopEmail = defineRpc({
+    name: "optOutOfTryOnDesktopEmail",
+    isIdempotent: true,
+    input: {},
+    output: {},
+});
+
+export const optInToTryOnDesktopEmail = defineRpc({
+    name: "optInToTryOnDesktopEmail",
+    isIdempotent: true,
+    input: {},
+    output: {},
+});

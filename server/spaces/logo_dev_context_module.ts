@@ -157,7 +157,12 @@ export class LogoDevContextModule extends LogoDevContextModuleBase {
                         }
                     }
 
-                    return response.arrayBuffer();
+                    const arrayBuffer = await response.arrayBuffer();
+
+                    // Make sure we include the content length of the logo in the span.
+                    span.addData({common: {contentLength: arrayBuffer.byteLength}});
+
+                    return arrayBuffer;
                 },
             );
         });

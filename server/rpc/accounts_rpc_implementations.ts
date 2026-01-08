@@ -1,8 +1,11 @@
 import {finishUploadingAccountAvatar} from "~/server/accounts/finish_uploading_account_avatar.js";
 import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_email_address_as_admin.js";
 import {getAccountByIdAsAdmin} from "~/server/accounts/get_account_by_id_as_admin.js";
+import {optInToTryOnDesktopEmail} from "~/server/accounts/opt_in_to_try_on_desktop_email.js";
+import {optOutOfTryOnDesktopEmail} from "~/server/accounts/opt_out_of_try_on_desktop_email.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
+import {scheduleTryOnDesktopEmail} from "~/server/accounts/schedule_try_on_desktop_email.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateAccountReactionCharacter} from "~/server/accounts/update_account_reaction_character.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
@@ -167,6 +170,30 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await saveAccountSignUpProfile(context, input);
+            return {};
+        },
+    },
+
+    scheduleTryOnDesktopEmail: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await scheduleTryOnDesktopEmail(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    optOutOfTryOnDesktopEmail: {
+        visibility: ["AppClient"],
+        execute: async context => {
+            await optOutOfTryOnDesktopEmail(context.actor.authorizeSession());
+            return {};
+        },
+    },
+
+    optInToTryOnDesktopEmail: {
+        visibility: ["AppClient"],
+        execute: async context => {
+            await optInToTryOnDesktopEmail(context.actor.authorizeSession());
             return {};
         },
     },

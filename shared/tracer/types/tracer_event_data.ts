@@ -462,6 +462,11 @@ export type TracerEventData = {
          * Height of some geometry in whatever units are relevant to the span.
          */
         readonly height?: number;
+
+        /**
+         * The content length of some data in bytes.
+         */
+        readonly contentLength?: number;
     };
 
     /**

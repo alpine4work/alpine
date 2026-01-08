@@ -1,3 +1,4 @@
+import {processSendTryOnDesktopEmail} from "~/server/accounts/process_send_try_on_desktop_email.js";
 import {processUpdateBotAccountsJob} from "~/server/bots/jobs/process_update_bot_accounts_job.js";
 import {scheduleDeploy} from "~/server/deploy/data/deploy_actions.js";
 import {processSendEmail} from "~/server/emails/process_send_email.js";
@@ -33,6 +34,10 @@ export async function processMaintenanceJob(
         }
         case "UpdateBotAccounts": {
             await processUpdateBotAccountsJob(context, job);
+            return;
+        }
+        case "SendTryOnDesktopEmail": {
+            await processSendTryOnDesktopEmail(context, job);
             return;
         }
         default: {

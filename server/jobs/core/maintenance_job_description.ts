@@ -1,4 +1,5 @@
-import {BotId} from "~/shared/id/types/id_types.js";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -74,5 +75,12 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
                 type: Schema.value("Avatar"),
             }),
         }),
+    }),
+
+    SendTryOnDesktopEmail: Schema.object({
+        type: Schema.value("SendTryOnDesktopEmail"),
+        accountId: Schema.id<AccountId>(),
+        emailAddress: Schema.string as Schema<any> as Schema<EmailAddress>,
+        openSpaceId: Schema.id<SpaceId>().nullable(),
     }),
 });

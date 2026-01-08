@@ -1,10 +1,17 @@
 /* eslint-disable string-quotes */
+
 import {Body, Container, Head, Html, Img, Preview, Section} from "@react-email/components";
 import {EmailFont} from "~/server/emails/internal/components/email_font.js";
 import {emailSpacing} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+
+export const baseEmailTemplateMaxWidth = 600;
+
+// Exports a number, we won't break fast refresh.
+// eslint-disable-next-line react-refresh/only-export-components
+export const baseEmailTemplateMarginX = emailSpacing["3"];
 
 // NOTE: There's lots of weirdness here that doesn't follow normal CSS/HTML practices because email clients
 // behave in strange ways. Style blocks are broken up so we can ensure we're under 8192 characters per block,
@@ -51,6 +58,7 @@ export function BaseEmailTemplate({
                         __html: `
                         body {
                             background: ${colors["grey-0"]};
+                            margin: 0 ${baseEmailTemplateMarginX}px;
                         }
 
                         hr {
@@ -74,7 +82,7 @@ export function BaseEmailTemplate({
                     type="text/css"
                     dangerouslySetInnerHTML={{
                         __html: `
-                        h1, h2, h3, h4, h5, h6, p, a {
+                        h1, h2, h3, h4, h5, h6, p, a, strong {
                             color: ${colors["grey-100"]};
                             ${lightColorsCssClasses.join("\n")}
                         }
@@ -104,7 +112,7 @@ export function BaseEmailTemplate({
                                     colors["grey-100"]
                                 });
                             }
-                            h1, h2, h3, h4, h5, h6, p, a {
+                            h1, h2, h3, h4, h5, h6, p, a, strong {
                                 color: ${colors["grey-0"]} !important;
                                 ${darkColorsCssClasses.join("\n")}
                             }
@@ -154,7 +162,7 @@ export function BaseEmailTemplate({
                     for debugging purposes. It is not a formal standard.
                 */}
                 {preview && <Preview data-email-preview="true">{preview}</Preview>}
-                <Container>
+                <Container style={{maxWidth: baseEmailTemplateMaxWidth}}>
                     <Section
                         style={{
                             paddingTop: emailSpacing["12"],

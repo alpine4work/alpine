@@ -11,6 +11,7 @@ export function AvatarImage({
     borderRadius?: 1 | 1.5 | 2 | 3 | "full";
 }) {
     const imageUrl = useMemo(
+        // NOCOMMIT: Should this be png for png avatars?
         () => `data:${avatarContentType};base64,${encodeBase64(content)}`,
         [content],
     );

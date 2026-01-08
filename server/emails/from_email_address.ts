@@ -38,9 +38,9 @@ export const FromEmailAddressAlias = {
         displayName: "Alpine",
         address: "sign-up@alpine.inc",
     },
-    Invitation: {
+    Invites: {
         displayName: "Alpine",
-        address: "invitation@alpine.inc",
+        address: "invites@alpine.inc",
     },
     Inbox: {
         displayName: "Alpine",

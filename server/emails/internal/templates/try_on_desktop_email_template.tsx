@@ -6,7 +6,6 @@ import {
     emailSpacingScale,
 } from "~/server/emails/internal/components/email_spacing_scale.js";
 import {EmailText} from "~/server/emails/internal/components/email_text.js";
-import {EmailTextBold} from "~/server/emails/internal/components/email_text_bold.js";
 import {
     BaseEmailTemplate,
     baseEmailTemplateMarginX,
@@ -16,20 +15,14 @@ import {colors} from "~/shared/design/core/colors.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
 
-export function SpaceInviteEmailTemplate({
+export function TryOnDesktopEmailTemplate({
     resourceServiceUrl,
-    spaceName,
-    inviterShortName,
-    acceptInviteUrl,
-    rejectInviteAndMarkAsSpamUrl,
+    signInUrl,
 }: {
     resourceServiceUrl: string;
-    spaceName: string;
-    inviterShortName: string;
-    acceptInviteUrl: string;
-    rejectInviteAndMarkAsSpamUrl: string;
+    signInUrl: string;
 }) {
-    const subject = `${inviterShortName} invited you to join ${spaceName} on Alpine`;
+    const subject = "Try Alpine on your computer";
 
     return (
         <BaseEmailTemplate
@@ -70,16 +63,8 @@ export function SpaceInviteEmailTemplate({
             /* eslint-enable string-quotes */
         >
             <EmailText>
-                {inviterShortName} invited you to join <EmailTextBold>{spaceName}</EmailTextBold> on{" "}
-                <Link
-                    href="https://www.alpine.inc"
-                    style={{color: "inherit", textDecoration: "underline"}}
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    Alpine
-                </Link>
-                . Alpine is a shared space for collaborating with your team.
+                Thanks for trying Alpine on your phone. Today, you’ll get the best Alpine has to
+                offer on a desktop computer.
             </EmailText>
             <div
                 style={{
@@ -106,7 +91,7 @@ export function SpaceInviteEmailTemplate({
                     />
                 </div>
             </div>
-            <EmailText>Click the link below to get started:</EmailText>
+            <EmailText>Try Alpine again once you’re back on your computer:</EmailText>
             <Section style={{paddingTop: emailSpacing["6"], paddingBottom: emailSpacing["2"]}}>
                 <Button
                     style={{
@@ -116,23 +101,22 @@ export function SpaceInviteEmailTemplate({
                         backgroundColor: colors[`${defaultThemeColor}-60`],
                         borderRadius: emailSpacing["1.5"],
                     }}
-                    href={acceptInviteUrl}
+                    href={signInUrl}
                 >
-                    Join {spaceName}
+                    Sign in
                 </Button>
             </Section>
             <EmailFooter>
                 <EmailFooterText>
-                    If you weren’t expecting this invitation, you can{" "}
+                    Let us know what you thought of the Alpine mobile experience at{" "}
                     <Link
-                        href={rejectInviteAndMarkAsSpamUrl}
+                        href="mailto:feedback@alpine.inc"
                         style={{color: "inherit", textDecoration: "underline"}}
                         target="_blank"
                         rel="noreferrer"
                     >
-                        report the invitation
-                    </Link>{" "}
-                    as spam.
+                        feedback@alpine.inc
+                    </Link>
                 </EmailFooterText>
             </EmailFooter>
         </BaseEmailTemplate>

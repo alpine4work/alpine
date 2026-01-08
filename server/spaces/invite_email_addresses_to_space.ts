@@ -208,7 +208,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
         }
 
         await context.email.send({
-            fromEmailAddressAlias: "Invitation",
+            fromEmailAddressAlias: "Invites",
             toEmailAddress: emailAddress,
             templateName: "SpaceInvite",
             templateProps: {

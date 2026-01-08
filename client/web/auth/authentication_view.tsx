@@ -9,6 +9,7 @@ import {
     initialAuthenticationStateForVariant,
     isAuthenticationVariant,
 } from "~/client/web/auth/authentication_state.js";
+import {AuthenticationAfterSignUpMobileInterstitialView} from "~/client/web/auth/internal/authentication_after_sign_up_mobile_interstitial_view.js";
 import {
     authenticationViewPaddingBottom,
     authenticationViewPaddingTop,
@@ -159,7 +160,15 @@ function AuthenticationViewOutlet({
         }
         case "SignInOneTimePassword":
         case "SignUpOneTimePassword": {
-            return <AuthenticationSignInOrSignUpOneTimePasswordView state={state} />;
+            return (
+                <AuthenticationSignInOrSignUpOneTimePasswordView
+                    state={state}
+                    onStateChange={onStateChange}
+                />
+            );
+        }
+        case "AfterSignUpMobileInterstitial": {
+            return <AuthenticationAfterSignUpMobileInterstitialView state={state} />;
         }
         default:
             throw exhaustive(state);

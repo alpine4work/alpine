@@ -235,6 +235,44 @@ export const AccountsTable = DynamoTableSchema.new({
                 },
             ],
         },
+
+        /**
+         * Allow an account to opt out of the "try on desktop" reminder email we
+         * automatically send for them.
+         */
+        {
+            name: "TryOnDesktopEmailOptOut",
+            partitionKeyAttributes: {
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+            ],
+        },
+
+        /**
+         * We only want to send an account the "try on desktop" email once. So save in
+         * item in the database once we've sent the email.
+         */
+        {
+            name: "SentTryOnDesktopEmail",
+            partitionKeyAttributes: {
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+            ],
+        },
     ],
 });
 

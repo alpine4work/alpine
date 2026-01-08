@@ -1,12 +1,13 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AuthenticationState =
     | AuthenticationSignInState
     | AuthenticationSignUpState
     | AuthenticationSignUpProfileState
     | AuthenticationSignInOneTimePasswordState
-    | AuthenticationSignUpOneTimePasswordState;
+    | AuthenticationSignUpOneTimePasswordState
+    | AuthenticationAfterSignUpMobileInterstitialState;
 
 export type AuthenticationSignInState = {
     readonly type: "SignIn";
@@ -32,6 +33,12 @@ export type AuthenticationSignUpOneTimePasswordState = {
     readonly type: "SignUpOneTimePassword";
     readonly accountId: AccountId;
     readonly emailAddress: string;
+};
+
+export type AuthenticationAfterSignUpMobileInterstitialState = {
+    readonly type: "AfterSignUpMobileInterstitial";
+    readonly emailAddress: string;
+    readonly openSpaceId: SpaceId | null;
 };
 
 export type AuthenticationVariant = (typeof allAuthenticationVariants)[number];
@@ -60,6 +67,7 @@ export function getAuthenticationStateVariant(state: AuthenticationState): Authe
         case "SignUp":
         case "SignUpProfile":
         case "SignUpOneTimePassword":
+        case "AfterSignUpMobileInterstitial":
             return "sign-up";
         default:
             throw exhaustive(state);

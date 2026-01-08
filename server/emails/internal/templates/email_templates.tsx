@@ -5,6 +5,7 @@ import {renderToReadableStream} from "react-dom/server";
 import {NotificationDigestEmailTemplate} from "~/server/emails/internal/templates/notification_digest_email_template.js";
 import {SignInOrSignUpEmailTemplate} from "~/server/emails/internal/templates/sign_in_or_sign_up_email_template.js";
 import {SpaceInviteEmailTemplate} from "~/server/emails/internal/templates/space_invite_email_template.js";
+import {TryOnDesktopEmailTemplate} from "~/server/emails/internal/templates/try_on_desktop_email_template.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
 
@@ -14,6 +15,7 @@ export const emailTemplates = {
     SignInOrSignUp: createEmailTemplate(SignInOrSignUpEmailTemplate, "SignInOrSignUp"),
     SpaceInvite: createEmailTemplate(SpaceInviteEmailTemplate, "SpaceInvite"),
     NotificationDigest: createEmailTemplate(NotificationDigestEmailTemplate, "NotificationDigest"),
+    TryOnDesktop: createEmailTemplate(TryOnDesktopEmailTemplate, "TryOnDesktop"),
 };
 
 /**

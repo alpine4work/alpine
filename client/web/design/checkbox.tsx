@@ -89,8 +89,8 @@ export function Checkbox({
                 tabIndex={isDisabled ? -1 : 0}
                 color={isDisabled ? "grey-30" : color}
                 fontSize={fontSize}
-                height={touchSlop.sizeWithSlop}
                 maxWidth="full"
+                paddingY={touchSlop.slop}
                 marginY={`-${touchSlop.slop}`}
                 // `inline-flex` so the element width is the width of our contents instead of
                 // the width of the parent. Our width is visible when a `<FocusRing>` is
@@ -112,7 +112,6 @@ export function Checkbox({
                 <Box
                     paddingLeft="1.5"
                     position="relative"
-                    fontStyle="truncate"
                     paddingRight={shouldShowPendingSpinner ? "1" : undefined}
                 >
                     {children}

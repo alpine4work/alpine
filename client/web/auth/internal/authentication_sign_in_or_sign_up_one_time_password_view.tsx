@@ -3,6 +3,7 @@ import {useSearchParams} from "react-router-dom";
 import {
     AuthenticationSignInOneTimePasswordState,
     AuthenticationSignUpOneTimePasswordState,
+    AuthenticationState,
 } from "~/client/web/auth/authentication_state.js";
 import {Form, FormRef} from "~/client/web/auth/internal/form.js";
 import {
@@ -15,7 +16,7 @@ import {Button} from "~/client/web/design/button.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {NavigateFunction, useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     AuthSignInOrSignUpInputSchema,
@@ -23,12 +24,15 @@ import {
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export function AuthenticationSignInOrSignUpOneTimePasswordView({
     state,
+    onStateChange,
 }: {
     state: AuthenticationSignInOneTimePasswordState | AuthenticationSignUpOneTimePasswordState;
+    onStateChange: (state: AuthenticationState) => void;
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -85,6 +89,8 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
             ref={formRef}
             submitErrorTitle={submitErrorTitle}
             onSubmit={async () => {
+                let openSpaceId: SpaceId | null = null;
+
                 try {
                     let route: string;
 
@@ -101,7 +107,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                             throw exhaustive(state);
                     }
 
-                    const {openSpaceId} = await fetchWithTracer(
+                    ({openSpaceId} = await fetchWithTracer(
                         context.tracer.getTracer(),
                         route,
                         {
@@ -126,20 +132,7 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
 
                             return output;
                         },
-                    );
-
-                    const toSearchParam = searchParams.get("to");
-
-                    if (toSearchParam?.startsWith("/")) {
-                        // Immediately navigate to the `to` search param.
-                        await navigate(toSearchParam);
-                    } else if (openSpaceId) {
-                        // Open the space sign in (or sign up) tells us to open.
-                        await navigate(`/s/${openSpaceId}?consistency=strong`);
-                    } else {
-                        // The account has no space? Show them the space switcher.
-                        await navigate("/switch-space");
-                    }
+                    ));
                 } catch (error) {
                     // Clear the one time password input
                     setOneTimePassword("");
@@ -147,6 +140,21 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
 
                     throw error;
                 }
+
+                if (platform === "mobile" && state.type === "SignUpOneTimePassword") {
+                    onStateChange({
+                        type: "AfterSignUpMobileInterstitial",
+                        emailAddress: state.emailAddress,
+                        openSpaceId,
+                    });
+                    return;
+                }
+
+                await navigateAfterSignInOrSignUp({
+                    navigate,
+                    searchParams,
+                    openSpaceId,
+                });
             }}
             button={
                 <Button
@@ -184,4 +192,27 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
             <Spacer space="8" />
         </Form>
     );
+}
+
+export async function navigateAfterSignInOrSignUp({
+    navigate,
+    searchParams,
+    openSpaceId,
+}: {
+    navigate: NavigateFunction;
+    searchParams: URLSearchParams;
+    openSpaceId: SpaceId | null;
+}) {
+    const toSearchParam = searchParams.get("to");
+
+    if (toSearchParam?.startsWith("/")) {
+        // Immediately navigate to the `to` search param.
+        await navigate(toSearchParam);
+    } else if (openSpaceId) {
+        // Open the space sign in (or sign up) tells us to open.
+        await navigate(`/s/${openSpaceId}?consistency=strong`);
+    } else {
+        // The account has no space? Show them the space switcher.
+        await navigate("/switch-space");
+    }
 }

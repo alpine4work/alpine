@@ -62,7 +62,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
  */
 // prettier-ignore
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
-    ["Accounts", ["Account", "AccountEmailAddress", "Session"]],
+    ["Accounts", ["Account", "AccountEmailAddress", "Session", "TryOnDesktopEmailOptOut", "SentTryOnDesktopEmail"]],
     ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
     ["BotWebhookEvents", ["BotSpace"]],
     ["Bots", ["Bot", "ApiKey"]],
