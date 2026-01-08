@@ -240,6 +240,7 @@ export type MenuCustomAction = {
               isHovered: boolean;
               shouldShowPendingSpinner: boolean;
               renderStructure: (props: {isPressed?: boolean; children: ReactNode}) => ReactElement;
+              onCloseMenuWithAnimation: () => void;
           }) => ReactElement;
 
           readonly render?: undefined;
@@ -1428,6 +1429,7 @@ function MenuCustomItem({
             isHovered,
             shouldShowPendingSpinner: pendingState.shouldShowPendingSpinner,
             renderStructure,
+            onCloseMenuWithAnimation: onCloseWithAnimation,
         });
     }
 }

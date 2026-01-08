@@ -15,6 +15,7 @@ import {
     CurrentAccountReactionButtonIcon,
     ReactionButtonBase,
 } from "~/client/web/reactions/reaction_button.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -37,6 +38,7 @@ export function MessageViewContextMenuReactionButton<
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
     inboxContext,
+    onCloseMenuWithAnimation,
 }: {
     isPressed: boolean;
     renderStructure: ({
@@ -56,8 +58,10 @@ export function MessageViewContextMenuReactionButton<
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     inboxContext: InboxContext | null;
+    onCloseMenuWithAnimation: () => void;
 }) {
     const reporter = useReporter();
+    const platform = usePlatform();
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     // The way context menu is built this component doesn't re-render when
@@ -76,6 +80,7 @@ export function MessageViewContextMenuReactionButton<
         <ReactionButtonBase
             withoutButtonElementRequirement={true}
             reactions={reactions}
+            onReactionPickerClose={platform === "mobile" ? onCloseMenuWithAnimation : undefined}
             onSetReaction={reaction => {
                 setMessageReactionWithOptimisticUpdate({
                     reporter,

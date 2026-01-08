@@ -148,12 +148,14 @@ export function ReactionButtonBase({
     onSetReaction,
     onDeleteReaction,
     withoutButtonElementRequirement,
+    onReactionPickerClose,
     children,
 }: {
     reactions: ReactionSet;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
     withoutButtonElementRequirement?: boolean;
+    onReactionPickerClose?: () => void;
     children: (props: {
         currentAccountReaction: Reaction | "GenericLike" | undefined;
         isPointerDownFromOverlayOpen: boolean;
@@ -244,6 +246,7 @@ export function ReactionButtonBase({
             onActuallyVisibleChange={isActuallyVisible => {
                 if (!isActuallyVisible) {
                     setIsMegaPickerOpen(false);
+                    onReactionPickerClose?.();
                 }
             }}
             onPointerDown={event => {

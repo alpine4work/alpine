@@ -3,7 +3,7 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {animate} from "motion";
-import {ArrowArcLeft, ArrowArcRight, Copy, Link as LinkIcon, Trash} from "phosphor-react";
+import {ArrowArcLeft, ArrowArcRight, Link as LinkIcon, Trash} from "phosphor-react";
 import {Fragment, Memo, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {
@@ -24,7 +24,6 @@ import {
 } from "~/client/web/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageContentPayloadParentWithMessages} from "~/client/web/content/messaging/message_input_base.js";
 import {MessageViewFiles} from "~/client/web/content/messaging/message_view_files.js";
-import {writeContentToClipboard} from "~/client/web/content/write_content_to_clipboard.js";
 import {
     ContextMenuActions,
     hasContextMenuActionWithKey,
@@ -32,10 +31,8 @@ import {
 } from "~/client/web/design/context_menu.js";
 import {ErrorIcon} from "~/client/web/design/error_icon.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
-import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
-import {Menu, MenuAction} from "~/client/web/design/menu.js";
-import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
+import {MenuAction} from "~/client/web/design/menu.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/web/design/pretty_absolute_date.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
@@ -49,15 +46,17 @@ import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/web/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/web/messaging/internal/message_delete_confirmation_dialog.js";
 import {MessageStreamView} from "~/client/web/messaging/internal/message_stream_view.js";
-import {MessageViewContextMenuReactionButton} from "~/client/web/messaging/internal/message_view_context_menu_reaction_button.js";
 import {
     MessageViewEditor,
     MessageViewEditorRef,
 } from "~/client/web/messaging/internal/message_view_editor.js";
+import {MessageViewMenuStateUpdatedTime} from "~/client/web/messaging/internal/message_view_menu_state_updated_time.js";
+import {messageViewReactionContextMenuAction} from "~/client/web/messaging/internal/message_view_reaction_context_menu_action.js";
 import {shouldDisplayTextAsBigEmojiMessage} from "~/client/web/messaging/internal/should_display_text_as_big_emoji_message.js";
 import {shouldMergeMessages} from "~/client/web/messaging/internal/should_merge_messages.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
+import {MessageViewTouchMenu} from "~/client/web/messaging/message_view_touch_menu.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,
@@ -467,6 +466,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         // - Select multiple messages (should only show "Copy")
         // - Select text in one message then right click the parent message of another
         //   (should show right click actions for the attached message)
+        //
+        // NOTE: This only handles the context menu on devices with a right click. Touch devices use
+        // a different context menu. If you update the context menu here, you may also want to update
+        // the touch menu in `MessageViewTouchMenu`.
         getContextMenuActions: (event: MouseEvent) => {
             // If the user right clicked on a `<ReactionButton>` in the message then only
             // show the reaction button's context menu actions. Don't show the message
@@ -515,8 +518,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 !isContentEmpty(part.payload.content),
                         )))
             ) {
-                const {payload} = message;
-
                 contextMenuActions.push([
                     {
                         label: "Reply",
@@ -539,59 +540,16 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     },
                 ]);
 
-                menuActions.push({
-                    withCustomLayout: true,
-                    // Don't close the context menu on press. Instead we want to open the reaction
-                    // radial picker.
-                    onPress: () => ({withoutClose: true}),
-                    renderWithStructure: ({isPressed, renderStructure}) => {
-                        let pos: number;
-
-                        // The context menu will add a reaction to the end of the message. Find the
-                        // position at the end of the message.
-                        // TODO(imjoshin): Handle Files here, next PR
-                        if (message.stream === null) {
-                            pos = payload.content.doc.content.size;
-                        } else {
-                            pos = 0;
-
-                            if (!isContentEmpty(payload.content.doc)) {
-                                pos += payload.content.doc.content.size;
-                            }
-
-                            const usableStreamPartCount =
-                                message.stream.parts.length -
-                                // If the stream is incomplete then we can't react to the last part. Since the
-                                // last part may still be receiving updates.
-                                (message.stream.completedTime === null ? 1 : 0);
-
-                            for (let i = 0; i < usableStreamPartCount; i++) {
-                                const part = message.stream.parts[i]!;
-                                if (part.payload.type !== "Content") continue;
-                                pos += part.payload.content.content.size;
-                            }
-                        }
-
-                        const reactions = payload.reactionsByPos.get(pos) ?? emptyReactionSet;
-
-                        return (
-                            <MessageViewContextMenuReactionButton
-                                isPressed={isPressed}
-                                renderStructure={renderStructure}
-                                messageNoun={messageNoun}
-                                roomKey={message.getRoomKey()}
-                                messageIndex={message.index}
-                                contentVersion={payload.contentUpdate?.mappings.length ?? 0}
-                                pos={pos}
-                                reactions={reactions}
-                                onSetMessageReaction={onSetMessageReaction}
-                                onDeleteMessageReaction={onDeleteMessageReaction}
-                                onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
-                                inboxContext={inboxContext}
-                            />
-                        );
-                    },
-                });
+                menuActions.push(
+                    messageViewReactionContextMenuAction({
+                        message,
+                        messageNoun,
+                        onSetMessageReaction,
+                        onDeleteMessageReaction,
+                        onUpdateMessagesOptimistically,
+                        inboxContext,
+                    }),
+                );
 
                 contextMenuActions.push(menuActions);
             }
@@ -1382,7 +1340,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     }
 
                     return (
-                        <MessageViewMenuCreatedTime
+                        <MessageViewMenuStateUpdatedTime
                             createdTime={message.createdTime}
                             // Only show the updated time if the user can't hover over the "(edited)" text
                             // to see it.
@@ -1678,6 +1636,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 onCloseWithAnimation={() =>
                                     setTouchMenuState({...touchMenuState, isAnimatingOut: true})
                                 }
+                                inboxContext={inboxContext}
+                                onSetMessageReaction={onSetMessageReaction}
+                                onDeleteMessageReaction={onDeleteMessageReaction}
+                                onUpdateMessagesOptimistically={onUpdateMessagesOptimistically}
                             />
                         )}
                     </ContentBlockWidthContextProvider>
@@ -1925,252 +1887,5 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                 </div>
             </div>
         </FocusRing>
-    );
-}
-
-function MessageViewMenuCreatedTime({
-    createdTime,
-    contentUpdatedTime,
-    deletedTime,
-}: {
-    createdTime: Date;
-    contentUpdatedTime: Date | null;
-    deletedTime: Date | null;
-}) {
-    const {timeZone, locale} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
-
-    const formattedCreatedTime = useMemo(
-        () =>
-            formatMessageViewTimestampDividerDate(createdTime, {
-                currentTime,
-                locale,
-                timeZone,
-            }),
-        [createdTime, currentTime, locale, timeZone],
-    );
-
-    const formattedContentUpdatedTime = useMemo(
-        () =>
-            contentUpdatedTime
-                ? formatMessageViewTimestampDividerDate(contentUpdatedTime, {
-                      currentTime,
-                      locale,
-                      timeZone,
-                  })
-                : null,
-        [contentUpdatedTime, currentTime, locale, timeZone],
-    );
-
-    const formattedDeletedTime = useMemo(
-        () =>
-            deletedTime
-                ? formatMessageViewTimestampDividerDate(deletedTime, {
-                      currentTime,
-                      locale,
-                      timeZone,
-                  })
-                : null,
-        [currentTime, deletedTime, locale, timeZone],
-    );
-
-    return (
-        <>
-            <div className={sprinkles({padding: "1"})}>
-                <div className={sprinkles({width: "full", borderBottom: "grey-5"})} />
-            </div>
-            <div
-                className={sprinkles({
-                    paddingX: "2",
-                    paddingY: {desktop: "1", mobile: "1.5"},
-                    fontSize: "50",
-                    color: "grey-50",
-                })}
-            >
-                <div>
-                    {(formattedContentUpdatedTime || formattedDeletedTime) && <>Sent: </>}
-                    {formattedCreatedTime}
-                </div>
-                {formattedDeletedTime ? (
-                    <div className={sprinkles({paddingTop: "1"})}>
-                        Deleted: {formattedDeletedTime}
-                    </div>
-                ) : formattedContentUpdatedTime ? (
-                    <div className={sprinkles({paddingTop: "1"})}>
-                        Edited: {formattedContentUpdatedTime}
-                    </div>
-                ) : null}
-            </div>
-        </>
-    );
-}
-
-function MessageViewTouchMenu<RoomKey extends string, Message extends MessageModel<RoomKey>>({
-    messageNoun,
-    message,
-    isReadOnly,
-    top,
-    left,
-    messageEditing,
-    getMessageUrl,
-    onReplyToMessage,
-    onShowDeleteConfirmationDialog,
-    isAnimatingOut,
-    onCloseWithoutAnimation,
-    onCloseWithAnimation,
-}: {
-    messageNoun: string;
-    message: Message | OptimisticMessageModel;
-    isReadOnly: boolean;
-    top: number;
-    left: number;
-    messageEditing: MessageEditing<RoomKey>;
-    getMessageUrl: (messageIndex: number) => URL;
-    onReplyToMessage: () => void;
-    onShowDeleteConfirmationDialog: () => void;
-    isAnimatingOut: boolean;
-    onCloseWithoutAnimation: () => void;
-    onCloseWithAnimation: () => void;
-}) {
-    const platform = usePlatform();
-    const {currentAccount, space} = useSpaceContext();
-
-    const menuActions: Array<ReadonlyArray<MenuAction>> = [];
-
-    // Don't allow replying if the message payload is empty. The UI shouldn't
-    // normally allow saving an empty message payload. We allow empty message
-    // payloads for messages that have attached files, however. In this special
-    // case we don't want to allow the user to reply since the reply message will
-    // include no text.
-    if (
-        !isReadOnly &&
-        message.payload.type === "Content" &&
-        !isContentEmpty(message.payload.content.doc)
-    ) {
-        menuActions.push([
-            {
-                label: "Reply",
-                icon: <ArrowArcRight />,
-                iconPlacement: "end",
-                onPress: onReplyToMessage,
-            },
-        ]);
-    }
-
-    const copyMenuActions: Array<MenuAction> = [];
-    menuActions.push(copyMenuActions);
-
-    if (message.payload.type === "Content") {
-        copyMenuActions.push({
-            label: "Copy text",
-            icon: <Copy />,
-            iconPlacement: "end",
-            pressErrorTitle: `Couldn’t copy ${messageNoun} text`,
-            onPress: async () => {
-                assert(message.payload.type === "Content");
-
-                await writeContentToClipboard(space.id, message.payload.content, null);
-            },
-        });
-    }
-
-    copyMenuActions.push({
-        label: "Copy link",
-        icon: <LinkIcon />,
-        iconPlacement: "end",
-        isDisabled: message.isOptimistic,
-        pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
-        onPress: async () => {
-            if (message.isOptimistic) return;
-            await writeTextToClipboard(getMessageUrl(message.index).toString());
-        },
-    });
-
-    if (
-        !isReadOnly &&
-        currentAccount?.id === message.author.id &&
-        message.payload.type === "Content" &&
-        // Can't update or delete clerical messages.
-        !message.payload.clerical
-    ) {
-        const messagePayload = message.payload;
-
-        const editContextMenuActions: Array<MenuAction> = [];
-        menuActions.push(editContextMenuActions);
-
-        // Don't allow editing if the message payload is empty. The UI shouldn't
-        // normally allow saving an empty message payload. We allow empty message
-        // payloads for messages that have attached files, however. In this special
-        // case we don't want to allow the user to add text alongside the files.
-        if (!isContentEmpty(messagePayload.content.doc)) {
-            editContextMenuActions.push({
-                label: "Edit",
-                isDisabled: message.isOptimistic,
-                onPress: () => {
-                    if (message.isOptimistic) return;
-
-                    messageEditing.dispatch({
-                        type: "StartEditing",
-                        messageIndex: message.index,
-                        messageRoomKey: message.getRoomKey(),
-                        messagePayload,
-                        platform,
-                        returnFocusAfterEditing: null,
-                    });
-                },
-            });
-        }
-
-        editContextMenuActions.push({
-            label: "Delete",
-            onPress: onShowDeleteConfirmationDialog,
-        });
-    }
-
-    return (
-        <OverlayAnimated
-            placement="bottom"
-            offset="4"
-            isVisible={!isAnimatingOut}
-            disableAnimationIn={true}
-            onActuallyVisibleChange={isActuallyVisible => {
-                if (!isActuallyVisible) onCloseWithoutAnimation();
-            }}
-            isBlocking={true}
-            overlay={
-                <div ref={useOutsideInteraction(onCloseWithAnimation)}>
-                    <Menu
-                        actions={menuActions}
-                        extraBottom={
-                            <MessageViewMenuCreatedTime
-                                createdTime={message.createdTime}
-                                contentUpdatedTime={
-                                    message.payload.type === "Content"
-                                        ? message.payload.contentUpdate?.time ?? null
-                                        : null
-                                }
-                                deletedTime={
-                                    message.payload.type === "Deleted"
-                                        ? message.payload.deletedTime
-                                        : null
-                                }
-                            />
-                        }
-                        onCloseWithAnimation={onCloseWithAnimation}
-                        onCloseWithoutAnimation={onCloseWithoutAnimation}
-                    />
-                </div>
-            }
-        >
-            <div
-                className={sprinkles({
-                    position: "absolute",
-                    pointerEvents: "none",
-                    width: "0",
-                    height: "0",
-                })}
-                style={{top, left}}
-            ></div>
-        </OverlayAnimated>
     );
 }
