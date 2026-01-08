@@ -154,7 +154,7 @@ import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {assertId} from "~/shared/id/id.js";
+import {assertId, isId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
@@ -2476,7 +2476,29 @@ async function getSearchEntityBaseIfPossible(
     }
 
     if (!doc) {
-        if (!isSearchMentionEntityId(entityId)) return null;
+        if (!isSearchMentionEntityId(entityId)) {
+            // Fallback for an account that hasn't been indexed in OpenSearch yet. Needed
+            // for rendering accounts in the suggested sidebar which haven't been
+            // indexed yet.
+            if (entityId.startsWith("Account:")) {
+                const accountId = entityId.slice(8);
+                assert(isId<AccountId>(accountId));
+
+                const account = await getAccount(context, spaceId, accountId, {
+                    consistency: "Strong",
+                });
+
+                return {
+                    isPrivate: false,
+                    id: entityId,
+                    title: account.initialData.name,
+                    titleVersion: {type: "Integer", version: account.initialData.nameVersion},
+                    media: {type: "Account", account},
+                };
+            }
+
+            return null;
+        }
 
         // If we couldn't a specific search entity that might be because the search
         // entity hasn't been indexed in OpenSearch yet. Document indexing, for
