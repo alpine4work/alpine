@@ -1,7 +1,16 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceSize,
+    InstanceType,
+    LaunchTemplate,
+    Port,
+    SecurityGroup,
+    SubnetType,
+    UserData,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -16,7 +25,7 @@ import {
     ApplicationProtocol,
     ApplicationTargetGroupProps,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -85,10 +94,25 @@ export function createAwsAppOrApiService(
         withAgentServiceUrl?: boolean;
     },
 ) {
-    const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
-        vpc,
+    const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
         instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
         machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+        role: new Role(parentConstruct, "LaunchTemplateRole", {
+            assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+            ],
+        }),
+        securityGroup: new SecurityGroup(parentConstruct, "LaunchTemplateSecurityGroup", {
+            vpc,
+            allowAllOutbound: true,
+        }),
+        userData: UserData.forLinux(),
+    });
+
+    const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
+        vpc,
+        launchTemplate,
 
         minCapacity: autoScalingGroupOptions.minCapacity,
         maxCapacity: autoScalingGroupOptions.maxCapacity,

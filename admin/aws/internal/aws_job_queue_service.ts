@@ -1,6 +1,15 @@
 import {ArnFormat, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceSize,
+    InstanceType,
+    LaunchTemplate,
+    Port,
+    SecurityGroup,
+    SubnetType,
+    UserData,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -51,10 +60,25 @@ export class AwsJobQueueService extends Construct {
 
         const stack = Stack.of(this);
 
-        const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
-            vpc,
+        const launchTemplate = new LaunchTemplate(this, "LaunchTemplate", {
             instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
             machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            role: new Role(this, "LaunchTemplateRole", {
+                assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+                managedPolicies: [
+                    ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                ],
+            }),
+            securityGroup: new SecurityGroup(this, "LaunchTemplateSecurityGroup", {
+                vpc,
+                allowAllOutbound: true,
+            }),
+            userData: UserData.forLinux(),
+        });
+
+        const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
+            vpc,
+            launchTemplate,
 
             minCapacity: 4,
             // During a deploy, we double our capacity needs since we keep running old
