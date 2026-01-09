@@ -47,6 +47,11 @@ export class TestSpaceSession extends TestSession {
         return new TestSpaceSession(space, account, id, createdTime);
     }
 
+    public static async forSpace(session: TestSession, space: TestSpace) {
+        await authorizeSpaceAccess(session.action(), space.id);
+        return new TestSpaceSession(space, session.account, session.id, session.createdTime);
+    }
+
     public async forSpace(space: TestSpace) {
         await authorizeSpaceAccess(this.action(), space.id);
         return new TestSpaceSession(space, this.account, this.id, this.createdTime);

@@ -2,31 +2,40 @@ import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_p
 import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
 import {getAccountEmailAddressForTest} from "~/server/accounts/create_account_for_test.js";
 import {dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
+import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
-import {expensivelyGetChannelsInSpaceForTest} from "~/server/forum/data/expensively_get_channels_in_space_for_test.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/create/attempt_one_time_password_sign_up_then_create_space.js";
+import {withChatGptBotIdForTest} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {getAccountSpaceIdsForTest} from "~/server/spaces/get_account_space_ids_for_test.js";
 import {getSpaceAccountItem} from "~/server/spaces/internal/get_space_account_item.js";
-import {getSpaceItem, getSpaceItemIfExists} from "~/server/spaces/internal/get_space_item.js";
+import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
-const dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization = import.meta.jest.fn(
+const addSearchAffinityEntityPoints = import.meta.jest.fn(
     searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.bind(null),
 );
 
@@ -35,7 +44,7 @@ const context = createTestContext({
     spacesInjection,
     searchInjection: {
         ...searchInjection,
-        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization,
+        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization: addSearchAffinityEntityPoints,
     },
     tasksInjection: {
         internalGetUpdateOurAccountNameTaskTransactionEntries: () => [],
@@ -47,16 +56,114 @@ const sessionInfo = {
     userAgent: null,
 };
 
-test("sign up with correct password creates personal space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@gmail.com`);
+function generatePersonalTestEmailAddress() {
+    return `test.${generateId()}@gmail.com`;
+}
+
+function generateWorkTestEmailDomain() {
+    return `company-${generateId()}.com`;
+}
+
+const emailAddressCountByDomain = new Map<string, number>();
+
+function generateWorkTestEmailAddress(emailDomain: string) {
+    const emailAddressNumber = emailAddressCountByDomain.get(emailDomain) ?? 1;
+    emailAddressCountByDomain.set(emailDomain, emailAddressNumber + 1);
+    return `test.${emailAddressNumber}@${emailDomain}`;
+}
+
+function testPersonalSignUp(options?: {name?: string}) {
+    return testSignUp({...options, emailAddress: generatePersonalTestEmailAddress()});
+}
+
+async function testWorkSignUp(options?: {name?: string}) {
+    const emailDomain = generateWorkTestEmailDomain();
+    const emailAddress = generateWorkTestEmailAddress(emailDomain);
+
+    const result = await testSignUp({...options, emailAddress});
+
+    return {
+        ...result,
+        emailDomain,
+    };
+}
+
+async function testAnotherWorkSignUp(emailDomain: string, options?: {name?: string}) {
+    const emailAddress = generateWorkTestEmailAddress(emailDomain);
+    return testSignUp({...options, emailAddress});
+}
+
+async function testSignUp(options: {name?: string; emailAddress: string}) {
+    const [chatGptBot, {accountId, emailAddress, oneTimePassword}] = await runAllPromises([
+        TestBot.create(context),
+        testSignUpUntilAttemptOneTimePasswordSignUp(options),
+    ]);
+
+    const {sessionId, openSpaceId} = await withChatGptBotIdForTest(chatGptBot.id, () => {
+        return attemptOneTimePasswordSignUpThenCreateSpace(
+            context.anonymousAction(),
+            emailAddress,
+            oneTimePassword,
+            sessionInfo,
+        );
+    });
+    assert(openSpaceId);
+
+    const [session, space] = await runAllPromises([
+        TestSession.get(context, sessionId),
+        TestSpace.get(context, openSpaceId),
+    ]);
+
+    assert(session.account.id === accountId);
+
+    return {
+        session: await TestSpaceSession.forSpace(session, space),
+        emailAddress,
+        chatGptBot,
+    };
+}
+
+function testPersonalSignUpUntilAttemptOneTimePasswordSignUp(options?: {name?: string}) {
+    return testSignUpUntilAttemptOneTimePasswordSignUp({
+        ...options,
+        emailAddress: generatePersonalTestEmailAddress(),
+    });
+}
+
+async function testSignUpUntilAttemptOneTimePasswordSignUp({
+    name = TestAccount.getNewName(),
+    emailAddress,
+}: {
+    name?: string;
+    emailAddress: string;
+}) {
+    const validatedEmailAddress = validateEmailAddress(emailAddress);
+
+    let accountId: AccountId | undefined;
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+        accountId = await signUpAccountWithEmailAddress(
+            context.anonymousAction(),
+            validatedEmailAddress,
+        );
     });
+
+    assert(accountId);
 
     const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
 
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    await saveAccountSignUpProfile(context.anonymousAction(), {
+        accountId,
+        name,
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
+    });
+
+    return {accountId, emailAddress: validatedEmailAddress, oneTimePassword};
+}
+
+test("sign up with correct password creates personal space", async () => {
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
         context.anonymousAction(),
@@ -65,21 +172,35 @@ test("sign up with correct password creates personal space", async () => {
         sessionInfo,
     );
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(1);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(1);
 });
 
-test("sign up creates space with correct name based on account", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@gmail.com`);
+test("sign up with correct password creates personal space without saving profile", async () => {
+    const emailAddress = validateEmailAddress(generatePersonalTestEmailAddress());
+
+    let accountId: AccountId | undefined;
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+        accountId = await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
     });
+
+    assert(accountId);
 
     const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
 
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    await attemptOneTimePasswordSignUpThenCreateSpace(
+        context.anonymousAction(),
+        emailAddress,
+        oneTimePassword,
+        sessionInfo,
+    );
+
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(1);
+});
+
+test("sign up creates space with correct name based on account", async () => {
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp({name: "Anthony Mose"});
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
         context.anonymousAction(),
@@ -92,23 +213,15 @@ test("sign up creates space with correct name based on account", async () => {
     expect(spaceIds.size).toEqual(1);
 
     const spaceId = Array.from(spaceIds)[0]!;
-    const spaceItem = await getSpaceItemIfExists(context.withCache(), spaceId);
 
-    expect(spaceItem).toMatchObject({
-        name: expect.stringContaining("\u2019s Space"),
+    expect(await getSpaceItem(context.withCache(), spaceId)).toMatchObject({
+        name: "Anthony’s Space",
     });
 });
 
 test("account becomes owner of created space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
         context.anonymousAction(),
@@ -120,21 +233,13 @@ test("account becomes owner of created space", async () => {
     const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
     const spaceId = Array.from(spaceIds)[0]!;
 
-    const spaceAccountItem = await getSpaceAccountItem(context.withCache(), spaceId, accountId);
-
-    expect(spaceAccountItem).toMatchObject({
+    expect(await getSpaceAccountItem(context.withCache(), spaceId, accountId)).toMatchObject({
         role: "Owner",
     });
 });
 
 test("incorrect password does not create space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    const {accountId, emailAddress} = await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await expect(
         attemptOneTimePasswordSignUpThenCreateSpace(
@@ -145,69 +250,12 @@ test("incorrect password does not create space", async () => {
         ),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(0);
-});
-
-test("missing password does not create space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await expect(
-        attemptOneTimePasswordSignUpThenCreateSpace(
-            context.anonymousAction(),
-            emailAddress,
-            "XXXXXX",
-            sessionInfo,
-        ),
-    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
-
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(0);
-});
-
-test("account saved sign up profile then finish signing up does create space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@gmail.com`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "Anthony Mose",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(1);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(0);
 });
 
 test("can’t use password twice to create multiple spaces", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+    const {emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
         context.anonymousAction(),
@@ -227,13 +275,8 @@ test("can’t use password twice to create multiple spaces", async () => {
 });
 
 test("locked account does not create space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await expect(
         attemptOneTimePasswordSignUpThenCreateSpace(
@@ -289,29 +332,23 @@ test("locked account does not create space", async () => {
         ),
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
+    await expect(
+        attemptOneTimePasswordSignUpThenCreateSpace(
+            context.anonymousAction(),
+            emailAddress,
+            oneTimePassword,
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 
-    expect(spaceIds.size).toEqual(0);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(0);
 });
 
 test("space name is truncated when account name is too long", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    const longName = "a".repeat(50);
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: longName,
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp({
+            name: "a".repeat(50),
+        });
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
         context.anonymousAction(),
@@ -323,23 +360,14 @@ test("space name is truncated when account name is too long", async () => {
     const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
     const spaceId = Array.from(spaceIds)[0]!;
 
-    const spaceItem = await getSpaceItemIfExists(context.withCache(), spaceId);
-
-    expect(spaceItem).toMatchObject({
-        name: `${"a".repeat(42)}\u2019s Space`,
+    expect(await getSpaceItem(context.withCache(), spaceId)).toMatchObject({
+        name: `${"a".repeat(42)}’s Space`,
     });
 });
 
 test("sign up with existing session creates space only once", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@gmail.com`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(0);
 
@@ -369,15 +397,8 @@ test("sign up with existing session creates space only once", async () => {
 });
 
 test("expired password does not create space", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
+    const {accountId, emailAddress, oneTimePassword} =
+        await testPersonalSignUpUntilAttemptOneTimePasswordSignUp();
 
     await captureOneTimePasswordSignInEmailsForTest(async () => {
         await regenerateOneTimePasswordSignIn(context.anonymousAction(), emailAddress);
@@ -392,9 +413,7 @@ test("expired password does not create space", async () => {
         ),
     ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(0);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(0);
 });
 
 test("sign in then save sign up profile then finish signing up does create space", async () => {
@@ -429,9 +448,7 @@ test("sign in then save sign up profile then finish signing up does create space
         sessionInfo,
     );
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(1);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(1);
 });
 
 test("first user with company email creates personal space and company space", async () => {
@@ -459,493 +476,116 @@ test("first user with company email creates personal space and company space", a
         sessionInfo,
     );
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-
-    expect(spaceIds.size).toEqual(2);
+    expect((await getAccountSpaceIdsForTest(context, accountId)).size).toEqual(2);
 });
 
 test("first user with company email becomes owner of both spaces", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const emailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session} = await testWorkSignUp();
 
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+    const spaceIds = Array.from(await getAccountSpaceIdsForTest(context, session.account.id));
+    expect(spaceIds.length).toEqual(2);
+
+    expect(
+        await getSpaceAccountItem(context.withCache(), spaceIds[0]!, session.account.id),
+    ).toMatchObject({
+        role: "Owner",
     });
 
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
+    expect(
+        await getSpaceAccountItem(context.withCache(), spaceIds[1]!, session.account.id),
+    ).toMatchObject({
+        role: "Owner",
     });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
-    const spaceIdArray = Array.from(spaceIds);
-
-    for (const spaceId of spaceIdArray) {
-        const spaceAccountItem = await getSpaceAccountItem(context.withCache(), spaceId, accountId);
-
-        expect(spaceAccountItem).toMatchObject({
-            role: "Owner",
-        });
-    }
 });
 
 test("first user company space is named with @ prefix", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const emailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session, emailDomain} = await testWorkSignUp();
 
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const companySpaceItem = await getSpaceItemIfExists(context.withCache(), openSpaceId!);
-
-    expect(companySpaceItem).toMatchObject({
+    expect(await getSpaceItem(context.withCache(), session.space.id)).toMatchObject({
         name: `@${emailDomain}`,
     });
 });
 
-test("first user opens company space by default", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const emailAddress = validateEmailAddress(`john@${emailDomain}`);
-
-    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
-    });
-
-    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        emailAddress,
-        oneTimePassword,
-        sessionInfo,
-    );
-
-    const companySpaceItem = await getSpaceItem(context.withCache(), openSpaceId!);
-
-    expect(companySpaceItem.name).toEqual(`@${emailDomain}`);
-});
-
 test("second user with same email domain is auto-added to company space as member", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
+    const {session: secondSession} = await testAnotherWorkSignUp(emailDomain);
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
+    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondSession.account.id);
 
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
+    expect(secondUserSpaceIds.has(firstSession.space.id)).toEqual(true);
 
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondAccountId);
-
-    expect(secondUserSpaceIds.has(companySpaceId)).toEqual(true);
-
-    const spaceAccountItem = await getSpaceAccountItem(
-        context.withCache(),
-        companySpaceId,
-        secondAccountId,
-    );
-
-    expect(spaceAccountItem).toMatchObject({
+    expect(
+        await getSpaceAccountItem(
+            context.withCache(),
+            firstSession.space.id,
+            secondSession.account.id,
+        ),
+    ).toMatchObject({
         role: "Member",
     });
 });
 
 test("second user also creates personal space", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
+    const {session: secondSession} = await testAnotherWorkSignUp(emailDomain, {
+        name: "Anthony Mose",
     });
 
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondAccountId);
-
+    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondSession.account.id);
     expect(secondUserSpaceIds.size).toEqual(2);
 
     const personalSpaceId = assertExists(
-        Array.from(secondUserSpaceIds).find(spaceId => spaceId !== companySpaceId),
+        Array.from(secondUserSpaceIds).find(spaceId => spaceId !== firstSession.space.id),
     );
 
-    const personalSpaceItem = await getSpaceItem(context.withCache(), personalSpaceId);
-
-    expect(personalSpaceItem).toMatchObject({
-        name: "Sarah’s Space",
+    expect(await getSpaceItem(context.withCache(), personalSpaceId)).toMatchObject({
+        name: "Anthony’s Space",
     });
 });
 
 test("second user is active in company space without invite", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
+    const {session: secondSession} = await testAnotherWorkSignUp(emailDomain);
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
-
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const spaceAccountItem = await getSpaceAccountItem(
-        context.withCache(),
-        companySpaceId,
-        secondAccountId,
-    );
-
-    expect(spaceAccountItem.state).toMatchObject({
-        type: "Active",
+    expect(
+        await getSpaceAccountItem(
+            context.withCache(),
+            firstSession.space.id,
+            secondSession.account.id,
+        ),
+    ).toMatchObject({
+        state: expect.objectContaining({
+            type: "Active",
+        }),
     });
 });
 
 test("second user opens company space by default", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
+    const {session: secondSession} = await testAnotherWorkSignUp(emailDomain);
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
-
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    const {openSpaceId: secondUserOpenSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    expect(secondUserOpenSpaceId).toEqual(companySpaceId);
+    expect(secondSession.space.id).toEqual(firstSession.space.id);
 });
 
 test("third user also gets auto-added to company space", async () => {
-    const emailDomain = `company-${generateId()}.com`;
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
+    await testAnotherWorkSignUp(emailDomain);
+    const {session: thirdSession} = await testAnotherWorkSignUp(emailDomain);
 
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePasswordEmails[0]!.oneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePasswordEmails[0]!.oneTimePassword,
-        sessionInfo,
-    );
-
-    const thirdEmailAddress = validateEmailAddress(`mike@${emailDomain}`);
-    const thirdOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), thirdEmailAddress);
-    });
-    const {accountId: thirdAccountId} = await getAccountEmailAddressForTest(
-        context,
-        thirdEmailAddress,
-    );
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: thirdAccountId,
-        name: "Mike Davis",
-        reactionCharacter: {type: "Yeti", variant: "Brown"},
-    });
-    const {openSpaceId: thirdUserOpenSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        thirdEmailAddress,
-        thirdOneTimePasswordEmails[0]!.oneTimePassword,
-        sessionInfo,
-    );
-
-    expect(thirdUserOpenSpaceId).toEqual(companySpaceId);
-
-    const spaceAccountItem = await getSpaceAccountItem(
-        context.withCache(),
-        companySpaceId,
-        thirdAccountId,
-    );
-
-    expect(spaceAccountItem).toMatchObject({
+    expect(
+        await getSpaceAccountItem(
+            context.withCache(),
+            firstSession.space.id,
+            thirdSession.account.id,
+        ),
+    ).toMatchObject({
         role: "Member",
     });
 });
 
 test("when auto-add is disabled user creates only personal space", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
-
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
-
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
 
     await SpacesTable.updateItem(
         context.anonymousAction(),
@@ -960,137 +600,55 @@ test("when auto-add is disabled user creates only personal space", async () => {
         },
     );
 
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
+    const {session: secondSession} = await testAnotherWorkSignUp(emailDomain);
 
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondAccountId);
+    const secondUserSpaceIds = await getAccountSpaceIdsForTest(context, secondSession.account.id);
 
     expect(secondUserSpaceIds.size).toEqual(1);
-    expect(secondUserSpaceIds.has(companySpaceId)).toEqual(false);
+    expect(secondUserSpaceIds.has(firstSession.space.id)).toEqual(false);
 });
 
-test("when role is member user gets added as member", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+test("email domain extraction is case insensitive", async () => {
+    const {session: firstSession, emailDomain} = await testWorkSignUp();
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
+    const {session: secondSession} = await testSignUp({
+        emailAddress: `test.2@${emailDomain.toUpperCase()}`,
     });
 
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    await SpacesTable.updateItem(
-        context.anonymousAction(),
-        {
-            partitionType: "AutoAddAccountsFromEmailDomain",
-            sortRangeType: "Space",
-            emailDomain,
-        },
-        item => {
-            assert(item);
-            return {...item, role: "Member"};
-        },
-    );
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const spaceAccountItem = await getSpaceAccountItem(
-        context.withCache(),
-        companySpaceId,
-        secondAccountId,
-    );
-
-    expect(spaceAccountItem).toMatchObject({
-        role: "Member",
-    });
+    expect(firstSession.space.id).toEqual(secondSession.space.id);
 });
 
-test("generic email domain does not trigger auto-add", async () => {
-    const emailAddress = validateEmailAddress(`test.${generateId()}@gmail.com`);
+test("attempting to sign up again after finishing sign up fails", async () => {
+    const {emailAddress} = await testPersonalSignUp();
+
+    await expect(
+        signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress),
+    ).rejects.toThrow(new FailedPreconditionError("Email address has already signed up"));
+});
+
+test("cannot save sign up profile after finishing sign up", async () => {
+    const emailAddress = validateEmailAddress(generatePersonalTestEmailAddress());
+
+    let accountId: AccountId | undefined;
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+        accountId = await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
     });
+
+    assert(accountId);
 
     const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
 
-    const {accountId} = await getAccountEmailAddressForTest(context, emailAddress);
-
-    await saveAccountSignUpProfile(context.withCache(), {
+    await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
+        name: "Anthony Mose 1",
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
+    });
+
+    await saveAccountSignUpProfile(context.anonymousAction(), {
+        accountId,
+        name: "Anthony Mose 2",
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
     });
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
@@ -1100,383 +658,647 @@ test("generic email domain does not trigger auto-add", async () => {
         sessionInfo,
     );
 
-    const spaceIds = await getAccountSpaceIdsForTest(context, accountId);
+    await expect(
+        saveAccountSignUpProfile(context.anonymousAction(), {
+            accountId,
+            name: "Anthony Mose 3",
+            reactionCharacter: {type: "Cat", variant: "Pink"},
+        }),
+    ).rejects.toThrow(new FailedPreconditionError("Account has already finished signing up"));
+});
 
+test("save account sign up profile then sign in", async () => {
+    const emailAddress = validateEmailAddress(generatePersonalTestEmailAddress());
+
+    let accountId: AccountId | undefined;
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        accountId = await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+    });
+
+    assert(accountId);
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await saveAccountSignUpProfile(context.anonymousAction(), {
+        accountId,
+        name: "Anthony Mose 1",
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
+    });
+
+    await attemptOneTimePasswordSignIn(
+        context.anonymousAction(),
+        emailAddress,
+        oneTimePassword,
+        sessionInfo,
+    );
+
+    const accountAfterSignIn = assertExists(
+        await dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
+            context.withCache(),
+            accountId,
+        ),
+    );
+
+    expect(accountAfterSignIn.account.initialData).toMatchObject({
+        name: "Anthony Mose 1",
+    });
+    expect(accountAfterSignIn.finishSignUpTransactionEntry).not.toBeNull();
+
+    await saveAccountSignUpProfile(context.anonymousAction(), {
+        accountId,
+        name: "Anthony Mose 2",
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
+    });
+});
+
+test("save account sign up profile after signing in and accepting invite but before finishing signing up", async () => {
+    const space = await TestSpace.create(context);
+    const admin = await space.createSession({role: "Admin"});
+    const emailAddress = validateEmailAddress(generatePersonalTestEmailAddress());
+
+    await space.inviteEmailAddress(admin.action(), emailAddress);
+
+    const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
+    const accountId = accountEmailAddressItem.accountId;
+
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await signUpAccountWithEmailAddress(context.anonymousAction(), emailAddress);
+    });
+
+    const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
+
+    await saveAccountSignUpProfile(context.withCache(), {
+        accountId,
+        name: "Anthony Mose 1",
+        reactionCharacter: pickRandomReactionCharacterForAccount(),
+    });
+
+    const {sessionId} = await attemptOneTimePasswordSignIn(
+        context.anonymousAction(),
+        emailAddress,
+        oneTimePassword,
+        sessionInfo,
+    );
+
+    const sessionContext = context.action({sessionId, accountId});
+
+    await acceptSpaceAccountInvite(sessionContext, space.id);
+
+    const accountAfterJoin = assertExists(
+        await dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
+            context.withCache(),
+            accountId,
+        ),
+    );
+
+    expect(accountAfterJoin.account.initialData).toMatchObject({
+        name: "Anthony Mose 1",
+    });
+    expect(accountAfterJoin.finishSignUpTransactionEntry).not.toBeNull();
+
+    await expect(
+        saveAccountSignUpProfile(context.anonymousAction(), {
+            accountId,
+            name: "Anthony Mose 2",
+            reactionCharacter: pickRandomReactionCharacterForAccount(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Can only finish account sign up when the account hasn’t joined any spaces (the account may have pending invites)",
+        ),
+    );
+});
+
+test("invite account to space without accepting", async () => {
+    const {session: session1} = await testWorkSignUp();
+
+    const emailAddress2 = generatePersonalTestEmailAddress();
+    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+
+    const {session: session2} = await testSignUp({emailAddress: emailAddress2});
+
+    const spaceIds = await getAccountSpaceIdsForTest(context, session2.account.id);
     expect(spaceIds.size).toEqual(1);
+    expect(spaceIds.has(session1.space.id)).toEqual(false);
 });
 
-test("email domain extraction is case insensitive", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain.toUpperCase()}`);
+test("invite account to space and accept invite", async () => {
+    const {session: session1} = await testWorkSignUp();
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
+    const emailAddress2 = generatePersonalTestEmailAddress();
+    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
 
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
+    const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
+    await acceptSpaceAccountInvite(session2.action(), session1.space.id);
 
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain.toLowerCase()}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    const {openSpaceId: secondUserOpenSpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    expect(secondUserOpenSpaceId).toEqual(companySpaceId);
+    const spaceIds = await getAccountSpaceIdsForTest(context, session2.account.id);
+    expect(spaceIds.size).toEqual(2);
+    expect(spaceIds.has(session1.space.id)).toEqual(true);
 });
 
-test("second user with company email gets welcome package affinity points for company space", async () => {
-    const emailDomain = `company-${generateId()}.com`;
-    const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
+test("invite account to work space that would be auto-added to space", async () => {
+    const {session: session1, emailDomain} = await testWorkSignUp();
 
-    const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-        await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
-    });
+    const emailAddress2 = generateWorkTestEmailAddress(emailDomain);
+    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
 
-    const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
+    const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
-    const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-        context,
-        firstEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: firstAccountId,
-        name: "John Smith",
-        reactionCharacter: {type: "Cat", variant: "Grey"},
-    });
-
-    const {openSpaceId: companySpaceId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        firstEmailAddress,
-        firstOneTimePassword,
-        sessionInfo,
-    );
-
-    assert(companySpaceId);
-
-    const secondEmailAddress = validateEmailAddress(`sarah@${emailDomain}`);
-
-    const secondOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-        async () => {
-            await signUpAccountWithEmailAddress(context.anonymousAction(), secondEmailAddress);
-        },
-    );
-
-    const secondOneTimePassword = secondOneTimePasswordEmails[0]!.oneTimePassword;
-
-    const {accountId: secondAccountId} = await getAccountEmailAddressForTest(
-        context,
-        secondEmailAddress,
-    );
-
-    await saveAccountSignUpProfile(context.withCache(), {
-        accountId: secondAccountId,
-        name: "Sarah Johnson",
-        reactionCharacter: {type: "Pigeon", variant: "Brown"},
-    });
-
-    await attemptOneTimePasswordSignUpThenCreateSpace(
-        context.anonymousAction(),
-        secondEmailAddress,
-        secondOneTimePassword,
-        sessionInfo,
-    );
-
-    const companySpaceChannels = await expensivelyGetChannelsInSpaceForTest(
-        context,
-        companySpaceId,
-    );
-    const companySpaceGeneralChannel = companySpaceChannels.find(
-        channel => channel.name === "General",
-    );
-
-    expect(
-        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mock.calls.find(
-            call => call[1].accountId === secondAccountId && call[1].spaceId === companySpaceId,
-        )?.[1],
-    ).toMatchObject({
-        entityId: `Channel:${companySpaceGeneralChannel!.id}`,
-    });
+    const spaceIds = await getAccountSpaceIdsForTest(context, session2.account.id);
+    expect(spaceIds.size).toEqual(2);
+    expect(spaceIds.has(session1.space.id)).toEqual(true);
 });
 
-// Some `saveAccountSignUpProfile()` tests are in this file so we can use code
-// from `//server/spaces/create`.
-describe("saveAccountSignUpProfile", () => {
-    test("cannot save sign up profile after finishing sign up", async () => {
-        const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
+test("invited account to space that would be auto-added to space can’t accept invite after being auto added", async () => {
+    const {session: session1, emailDomain} = await testWorkSignUp();
 
-        const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-            await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
+    const emailAddress2 = generateWorkTestEmailAddress(emailDomain);
+    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+
+    const {session: session2} = await testSignUp({emailAddress: emailAddress2});
+
+    await expect(acceptSpaceAccountInvite(session2.action(), session1.space.id)).rejects.toThrow(
+        new FailedPreconditionError("Account invitation is not in pending state"),
+    );
+});
+
+describe("Welcome package", () => {
+    function getSearchAffinityEntityPointCalls() {
+        const callsBySpaceIdByAccountId = new DefaultMap<
+            AccountId,
+            DefaultMap<
+                SpaceId,
+                Array<{
+                    accountId: AccountId;
+                    spaceId: SpaceId;
+                    entityId: SearchAffinityEntityId;
+                    points: number;
+                }>
+            >
+        >(() => new DefaultMap(() => []));
+
+        for (const call of addSearchAffinityEntityPoints.mock.calls) {
+            callsBySpaceIdByAccountId
+                .getOrSetDefault(call[1].accountId)
+                .getOrSetDefault(call[1].spaceId)
+                .push(call[1]);
+        }
+
+        return Object.fromEntries(
+            mapIterable(callsBySpaceIdByAccountId, ([accountId, callsBySpaceId]) => [
+                accountId,
+                Object.fromEntries(
+                    mapIterable(callsBySpaceId, ([spaceId, calls]) => [
+                        spaceId,
+                        calls
+                            .map(call => omitObject(call, ["spaceId", "accountId"]))
+                            .sort((a, b) => b.points - a.points),
+                    ]),
+                ),
+            ]),
+        );
+    }
+
+    test("applies welcome package to new personal space", async () => {
+        const {session} = await testPersonalSignUp();
+
+        const item = await SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "WelcomePackage",
+            spaceId: session.space.id,
         });
 
-        const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-        const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-        const accountId = accountEmailAddressItem.accountId;
-
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId,
-            name: "First Finish",
-            reactionCharacter: {type: "Cat", variant: "Grey"},
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${item.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${item.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${item.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
         });
+    });
 
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId,
-            name: "Second Finish",
-            reactionCharacter: {type: "Cat", variant: "Yellow"},
-        });
+    test("applies welcome package to new personal and new work space", async () => {
+        const {session} = await testWorkSignUp();
 
-        await attemptOneTimePasswordSignUpThenCreateSpace(
-            context.anonymousAction(),
-            emailAddress,
-            oneTimePassword,
-            sessionInfo,
+        const spaceIds = await getAccountSpaceIdsForTest(context, session.account.id);
+        const personalSpaceId = assertExists(
+            iterableFind(spaceIds, spaceId => spaceId !== session.space.id),
         );
 
-        await expect(
-            saveAccountSignUpProfile(context.withCache(), {
-                accountId,
-                name: "Third Finish",
-                reactionCharacter: {type: "Cat", variant: "Pink"},
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
             }),
-        ).rejects.toThrow(new FailedPreconditionError("Account has already finished signing up"));
-    });
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
 
-    test("save account sign up profile then sign in", async () => {
-        const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-        const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-            await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-        });
-
-        const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-        const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-        const accountId = accountEmailAddressItem.accountId;
-
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId,
-            name: "Complete User",
-            reactionCharacter: {type: "Frog", variant: "Green"},
-        });
-
-        const {sessionId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-            context.anonymousAction(),
-            emailAddress,
-            oneTimePassword,
-            sessionInfo,
-        );
-
-        const accountAfterSignIn = assertExists(
-            await dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
-                context.withCache(),
-                accountId,
-            ),
-        );
-
-        expect(sessionId).toEqual(expect.any(String));
-        expect(accountAfterSignIn.account.initialData).toMatchObject({
-            name: "Complete User",
-            reactionCharacter: {type: "Frog", variant: "Green"},
-        });
-        expect(accountAfterSignIn.finishSignUpTransactionEntry).toBeNull();
-    });
-
-    test("save account sign up profile with pending invite then accept invite", async () => {
-        const space = await TestSpace.create(context);
-        const admin = await space.createSession({role: "Admin"});
-        const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-        await space.inviteEmailAddress(admin.action(), emailAddress);
-
-        const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-        const accountId = accountEmailAddressItem.accountId;
-
-        const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-            await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-        });
-
-        const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId,
-            name: "Invited Complete User",
-            reactionCharacter: {type: "Tree", variant: "Green"},
-        });
-
-        const {sessionId} = await attemptOneTimePasswordSignUpThenCreateSpace(
-            context.anonymousAction(),
-            emailAddress,
-            oneTimePassword,
-            sessionInfo,
-        );
-
-        const sessionContext = context.action({sessionId, accountId});
-
-        await acceptSpaceAccountInvite(sessionContext, space.id);
-
-        const accountAfterJoin = assertExists(
-            await dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization(
-                context.withCache(),
-                accountId,
-            ),
-        );
-
-        expect(accountAfterJoin.account.initialData).toMatchObject({
-            name: "Invited Complete User",
-            reactionCharacter: {type: "Tree", variant: "Green"},
-        });
-        expect(accountAfterJoin.finishSignUpTransactionEntry).toBeNull();
-    });
-});
-
-// Some `signUpAccountWithEmailAddress()` tests are in this file so we can use code
-// from `//server/spaces/create`.
-describe("signUpAccountWithEmailAddress", () => {
-    test("attempting to sign up after finishing sign up fails", async () => {
-        const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
-
-        const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-            await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
-        });
-
-        const oneTimePassword = oneTimePasswordEmails[0]!.oneTimePassword;
-
-        const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
-
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId: accountEmailAddressItem.accountId,
-            name: "Test User",
-            reactionCharacter: {type: "Cat", variant: "Grey"},
-        });
-
-        await attemptOneTimePasswordSignUpThenCreateSpace(
-            context.anonymousAction(),
-            emailAddress,
-            oneTimePassword,
-            sessionInfo,
-        );
-
-        await expect(
-            signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress),
-        ).rejects.toThrow(new FailedPreconditionError("Email address has already signed up"));
-    });
-});
-
-// Some `acceptSpaceAccountInvite()` tests are in this file so we can use code
-// from `//server/spaces/create`.
-describe("acceptSpaceAccountInvite", () => {
-    test("accepting space invite applies welcome package affinity points when welcome package exists", async () => {
-        const emailDomain = `company-${generateId()}.com`;
-        const firstEmailAddress = validateEmailAddress(`john@${emailDomain}`);
-
-        const firstOneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(
-            async () => {
-                await signUpAccountWithEmailAddress(context.anonymousAction(), firstEmailAddress);
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
             },
+        });
+    });
+
+    test("applies welcome package and suggested accounts to second account in work space", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {session} = await testAnotherWorkSignUp(emailDomain);
+
+        const spaceIds = await getAccountSpaceIdsForTest(context, session.account.id);
+        const personalSpaceId = assertExists(
+            iterableFind(spaceIds, spaceId => spaceId !== session.space.id),
         );
 
-        const firstOneTimePassword = firstOneTimePasswordEmails[0]!.oneTimePassword;
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
 
-        const {accountId: firstAccountId} = await getAccountEmailAddressForTest(
-            context,
-            firstEmailAddress,
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package and suggested accounts to third account in work space", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+        const {session: session2} = await testAnotherWorkSignUp(emailDomain);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {session} = await testAnotherWorkSignUp(emailDomain);
+
+        const spaceIds = await getAccountSpaceIdsForTest(context, session.account.id);
+        const personalSpaceId = assertExists(
+            iterableFind(spaceIds, spaceId => spaceId !== session.space.id),
         );
 
-        await saveAccountSignUpProfile(context.withCache(), {
-            accountId: firstAccountId,
-            name: "John Smith",
-            reactionCharacter: {type: "Cat", variant: "Grey"},
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package and suggested accounts to fifth account in work space", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+        const {session: session2} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session3} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session4} = await testAnotherWorkSignUp(emailDomain);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {session} = await testAnotherWorkSignUp(emailDomain);
+
+        const spaceIds = await getAccountSpaceIdsForTest(context, session.account.id);
+        const personalSpaceId = assertExists(
+            iterableFind(spaceIds, spaceId => spaceId !== session.space.id),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                    {entityId: `Account:${session3.account.id}`, points: 2.995},
+                    {entityId: `Account:${session4.account.id}`, points: 2.994},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package and suggested accounts to tenth account in work space", async () => {
+        const {session: session1, emailDomain} = await testWorkSignUp();
+        const {session: session2} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session3} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session4} = await testAnotherWorkSignUp(emailDomain);
+        const {session: session5} = await testAnotherWorkSignUp(emailDomain);
+        await testAnotherWorkSignUp(emailDomain);
+        await testAnotherWorkSignUp(emailDomain);
+        await testAnotherWorkSignUp(emailDomain);
+        await testAnotherWorkSignUp(emailDomain);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const {session} = await testAnotherWorkSignUp(emailDomain);
+
+        const spaceIds = await getAccountSpaceIdsForTest(context, session.account.id);
+        const personalSpaceId = assertExists(
+            iterableFind(spaceIds, spaceId => spaceId !== session.space.id),
+        );
+
+        const [workItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: personalSpaceId,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [session.space.id]: [
+                    {entityId: `Channel:${workItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${workItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${workItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${session1.account.id}`, points: 2.997},
+                    {entityId: `Account:${session2.account.id}`, points: 2.996},
+                    {entityId: `Account:${session3.account.id}`, points: 2.995},
+                    {entityId: `Account:${session4.account.id}`, points: 2.994},
+                    {entityId: `Account:${session5.account.id}`, points: 2.993},
+                ],
+                [personalSpaceId]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package for second account invited to space", async () => {
+        const {session: inviterSession} = await testPersonalSignUp();
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const emailAddress = generatePersonalTestEmailAddress();
+
+        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+
+        const {session} = await testSignUp({emailAddress});
+
+        await acceptSpaceAccountInvite(session.action(), inviterSession.space.id);
+
+        const [inviterItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: inviterSession.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [inviterSession.space.id]: [
+                    {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                ],
+                [session.space.id]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package for second account invited to space when accepting invite", async () => {
+        const {session: inviterSession} = await testPersonalSignUp();
+
+        const emailAddress = generatePersonalTestEmailAddress();
+
+        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+
+        const {session} = await testSignUp({emailAddress});
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        await acceptSpaceAccountInvite(session.action(), inviterSession.space.id);
+
+        const inviterItem = await SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "WelcomePackage",
+            spaceId: inviterSession.space.id,
         });
 
-        const {sessionId: firstSessionId, openSpaceId: companySpaceId} =
-            await attemptOneTimePasswordSignUpThenCreateSpace(
-                context.anonymousAction(),
-                firstEmailAddress,
-                firstOneTimePassword,
-                sessionInfo,
-            );
-
-        assert(companySpaceId);
-
-        const companySpaceChannels = await expensivelyGetChannelsInSpaceForTest(
-            context,
-            companySpaceId,
-        );
-        const companySpaceGeneralChannel = assertExists(
-            companySpaceChannels.find(channel => channel.name === "General"),
-        );
-
-        dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mockClear();
-
-        const secondAccount = await TestAccount.create(context);
-        const secondSession = await TestSession.create(secondAccount);
-        const secondEmailAddress = await secondAccount.createEmailAddress();
-
-        expect(dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mock.calls.length).toBe(
-            0,
-        );
-
-        await inviteEmailAddressesToSpace(
-            context.action({sessionId: firstSessionId, accountId: firstAccountId}),
-            {
-                spaceId: companySpaceId,
-                emailAddresses: [secondEmailAddress],
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [inviterSession.space.id]: [
+                    {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                ],
             },
+        });
+    });
+
+    test("applies welcome package for third account invited to space", async () => {
+        const {session: inviterSession} = await testPersonalSignUp();
+
+        const invitedEmailAddress1 = generatePersonalTestEmailAddress();
+        await inviterSession.space.inviteEmailAddress(
+            inviterSession.action(),
+            invitedEmailAddress1,
         );
+        const {session: invitedSession1} = await testSignUp({emailAddress: invitedEmailAddress1});
+        await acceptSpaceAccountInvite(invitedSession1.action(), inviterSession.space.id);
 
-        expect(dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mock.calls.length).toBe(
-            0,
+        addSearchAffinityEntityPoints.mockClear();
+
+        const emailAddress = generatePersonalTestEmailAddress();
+
+        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+
+        const {session} = await testSignUp({emailAddress});
+
+        await acceptSpaceAccountInvite(session.action(), inviterSession.space.id);
+
+        const [inviterItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: inviterSession.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [inviterSession.space.id]: [
+                    {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.996},
+                ],
+                [session.space.id]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
+        });
+    });
+
+    test("applies welcome package for fifth account invited to space", async () => {
+        const {session: inviterSession} = await testPersonalSignUp();
+
+        const invitedEmailAddress1 = generatePersonalTestEmailAddress();
+        await inviterSession.space.inviteEmailAddress(
+            inviterSession.action(),
+            invitedEmailAddress1,
         );
+        const {session: invitedSession1} = await testSignUp({emailAddress: invitedEmailAddress1});
+        await acceptSpaceAccountInvite(invitedSession1.action(), inviterSession.space.id);
 
-        await acceptSpaceAccountInvite(secondSession.action(), companySpaceId);
+        const invitedEmailAddress2 = generatePersonalTestEmailAddress();
+        await inviterSession.space.inviteEmailAddress(
+            inviterSession.action(),
+            invitedEmailAddress2,
+        );
+        const {session: invitedSession2} = await testSignUp({emailAddress: invitedEmailAddress2});
+        await acceptSpaceAccountInvite(invitedSession2.action(), inviterSession.space.id);
 
-        expect(
-            dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.mock.calls[0]?.[1],
-        ).toMatchObject({
-            spaceId: companySpaceId,
-            accountId: secondAccount.id,
-            entityId: `Channel:${companySpaceGeneralChannel.id}`,
+        const invitedEmailAddress3 = generatePersonalTestEmailAddress();
+        await inviterSession.space.inviteEmailAddress(
+            inviterSession.action(),
+            invitedEmailAddress3,
+        );
+        const {session: invitedSession3} = await testSignUp({emailAddress: invitedEmailAddress3});
+        await acceptSpaceAccountInvite(invitedSession3.action(), inviterSession.space.id);
+
+        addSearchAffinityEntityPoints.mockClear();
+
+        const emailAddress = generatePersonalTestEmailAddress();
+
+        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+
+        const {session} = await testSignUp({emailAddress});
+
+        await acceptSpaceAccountInvite(session.action(), inviterSession.space.id);
+
+        const [inviterItem, personalItem] = await runAllPromises([
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: inviterSession.space.id,
+            }),
+            SpacesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "WelcomePackage",
+                spaceId: session.space.id,
+            }),
+        ]);
+
+        expect(getSearchAffinityEntityPointCalls()).toEqual({
+            [session.account.id]: {
+                [inviterSession.space.id]: [
+                    {entityId: `Channel:${inviterItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${inviterItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${inviterItem.chatGptBotAccountId}`, points: 2.998},
+                    {entityId: `Account:${inviterSession.account.id}`, points: 2.997},
+                    {entityId: `Account:${invitedSession1.account.id}`, points: 2.996},
+                    {entityId: `Account:${invitedSession2.account.id}`, points: 2.995},
+                    {entityId: `Account:${invitedSession3.account.id}`, points: 2.994},
+                ],
+                [session.space.id]: [
+                    {entityId: `Channel:${personalItem.generalChannelId}`, points: 3},
+                    {entityId: `Channel:${personalItem.randomChannelId}`, points: 2.999},
+                    {entityId: `Account:${personalItem.chatGptBotAccountId}`, points: 2.998},
+                ],
+            },
         });
     });
 });

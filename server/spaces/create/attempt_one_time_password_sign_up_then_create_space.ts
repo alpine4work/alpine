@@ -214,8 +214,6 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 welcomePackageItem,
                                 suggestedAccountIds,
                             ] = await runAllPromises([
-                                // NOCOMMIT: Test auto-adding an account to a space where the account already
-                                // has a pending invite.
                                 getAddSpaceAccountTransactionEntries(context, {
                                     currentTime,
                                     space: {
@@ -253,8 +251,6 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
 
                                 // Load the first few `AccountId`s in the space so we can populate them in the
                                 // suggested list.
-                                //
-                                // NOCOMMIT: Test!
                                 dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
                                     context,
                                     autoAddAccountsFromEmailDomainItem.spaceId,

@@ -5,8 +5,9 @@ import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum
 import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} from "~/server/spaces/instantiate_bot_space_account.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {chatGptKnownBotId} from "~/shared/bots/known_bot_ids.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 export async function createSpaceWelcomePackageTransactionEntries(
@@ -56,19 +57,30 @@ export async function createSpaceWelcomePackageTransactionEntries(
         }),
     );
 
-    // Don't instantiate ChatGPT in test environments since we won't have created
+    let botId: BotId | null = null;
+
+    switch (process.env.NODE_ENV) {
+        case "development":
+            botId = getDynamoSeedConstants().chatGptBotId;
+            break;
+        case "production":
+            botId = chatGptKnownBotId;
+            break;
+        case "test":
+            botId = chatGptBotIdForTest;
+            break;
+    }
+
+    // Don't instantiate ChatGPT in test environments where we haven't created
     // a `BotId`.
-    if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "production") {
+    if (botId !== null) {
         chatGptBotAccountId = generateId<AccountId>();
 
         transactionEntries.push(
             await internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries(context, {
                 currentTime,
                 spaceId,
-                botId:
-                    process.env.NODE_ENV !== "production"
-                        ? getDynamoSeedConstants().chatGptBotId
-                        : chatGptKnownBotId,
+                botId,
                 accountId: chatGptBotAccountId,
             }).then(({transactionEntries}) => transactionEntries),
         );
@@ -89,4 +101,25 @@ export async function createSpaceWelcomePackageTransactionEntries(
         welcomePackageItem,
         transactionEntries: transactionEntries.flat(),
     };
+}
+
+let chatGptBotIdForTest: BotId | null = null;
+
+/**
+ * Allow tests to provide a ChatGPT bot.
+ */
+export async function withChatGptBotIdForTest<Value>(
+    botId: BotId,
+    action: () => Promise<Value>,
+): Promise<Value> {
+    assert(process.env.NODE_ENV === "test");
+    assert(chatGptBotIdForTest === null);
+
+    chatGptBotIdForTest = botId;
+    try {
+        const value = await action();
+        return value;
+    } finally {
+        chatGptBotIdForTest = null;
+    }
 }

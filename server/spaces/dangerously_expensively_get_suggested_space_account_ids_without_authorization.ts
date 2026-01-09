@@ -60,6 +60,11 @@ export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAu
         sliceIterable(
             filterMapIterable(items, item => {
                 if (item.state.type !== "Active") return;
+
+                // Don't include bots in suggested accounts. We separately add affinity points
+                // for bots in the welcome package.
+                if (item.botId) return;
+
                 return item.accountId;
             }),
             0,

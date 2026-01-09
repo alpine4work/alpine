@@ -8,6 +8,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "create",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/search/data/index",
         "//server/spaces/test_helpers",

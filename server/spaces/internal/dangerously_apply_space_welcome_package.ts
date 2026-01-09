@@ -39,8 +39,6 @@ export async function dangerouslyApplySpaceWelcomePackage(
             entityId: `Channel:${randomChannelId}`,
             points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 1,
         }),
-        // NOCOMMIT: Test that `chatGptBotAccountId` gets the right number of affinity
-        // points in the company space. In my testing it gets more?
         chatGptBotAccountId
             ? context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
                   spaceId,

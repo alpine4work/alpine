@@ -17,6 +17,7 @@ export async function getSessionIfExists(
 ): Promise<{
     readonly id: SessionId;
     readonly accountId: AccountId;
+    readonly createdTime: Date;
 } | null> {
     const [sessionItem, accountItem] = await runAllPromises([
         AccountsTable.getItemIfExists(context, {
@@ -70,5 +71,6 @@ export async function getSessionIfExists(
     return {
         id: sessionId,
         accountId: sessionItem.accountId,
+        createdTime: sessionItem.createdTime,
     };
 }

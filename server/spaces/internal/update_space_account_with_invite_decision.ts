@@ -200,7 +200,6 @@ export async function updateSpaceAccountWithInviteDecision(
                     await dangerouslyApplySpaceWelcomePackage(context, {
                         accountId,
                         welcomePackageItem,
-                        // NOCOMMIT: Test!
                         suggestedAccountIds,
                     });
                 }
