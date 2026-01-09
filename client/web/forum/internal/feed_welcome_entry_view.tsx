@@ -17,7 +17,6 @@ import {
 } from "~/client/web/styles/styles.js";
 import {
     boldClassName,
-    italicClassName,
     linkClassName,
     paragraphClassName,
 } from "~/shared/design/core/constant_class_names.js";
@@ -75,11 +74,8 @@ export function FeedWelcomeEntryView({entry}: {entry: FeedWelcomeEntryModel}) {
             </Box>
             <Box fontSize="100" paddingY={postContentViewInnerMarginY} userSelect="text">
                 <Box className={paragraphClassName}>
-                    Welcome to Alpine. We’re excited to have you here.
-                </Box>
-                <Box className={paragraphClassName}>
-                    This is your “For you” feed. Everything you or others do in this space will show
-                    up here.
+                    Welcome to Alpine. This is your “For you” feed. Everything you (or others) do in
+                    this space will show up here.
                 </Box>
                 {entry.emailDomainWithAutoAddAccountsEnabled && (
                     <Box className={paragraphClassName}>
@@ -88,22 +84,19 @@ export function FeedWelcomeEntryView({entry}: {entry: FeedWelcomeEntryModel}) {
                         <strong className={boldClassName}>
                             @{entry.emailDomainWithAutoAddAccountsEnabled}
                         </strong>{" "}
-                        email address will be{" "}
-                        <em className={italicClassName}>automatically added</em> to this space with
-                        you. The docs and tasks you create are private until you share them.
+                        email address will be added to this space with you. The docs and tasks you
+                        create are private until you share them.
                     </Box>
                 )}
                 <Box className={paragraphClassName}>
-                    Let us know what you think about Alpine here:
-                </Box>
-                <Box className={paragraphClassName}>
+                    Let us know what you think about Alpine:{" "}
                     <FeedWelcomeEntryViewLink
                         href="mailto:feedback@alpine.com"
                         label="feedback@alpine.com"
                     />
                 </Box>
-                <Box className={paragraphClassName}>or here:</Box>
                 <Box className={paragraphClassName}>
+                    Or on social media:{" "}
                     <FeedWelcomeEntryViewLink
                         href="https://x.com/alpine4work"
                         label="X"
