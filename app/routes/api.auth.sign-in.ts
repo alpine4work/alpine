@@ -1,4 +1,3 @@
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {attemptOneTimePasswordSignInAndGetLastOpenedSpace} from "~/server/spaces/create/attempt_one_time_password_sign_in_and_get_last_opened_space.js";
 import {getRequestIpAddress} from "~/server/tracer/trace_server_response.js";
@@ -20,7 +19,7 @@ export async function action({request, context, span}: LoaderArgs) {
         const {sessionId, sessionAccountId, openSpaceId} =
             await attemptOneTimePasswordSignInAndGetLastOpenedSpace(
                 context,
-                validateEmailAddress(input.emailAddress),
+                input.emailAddress,
                 input.oneTimePassword,
                 {
                     ipAddress: getRequestIpAddress(request),

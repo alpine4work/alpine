@@ -8,7 +8,6 @@ import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_p
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
@@ -32,6 +31,7 @@ import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
@@ -718,7 +718,7 @@ test("save account sign up profile after signing in and accepting invite but bef
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(generatePersonalTestEmailAddress());
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;
@@ -775,7 +775,7 @@ test("invite account to space without accepting", async () => {
     const {session: session1} = await testWorkSignUp();
 
     const emailAddress2 = generatePersonalTestEmailAddress();
-    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+    await session1.inviteEmailAddress(emailAddress2);
 
     const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
@@ -788,7 +788,7 @@ test("invite account to space and accept invite", async () => {
     const {session: session1} = await testWorkSignUp();
 
     const emailAddress2 = generatePersonalTestEmailAddress();
-    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+    await session1.inviteEmailAddress(emailAddress2);
 
     const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
@@ -803,7 +803,7 @@ test("invite account to work space that would be auto-added to space", async () 
     const {session: session1, emailDomain} = await testWorkSignUp();
 
     const emailAddress2 = generateWorkTestEmailAddress(emailDomain);
-    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+    await session1.inviteEmailAddress(emailAddress2);
 
     const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
@@ -816,7 +816,7 @@ test("invited account to space that would be auto-added to space can’t accept 
     const {session: session1, emailDomain} = await testWorkSignUp();
 
     const emailAddress2 = generateWorkTestEmailAddress(emailDomain);
-    await session1.space.inviteEmailAddress(session1.action(), emailAddress2);
+    await session1.inviteEmailAddress(emailAddress2);
 
     const {session: session2} = await testSignUp({emailAddress: emailAddress2});
 
@@ -1114,7 +1114,7 @@ describe("Welcome package", () => {
 
         const emailAddress = generatePersonalTestEmailAddress();
 
-        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+        await inviterSession.inviteEmailAddress(emailAddress);
 
         const {session} = await testSignUp({emailAddress});
 
@@ -1155,7 +1155,7 @@ describe("Welcome package", () => {
 
         const emailAddress = generatePersonalTestEmailAddress();
 
-        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+        await inviterSession.inviteEmailAddress(emailAddress);
 
         const {session} = await testSignUp({emailAddress});
 
@@ -1185,10 +1185,7 @@ describe("Welcome package", () => {
         const {session: inviterSession} = await testPersonalSignUp();
 
         const invitedEmailAddress1 = generatePersonalTestEmailAddress();
-        await inviterSession.space.inviteEmailAddress(
-            inviterSession.action(),
-            invitedEmailAddress1,
-        );
+        await inviterSession.inviteEmailAddress(invitedEmailAddress1);
         const {session: invitedSession1} = await testSignUp({emailAddress: invitedEmailAddress1});
         await acceptSpaceAccountInvite(invitedSession1.action(), inviterSession.space.id);
 
@@ -1196,7 +1193,7 @@ describe("Welcome package", () => {
 
         const emailAddress = generatePersonalTestEmailAddress();
 
-        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+        await inviterSession.inviteEmailAddress(emailAddress);
 
         const {session} = await testSignUp({emailAddress});
 
@@ -1237,26 +1234,17 @@ describe("Welcome package", () => {
         const {session: inviterSession} = await testPersonalSignUp();
 
         const invitedEmailAddress1 = generatePersonalTestEmailAddress();
-        await inviterSession.space.inviteEmailAddress(
-            inviterSession.action(),
-            invitedEmailAddress1,
-        );
+        await inviterSession.inviteEmailAddress(invitedEmailAddress1);
         const {session: invitedSession1} = await testSignUp({emailAddress: invitedEmailAddress1});
         await acceptSpaceAccountInvite(invitedSession1.action(), inviterSession.space.id);
 
         const invitedEmailAddress2 = generatePersonalTestEmailAddress();
-        await inviterSession.space.inviteEmailAddress(
-            inviterSession.action(),
-            invitedEmailAddress2,
-        );
+        await inviterSession.inviteEmailAddress(invitedEmailAddress2);
         const {session: invitedSession2} = await testSignUp({emailAddress: invitedEmailAddress2});
         await acceptSpaceAccountInvite(invitedSession2.action(), inviterSession.space.id);
 
         const invitedEmailAddress3 = generatePersonalTestEmailAddress();
-        await inviterSession.space.inviteEmailAddress(
-            inviterSession.action(),
-            invitedEmailAddress3,
-        );
+        await inviterSession.inviteEmailAddress(invitedEmailAddress3);
         const {session: invitedSession3} = await testSignUp({emailAddress: invitedEmailAddress3});
         await acceptSpaceAccountInvite(invitedSession3.action(), inviterSession.space.id);
 
@@ -1264,7 +1252,7 @@ describe("Welcome package", () => {
 
         const emailAddress = generatePersonalTestEmailAddress();
 
-        await inviterSession.space.inviteEmailAddress(inviterSession.action(), emailAddress);
+        await inviterSession.inviteEmailAddress(emailAddress);
 
         const {session} = await testSignUp({emailAddress});
 

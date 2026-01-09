@@ -1,5 +1,3 @@
-import {DynamoEmailAddressSchema} from "~/server/dynamo/core/internal/dynamo_email_address_schema.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {
     ScheduleDateTime,
     deserializeScheduleDateTimeString,
@@ -44,7 +42,9 @@ import {
     orderKeyDigits,
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
+import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {
     LabelStringWithoutMaxLengthSchema,
     maxLabelStringLength,
@@ -670,12 +670,12 @@ export class DynamoKeyAttributeSchema<Value> {
                 "Can’t start a label string with U+10FFFF",
             );
 
-            const serializedString = DynamoEmailAddressSchema.serialize(value);
+            const serializedString = EmailAddressSchema.serialize(value);
             assert(typeof serializedString === "string");
             return serializeStringDynamoKeyAttribute(serializedString);
         },
         deserialize: keyAttribute =>
-            DynamoEmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+            EmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
 
         // Order preserving binary string encodings are challenging to get right. We
         // can't encode the length at the beginning of the string since longer strings

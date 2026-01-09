@@ -1,4 +1,5 @@
 import {LinkDescriptor, json, redirect} from "@remix-run/server-runtime";
+import {Params} from "react-router";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {AuthenticationView} from "~/client/web/auth/authentication_view.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";

@@ -1,8 +1,8 @@
 import {subHours} from "date-fns";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**
  * Rewind an email address's one time password sign in state by some number of

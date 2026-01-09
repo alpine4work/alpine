@@ -11,7 +11,6 @@ import {updateAccountReactionCharacter} from "~/server/accounts/update_account_r
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {updateOurAccountObservedTimeZone} from "~/server/accounts/update_our_account_observed_time_zone.js";
 import {updateOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/update_our_last_opened_space_id.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -149,7 +148,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {accountId, hasNotSignedUp} = await regenerateOneTimePasswordSignIn(
                 context,
-                validateEmailAddress(input.emailAddress),
+                input.emailAddress,
             );
             return {accountId, hasNotSignedUp};
         },
@@ -158,10 +157,7 @@ export default implementRpcs(definitions, {
     signUpAccountWithEmailAddress: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const accountId = await signUpAccountWithEmailAddress(
-                context,
-                validateEmailAddress(input.emailAddress),
-            );
+            const accountId = await signUpAccountWithEmailAddress(context, input.emailAddress);
             return {accountId};
         },
     },

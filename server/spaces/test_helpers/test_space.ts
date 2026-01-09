@@ -1,4 +1,3 @@
-import {ServerSessionActionContextWithEmail} from "~/server/context/server_action_context.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {addSpaceAccountForTest, createSpaceForTest} from "~/server/spaces/create_space_for_test.js";
 import {getSpace} from "~/server/spaces/get_space.js";
@@ -187,11 +186,8 @@ export class TestSpace {
      * If you're expecting to validate errors from this call, use
      * inviteEmailAddressesToSpace directly.
      */
-    public async inviteEmailAddress(
-        context: ServerSessionActionContextWithEmail,
-        emailAddress: string,
-    ) {
-        const result = await inviteEmailAddressesToSpace(context, {
+    public async inviteEmailAddress(session: TestSession, emailAddress: string) {
+        const result = await inviteEmailAddressesToSpace(session.action(), {
             spaceId: this.id,
             emailAddresses: [emailAddress],
         });
@@ -225,10 +221,10 @@ export class TestSpace {
      * inviteEmailAddressesToSpace directly.
      */
     public async inviteEmailAddressAndCreateSession(
-        context: ServerSessionActionContextWithEmail,
+        inviterSession: TestSession,
         emailAddress: string,
     ) {
-        const account = await this.inviteEmailAddress(context, emailAddress);
+        const account = await this.inviteEmailAddress(inviterSession, emailAddress);
 
         const testAccount = await TestAccount.get(this.context, account.id);
         const session = await TestSpaceSession._create(this, testAccount);

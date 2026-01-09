@@ -6,6 +6,7 @@ import {
     AuthenticationState,
 } from "~/client/web/auth/authentication_state.js";
 import {Form, FormRef} from "~/client/web/auth/internal/form.js";
+import {navigateAfterSignInOrSignUp} from "~/client/web/auth/internal/navigate_after_sign_in_or_sign_up.js";
 import {
     OneTimePasswordInput,
     OneTimePasswordInputRef,
@@ -16,7 +17,7 @@ import {Button} from "~/client/web/design/button.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {NavigateFunction, useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     AuthSignInOrSignUpInputSchema,
@@ -192,27 +193,4 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
             <Spacer space="8" />
         </Form>
     );
-}
-
-export async function navigateAfterSignInOrSignUp({
-    navigate,
-    searchParams,
-    openSpaceId,
-}: {
-    navigate: NavigateFunction;
-    searchParams: URLSearchParams;
-    openSpaceId: SpaceId | null;
-}) {
-    const toSearchParam = searchParams.get("to");
-
-    if (toSearchParam?.startsWith("/")) {
-        // Immediately navigate to the `to` search param.
-        await navigate(toSearchParam);
-    } else if (openSpaceId) {
-        // Open the space sign in (or sign up) tells us to open.
-        await navigate(`/s/${openSpaceId}?consistency=strong`);
-    } else {
-        // The account has no space? Show them the space switcher.
-        await navigate("/switch-space");
-    }
 }

@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {useSearchParams} from "react-router-dom";
 import {AuthenticationAfterSignUpMobileInterstitialState} from "~/client/web/auth/authentication_state.js";
 import {authenticationViewPaddingTop} from "~/client/web/auth/internal/authentication_shared_styles.js";
-import {navigateAfterSignInOrSignUp} from "~/client/web/auth/internal/authentication_sign_in_or_sign_up_one_time_password_view.js";
+import {navigateAfterSignInOrSignUp} from "~/client/web/auth/internal/navigate_after_sign_in_or_sign_up.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";

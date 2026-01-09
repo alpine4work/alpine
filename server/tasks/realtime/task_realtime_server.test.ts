@@ -4,7 +4,6 @@ import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_p
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -34,6 +33,7 @@ import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     TaskQueryNormalizedFilters,
@@ -5349,7 +5349,7 @@ test("query after accepting invite for new account updates assignee account name
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    const {id: accountId} = await space.inviteEmailAddress(admin.action(), emailAddress);
+    const {id: accountId} = await admin.inviteEmailAddress(emailAddress);
 
     const server = new TestTaskRealtimeServer(context);
 
@@ -5426,7 +5426,7 @@ test("query after accepting invite for existing account updates assignee account
     const emailAddress = await account.createEmailAddress();
     const {id: accountId} = account;
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const server = new TestTaskRealtimeServer(context);
 

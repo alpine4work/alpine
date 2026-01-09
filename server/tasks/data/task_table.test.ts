@@ -19,7 +19,6 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
@@ -82,6 +81,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -16567,7 +16567,7 @@ test("commits an update name action when a new account accepts a space invite", 
 
     const startTime = new Date(testTaskClock.now()[0]);
 
-    const {id: accountId} = await space.inviteEmailAddress(admin.action(), emailAddress);
+    const {id: accountId} = await admin.inviteEmailAddress(emailAddress);
 
     const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
         await signUpAccountWithEmailAddress(context.unknownAnonymousAction(), emailAddress);
@@ -16616,7 +16616,7 @@ test("commits an update name action when an existing account accepts a space inv
 
     const startTime = new Date(testTaskClock.now()[0]);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     await acceptSpaceAccountInvite((await TestSession.create(account)).action(), space.id);
 

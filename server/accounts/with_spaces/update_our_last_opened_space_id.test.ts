@@ -62,7 +62,7 @@ test("does not allow updating the lastOpenedSpaceId to a space the session is in
     const session = await space1.createSession();
     const email = await session.account.createEmailAddress();
 
-    await space2.inviteEmailAddress(space2OwnerSession.action(), email);
+    await space2OwnerSession.inviteEmailAddress(email);
 
     await expect(updateOurLastOpenedSpaceId(session.action(), space2.id)).rejects.toThrow(
         PermissionDeniedError,

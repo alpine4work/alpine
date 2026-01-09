@@ -3,7 +3,6 @@ import {
     createAccountForTest,
 } from "~/server/accounts/create_account_for_test.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
@@ -11,6 +10,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {EmailAddress, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";

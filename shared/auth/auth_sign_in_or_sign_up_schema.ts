@@ -1,5 +1,6 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 // NOTE(calebmer): We don't have RPCs for `attemptOneTimePasswordSignIn()` or
@@ -13,7 +14,7 @@ import {Schema} from "~/shared/schema/schema.js";
 //
 // So we have custom `/api/auth/sign-in` and `/api/auth/sign-up` endpoints.
 export const AuthSignInOrSignUpInputSchema = Schema.object({
-    emailAddress: Schema.string,
+    emailAddress: EmailAddressSchema,
     oneTimePassword: Schema.string,
 });
 

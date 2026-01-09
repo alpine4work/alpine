@@ -9,11 +9,11 @@ import {
 } from "~/server/accounts/one_time_password_constants.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";

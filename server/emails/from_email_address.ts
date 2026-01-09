@@ -1,9 +1,9 @@
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {EmailAddress, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 
 export type FromEmailAddress = {
     displayName?: string;
-    address: string;
+    address: EmailAddress;
 };
 
 /**
@@ -32,19 +32,19 @@ export type FromEmailAddress = {
 export const FromEmailAddressAlias = {
     SignIn: {
         displayName: "Alpine",
-        address: "sign-in@alpine.inc",
+        address: validateEmailAddress("sign-in@alpine.inc"),
     },
     SignUp: {
         displayName: "Alpine",
-        address: "sign-up@alpine.inc",
+        address: validateEmailAddress("sign-up@alpine.inc"),
     },
     Invites: {
         displayName: "Alpine",
-        address: "invites@alpine.inc",
+        address: validateEmailAddress("invites@alpine.inc"),
     },
     Inbox: {
         displayName: "Alpine",
-        address: "inbox@alpine.inc",
+        address: validateEmailAddress("inbox@alpine.inc"),
     },
 } as const satisfies Record<string, FromEmailAddress>;
 
@@ -53,21 +53,18 @@ export type FromEmailAddressAlias = keyof typeof FromEmailAddressAlias;
 /**
  * Get the RFC5322 formatted email address associated with a `FromEmailAddress`.
  */
-export function getFormattedFromEmailAddress(
-    emailAddress: FromEmailAddress,
-    format: "addr-spec" | "name-addr" = "addr-spec",
-): string {
-    switch (format) {
-        case "addr-spec":
-            return emailAddress.address;
-        case "name-addr":
-            assert(
-                emailAddress.displayName,
-                "Must include `displayName` for name-attr formatted from email",
-            );
-            // eslint-disable-next-line string-quotes
-            return `"${emailAddress.displayName}" <${emailAddress.address}>`;
-        default:
-            throw exhaustive(format);
-    }
+export function getFromEmailAddressAddrSpec(emailAddress: FromEmailAddress): EmailAddress {
+    return emailAddress.address;
+}
+
+/**
+ * Get the RFC5322 formatted email address associated with a `FromEmailAddress`.
+ */
+export function getFromEmailAddressNameAddr(emailAddress: FromEmailAddress): string {
+    assert(
+        emailAddress.displayName,
+        "Must include `displayName` for name-attr formatted from email",
+    );
+    // eslint-disable-next-line string-quotes
+    return `"${emailAddress.displayName}" <${emailAddress.address}>`;
 }

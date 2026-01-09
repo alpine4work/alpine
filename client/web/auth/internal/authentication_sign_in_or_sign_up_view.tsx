@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
 import {useSearchParams} from "react-router-dom";
-import {validateEmailAddressForAuthentication} from "~/app/helpers/validate_email_address_for_authentication.js";
 import {
     AuthenticationSignInState,
     AuthenticationSignUpState,
@@ -8,6 +7,7 @@ import {
 } from "~/client/web/auth/authentication_state.js";
 import {authenticationViewPaddingTop} from "~/client/web/auth/internal/authentication_shared_styles.js";
 import {Form, formErrorFontSize, formErrorMarginTop} from "~/client/web/auth/internal/form.js";
+import {validateEmailAddressForAuthentication} from "~/client/web/auth/internal/validate_email_address_for_authentication.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -17,8 +17,11 @@ import {TextInput} from "~/client/web/design/text_input.js";
 import {useDevConsoleTool} from "~/client/web/dev/dev_console.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
@@ -54,10 +57,8 @@ export function AuthenticationSignInOrSignUpView({
         }
     }, [hasEmailSearchParam, setSearchParams]);
 
-    const {isEmailAddressValid, isEmailAddressPossiblyGeneric} = useMemo(
-        () => validateEmailAddressForAuthentication(emailAddress),
-        [emailAddress],
-    );
+    const {isEmailAddressValid: isEmailAddressValidForButton, isEmailAddressPossiblyGeneric} =
+        useMemo(() => validateEmailAddressForAuthentication(emailAddress), [emailAddress]);
 
     const {
         subheading,
@@ -122,10 +123,20 @@ export function AuthenticationSignInOrSignUpView({
                 <Form
                     submitErrorTitle={submitErrorTitle}
                     onSubmit={async () => {
+                        const validatedEmailAddress = emailAddress.toLowerCase().trim();
+
+                        if (!isEmailAddressValid(validatedEmailAddress)) {
+                            throw new InvalidArgumentError("Invalid email address", {
+                                displayMessage: errorDisplayMessage`“${emailAddress}” isn’t an email address. Try again with an email address like “name@company.com”.`,
+                            });
+                        }
+
                         switch (state.type) {
                             case "SignIn": {
                                 const {accountId, hasNotSignedUp} =
-                                    await regenerateOneTimePasswordSignIn(context, {emailAddress});
+                                    await regenerateOneTimePasswordSignIn(context, {
+                                        emailAddress: validatedEmailAddress,
+                                    });
 
                                 // If the account hasn't signed up yet then we'll redirect them to the sign
                                 // up flow. We can't use `onStateChange` because we're changing the route
@@ -152,19 +163,19 @@ export function AuthenticationSignInOrSignUpView({
                                 onStateChange({
                                     type: "SignInOneTimePassword",
                                     accountId,
-                                    emailAddress,
+                                    emailAddress: validatedEmailAddress,
                                 });
                                 break;
                             }
                             case "SignUp": {
                                 const {accountId} = await signUpAccountWithEmailAddress(context, {
-                                    emailAddress,
+                                    emailAddress: validatedEmailAddress,
                                 });
 
                                 onStateChange({
                                     type: "SignUpProfile",
                                     accountId,
-                                    emailAddress,
+                                    emailAddress: validatedEmailAddress,
                                 });
                                 break;
                             }
@@ -178,7 +189,7 @@ export function AuthenticationSignInOrSignUpView({
                             fullWidth={true}
                             fontSize="100"
                             height="9"
-                            isDisabled={!isEmailAddressValid}
+                            isDisabled={!isEmailAddressValidForButton}
                         >
                             {buttonLabel}
                         </Button>

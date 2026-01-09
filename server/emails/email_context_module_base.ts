@@ -1,11 +1,10 @@
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {
     NonTransactionalEmailType,
     isNonTransactionalEmailType,
 } from "~/server/emails/email_type.js";
 import {
     FromEmailAddressAlias,
-    getFormattedFromEmailAddress,
+    getFromEmailAddressNameAddr,
 } from "~/server/emails/from_email_address.js";
 import {
     EmailTemplateProps,
@@ -19,6 +18,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -71,9 +71,8 @@ export abstract class EmailContextModuleBase<
             templateName,
             templateProps,
         });
-        const fromEmailAddress = getFormattedFromEmailAddress(
+        const fromEmailAddress = getFromEmailAddressNameAddr(
             FromEmailAddressAlias[fromEmailAddressAlias],
-            "name-addr",
         );
         await this._context.jobs.dangerouslySendMaintenance({
             type: "SendEmail",
@@ -103,9 +102,8 @@ export abstract class EmailContextModuleBase<
             templateName,
             templateProps,
         });
-        const fromEmailAddress = getFormattedFromEmailAddress(
+        const fromEmailAddress = getFromEmailAddressNameAddr(
             FromEmailAddressAlias[fromEmailAddressAlias],
-            "name-addr",
         );
         await this._send(fromEmailAddress, toEmailAddress, renderedEmail);
     }

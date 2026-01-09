@@ -1,4 +1,5 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export type AuthenticationState =
@@ -20,24 +21,24 @@ export type AuthenticationSignUpState = {
 export type AuthenticationSignUpProfileState = {
     readonly type: "SignUpProfile";
     readonly accountId: AccountId;
-    readonly emailAddress: string;
+    readonly emailAddress: EmailAddress;
 };
 
 export type AuthenticationSignInOneTimePasswordState = {
     readonly type: "SignInOneTimePassword";
     readonly accountId: AccountId;
-    readonly emailAddress: string;
+    readonly emailAddress: EmailAddress;
 };
 
 export type AuthenticationSignUpOneTimePasswordState = {
     readonly type: "SignUpOneTimePassword";
     readonly accountId: AccountId;
-    readonly emailAddress: string;
+    readonly emailAddress: EmailAddress;
 };
 
 export type AuthenticationAfterSignUpMobileInterstitialState = {
     readonly type: "AfterSignUpMobileInterstitial";
-    readonly emailAddress: string;
+    readonly emailAddress: EmailAddress;
     readonly openSpaceId: SpaceId | null;
 };
 

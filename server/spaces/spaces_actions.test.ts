@@ -2242,7 +2242,7 @@ test("`addSpaceAccount()` can’t add an account that is already invited", async
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const email = generateEmailAddressForTest();
-    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
+    const invitedAccount = await ownerSession.inviteEmailAddress(email);
 
     await expect(
         addSpaceAccount(ownerSession.action(), {
@@ -3222,7 +3222,7 @@ test("`isAccountMemberOfSpaceWithoutAuthorization()` should return false only af
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const email = generateEmailAddressForTest();
-    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
+    const invitedAccount = await ownerSession.inviteEmailAddress(email);
 
     // Populate cache with Member role
     await isAccountMemberOfSpaceWithoutAuthorization(
@@ -3961,7 +3961,7 @@ test("`updateSpaceAccountRole()` throws error when attempting to modify an accou
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const email = generateEmailAddressForTest();
-    const invitedAccount = await space.inviteEmailAddress(ownerSession.action(), email);
+    const invitedAccount = await ownerSession.inviteEmailAddress(email);
 
     // owner tries to update invite pending account's role
     await expect(

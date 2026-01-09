@@ -112,10 +112,7 @@ test("cannot invite InviteRejectedAsSpam Removed state", async () => {
     const ownerSession = await space.createSession({role: "Owner"});
 
     const memberEmail = generateEmailAddressForTest();
-    const invite = await space.inviteEmailAddressAndCreateSession(
-        context.action(ownerSession),
-        memberEmail,
-    );
+    const invite = await ownerSession.inviteEmailAddressAndCreateSession(memberEmail);
     await invite.rejectInviteAsSpam();
 
     // Should fail an invite a member that has rejected as spam
@@ -135,10 +132,7 @@ test("can invite ActionByAdmin Removed state", async () => {
     const ownerSession = await space.createSession({role: "Owner"});
 
     const memberEmail = generateEmailAddressForTest();
-    const invite = await space.inviteEmailAddressAndCreateSession(
-        context.action(ownerSession),
-        memberEmail,
-    );
+    const invite = await ownerSession.inviteEmailAddressAndCreateSession(memberEmail);
     await space.removeAccount(invite.session.account);
 
     // Try to invite both members again
@@ -170,24 +164,19 @@ test(`kitchen sink invite test`, async () => {
     const alreadyMemberEmail2 = await alreadyMemberSession2.account.createEmailAddress();
 
     const rejectedAsSpamInviteEmail1 = generateEmailAddressForTest();
-    const rejectedAsSpamInvite1 = await space.inviteEmailAddressAndCreateSession(
-        context.action(ownerSession),
+    const rejectedAsSpamInvite1 = await ownerSession.inviteEmailAddressAndCreateSession(
         rejectedAsSpamInviteEmail1,
     );
     await rejectedAsSpamInvite1.rejectInviteAsSpam();
 
     const rejectedAsSpamInviteEmail2 = generateEmailAddressForTest();
-    const rejectedAsSpamInvite2 = await space.inviteEmailAddressAndCreateSession(
-        context.action(ownerSession),
+    const rejectedAsSpamInvite2 = await ownerSession.inviteEmailAddressAndCreateSession(
         rejectedAsSpamInviteEmail2,
     );
     await rejectedAsSpamInvite2.rejectInviteAsSpam();
 
     const removedInviteEmail = generateEmailAddressForTest();
-    const removedInvite = await space.inviteEmailAddressAndCreateSession(
-        context.action(ownerSession),
-        removedInviteEmail,
-    );
+    const removedInvite = await ownerSession.inviteEmailAddressAndCreateSession(removedInviteEmail);
     await space.removeAccount(removedInvite.session.account);
 
     const invalidEmail1 = "invalid-email";

@@ -5,10 +5,10 @@ import {generateOneTimePassword} from "~/server/accounts/internal/generate_one_t
 import {getHoursUntilRegenerateOneTimePasswordUnlocked} from "~/server/accounts/internal/get_hours_until_regenerate_one_time_password_unlocked.js";
 import {maxFailedOneTimePasswordAttemptCount} from "~/server/accounts/one_time_password_constants.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
@@ -120,7 +120,7 @@ export async function afterRegenerateOneTimePasswordSignIn(
 
 export const oneTimePasswordSignInEmailsForTest: {
     current: Array<{
-        emailAddress: string;
+        emailAddress: EmailAddress;
         oneTimePassword: string;
     }> | null;
 } = {current: null};

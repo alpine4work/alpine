@@ -2,7 +2,6 @@ import {createAccountWithEmailAddressTransactionEntries} from "~/server/accounts
 import {createAlphaSpaceAsAdmin, requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {getChannel} from "~/server/forum/data/get_channel.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -12,6 +11,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 

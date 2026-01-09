@@ -21,6 +21,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+// NOCOMMIT: Strong consistency solution for `searchByAffinity()`
+
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,
     feed: Schema.object({

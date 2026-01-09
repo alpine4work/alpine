@@ -3,10 +3,10 @@ import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {actuallyRegenerateOneTimePasswordSignIn} from "~/server/accounts/internal/actually_regenerate_one_time_password_sign_in.js";
 import {getAccountItemWithoutAvatarWithEventualThenStrongConsistency} from "~/server/accounts/internal/get_account_item.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**

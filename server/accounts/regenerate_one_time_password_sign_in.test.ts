@@ -9,10 +9,10 @@ import {
 import {getAppleReviewerAccountPasswordForTest} from "~/server/accounts/internal/actually_regenerate_one_time_password_sign_in.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 

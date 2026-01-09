@@ -8,11 +8,11 @@ import {
 } from "~/server/accounts/save_account_sign_up_profile.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext({
@@ -56,7 +56,7 @@ test("saving sign up profile for an account with a pending invite", async () => 
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;
@@ -86,7 +86,7 @@ test("cannot save sign up profile after joining a space", async () => {
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;
@@ -148,7 +148,7 @@ test("invited account can save account sign up profile without calling signUpAcc
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;
@@ -186,7 +186,7 @@ test("cannot save sign up profile when account has joined space via invite even 
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;
@@ -228,7 +228,7 @@ test("race condition: accepting invite while saving sign up profile causes retry
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItem = await getAccountEmailAddressForTest(context, emailAddress);
     const accountId = accountEmailAddressItem.accountId;

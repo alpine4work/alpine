@@ -2,6 +2,7 @@ import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_
 import {AccountId, AvatarId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -87,7 +88,7 @@ export const getAccountByEmailAddressAsAdmin = defineRpc({
     name: "getAccountByEmailAddressAsAdmin",
     isIdempotent: true,
     input: {
-        emailAddress: Schema.string,
+        emailAddress: EmailAddressSchema,
     },
     output: {
         account: AccountModelWithoutSpace.schema,
@@ -123,7 +124,7 @@ export const regenerateOneTimePasswordSignIn = defineRpc({
     // Generates a new one time password every call.
     isIdempotent: false,
     input: {
-        emailAddress: Schema.string,
+        emailAddress: EmailAddressSchema,
     },
     output: {
         accountId: Schema.id<AccountId>(),
@@ -136,7 +137,7 @@ export const signUpAccountWithEmailAddress = defineRpc({
     // Generates a new one time password every call.
     isIdempotent: false,
     input: {
-        emailAddress: Schema.string,
+        emailAddress: EmailAddressSchema,
     },
     output: {
         accountId: Schema.id<AccountId>(),
@@ -158,7 +159,7 @@ export const scheduleTryOnDesktopEmail = defineRpc({
     name: "scheduleTryOnDesktopEmail",
     isIdempotent: true,
     input: {
-        emailAddress: Schema.string,
+        emailAddress: EmailAddressSchema,
         openSpaceId: Schema.id<SpaceId>().nullable(),
     },
     output: {},

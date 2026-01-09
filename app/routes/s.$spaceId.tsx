@@ -104,6 +104,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -201,16 +202,16 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 
 export async function loader({context: loaderContext, params, request}: LoaderArgs) {
     const url = new URL(request.url);
-    const consistencySearchParam = url.searchParams.get("consistency");
-    const consistency: DynamoCacheReadConsistency =
-        consistencySearchParam === "strong" ? "StrongWithinCache" : "Eventual";
 
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
-    const context =
-        consistencySearchParam === "strong"
-            ? (await loaderContext.actor.authenticate()).dynamo.expectStrongReadConsistency()
-            : await loaderContext.actor.authenticate();
+    // Always use strong consistency for this endpoint. We only run this loader
+    // once when the user opens the space so the cost doesn't matter. And it's good
+    // to rule out eventual consistency issues in cases where the user is opening
+    // the space after updating space or account state (e.g. they're navigating to
+    // the space after sign up).
+    const context = (await loaderContext.actor.authenticate()).dynamo.expectStrongReadConsistency();
+    const consistency: DynamoCacheReadConsistency = "StrongWithinCache";
 
     switch (context.actor.type) {
         case "System": {
@@ -515,7 +516,9 @@ export default function SpaceLayoutRoute() {
             return account;
         },
         getAccountByEmailAddress: async (emailAddress: string) => {
-            const {account} = await getAccountByEmailAddressAsAdmin(context, {emailAddress});
+            const {account} = await getAccountByEmailAddressAsAdmin(context, {
+                emailAddress: validateEmailAddress(emailAddress),
+            });
             return account;
         },
         createAlphaSpaceAsAdmin: async (input: {name: string; ownerAccountId: AccountId}) => {
@@ -576,19 +579,18 @@ export default function SpaceLayoutRoute() {
 
     // Delete search params we don't want to leave in the URL.
     {
-        const hasSearchParamToDelete = searchParams.has("from") || searchParams.has("consistency");
+        const hasSearchParamToDelete = searchParams.has("from");
         useEffect(() => {
-            if (hasSearchParamToDelete) {
-                setSearchParams(
-                    oldSearchParams => {
-                        const newSearchParams = new URLSearchParams(oldSearchParams);
-                        newSearchParams.delete("from");
-                        newSearchParams.delete("consistency");
-                        return newSearchParams;
-                    },
-                    {replace: true},
-                );
-            }
+            if (!hasSearchParamToDelete) return;
+
+            setSearchParams(
+                oldSearchParams => {
+                    const newSearchParams = new URLSearchParams(oldSearchParams);
+                    newSearchParams.delete("from");
+                    return newSearchParams;
+                },
+                {replace: true, unstable_shouldRevalidate: false},
+            );
         }, [hasSearchParamToDelete, setSearchParams]);
     }
 

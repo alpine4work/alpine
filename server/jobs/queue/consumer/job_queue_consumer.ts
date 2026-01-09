@@ -6,6 +6,7 @@ import {
     SQSClient,
 } from "@aws-sdk/client-sqs";
 import {ActorServiceName, SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {getJobQueueConsumerHandleSpanName} from "~/server/jobs/core/get_job_queue_consumer_handle_span_name.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {
     JobQueueName,
@@ -795,34 +796,7 @@ export class JobQueueConsumer<
             const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
             messageBodyForError = messageBody;
 
-            let handleSpanName = `${
-                messageBody.type === "Maintenance" ? "Process maintenance job" : "Process job"
-            } ${messageBody.job.type}`;
-
-            // For jobs that process many different things, include the subtype in the
-            // name to help identify the span.
-            switch (messageBody.job.type) {
-                case "NotificationEvent": {
-                    handleSpanName += ` (${messageBody.job.event.type})`;
-                    break;
-                }
-                case "IndexSearchEntity":
-                case "IndexSearchEntityDependents": {
-                    handleSpanName += ` (${messageBody.job.update.type})`;
-                    break;
-                }
-                case "IndexSearchEntityEmbeddingChunks": {
-                    handleSpanName += ` (${messageBody.job.entityId.split(":", 2)[0]})`;
-                    break;
-                }
-                case "ProcessFile":
-                case "ProcessFileHeavy":
-                case "ProcessFileLight": {
-                    handleSpanName += ` (${messageBody.job.contentType})`;
-                    break;
-                }
-            }
-
+            const handleSpanName = getJobQueueConsumerHandleSpanName(messageBody);
             const spanName = `Handle: ${handleSpanName}`;
 
             ({span, finishSpan} =

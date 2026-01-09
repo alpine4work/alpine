@@ -1,8 +1,8 @@
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {RenderedEmail} from "~/server/emails/internal/templates/email_templates.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 export async function processSendEmail(
     context: Context<{tracer: TracerContextModule} & {email: EmailContextModuleBase}>,

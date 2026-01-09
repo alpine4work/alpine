@@ -3,8 +3,8 @@ import {
     denyAlphaAccessRequest,
     saveAlphaConfiguration,
 } from "~/server/alpha/alpha_access_table.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import * as definitions from "~/shared/rpc/alpha_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

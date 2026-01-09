@@ -176,6 +176,7 @@ const TracerEventDataSchema = {
         wasCached: Schema.boolean,
         width: Schema.float,
         height: Schema.float,
+        contentLength: Schema.integer,
     },
     context: {
         handler: Schema.string,

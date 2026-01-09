@@ -8,7 +8,6 @@ import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {FeedRouteShimmer} from "~/client/web/shimmer/route_shimmer.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
-import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
@@ -19,12 +18,7 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({});
 
-export async function loader({context: unauthenticatedContext, params, request}: LoaderArgs) {
-    const url = new URL(request.url);
-    const consistencySearchParam = url.searchParams.get("consistency");
-    const consistency: DynamoCacheReadConsistency =
-        consistencySearchParam === "strong" ? "StrongWithinCache" : "Eventual";
-
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
@@ -32,7 +26,9 @@ export async function loader({context: unauthenticatedContext, params, request}:
         context,
         spaceId,
         context.actor.getAccountId(),
-        {consistency},
+        // Use strong consistency in case we're coming from sign up or some other flow
+        // which just updated our account state.
+        {consistency: "Strong"},
     );
 
     if (!currentAccount) {
@@ -40,11 +36,7 @@ export async function loader({context: unauthenticatedContext, params, request}:
     }
 
     if (currentAccount.initialData.space.state.type !== "InvitePending") {
-        if (consistency === "Eventual") {
-            return redirect(`/s/${spaceId}`);
-        } else {
-            return redirect(`/s/${spaceId}?consistency=strong`);
-        }
+        return redirect(`/s/${spaceId}`);
     }
 
     return jsonWithSchema(LoaderSchema, {});
@@ -90,7 +82,7 @@ export default function InviteAcceptRoute() {
             // Use strong consistency to make sure we don't error saying you're not
             // authorized because of eventual consistency lag right after accepting the
             // invite
-            navigate(`/s/${context.space.id}?consistency=strong&from=invite`);
+            navigate(`/s/${context.space.id}?from=invite`);
         });
     }, [appContext, context.space.id, navigate]);
 

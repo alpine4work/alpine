@@ -2,6 +2,7 @@ import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
@@ -26,13 +27,13 @@ test("can get any account by email address as admin", async () => {
     const adminEmailAddress = await adminSession.account.createEmailAddress();
 
     await expect(
-        getAccountByEmailAddressAsAdmin(adminSession.action(), session1.account.id),
+        getAccountByEmailAddressAsAdmin(adminSession.action(), session1.account.id as any),
     ).rejects.toThrow(InvalidArgumentError);
 
     await expect(
         getAccountByEmailAddressAsAdmin(
             adminSession.action(),
-            `account.${generateId()}@test.cyberworlds.dev`,
+            validateEmailAddress(`account.${generateId()}@test.cyberworlds.dev`),
         ),
     ).rejects.toThrow(NotFoundError);
 

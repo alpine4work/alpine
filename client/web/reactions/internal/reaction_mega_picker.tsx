@@ -4,8 +4,8 @@ import {useAccountModel} from "~/client/web/accounts/account_registry_context.js
 import {Box} from "~/client/web/design/box.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
-import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {sortReactionCharactersAroundOurCharacter} from "~/client/web/reactions/internal/sort_reaction_characters_around_our_character.js";
+import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";

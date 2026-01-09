@@ -40,7 +40,7 @@ const setupUserState = async ({
     const userAccount = await TestAccount.create(context);
     const userEmail = await userAccount.createEmailAddress();
 
-    const invite = await space.inviteEmailAddressAndCreateSession(ownerSession.action(), userEmail);
+    const invite = await ownerSession.inviteEmailAddressAndCreateSession(userEmail);
 
     if (spaceAccountStateType === "Removed") {
         await removeSpaceAccount(ownerSession.action(), {

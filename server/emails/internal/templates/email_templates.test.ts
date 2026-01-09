@@ -154,20 +154,18 @@ describe("renderReactEmailTemplate", () => {
     }>([
         {
             description: "SignIn template with basic props",
-            templateName: "SignIn",
+            templateName: "SignInOrSignUp",
             templateProps: {
-                emailAddress: "test@cyberworlds.dev",
+                variant: "SignIn",
                 code: "123456",
-                baseUrl: "http://localhost:3000",
             },
         },
         {
             description: "SignIn template with code in subject",
-            templateName: "SignIn",
+            templateName: "SignInOrSignUp",
             templateProps: {
-                emailAddress: "test@cyberworlds.dev",
-                code: "987654",
-                baseUrl: "http://localhost:3000",
+                variant: "SignIn",
+                code: "123456",
                 shouldDangerouslyIncludeCodeInSubject: true,
             },
         },
@@ -413,11 +411,11 @@ describe("renderReactEmailTemplate", () => {
         });
     });
 
-    test("SignIn throws on missing code prop", async () => {
+    test("SignInOrSignUp throws on missing code prop", async () => {
         await expect(
             renderReactEmailTemplate(context.tracer, {
                 resourceServiceUrl,
-                templateName: "SignIn",
+                templateName: "SignInOrSignUp",
                 templateProps: {} as any,
             }),
         ).rejects.toThrow();
@@ -437,11 +435,10 @@ describe("renderReactEmailTemplate", () => {
 
         await renderReactEmailTemplate(mockTracerContextModule, {
             resourceServiceUrl,
-            templateName: "SignIn",
+            templateName: "SignInOrSignUp",
             templateProps: {
-                emailAddress: "test@cyberworlds.dev",
+                variant: "SignIn",
                 code: "123456",
-                baseUrl: "http://localhost:3000",
             },
         });
 

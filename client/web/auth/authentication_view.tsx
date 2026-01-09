@@ -2,7 +2,6 @@ import {loadRouteModuleWithBlockingLinks, useSearchParams} from "@remix-run/reac
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
-import {routeNotFoundError} from "~/app/helpers/route_not_found_error.js";
 import {
     AuthenticationState,
     getAuthenticationStateVariant,
@@ -24,8 +23,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
 
 export function AuthenticationView() {
     const params = useParams();
@@ -43,7 +44,7 @@ export function AuthenticationView() {
         if (variant === "sign-up" && profileSearchParam !== null) {
             const profileSearchParamParts = profileSearchParam.split(",", 2);
             const accountId = (profileSearchParamParts[0] ?? "").trim();
-            const emailAddress = (profileSearchParamParts[1] ?? "").trim();
+            const emailAddress = validateEmailAddress((profileSearchParamParts[1] ?? "").trim());
             assert(isId<AccountId>(accountId), "Invalid `AccountId`");
 
             return {

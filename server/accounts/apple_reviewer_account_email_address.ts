@@ -1,4 +1,4 @@
-import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**
  * The email address we provide to Apple that lets a reviewer sign into our

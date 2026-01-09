@@ -1,5 +1,5 @@
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -51,7 +51,7 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
     SendEmail: Schema.object({
         type: Schema.value("SendEmail"),
         fromEmailAddress: Schema.string,
-        toEmailAddress: Schema.string,
+        toEmailAddress: EmailAddressSchema,
         renderedEmail: Schema.object({
             templateName: Schema.string,
             html: Schema.string,
@@ -80,7 +80,7 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
     SendTryOnDesktopEmail: Schema.object({
         type: Schema.value("SendTryOnDesktopEmail"),
         accountId: Schema.id<AccountId>(),
-        emailAddress: Schema.string as Schema<any> as Schema<EmailAddress>,
+        emailAddress: EmailAddressSchema,
         openSpaceId: Schema.id<SpaceId>().nullable(),
     }),
 });

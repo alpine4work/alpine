@@ -77,4 +77,12 @@ export class TestSpaceSession extends TestSession {
         if (!account) throw new NotFoundError("Account not found");
         return account;
     }
+
+    public inviteEmailAddress(emailAddress: string) {
+        return this.space.inviteEmailAddress(this, emailAddress);
+    }
+
+    public inviteEmailAddressAndCreateSession(emailAddress: string) {
+        return this.space.inviteEmailAddressAndCreateSession(this, emailAddress);
+    }
 }

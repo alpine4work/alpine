@@ -12,11 +12,13 @@ ts_project(
         "//:node_modules/react-dom",
         "//client/web/design",
         "//client/web/helpers",
+        "//client/web/reactions",
         "//shared/auth",
         "//shared/content",
         "//shared/design",
         "//shared/files",
         "//shared/helpers",
         "//shared/id",
+        "//shared/remix",
     ],
 )

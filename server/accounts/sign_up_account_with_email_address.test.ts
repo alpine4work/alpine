@@ -5,9 +5,9 @@ import {getAccountItem} from "~/server/accounts/internal/get_account_item.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext({
@@ -53,7 +53,7 @@ test("sign up with pending invitation reuses existing account", async () => {
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItemBeforeSignUp = await getAccountEmailAddressForTest(
         context,
@@ -89,7 +89,7 @@ test("sign up with pending invitation and then sign in", async () => {
     const admin = await space.createSession({role: "Admin"});
     const emailAddress = validateEmailAddress(`test.${generateId()}@test.cyberworlds.dev`);
 
-    await space.inviteEmailAddress(admin.action(), emailAddress);
+    await admin.inviteEmailAddress(emailAddress);
 
     const accountEmailAddressItemFromInvite = await getAccountEmailAddressForTest(
         context,

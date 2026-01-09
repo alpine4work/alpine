@@ -1,6 +1,6 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**
  * Transaction entry that checks to make sure an account email address does not

@@ -7,7 +7,6 @@ import {dangerouslyGetAccountLastOpenedSpaceIdWithoutAuthorization} from "~/serv
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {createSpaceWelcomePackageTransactionEntries} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization} from "~/server/spaces/dangerously_expensively_get_suggested_space_account_ids_without_authorization.js";
 import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
@@ -27,6 +26,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";

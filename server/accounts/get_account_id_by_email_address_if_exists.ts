@@ -1,6 +1,6 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -15,12 +15,12 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  */
 export async function getAccountIdByEmailAddressIfExists(
     context: ServerActionContext,
-    emailAddress: string,
+    emailAddress: EmailAddress,
 ): Promise<AccountId | null> {
     const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
-        emailAddress: validateEmailAddress(emailAddress),
+        emailAddress,
     });
 
     if (!accountEmailAddressItem) {

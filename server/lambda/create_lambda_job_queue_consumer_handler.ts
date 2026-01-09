@@ -2,6 +2,7 @@ import {Handler, Context as LambdaContext, SQSEvent, SQSRecord} from "aws-lambda
 import {ServerSecrets} from "~/server/aws/server_secrets_schema.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {getJobQueueConsumerHandleSpanName} from "~/server/jobs/core/get_job_queue_consumer_handle_span_name.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {createLambdaTracerAndHoneycombClient} from "~/server/lambda/helpers/create_lambda_tracer_and_honeycomb_client.js";
@@ -17,11 +18,9 @@ import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -172,7 +171,8 @@ async function _processJob<TJobDescription extends JobDescription>(
 
         messageBodyForError = messageBody;
 
-        const {spanName, handleSpanName} = getHandleSpanName(messageBody);
+        const handleSpanName = getJobQueueConsumerHandleSpanName(messageBody);
+        const spanName = `Handle: ${handleSpanName}`;
 
         ({span, finishSpan} =
             messageBody.tracerContext !== null
@@ -258,51 +258,4 @@ async function finishSpanAndFlushHoneycombEvents(
 ) {
     finishSpan?.();
     await promiseWaiter.wait();
-}
-
-function getHandleSpanName(messageBody: JobQueueMessageBody) {
-    let handleSpanName = `Process job ${messageBody.job.type}`;
-
-    // For jobs that process many different things, include the subtype in the
-    // name to help identify the span.
-    switch (messageBody.job.type) {
-        case "NotificationEvent": {
-            handleSpanName += ` (${messageBody.job.event.type})`;
-            break;
-        }
-        case "IndexSearchEntity":
-        case "IndexSearchEntityDependents": {
-            handleSpanName += ` (${messageBody.job.update.type})`;
-            break;
-        }
-        case "IndexSearchEntityEmbeddingChunks": {
-            handleSpanName += ` (${messageBody.job.entityId.split(":", 2)[0]})`;
-            break;
-        }
-        case "ProcessFileLight":
-        case "ProcessFileHeavy":
-        case "ProcessFile": {
-            handleSpanName += ` (${messageBody.job.contentType})`;
-            break;
-        }
-        case "AddFeedCandidateEntry":
-        case "AddFeedAccountCandidateEntry":
-        case "CallBotWebhook":
-        case "EnqueueScheduledNotificationDigests":
-        case "RetryUnprocessedTaskActionTransactions":
-        case "SendShareNotification":
-        case "ScheduleDeploy":
-        case "SendEmail":
-        case "SendNotificationDigest":
-        case "SendWebPushNotification":
-        case "UpdateBotAccounts":
-        case "Test": {
-            throw new InternalError(`Job ${messageBody.job.type} is not supported`);
-        }
-        default: {
-            throw exhaustive(messageBody.job);
-        }
-    }
-
-    return {spanName: `Handle: ${handleSpanName}`, handleSpanName};
 }

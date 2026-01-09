@@ -1,5 +1,5 @@
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 

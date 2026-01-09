@@ -37,7 +37,7 @@ test("defaults when the lastOpenedSpaceId is set to an account we’re invited t
         spaceId: space2.id,
         accountId: session.account.id,
     });
-    await space2.inviteEmailAddress(space2OwnerSession.action(), email);
+    await space2OwnerSession.inviteEmailAddress(email);
 
     // Should default to our first space
     const result = await getOurLastOpenedSpaceId(session.action());

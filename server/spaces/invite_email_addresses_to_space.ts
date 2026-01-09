@@ -6,7 +6,6 @@ import {
     ServerSessionActionContextWithEmail,
 } from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {EmailAddress, isEmailAddressValid} from "~/server/emails/email_address.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
@@ -15,6 +14,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EmailAddress, isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -192,7 +192,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             ...transactionEntries,
         ]);
 
-        const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept?consistency=strong`)}`;
+        const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept`)}`;
         const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
@@ -240,17 +240,16 @@ async function validateEmailAddressForInviteInSpace(
     | {
           ok: true;
           accountId: AccountId | null;
-          validatedEmailAddress: EmailAddress;
+          emailAddress: EmailAddress;
       }
 > {
-    let validatedEmailAddress: EmailAddress;
-    if (isEmailAddressValid(emailAddress)) {
-        validatedEmailAddress = emailAddress;
-    } else {
+    emailAddress = emailAddress.toLowerCase();
+
+    if (!isEmailAddressValid(emailAddress)) {
         return {ok: false, reason: "Invalid"};
     }
 
-    const accountId = await getAccountIdByEmailAddressIfExists(context, validatedEmailAddress);
+    const accountId = await getAccountIdByEmailAddressIfExists(context, emailAddress);
 
     const spaceAccountItem = accountId
         ? await getSpaceAccountItemIfExists(context, spaceId, accountId, {
@@ -266,7 +265,7 @@ async function validateEmailAddressForInviteInSpace(
         }
     }
 
-    return {ok: true, accountId, validatedEmailAddress};
+    return {ok: true, accountId, emailAddress};
 }
 
 async function validateInviteEmailAddressToSpace(
@@ -286,7 +285,7 @@ async function validateInviteEmailAddressToSpace(
       }
     | {
           ok: true;
-          emailAddress: string;
+          emailAddress: EmailAddress;
           inviteEmailAddressToSpace: (
               context: ServerSessionActionContextWithEmail,
           ) => Promise<AccountModel>;
@@ -297,16 +296,16 @@ async function validateInviteEmailAddressToSpace(
     if (!result.ok) {
         return {
             ok: false,
-            emailAddress: emailAddress,
+            emailAddress,
             reason: result.reason,
         };
     }
 
-    const {accountId: initialAccountId, validatedEmailAddress} = result;
+    const {accountId: initialAccountId, emailAddress: validatedEmailAddress} = result;
 
     return {
         ok: true,
-        emailAddress: emailAddress,
+        emailAddress: validatedEmailAddress,
         inviteEmailAddressToSpace: async context => {
             let hasAlreadyAttempted = false;
 

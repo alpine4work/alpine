@@ -4,7 +4,6 @@ import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_rand
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {EmailAddress} from "~/server/emails/email_address.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {
@@ -23,6 +22,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {getMaxId, getMinId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";

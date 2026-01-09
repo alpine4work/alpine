@@ -1,4 +1,4 @@
-import {validateEmailAddressForAuthentication} from "~/app/helpers/validate_email_address_for_authentication.js";
+import {validateEmailAddressForAuthentication} from "~/client/web/auth/internal/validate_email_address_for_authentication.js";
 
 test("returns `isEmailAddressValid: false` for empty string", () => {
     const result = validateEmailAddressForAuthentication("");
