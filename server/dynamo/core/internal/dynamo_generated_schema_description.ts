@@ -178,7 +178,7 @@ export const dynamoGeneratedSchemaDescription: {
                     "id": 1,
                     "partitionKeyAttributeByKey": {
                         "emailAddress": {
-                            "type": "EmailAddress"
+                            "type": "LabelString"
                         }
                     },
                     "sortRangeByType": {
@@ -451,7 +451,7 @@ export const dynamoGeneratedSchemaDescription: {
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "emailAddress": {
-                                    "type": "EmailAddress"
+                                    "type": "LabelString"
                                 }
                             },
                             "attributesSchema": {

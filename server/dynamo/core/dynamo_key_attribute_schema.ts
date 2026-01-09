@@ -42,9 +42,7 @@ import {
     orderKeyDigits,
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
-import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {
     LabelStringWithoutMaxLengthSchema,
     maxLabelStringLength,
@@ -174,7 +172,6 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
     | {readonly type: "LabelStringWithoutMaxLength"}
-    | {readonly type: "EmailAddress"}
     | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription}
     | {
           readonly type: "Nullable";
@@ -646,51 +643,6 @@ export class DynamoKeyAttributeSchema<Value> {
 
         return schema as DynamoKeyAttributeSchema<any> as DynamoKeyAttributeSchema<Value>;
     }
-
-    /**
-     * An email address string.
-     *
-     * Uses the `EmailAddress` type. Since we control all writers to the database
-     * we can assume a previous writer has validated the `EmailAddress`'s MX DNS
-     * records.
-     */
-    public static emailAddressString = new DynamoKeyAttributeSchema<EmailAddress>({
-        description: {type: "EmailAddress"},
-
-        minValue: minLabelString as EmailAddress,
-        maxValue: maxLabelStringForDynamoKeyAttribute as EmailAddress,
-
-        serialize: value => {
-            // Don't allow strings that start with the max label string. You could create
-            // a string that's larger than our max label string by starting with U+10FFFF
-            // and adding more characters. So we ban that possibility.
-            assert(
-                !value.startsWith(maxLabelStringForDynamoKeyAttribute) ||
-                    value === maxLabelStringForDynamoKeyAttribute,
-                "Can’t start a label string with U+10FFFF",
-            );
-
-            const serializedString = EmailAddressSchema.serialize(value);
-            assert(typeof serializedString === "string");
-            return serializeStringDynamoKeyAttribute(serializedString);
-        },
-        deserialize: keyAttribute =>
-            EmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-
-        // Order preserving binary string encodings are challenging to get right. We
-        // can't encode the length at the beginning of the string since longer strings
-        // may sort before shorter strings.
-        //
-        // A possible encoding could be "include the byte 0x01 before every code unit
-        // and terminate the string with 0x00" but that's not efficient.
-        //
-        // Ignoring the problem for now and throwing an unimplemented error...
-        //
-        // See this blog post on the FoundationDB order preserving encoding for a good
-        // encoding example:
-        // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
-        binary: null,
-    });
 
     /**
      * The description of this attribute for backwards compatibility checking

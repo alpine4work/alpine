@@ -4,6 +4,7 @@ import {AccountsSettingsSchema} from "~/shared/accounts/accounts_settings.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
+import {emailAddressMaxLength} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -129,7 +130,9 @@ export const AccountsTable = DynamoTableSchema.new({
         {
             name: "AccountEmailAddress",
             partitionKeyAttributes: {
-                emailAddress: DynamoKeyAttributeSchema.emailAddressString,
+                emailAddress: DynamoKeyAttributeSchema.labelString({
+                    maxLength: emailAddressMaxLength,
+                }),
             },
             sortRanges: [
                 {

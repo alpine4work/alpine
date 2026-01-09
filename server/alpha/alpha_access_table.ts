@@ -30,6 +30,7 @@ import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_m
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emailAddressMaxLength} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -68,7 +69,9 @@ const AlphaAccessTable = DynamoTableSchema.new({
                         /**
                          * Can only have one access request per email address.
                          */
-                        emailAddress: DynamoKeyAttributeSchema.emailAddressString,
+                        emailAddress: DynamoKeyAttributeSchema.labelString({
+                            maxLength: emailAddressMaxLength,
+                        }),
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
