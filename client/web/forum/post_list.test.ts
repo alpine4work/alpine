@@ -17,7 +17,7 @@ import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
@@ -40,66 +40,11 @@ const channel = new ChannelPreviewModel({
     },
 });
 
-const account1 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test 1",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-const account2 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test 2",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-const account3 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test 3",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-const account4 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test 4",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-const account5 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test 5",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
+const account1 = createTestAccountModel({name: "Test 1"});
+const account2 = createTestAccountModel({name: "Test 2"});
+const account3 = createTestAccountModel({name: "Test 3"});
+const account4 = createTestAccountModel({name: "Test 4"});
+const account5 = createTestAccountModel({name: "Test 5"});
 
 const testContent1 = createSimplePostContent("test1");
 const testContent2 = createSimplePostContent("test2");

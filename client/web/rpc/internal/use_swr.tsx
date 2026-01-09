@@ -116,8 +116,6 @@ export function useSwr(
                 cache.revalidateEntry(key, fetcher, {dedupingInterval});
             }
         } else {
-            let isCancelled = false;
-
             // Wait a microtask before putting our initial data in the cache. So if there
             // are two `useSwr()` hooks looking at the same key no matter what order the
             // hooks are mounted in we'll send a network request if one of the hooks
@@ -125,16 +123,15 @@ export function useSwr(
             //
             // If another network request is sent then this `revalidateEntry()` call will
             // be a noop because of `dedupingInterval`.
+            //
+            // IMPORTANT: Don't cancel this microtask if the `useEffect()` cleans up. Since
+            // if the hook re-runs we won't re-schedule the microtask because this only
+            // runs once on key change.
             scheduleMicrotask(() => {
-                if (isCancelled) return;
                 cache.revalidateEntry(key, () => PromiseImmediate.resolve(initialData), {
                     dedupingInterval,
                 });
             });
-
-            return () => {
-                isCancelled = true;
-            };
         }
     }, [cache, dedupingInterval, fetcher, initialData, key, onlyFetchIfNotAvailable]);
 

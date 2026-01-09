@@ -6,22 +6,13 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const account = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
     name: "Test",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
 });
 
 const loadFromStart = (options: {

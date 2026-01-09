@@ -81,31 +81,8 @@ afterEach(() => {
     assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
 });
 
-const account1 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test Account 1",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-
-const account2 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test Account 2",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
+const account1 = createTestAccountModel({name: "Test Account 1"});
+const account2 = createTestAccountModel({name: "Test Account 2"});
 
 // Make sure we hold a reference to the account stores for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

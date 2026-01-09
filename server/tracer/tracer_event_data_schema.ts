@@ -619,6 +619,12 @@ const TracerEventDataSchema = {
         description: Schema.string,
         colors: Schema.string,
     },
+    feed: {
+        wasCreated: Schema.boolean,
+        entryCount: Schema.integer,
+        hasMoreEntries: Schema.boolean,
+        searchEntityCount: Schema.integer,
+    },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 
 /**

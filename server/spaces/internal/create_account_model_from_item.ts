@@ -10,11 +10,7 @@ import {
 import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {
-    AccountModel,
-    AccountModelData,
-    AccountModelDataSpaceState,
-} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function createAccountModelFromItem(
     item: SpaceAccountItemWithAccountAvatarOverride,
@@ -49,13 +45,17 @@ export function createAccountModelFromItem(
     return new AccountModel({
         ...accountData,
         avatar: getAccountAvatarModelForAccountModel(item, account),
-        space: {
-            version: item.updateLockVersion ?? 0,
-            addedTime: item.addedTime,
-            state: item.state,
-            role: item.role,
-        },
+        space: createSpaceAccountModelFromItem(item),
     });
+}
+
+export function createSpaceAccountModelFromItem(item: SpaceAccountItem): AccountModelData["space"] {
+    return {
+        version: item.updateLockVersion ?? 0,
+        addedTime: item.addedTime,
+        state: item.state,
+        role: item.role,
+    };
 }
 
 function getAccountAvatarModelForAccountModel(
@@ -92,13 +92,11 @@ export function createAccountModelDataWithoutAvatarFromItem(
     activeAccountData: Omit<AccountModelWithoutSpaceData, "avatar"> | null,
 ): Omit<AccountModelData, "avatar"> {
     let accountData: AccountModelWithoutSpaceData | AccountModelWithoutSpaceAndAvatarData;
-    let spaceAccountState: AccountModelDataSpaceState;
 
     switch (item.state.type) {
         case "Active": {
             assert(activeAccountData !== null);
             accountData = activeAccountData;
-            spaceAccountState = {type: "Active"};
             break;
         }
         case "InvitePending": {
@@ -106,7 +104,6 @@ export function createAccountModelDataWithoutAvatarFromItem(
             // given when the account was invited.
             assert(activeAccountData === null);
             accountData = item.state.pendingAccountData;
-            spaceAccountState = item.state;
             break;
         }
         case "Removed": {
@@ -114,7 +111,6 @@ export function createAccountModelDataWithoutAvatarFromItem(
             // present when the account was removed.
             assert(activeAccountData === null);
             accountData = item.state.oldAccountData;
-            spaceAccountState = item.state;
             break;
         }
         default:
@@ -126,7 +122,7 @@ export function createAccountModelDataWithoutAvatarFromItem(
         space: {
             version: item.updateLockVersion ?? 0,
             addedTime: item.addedTime,
-            state: spaceAccountState,
+            state: item.state,
             role: item.role,
         },
     };

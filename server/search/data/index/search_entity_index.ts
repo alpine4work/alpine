@@ -78,6 +78,7 @@ import {
     internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities,
     internalGetSearchAffinityEntities,
     internalGetSearchFavoriteEntities,
+    internalGetUnorderedSearchAffinityEntitiesWithStrongReadConsistency,
     scheduleIndexSearchEntityEmbeddingChunksJob,
     searchEntityEmbeddingChunkIndexRefreshIntervalMs,
     searchEntityKeywordIndexRefreshIntervalMs,
@@ -90,10 +91,12 @@ import {
     authorizeSpaceAccessIfPossible,
 } from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getSpaceAccount} from "~/server/spaces/get_space_account.js";
 import {getSpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
 import {getSpaceAccountSettings} from "~/server/spaces/get_space_account_settings.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
+import {spaceWelcomePackageSearchEntityMaxCount} from "~/server/spaces/space_welcome_package_search_entity_max_count.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,
@@ -150,6 +153,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
@@ -2768,13 +2772,21 @@ export async function searchByAffinity(
     favoriteResults: Array<SearchFavoriteEntityResultModel>;
     results: Array<SearchAffinityEntityResultModel>;
 }> {
-    await runAllPromises([
+    const [, , spaceAccount] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
 
         // Bots don't collect affinity points so searching by affinity doesn't make
         // sense for a bot.
         authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
+
+        // Should be reading data cached by `authorizeSpaceAccess()` so shouldn't add
+        // any additional network requests.
+        getSpaceAccount(context, spaceId, context.actor.getAccountId()),
     ]);
+
+    // Should be safe since `authorizeSpaceAccess()` should throw if our account is
+    // in a non-`Active` state.
+    assert(spaceAccount.state.type === "Active");
 
     // The number of affinity results to load. We don't let the client configure
     // this number since we cache this in the client's RPC cache which is keyed on
@@ -2786,29 +2798,98 @@ export async function searchByAffinity(
     // policy changed).
     const favoritesLimit = searchShortcutFavoriteEntityMaxCount * 2;
 
-    const [entities, favoriteEntities, settings] = await runAllPromises([
-        internalGetSearchAffinityEntities(context, {spaceId, limit}),
-        internalGetSearchFavoriteEntities(context, {
-            spaceId,
-            // Get one more than `favoritesLimit` for determining if
-            // `hasMoreFavoriteResults` should be true.
-            limit: favoritesLimit + 1,
-        }),
-        getSpaceAccountSettings(context, spaceId),
-    ]);
+    const [entities, favoriteEntities, additionalEntitiesForNewSpaceAccount, settings] =
+        await runAllPromises([
+            internalGetSearchAffinityEntities(context, {spaceId, limit}),
+            internalGetSearchFavoriteEntities(context, {
+                spaceId,
+                // Get one more than `favoritesLimit` for determining if
+                // `hasMoreFavoriteResults` should be true.
+                limit: favoritesLimit + 1,
+            }),
+
+            // For the first minute after an account has been activated, we'll load some
+            // search entities with strong consistency. Since right after the user joins a
+            // space we don't want to show a suggested side bar that's missing some or all
+            // of our welcome package entities due to eventual consistency lag.
+            Date.now() - spaceAccount.state.activatedTime.getTime() < 60 * 1000
+                ? internalGetUnorderedSearchAffinityEntitiesWithStrongReadConsistency(context, {
+                      spaceId,
+                      limit: spaceWelcomePackageSearchEntityMaxCount,
+                  })
+                : null,
+
+            getSpaceAccountSettings(context, spaceId),
+        ]);
+
+    const favoriteEntityIds = new Set<SearchAffinityEntityId>();
+    for (const favoriteEntity of favoriteEntities) favoriteEntityIds.add(favoriteEntity.entityId);
+
+    // Merge `additionalEntitiesForNewSpaceAccount` into `entities`.
+    if (additionalEntitiesForNewSpaceAccount) {
+        const entityIds = new Set<SearchAffinityEntityId>();
+        for (const entity of entities) entityIds.add(entity.entityId);
+
+        let newEntityCount = 0;
+
+        // If we haven't seen this entity at all yet, then add it to the array.
+        for (const additionalEntity of additionalEntitiesForNewSpaceAccount) {
+            if (
+                !entityIds.has(additionalEntity.entityId) &&
+                !favoriteEntityIds.has(additionalEntity.entityId)
+            ) {
+                newEntityCount++;
+                entities.push(additionalEntity);
+            }
+        }
+
+        // NOTE(calebmer, 2026-01-09): Log that helps us verify this fix is actually
+        // doing something in production. I'm pretty sure this is fixing a real bug in
+        // production but I haven't actually observed the bug or observed that this
+        // fixes the bug. The log here will help us verify that there's indeed a bug
+        // and that this fix is working.
+        if (newEntityCount > 0) {
+            context.tracer.log(
+                "Probable eventual consistency lag when loading search entities by affinity",
+                {common: {count: newEntityCount}},
+            );
+        }
+    }
 
     const dynamicEntityIds = new Set<SearchAffinityEntityId & SearchDynamicEntityId>();
+
+    let shouldSortFavoriteEntities = false;
+
+    for (const entity of entities) {
+        if (entity.entityId !== "TaskPersonal") {
+            dynamicEntityIds.add(entity.entityId);
+        }
+
+        // Due to eventual consistency lag, we may see a favorited entity when querying
+        // our affinity index (sorted by points) and not when querying our favorites
+        // index. Add any favorites we find from our affinity index to the
+        // `favoriteEntities` array.
+        if (entity.favoriteOrderKey && !favoriteEntityIds.has(entity.entityId)) {
+            favoriteEntityIds.add(entity.entityId);
+
+            shouldSortFavoriteEntities = true;
+
+            favoriteEntities.push({
+                entityId: entity.entityId,
+                orderKey: entity.favoriteOrderKey,
+            });
+        }
+    }
+
+    // If we added a new entity to this array, sort it again so we make sure to
+    // have entities in the right order.
+    if (shouldSortFavoriteEntities)
+        favoriteEntities.sort((a, b) => defaultCompareStrings(a.orderKey, b.orderKey));
 
     for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
         const favoriteEntity = favoriteEntities[i]!;
         if (favoriteEntity.entityId !== "TaskPersonal") {
             dynamicEntityIds.add(favoriteEntity.entityId);
-        }
-    }
-
-    for (const entity of entities) {
-        if (entity.entityId !== "TaskPersonal") {
-            dynamicEntityIds.add(entity.entityId);
         }
     }
 

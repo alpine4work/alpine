@@ -59,8 +59,40 @@ export async function getSpaceAccountItem(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     spaceId: SpaceId,
     accountId: AccountId,
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    },
 ): Promise<SpaceAccountItem> {
-    const spaceAccountItem = await getSpaceAccountItemIfExists(context, spaceId, accountId);
+    const spaceAccountItem = await getSpaceAccountItemIfExists(
+        context,
+        spaceId,
+        accountId,
+        options,
+    );
     if (!spaceAccountItem) throw createSpaceAccountNotFoundError();
     return spaceAccountItem;
+}
+
+/**
+ * Internal function to get a `SpaceAccountItem`. Caches the result in a
+ * context cache.
+ *
+ * Does not authorize the actor has access! You must do that yourself.
+ *
+ * Throws an error if the `SpaceAccountItem` does not exist.
+ */
+export async function getSpaceAccountItemWithEventualThenStrongConsistency(
+    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<SpaceAccountItem> {
+    const spaceAccountItem = await getSpaceAccountItemIfExists(context, spaceId, accountId, {
+        consistency: "Eventual",
+    });
+    if (spaceAccountItem) return spaceAccountItem;
+
+    return getSpaceAccountItem(context, spaceId, accountId, {
+        consistency: "StrongWithinCache",
+    });
 }

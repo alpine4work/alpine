@@ -1,8 +1,16 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {suggestedSpaceAccountMaxCount} from "~/server/spaces/dangerously_expensively_get_suggested_space_account_ids_without_authorization.js";
 import {SpaceWelcomePackageItem} from "~/server/spaces/internal/spaces_table.js";
 import {searchAffinityEntityHighIntentUpdateInteractionPoints} from "~/server/spaces/search_affinity_entity_interaction_points.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+
+export const internalSpaceWelcomePackageSearchEntityMaxCount =
+    1 + // My tasks
+    1 + // General channel
+    1 + // Random channel
+    1 + // ChatGPT
+    suggestedSpaceAccountMaxCount;
 
 /**
  * Add affinity points for an `AccountId` based on a space's welcome package.
@@ -47,14 +55,19 @@ export async function dangerouslyApplySpaceWelcomePackage(
                   points: searchAffinityEntityHighIntentUpdateInteractionPoints - increment * 2,
               })
             : null,
-        ...suggestedAccountIds.map((suggestedAccountId, index) =>
-            context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization({
-                spaceId,
-                accountId,
-                entityId: `Account:${suggestedAccountId}`,
-                points:
-                    searchAffinityEntityHighIntentUpdateInteractionPoints - increment * (3 + index),
-            }),
-        ),
+        ...suggestedAccountIds
+            .slice(0, suggestedSpaceAccountMaxCount)
+            .map((suggestedAccountId, index) =>
+                context.searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization(
+                    {
+                        spaceId,
+                        accountId,
+                        entityId: `Account:${suggestedAccountId}`,
+                        points:
+                            searchAffinityEntityHighIntentUpdateInteractionPoints -
+                            increment * (3 + index),
+                    },
+                ),
+            ),
     ]);
 }

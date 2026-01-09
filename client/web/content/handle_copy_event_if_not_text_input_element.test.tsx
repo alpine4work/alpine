@@ -15,26 +15,13 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 
 disableStartMaintainingFileForTest();
 
 const space = createTestSpaceModel();
-
-const account = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Sarah Smith",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
+const account = createTestAccountModel({name: "Sarah Smith"});
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
 const testPostFileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({

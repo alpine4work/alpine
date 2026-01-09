@@ -203,17 +203,21 @@ export class AccountModel implements AccountModelWithoutSpace {
      * account.
      */
     public static getUnknown(): AccountModel {
+        const addedTime = new Date(0);
+
         this._unknown ??= new AccountModel({
             ...AccountModelWithoutSpace.getUnknown().initialData,
             space: {
                 version: 0,
-                addedTime: new Date(0),
+                addedTime,
                 state: {
                     type: "Active",
+                    activatedTime: addedTime,
                 },
                 role: "Member",
             },
         });
+
         return this._unknown;
     }
 }

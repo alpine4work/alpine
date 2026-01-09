@@ -362,7 +362,7 @@ describe("mergeDataWithoutSpace", () => {
             const originalSpace = createTestAccountSpaceData({
                 version: 5,
                 addedTime: new Date("2024-01-01"),
-                state: {type: "Active" as const},
+                state: {type: "Active" as const, activatedTime: new Date("2024-01-01")},
                 role: "Admin" as const,
             });
 
@@ -399,7 +399,7 @@ describe("mergeDataWithoutSpace", () => {
             const originalSpace = {
                 version: 3,
                 addedTime: new Date("2024-01-01"),
-                state: {type: "Active" as const},
+                state: {type: "Active" as const, activatedTime: new Date("2024-01-01")},
                 role: "Member" as const,
             };
 
@@ -491,7 +491,7 @@ describe("mergeDataWithoutSpace", () => {
             const originalSpace = createTestAccountSpaceData({
                 version: 10,
                 addedTime: new Date("2023-05-15"),
-                state: {type: "Active" as const},
+                state: {type: "Active" as const, activatedTime: new Date("2023-05-15")},
                 role: "Owner" as const,
             });
 

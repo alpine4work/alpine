@@ -10,6 +10,8 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {getMaxId, getMinId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
+export const suggestedSpaceAccountMaxCount = 5;
+
 /**
  * Get the first 5 active `AccountId`s to be added to the space. Useful when
  * adding an account to a space to populate their suggested list.
@@ -72,7 +74,7 @@ export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAu
                 return item.accountId;
             }),
             0,
-            5,
+            suggestedSpaceAccountMaxCount,
         ),
     );
 }

@@ -263,7 +263,7 @@ export async function getAddSpaceAccountTransactionEntries(
             accountInput.spaceAccountItem.state.type === "InvitePending" &&
             accountInput.dangerouslyWithoutInvite
         ) {
-            state = {type: "Active"};
+            state = {type: "Active", activatedTime: currentTime};
         } else {
             if (accountInput.spaceAccountItem.state.type !== "Removed") {
                 throw new FailedPreconditionError("Account is already a member of space");
@@ -275,7 +275,7 @@ export async function getAddSpaceAccountTransactionEntries(
             if (accountInput.account.botId) {
                 // Bots are added back to spaces as `Active` since a bot won't be accepting
                 // invites. That'd be silly.
-                state = {type: "Active"};
+                state = {type: "Active", activatedTime: currentTime};
             } else {
                 state = {
                     type: "InvitePending",
@@ -326,7 +326,7 @@ export async function getAddSpaceAccountTransactionEntries(
             // we'll always be adding the account to a space with trusted peers.
             (accountInput.type === "Existing" && accountInput.dangerouslyWithoutInvite)
         ) {
-            state = {type: "Active"};
+            state = {type: "Active", activatedTime: currentTime};
         } else {
             let emailAddress: EmailAddress;
 

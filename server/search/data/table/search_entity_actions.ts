@@ -1490,6 +1490,8 @@ export const getSearchAffinitiesEarlyReturnTestCounter = new TestCounter<Account
  * This function does not change entity ranking based on whether an entity is
  * in the actor's affinity list or not. It's expected that `searchByAffinity()`
  * will re-rank using the actor's favorite list.
+ *
+ * Includes search entities which are marked as favorites.
  */
 export async function internalGetSearchAffinityEntities(
     context: ServerSessionActionContext,
@@ -1538,6 +1540,41 @@ export async function internalGetSearchAffinityEntities(
         points: result.points,
         favoriteOrderKey: result.item.favoriteOrderKey,
     }));
+}
+
+/**
+ * Get a sample of n search affinity entities for the account with strong read
+ * consistency. This is used if when initially loading search affinity entities
+ * the user is under some threshold. We assume in that case the user has
+ * recently signed up and we may be observing eventual consistency lag.
+ *
+ * The entities are not returned in `points` order! Instead, they're returned
+ * in the order they're stored in DynamoDB (lexicographical ordering by
+ * `entityId`). So if there are only 5 entities and you load with a limit of 10
+ * then you know you've seen all entities and can sort them to get the proper
+ * order. But if you get 10 entities when loading with a limit of 10 then there
+ * may be more entities in the database you aren't seeing.
+ */
+export async function internalGetUnorderedSearchAffinityEntitiesWithStrongReadConsistency(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+) {
+    return arrayFromAsyncIterable(
+        SearchEntityTable.query(context, {
+            consistency: "Strong",
+            limit,
+            partitionKey: {
+                partitionType: "Account",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+        }),
+        result => ({
+            entityId: result.entityId,
+            points: result.points,
+            favoriteOrderKey: result.favoriteOrderKey,
+        }),
+    );
 }
 
 /**

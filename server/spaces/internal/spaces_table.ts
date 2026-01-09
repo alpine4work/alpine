@@ -10,7 +10,6 @@ import {
     AccountModelDataSpaceStateSchema,
 } from "~/shared/spaces/account_model.js";
 import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
-import {spaceAccountStateDefault} from "~/shared/spaces/space_account_state.js";
 import {SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
 export const SpacesTable = DynamoTableSchema.new({
@@ -107,7 +106,7 @@ export const SpacesTable = DynamoTableSchema.new({
                         /**
                          * The state of the account's membership in this space.
                          *
-                         * As of 2025-07-30, this used to be removal?: { time: Date } to mark
+                         * As of 2025-07-30, this used to be `removal?: { time: Date }` to mark
                          * an account as removed, but we needed to support more account states.
                          *
                          * We use a transform() here instead of a default() to ensure
@@ -121,9 +120,23 @@ export const SpacesTable = DynamoTableSchema.new({
                             .nullable()
                             .transform<AccountModelDataSpaceState>({
                                 serialize: value => value,
-                                deserialize: value => (!value ? spaceAccountStateDefault : value),
+                                deserialize: value => {
+                                    if (value) return value;
+
+                                    return {
+                                        type: "Active",
+                                        // NOTE(calebmer, 2026-01-09): This property didn't exist before this date. So
+                                        // default all objects that are missing this property to the migration date.
+                                        activatedTime: new Date("2026-01-09T21:17:25.026Z"),
+                                    };
+                                },
                             })
-                            .default(spaceAccountStateDefault)
+                            .default({
+                                type: "Active",
+                                // NOTE(calebmer, 2026-01-09): This property didn't exist before this date. So
+                                // default all objects that are missing this property to the migration date.
+                                activatedTime: new Date("2026-01-09T21:17:25.026Z"),
+                            })
                             .originalPropertyKey("removal"),
                     }),
                 },

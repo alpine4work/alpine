@@ -1827,6 +1827,33 @@ export type TracerEventData = {
         readonly description?: string;
         readonly colors?: string;
     };
+
+    /**
+     * Information regarding our feed product.
+     */
+    readonly feed?: {
+        /**
+         * Was the feed created this span?
+         */
+        readonly wasCreated?: boolean;
+
+        /**
+         * How many feed entries there are in the current operation. For example, when
+         * rendering the feed this is the number of entries loaded by the backend on
+         * initial render.
+         */
+        readonly entryCount?: number;
+
+        /**
+         * Are there more feed entries than what we have in the current operation?
+         */
+        readonly hasMoreEntries?: boolean;
+
+        /**
+         * How many search entities are in the feed sidebar.
+         */
+        readonly searchEntityCount?: number;
+    };
 };
 
 /**

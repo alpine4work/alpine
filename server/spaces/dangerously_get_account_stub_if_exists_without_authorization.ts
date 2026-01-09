@@ -82,7 +82,7 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         space: {
             version: accountData.space.version + smiMinValue,
             addedTime: new Date(0),
-            state: {type: "Active"},
+            state: {type: "Active", activatedTime: new Date(0)},
             role: "Member",
         },
         avatar: accountData.avatar

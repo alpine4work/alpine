@@ -65,13 +65,18 @@ export async function updateSpaceAccountWithInviteDecision(
 
         accountInvitePendingSpaceIds.delete(spaceId);
 
-        let state: AccountModelDataSpaceState = {type: "Active"};
+        const currentTime = new Date();
+
+        let state: AccountModelDataSpaceState = {
+            type: "Active",
+            activatedTime: currentTime,
+        };
         if (newAccountStateType === "Active") {
             accountSpaceIds.add(spaceId);
         } else {
             state = {
                 type: "Removed",
-                removedTime: new Date(),
+                removedTime: currentTime,
                 oldAccountData: account.initialData,
                 reason: "InviteRejectedAsSpam",
             };

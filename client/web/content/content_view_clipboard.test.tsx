@@ -45,19 +45,7 @@ const resourceServiceUrl = "http://localhost";
 disableStartMaintainingFileForTest();
 
 const space = createTestSpaceModel();
-
-const account = createTestAccountModel({
-    version: 0,
-    name: "Sarah Smith",
-    nameVersion: 0,
-    reactionCharacter: null,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Owner",
-    },
-});
+const account = createTestAccountModel({name: "Sarah Smith"});
 
 const file1Id = generateChronologicalId<FileId>();
 const file2Id = generateChronologicalId<FileId>();

@@ -117,7 +117,7 @@ export async function internalDangerouslyCreateInstantiateBotSpaceAccountTransac
                     accountId,
                     role: "Member",
                     addedTime: currentTime,
-                    state: {type: "Active"},
+                    state: {type: "Active", activatedTime: currentTime},
                     // Include the `BotId` in the space account item so we can quickly check if a
                     // space account is a bot.
                     botId,

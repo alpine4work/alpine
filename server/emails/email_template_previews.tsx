@@ -106,7 +106,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -136,7 +139,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -150,7 +156,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -173,7 +182,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -200,7 +212,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -219,7 +234,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -251,7 +269,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -278,7 +299,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },
@@ -309,7 +333,10 @@ const emailTemplatePreviews: {
                                 space: {
                                     version: 1,
                                     addedTime: new Date("2025-08-21T08:42:11Z"),
-                                    state: {type: "Active"},
+                                    state: {
+                                        type: "Active",
+                                        activatedTime: new Date("2025-08-21T08:42:11Z"),
+                                    },
                                     role: "Member",
                                 },
                             },

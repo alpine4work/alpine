@@ -24,7 +24,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 
@@ -46,22 +46,8 @@ const commentFileAttachmentTarget = markMemoIfNotRendering({
     documentId: fileAttachmentTarget.documentId,
 } as const satisfies FileAttachmentTarget);
 
-const createdTime = new Date();
-
 const space = createTestSpaceModel();
-
-const currentAccount = createTestAccountModel({
-    id: generateId<AccountId>(),
-    version: 0,
-    name: "Test Account",
-    nameVersion: 0,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
+const currentAccount = createTestAccountModel({name: "Test Account"});
 
 function TestContentEditor({
     initialContent = emptyDocumentWithoutTitleContent,

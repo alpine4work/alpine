@@ -46,7 +46,7 @@ export async function seedTestBotAccounts(
                 accountId: chatGptBotAccountIdForDefaultSpace,
                 role: "Member",
                 addedTime: currentTime,
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: currentTime},
                 botId: chatGptBotId,
             }),
             SpacesTable.transactionCreateOrReplaceItem({

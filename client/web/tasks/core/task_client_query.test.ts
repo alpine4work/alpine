@@ -59,33 +59,8 @@ const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
 const accountRegistry = getAccountRegistry(spaceId);
 
-const account1 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    name: "Test Account 1",
-    nameVersion: 0,
-    version: 0,
-    reactionCharacter: null,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
-
-const account2 = createTestAccountModel({
-    id: generateId<AccountId>(),
-    name: "Test Account 2",
-    nameVersion: 0,
-    version: 0,
-    reactionCharacter: null,
-    space: {
-        version: 0,
-        addedTime: new Date(),
-        state: {type: "Active"},
-        role: "Member",
-    },
-});
+const account1 = createTestAccountModel({name: "Test Account 1"});
+const account2 = createTestAccountModel({name: "Test Account 2"});
 
 // Make sure we hold a reference to the `account1` store for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

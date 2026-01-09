@@ -330,6 +330,7 @@ export async function getAndUpdateFeedEntries(
     endCursor: FeedEntryCursor | null;
     hasMoreEntries: boolean;
     entries: Array<FeedEntryModel>;
+    wasFeedCreated: boolean;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -343,9 +344,9 @@ export async function getAndUpdateFeedEntries(
         authorizeNotBotSpaceAccount(context, spaceId, accountId),
     ]);
 
-    const {feedItem, newEntryBlocks} = await context.tracer.withSpan(
+    const {feedItem, wasFeedCreated, newEntryBlocks} = await context.tracer.withSpan(
         "Update feed entries",
-        async context =>
+        async (context, span) =>
             context.dynamo.retryTransaction(async context => {
                 const feedItem = await FeedTable.getItemIfExists(context, {
                     partitionType: "Feed",
@@ -354,8 +355,25 @@ export async function getAndUpdateFeedEntries(
                     accountId,
                 });
 
-                const newEntryBlocks = await updateFeedEntries(context, spaceId, feedItem);
-                return {feedItem, newEntryBlocks};
+                const {wasCreated: wasFeedCreated, entryBlocks: newEntryBlocks} =
+                    await updateFeedEntries(context, spaceId, feedItem);
+
+                let entryCount = 0;
+                for (const entryBlock of newEntryBlocks) {
+                    entryCount += entryBlock.entries.length;
+                }
+
+                span.addData({
+                    feed: {
+                        // `true` if the feed was created and `undefined` if it wasn't to avoid taking
+                        // space on subsequent requests.
+                        wasCreated: wasFeedCreated ?? undefined,
+                        // Include the number of new entries from this span.
+                        entryCount,
+                    },
+                });
+
+                return {feedItem, wasFeedCreated, newEntryBlocks};
             }),
     );
 
@@ -457,6 +475,7 @@ export async function getAndUpdateFeedEntries(
             endCursor,
             hasMoreEntries,
             entries: entries.filter(isNonNullable),
+            wasFeedCreated,
         };
     } catch (error) {
         // Make sure we don't destroy `context` until everything in `entryPromises` has
@@ -475,7 +494,7 @@ async function updateFeedEntries(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
     feedItem: FeedAttributesItem | null,
-): Promise<ReadonlyArray<FeedEntryBlockItem>> {
+): Promise<{wasCreated: boolean; entryBlocks: ReadonlyArray<FeedEntryBlockItem>}> {
     // Limit the number of feed candidates we look at. This does mean if the user
     // is joining the space for the first time or opening a space again after a
     // long time away they may miss some feed entries. We accept this possibility.
@@ -663,7 +682,7 @@ async function updateFeedEntries(
         ]);
     }
 
-    return entryBlocks;
+    return {wasCreated: !feedItem, entryBlocks};
 }
 
 /**

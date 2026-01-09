@@ -21,7 +21,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-// NOCOMMIT: Strong consistency solution for `searchByAffinity()`
+// NOCOMMIT: Checkbox that they read the terms of service
 
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,
@@ -45,7 +45,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return nextUrl.toString() !== currentUrl.toString();
 };
 
-export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+export async function loader({context: unauthenticatedContext, params, span}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId ?? "");
 
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
@@ -68,6 +68,21 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
             limit: feedEntryLimit,
         }),
     ]);
+
+    span.addData({
+        feed: {
+            // `true` if the feed was created and `undefined` if it wasn't to avoid taking
+            // space on subsequent requests.
+            wasCreated: feed.wasFeedCreated ?? undefined,
+            // The entries loaded for server-side render?
+            entryCount: feed.entries.length,
+            // Are there more entries than what we loaded for server-side render?
+            hasMoreEntries: feed.hasMoreEntries,
+            // How many search entities are there in the feed sidebar?
+            searchEntityCount:
+                affinitySearch.results.length + affinitySearch.favoriteResults.length,
+        },
+    });
 
     return jsonWithSchema(LoaderSchema, {affinitySearch, feed});
 }

@@ -400,30 +400,12 @@ window.history.replaceState(null, "", `/s/${space.id}/test`);
 
 const currentAccount = createTestAccountModel({
     id: assertId<AccountId>("y6j4bejce5hf26d8kmatrf9dec"),
-    version: 0,
     name: "Budd Deey",
-    nameVersion: 0,
-    reactionCharacter: null,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
 });
 
 const otherAccount = createTestAccountModel({
     id: assertId<AccountId>("nyghmwnpt2pwy22qrn9b6j9254"),
-    version: 0,
     name: "Sara Smith",
-    nameVersion: 0,
-    reactionCharacter: null,
-    space: {
-        version: 0,
-        addedTime: createdTime,
-        state: {type: "Active"},
-        role: "Member",
-    },
 });
 
 const context: AppContext = Context.new({

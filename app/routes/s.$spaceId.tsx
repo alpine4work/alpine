@@ -323,6 +323,8 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
                 const inbox = unwrapResult(inboxResult);
 
+                // NOCOMMIT: Propagate from root `AppService` span?
+                // NOCOMMIT: `AccountId` and `SpaceId` for bot webhook calls
                 const propagateEventData: TracerEventData = {
                     context: {
                         accountId: currentAccount.id,

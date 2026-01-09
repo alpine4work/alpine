@@ -14,14 +14,16 @@ import {
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData> = {}) {
+    const time = new Date("2025-01-01T00:00:00Z");
+
     return new AccountModel({
         version: 0,
         nameVersion: 0,
         space: {
             version: 0,
-            state: {type: "Active"},
+            state: {type: "Active", activatedTime: time},
             role: "Member",
-            addedTime: new Date("2025-01-01T00:00:00Z"),
+            addedTime: time,
         },
         avatar: null,
         // NOTE(calebmer): This may be called in Playwright which doesn't have a global
@@ -62,10 +64,12 @@ export function createTestAccountSpaceData(
     state: AccountModelDataSpaceState;
     role: SpaceRole;
 } {
+    const time = new Date("2025-01-01T00:00:00Z");
+
     return {
         version: 0,
-        addedTime: new Date("2025-01-01T00:00:00Z"),
-        state: {type: "Active"},
+        addedTime: time,
+        state: {type: "Active", activatedTime: time},
         role: "Member",
         ...options,
     };
