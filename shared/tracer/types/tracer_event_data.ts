@@ -1772,6 +1772,21 @@ export type TracerEventData = {
 
         /** The Stripe customer ID. */
         readonly stripeCustomerId?: string;
+
+        /** Data regarding the Stripe event being processed. */
+        readonly stripeEvent?: {
+            /** The type of Stripe event being processed. */
+            readonly type?: string;
+
+            /** The ID of the Stripe event being processed. */
+            readonly id?: string;
+
+            /** Whether or not it's an event we handled. */
+            readonly processed?: boolean;
+
+            /** If this was a transaction, the amount in dollars. */
+            readonly dollarAmount?: number;
+        };
     };
 };
 

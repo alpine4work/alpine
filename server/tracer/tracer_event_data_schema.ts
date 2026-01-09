@@ -599,6 +599,12 @@ const TracerEventDataSchema = {
     billing: {
         createdStripeCustomer: Schema.boolean,
         stripeCustomerId: Schema.string,
+        stripeEvent: {
+            type: Schema.string,
+            id: Schema.string,
+            processed: Schema.boolean,
+            dollarAmount: Schema.float,
+        },
     },
 } satisfies TracerEventDataSchemaType<TracerEventFullData>;
 

@@ -73,14 +73,20 @@ describe("ensureAccountHasStripeCustomerId", () => {
             span: tracerRoot.startSpan("Test Span").span,
         });
 
+        const weekSinceEpoch = Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 7);
         expect(result).toBe(newCustomerId);
-        expect(stripe.customers.create).toHaveBeenCalledWith({
-            name: session.account.initialName,
-            email,
-            metadata: {
-                accountId: session.account.id,
+        expect(stripe.customers.create).toHaveBeenCalledWith(
+            {
+                name: session.account.initialName,
+                email,
+                metadata: {
+                    accountId: session.account.id,
+                },
             },
-        });
+            {
+                idempotencyKey: `create-customer-for-account-${session.account.id}-${weekSinceEpoch}`,
+            },
+        );
     });
 
     test("should throw UnknownError when Stripe customer creation fails", async () => {

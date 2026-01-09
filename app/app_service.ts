@@ -224,6 +224,11 @@ async function createAppService({
 
     let billingContextModule: BillingContextModuleBase;
     if (process.env.NODE_ENV === "production") {
+        assertExists(
+            options.stripeSigningSecret,
+            "`stripeSigningSecret` option is required in production",
+        );
+
         billingContextModule = new BillingContextModule({
             stripe: new Stripe(
                 assertExists(
@@ -231,24 +236,16 @@ async function createAppService({
                     "`stripeSecretKey` option is required in production",
                 ),
             ),
+            stripeSigningSecret: options.stripeSigningSecret,
         });
     } else {
         billingContextModule = options.stripeSecretKey
             ? new BillingContextModule({
                   stripe: new Stripe(options.stripeSecretKey),
+                  stripeSigningSecret: options.stripeSigningSecret,
               })
             : new BillingNoopDevelopmentContextModule();
     }
-
-    // TODO: Create stripe webhook
-    //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t2p3bdkf4498m2g1eedt0ks4qc
-    // const stripeSigningSecret =
-    //     process.env.NODE_ENV === "production"
-    //         ? assertExists(
-    //               options.stripeSigningSecret,
-    //               "`stripeSigningSecret` option is required in production",
-    //           )
-    //         : undefined;
 
     const basicProcessContext = Context.new(
         createServerBasicProcessContextModules({

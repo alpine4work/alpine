@@ -1,20 +1,25 @@
 import {Stripe} from "stripe";
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ensureAccountHasStripeCustomerId} from "~/server/billing/internal/ensure_account_has_stripe_customer_id.js";
+import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {UnknownError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Context module for billing operations using Stripe.
  */
 export class BillingContextModule extends BillingContextModuleBase {
     private readonly _stripe: Stripe;
+    private readonly _stripeSigningSecret: string | undefined;
 
-    constructor({stripe}: {stripe: Stripe}) {
+    constructor({stripe, stripeSigningSecret}: {stripe: Stripe; stripeSigningSecret?: string}) {
         super();
         this._stripe = stripe;
+        this._stripeSigningSecret = stripeSigningSecret;
     }
 
     /**
@@ -63,7 +68,24 @@ export class BillingContextModule extends BillingContextModuleBase {
         );
     }
 
+    async processStripeWebhook(
+        this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        request: Request,
+        span: TracerSpan,
+    ): Promise<void> {
+        return processStripeWebhook(
+            this._context,
+            request,
+            this._stripe,
+            span,
+            assertExists(this._stripeSigningSecret),
+        );
+    }
+
     fork(): BillingContextModuleBase {
-        return new BillingContextModule({stripe: this._stripe});
+        return new BillingContextModule({
+            stripe: this._stripe,
+            stripeSigningSecret: this._stripeSigningSecret,
+        });
     }
 }

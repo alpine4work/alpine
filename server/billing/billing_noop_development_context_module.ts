@@ -23,6 +23,10 @@ export class BillingNoopDevelopmentContextModule extends BillingContextModuleBas
         return `${this._context.constants.edgeServiceUrl}/#noop-checkout-session`;
     }
 
+    async processStripeWebhook(): Promise<void> {
+        // No-op
+    }
+
     fork(): BillingContextModuleBase {
         return new BillingNoopDevelopmentContextModule();
     }
