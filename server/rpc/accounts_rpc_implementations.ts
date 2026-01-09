@@ -136,4 +136,15 @@ export default implementRpcs(definitions, {
             return {account};
         },
     },
+
+    createLifetimeAccessCheckoutUrl: {
+        visibility: ["AppClient"],
+        execute: async context => {
+            const sessionContext = context.actor.authorizeSession();
+
+            return {
+                url: await sessionContext.billing.createLifetimeAccessCheckoutSessionUrl(),
+            };
+        },
+    },
 });

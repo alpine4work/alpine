@@ -11,7 +11,6 @@ ts_project(
     deps = [
         "//:node_modules/@types/web-push",
         "//:node_modules/web-push",
-        "//server/billing",
         "//server/cloudflare/r2",
         "//server/dynamo/core",
         "//server/helpers",

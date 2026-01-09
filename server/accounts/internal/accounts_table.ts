@@ -351,4 +351,6 @@ export type AccountItem = AccountItemWithoutAvatar & {
 
 export type AccountSettingsItem = DynamoTableItemType<typeof AccountsTable, "Account", "Settings">;
 
+export type AccountBillingItem = DynamoTableItemType<typeof AccountsTable, "Account", "Billing">;
+
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;

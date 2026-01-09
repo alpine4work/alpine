@@ -6,16 +6,12 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
  * Base context module for billing operations.
  */
 export abstract class BillingContextModuleBase<
-        Modules extends {
-            tracer: TracerContextModule;
-        } = {
-            tracer: TracerContextModule;
-        },
-    >
-    extends ContextModuleBase<Modules>
-    implements ForkableContextModuleBase
-{
-    // TODO: Add methods here
-
+    Modules extends {
+        tracer: TracerContextModule;
+    } = {
+        tracer: TracerContextModule;
+    },
+> extends ContextModuleBase<Modules> {
+    abstract createLifetimeAccessCheckoutSessionUrl(): Promise<string>;
     abstract fork(): ForkableContextModuleBase;
 }

@@ -1765,6 +1765,14 @@ export type TracerEventData = {
             };
         };
     };
+
+    readonly billing?: {
+        /** Whether a Stripe customer was created during this request. */
+        readonly createdStripeCustomer?: boolean;
+
+        /** The Stripe customer ID. */
+        readonly stripeCustomerId?: string;
+    };
 };
 
 /**
