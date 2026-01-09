@@ -13,7 +13,7 @@ export abstract class BillingContextModuleBase<
         tracer: TracerContextModule;
     },
 > extends ContextModuleBase<Modules> {
-    abstract createLifetimeAccessCheckoutSessionUrl(): Promise<string>;
+    abstract createLifetimeAccessCheckoutSessionUrl(currentPathname: string): Promise<string>;
     abstract processStripeWebhook(request: Request, span: TracerSpan): Promise<void>;
     abstract fork(): ForkableContextModuleBase;
 }

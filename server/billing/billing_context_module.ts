@@ -28,6 +28,7 @@ export class BillingContextModule extends BillingContextModuleBase {
      */
     async createLifetimeAccessCheckoutSessionUrl(
         this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,
+        currentPathname: string,
     ): Promise<string> {
         return this._context.tracer.withSpan(
             "Create lifetime access checkout session",
@@ -50,8 +51,8 @@ export class BillingContextModule extends BillingContextModuleBase {
                         ],
                         mode: "payment",
                         // TODO: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9e7qbd070bmrvsh5vqhhn6nc14
-                        success_url: `${context.constants.edgeServiceUrl}/TODO`,
-                        cancel_url: `${context.constants.edgeServiceUrl}/TODO`,
+                        success_url: `${context.constants.edgeServiceUrl}${currentPathname}?purchased=lifetime-access`,
+                        cancel_url: `${context.constants.edgeServiceUrl}${currentPathname}`,
                     });
                 } catch (error) {
                     throw new UnknownError(`Failed to create Stripe Checkout session`, {

@@ -215,7 +215,10 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                               label: "Purchase lifetime access",
                               pressErrorTitle: "Couldn’t open URL to purchase lifetime access",
                               onPress: async () => {
-                                  const {url} = await createLifetimeAccessCheckoutUrl(context, {});
+                                  const {url} = await createLifetimeAccessCheckoutUrl(context, {
+                                      currentPathname: window.location.pathname,
+                                  });
+
                                   // eslint-disable-next-line react-compiler/react-compiler
                                   window.location.href = url;
                               },
