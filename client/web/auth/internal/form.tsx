@@ -54,6 +54,8 @@ export function Form({
     const isDisabled = button.props.isDisabled ?? false;
 
     const [isButtonPressed, setIsButtonPressed] = useState(false);
+    if (isButtonPressed && isDisabled) setIsButtonPressed(false);
+
     const [isPending, setIsPending] = useState(false);
     const [errorState, setErrorState] = useState<{error: unknown} | null>(null);
 
@@ -122,7 +124,9 @@ export function Form({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        setIsButtonPressed(true);
+                        if (!isDisabled) {
+                            setIsButtonPressed(true);
+                        }
                         break;
                     }
                 }
@@ -137,8 +141,10 @@ export function Form({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        setIsButtonPressed(false);
-                        handleSubmit();
+                        if (!isDisabled) {
+                            setIsButtonPressed(false);
+                            handleSubmit();
+                        }
                         break;
                     }
                 }

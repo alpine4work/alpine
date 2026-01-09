@@ -64,6 +64,12 @@ export type TestServices = {
      * resets after each test.
      */
     getOneTimePasswords(): ReadonlyArray<{emailAddress: string; oneTimePassword: string}>;
+
+    /**
+     * Get the invite URLs generated during the current test. The array resets
+     * after each test.
+     */
+    getInviteUrls(): ReadonlyArray<{emailAddress: string; inviteUrl: string}>;
 };
 
 /**
@@ -160,10 +166,12 @@ export function createTestServices(): {
         | undefined;
 
     let oneTimePasswords: Array<{emailAddress: string; oneTimePassword: string}> = [];
+    let inviteUrls: Array<{emailAddress: string; inviteUrl: string}> = [];
 
     test.beforeEach(() => {
         // Clear out one time passwords before the next test.
         oneTimePasswords = [];
+        inviteUrls = [];
     });
 
     test.beforeAll(async () => {
@@ -310,14 +318,28 @@ export function createTestServices(): {
         appServiceSubprocess.stdout.on("data", chunk => {
             const chunkString = chunk.toString();
 
-            const oneTimePasswordMatch = chunkString.match(
-                /The one time password for `([^`]+)` is `([^`]+)`/,
-            );
-            if (oneTimePasswordMatch) {
-                oneTimePasswords.push({
-                    emailAddress: oneTimePasswordMatch[1],
-                    oneTimePassword: oneTimePasswordMatch[2],
-                });
+            {
+                const oneTimePasswordMatch = chunkString.match(
+                    /The one time password for `([^`]+)` is `([^`]+)`/,
+                );
+                if (oneTimePasswordMatch) {
+                    oneTimePasswords.push({
+                        emailAddress: oneTimePasswordMatch[1],
+                        oneTimePassword: oneTimePasswordMatch[2],
+                    });
+                }
+            }
+
+            {
+                const inviteUrlMatch = chunkString.match(
+                    /Accept the invite for `([^`]+)` in `([^`]+)` here: `([^`]+)`/,
+                );
+                if (inviteUrlMatch) {
+                    inviteUrls.push({
+                        emailAddress: inviteUrlMatch[1],
+                        inviteUrl: inviteUrlMatch[3],
+                    });
+                }
             }
 
             process.stdout.write(chunkString);
@@ -536,6 +558,7 @@ export function createTestServices(): {
             },
             signIn,
             getOneTimePasswords: () => oneTimePasswords.slice(),
+            getInviteUrls: () => inviteUrls.slice(),
         },
     };
 }

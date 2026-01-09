@@ -357,7 +357,9 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 // If we got logos from Logo.dev then add them to DynamoDB. We'll need to store
                                 // a larger version of the image in R2 later.
                                 //
-                                // NOCOMMIT: Store a larger version of the image in R2!
+                                // TODO(calebmer): We eventually need to queue a job that runs our full avatar
+                                // processing pipeline (e.g. storing large image to R2 and generating a small
+                                // AVIF file that fits into DynamoDB 1 RCU).
                                 ...(logoDevResult.value?.logoLightContent
                                     ? [
                                           SpacesTable.transactionCreateOrReplaceItem({

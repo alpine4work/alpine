@@ -4,15 +4,6 @@ import {AuthenticationView} from "~/client/web/auth/authentication_view.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 
-// NOCOMMIT: Integration tests
-//
-// - [ ] Sign up with personal email (e.g. `@gmail.com`) starts in personal space
-// - [ ] First sign up with company email (e.g. `@company.com`) starts in company space
-// - [ ] Second/third sign up with company email (e.g. `@company.com`) starts in company space
-// - [ ] First sign in after invitation to space (lands in invited space)
-// - [ ] Sign up after invitation to space (lands in invited space)
-// - [ ] Sign up after invitation to space we would have auto-joined based on email domain
-
 export function meta({params}: {params: Params}) {
     return [{title: params.variant === "sign-up" ? "Sign up for Alpine" : "Sign in to Alpine"}];
 }

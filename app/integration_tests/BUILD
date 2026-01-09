@@ -87,5 +87,6 @@ ts_playwright_tests(
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
         "//server/tokens",
+        "//shared/test_helpers",
     ],
 )
