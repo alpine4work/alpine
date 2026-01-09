@@ -1,4 +1,4 @@
-import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
+import {AccountItem, AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
@@ -20,6 +20,7 @@ export async function createAccountForTest(
         hasInternalAccess = false,
         createdTime = new Date(),
         observedTimeZone = defaultTimeZone,
+        plan,
         reactionCharacter = pickRandomReactionCharacterForAccount(),
     }: {
         id?: AccountId;
@@ -27,6 +28,7 @@ export async function createAccountForTest(
         hasInternalAccess?: boolean;
         createdTime?: Date;
         observedTimeZone?: TimeZone | null;
+        plan?: AccountItem["plan"];
         reactionCharacter?: ReactionCharacter;
     },
 ) {
@@ -41,6 +43,7 @@ export async function createAccountForTest(
         createdTime,
         hasInternalAccess,
         observedTimeZone,
+        plan,
         reactionCharacter,
     });
 

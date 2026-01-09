@@ -45,6 +45,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "plan": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "LifetimeAccess"
+                                            ]
+                                        },
+                                        "optional": true
+                                    },
                                     "createdTime": {
                                         "valueSchema": {
                                             "type": "Date"
@@ -154,6 +163,64 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        },
+                        "Billing": {
+                            "id": 3,
+                            "orderKey": "a3",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "stripeCustomerId": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "stripePurchases": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "priceId": {
+                                                        "valueSchema": {
+                                                            "type": "String"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "price": {
+                                                        "valueSchema": {
+                                                            "type": "Float"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "createdTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -289,6 +356,39 @@ export const dynamoGeneratedSchemaDescription: {
                                             "schema": {
                                                 "type": "String"
                                             }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            },
+                            "childSortRangeByType": {}
+                        }
+                    }
+                },
+                "StripeCustomer": {
+                    "id": 3,
+                    "partitionKeyAttributeByKey": {
+                        "stripeCustomerId": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "accountId": {
+                                        "valueSchema": {
+                                            "type": "Id"
                                         },
                                         "optional": false
                                     },
@@ -10364,6 +10464,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "botId": {
                                                                             "valueSchema": {
                                                                                 "type": "Id"
+                                                                            },
+                                                                            "optional": true
+                                                                        },
+                                                                        "plan": {
+                                                                            "valueSchema": {
+                                                                                "type": "Enum",
+                                                                                "values": [
+                                                                                    "LifetimeAccess"
+                                                                                ]
                                                                             },
                                                                             "optional": true
                                                                         },
