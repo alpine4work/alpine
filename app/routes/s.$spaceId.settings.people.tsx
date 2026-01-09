@@ -10,6 +10,7 @@ import {
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {Link} from "~/client/web/design/link.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
@@ -18,10 +19,14 @@ import {useRevalidator} from "~/client/web/remix/use_revalidator.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {SettingsInvitePeopleModal} from "~/client/web/settings/settings_invite_people_modal.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
+import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     expensivelyGetAllSpaceAccounts as expensivelyGetAllSpaceAccountsRpc,
@@ -42,22 +47,75 @@ import {Store} from "~/shared/store/store.js";
 
 const LoaderSchema = Schema.object({
     allAccounts: Schema.array(AccountModel.schema),
+    autoAddAccountsFromEmailDomains: Schema.array(
+        Schema.object({
+            emailDomain: Schema.string,
+            isEnabled: Schema.boolean,
+        }),
+    ),
 });
 
-export async function loader({context, params}: LoaderArgs) {
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
 
-    const allAccounts = await expensivelyGetAllSpaceAccounts(
-        await context.actor.authenticate(),
-        spaceId,
-        {consistency: "Strong"},
-    );
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    return jsonWithSchema(LoaderSchema, {allAccounts});
+    const [allAccounts, autoAddAccountsFromEmailDomains] = await runAllPromises([
+        expensivelyGetAllSpaceAccounts(context, spaceId, {consistency: "Strong"}),
+        getSpaceAutoAddAccountsFromEmailDomains(context, spaceId, {consistency: "Strong"}),
+    ]);
+
+    return jsonWithSchema(LoaderSchema, {
+        allAccounts,
+        autoAddAccountsFromEmailDomains,
+    });
 }
 
 export default function SpacePeopleSettingsRoute() {
-    const {allAccounts} = useLoaderDataWithSchema(LoaderSchema);
+    const {allAccounts, autoAddAccountsFromEmailDomains} = useLoaderDataWithSchema(LoaderSchema);
+
+    const enabledAutoAddAccountsFromEmailDomains = filterMapArray(
+        autoAddAccountsFromEmailDomains,
+        ({isEnabled, emailDomain}) => {
+            if (!isEnabled) return;
+            return emailDomain;
+        },
+    );
+
+    return (
+        <Box display="flex" flexDirection="column" gap="10">
+            {enabledAutoAddAccountsFromEmailDomains.length > 0 && (
+                <Box display="flex" flexDirection="column" gap="1">
+                    <Box fontSize="200" fontStyle="bold" userSelect="text">
+                        Linked email{" "}
+                        {enabledAutoAddAccountsFromEmailDomains.length > 1 ? "domains" : "domain"}
+                    </Box>
+                    {enabledAutoAddAccountsFromEmailDomains.map(emailDomain => (
+                        <Box key={emailDomain} fontSize="75" color="grey-60" userSelect="text">
+                            Automatically add anyone who signs up with{" "}
+                            {/^[aeiou]/i.test(emailDomain) ? "an" : "a"}{" "}
+                            <strong
+                                className={sprinkles({fontStyle: "bold", color: "grey-100"})}
+                                style={{wordBreak: "break-word"}}
+                            >
+                                @{emailDomain}
+                            </strong>{" "}
+                            email address to this space. To change this, reach out to{" "}
+                            <Link url="mailto:support@alpine.inc">support@alpine.inc</Link>
+                        </Box>
+                    ))}
+                </Box>
+            )}
+            <SpacePeopleSettingsRouteAccounts allAccounts={allAccounts} />
+        </Box>
+    );
+}
+
+function SpacePeopleSettingsRouteAccounts({
+    allAccounts,
+}: {
+    allAccounts: ReadonlyArray<AccountModel>;
+}) {
     const {currentAccount, space} = useSpaceContextAndRequireSpaceAccess();
     const currentAccountData = useAccountModel(currentAccount);
     const appContext = useAppContext();

@@ -252,7 +252,13 @@ function PushNotificationsSection({
             >
                 <Switch
                     fontSize="100"
-                    isSelected={isSubscribed && permissionState === "granted"}
+                    isSelected={
+                        isSubscribed &&
+                        // While permission status is unknown (`permissionState` is null) fully rely
+                        // on `isSubscribed` state. That way this switch doesn't animate on when you
+                        // switch to the page.
+                        (permissionState === null || permissionState === "granted")
+                    }
                     changeErrorTitle={`Couldn’t ${
                         isSubscribed ? "disable" : "enable"
                     } push notifications`}

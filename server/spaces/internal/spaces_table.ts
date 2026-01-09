@@ -1,7 +1,6 @@
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -190,7 +189,6 @@ export const SpacesTable = DynamoTableSchema.new({
                     }),
                 },
 
-                // NOCOMMIT: Add to settings page
                 /**
                  * Accounts that sign up with an email from this email domain are automatically
                  * added to the space.
