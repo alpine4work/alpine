@@ -1,6 +1,6 @@
 import {addDays} from "date-fns";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -9,9 +9,7 @@ import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 export async function processSendTryOnDesktopEmail(
-    context: Context<
-        Omit<ServerSystemActionContextModules, "actor"> & {email: EmailContextModuleBase}
-    >,
+    context: Context<ServerProcessContextModules & {email: EmailContextModuleBase}>,
     {
         accountId,
         emailAddress,

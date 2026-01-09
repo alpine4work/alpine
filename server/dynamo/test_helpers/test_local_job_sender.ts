@@ -36,7 +36,7 @@ export class TestLocalJobSender implements JobSenderBase {
         span: TracerSpan,
     ) => Promise<void>;
     private readonly _processMaintenanceJob: (
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        context: ServerProcessContext,
         job: MaintenanceJobDescription,
         jobStartTime: Date,
         span: TracerSpan,
@@ -58,7 +58,7 @@ export class TestLocalJobSender implements JobSenderBase {
             span: TracerSpan,
         ) => Promise<void>;
         processMaintenanceJob?: (
-            context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+            context: ServerProcessContext,
             job: MaintenanceJobDescription,
             jobStartTime: Date,
             span: TracerSpan,

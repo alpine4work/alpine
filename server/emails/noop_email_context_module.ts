@@ -16,40 +16,17 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
  * Only to be used outside of production when we don't actually care at all about emails.
  */
 export class NoopEmailContextModule extends EmailContextModuleBase {
-    public override async send<Template extends keyof EmailTemplates>({
-        fromEmailAddressAlias,
-        toEmailAddress,
-        templateName,
-        templateProps,
-    }: {
-        fromEmailAddressAlias: FromEmailAddressAlias;
-        toEmailAddress: EmailAddress;
-        templateName: Template;
-        templateProps: EmailTemplateProps<Template>;
-    }): Promise<void> {
+    public override async send(): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
     }
 
-    public override async sendImmediately<Template extends keyof EmailTemplates>({
-        fromEmailAddressAlias,
-        toEmailAddress,
-        templateName,
-        templateProps,
-    }: {
-        fromEmailAddressAlias: FromEmailAddressAlias;
-        toEmailAddress: EmailAddress;
-        templateName: Template;
-        templateProps: EmailTemplateProps<Template>;
-    }): Promise<void> {
+    public override async sendImmediately(): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
     }
-    protected async _send(
-        _fromEmailAddress: string,
-        _toEmailAddress: EmailAddress,
-        _email: RenderedEmail,
-    ): Promise<void> {
+
+    protected async _send(): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError("Can’t use `NoopEmailContextModule` in production");
     }

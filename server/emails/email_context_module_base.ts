@@ -176,12 +176,7 @@ export abstract class EmailContextModuleBase<
     /**
      * Get a signed URL to unsubscribe from an email segment intended to be used by AppService.
      */
-    public abstract getSignedUnsubscribeUrlForAppService({
-        accountId,
-        spaceId,
-        emailType,
-        baseUrl,
-    }: {
+    public abstract getSignedUnsubscribeUrlForAppService(options: {
         accountId: AccountId;
         spaceId: SpaceId;
         emailType: NonTransactionalEmailType;

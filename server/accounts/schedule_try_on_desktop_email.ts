@@ -11,7 +11,6 @@ export const scheduleTryOnDesktopEmailDelaySeconds = 5 * 60;
  * time the job will check if the account has opted out and will only send the
  * email if the account hasn't opted out.
  */
-// NOCOMMIT: Tests!
 export async function scheduleTryOnDesktopEmail(
     context: ServerSessionActionContext,
     {emailAddress, openSpaceId}: {emailAddress: EmailAddress; openSpaceId: SpaceId | null},

@@ -51,6 +51,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {
     OpensearchClient,
     TestDisabledOpensearchClient,
@@ -199,6 +200,7 @@ export function createTestContext(
         | {
               shouldSendJobsToSqs: true;
               processJob?: undefined;
+              processMaintenanceJob?: undefined;
           }
         | {
               shouldSendJobsToSqs?: false;
@@ -208,10 +210,20 @@ export function createTestContext(
                   jobStartTime: Date,
                   span: TracerSpan,
               ) => Promise<void>;
+              processMaintenanceJob?: (
+                  context: ServerProcessContext,
+                  job: MaintenanceJobDescription,
+                  jobStartTime: Date,
+                  span: TracerSpan,
+              ) => Promise<void>;
           }
     ) = {},
 ): TestActualContext {
-    const {shouldStartOpensearch = false, shouldSendJobsToSqs = false} = options;
+    const {
+        shouldStartOpensearch = false,
+        shouldSendJobsToSqs = false,
+        processMaintenanceJob,
+    } = options;
     let {processJob} = options;
 
     // Increase Jest timeout for tests using a test context since these tests
@@ -675,6 +687,9 @@ export function createTestContext(
                 new TestLocalJobSender({
                     processJob: async (context, job, jobStartTime, span) => {
                         await processJob?.(context, job, jobStartTime, span);
+                    },
+                    processMaintenanceJob: async (context, job, jobStartTime, span) => {
+                        await processMaintenanceJob?.(context, job, jobStartTime, span);
                     },
                     createSystemContext,
                     getProcessContext,
