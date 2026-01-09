@@ -11,7 +11,6 @@ import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 /**
  * Get the email domains we auto-add accounts to this space from.
  */
-// NOCOMMIT: Test!
 export async function getSpaceAutoAddAccountsFromEmailDomains(
     context: ServerSessionActionContext,
     spaceId: SpaceId,

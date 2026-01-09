@@ -155,6 +155,7 @@ export async function updateSpaceAccountWithInviteDecision(
                           dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
                               context,
                               spaceId,
+                              {excludeAccountId: accountId},
                           ),
                   })
                 : null;

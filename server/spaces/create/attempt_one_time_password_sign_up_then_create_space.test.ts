@@ -15,6 +15,7 @@ import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_inv
 import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/create/attempt_one_time_password_sign_up_then_create_space.js";
 import {withChatGptBotIdForTest} from "~/server/spaces/create/internal/create_space_welcome_package_transaction_entries.js";
 import {getAccountSpaceIdsForTest} from "~/server/spaces/get_account_space_ids_for_test.js";
+import {getSpaceAutoAddAccountsFromEmailDomains} from "~/server/spaces/get_space_auto_add_accounts_from_email_domains.js";
 import {getSpaceAccountItem} from "~/server/spaces/internal/get_space_account_item.js";
 import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
@@ -1301,4 +1302,50 @@ describe("Welcome package", () => {
             },
         });
     });
+});
+
+test("work space has auto-add email domain enabled", async () => {
+    const {session, emailDomain} = await testWorkSignUp();
+
+    expect(
+        await getSpaceAutoAddAccountsFromEmailDomains(session.action(), session.space.id),
+    ).toEqual([{emailDomain, isEnabled: true}]);
+});
+
+test("personal space has no auto-add email domains", async () => {
+    const {session} = await testPersonalSignUp();
+
+    expect(
+        await getSpaceAutoAddAccountsFromEmailDomains(session.action(), session.space.id),
+    ).toEqual([]);
+});
+
+test("work space auto-add email domain can be disabled", async () => {
+    const {session, emailDomain} = await testWorkSignUp();
+
+    await SpacesTable.updateItem(
+        context.anonymousAction(),
+        {
+            partitionType: "AutoAddAccountsFromEmailDomain",
+            sortRangeType: "Space",
+            emailDomain,
+        },
+        item => {
+            assert(item);
+            return {...item, isEnabled: false};
+        },
+    );
+
+    expect(
+        await getSpaceAutoAddAccountsFromEmailDomains(session.action(), session.space.id),
+    ).toEqual([{emailDomain, isEnabled: false}]);
+});
+
+test("cannot get auto-add email domains without space access", async () => {
+    const {session: session1} = await testWorkSignUp();
+    const {session: session2} = await testPersonalSignUp();
+
+    await expect(
+        getSpaceAutoAddAccountsFromEmailDomains(session2.action(), session1.space.id),
+    ).rejects.toThrow(PermissionDeniedError);
 });

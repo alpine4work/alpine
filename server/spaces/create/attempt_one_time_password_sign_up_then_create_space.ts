@@ -254,6 +254,7 @@ export async function attemptOneTimePasswordSignUpThenCreateSpace(
                                 dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
                                     context,
                                     autoAddAccountsFromEmailDomainItem.spaceId,
+                                    {excludeAccountId: accountId},
                                 ),
                             ]);
 

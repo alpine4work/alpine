@@ -17,6 +17,7 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAuthorization(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     spaceId: SpaceId,
+    {excludeAccountId}: {excludeAccountId?: AccountId} = {},
 ) {
     const consistency = "Eventual";
 
@@ -59,6 +60,9 @@ export async function dangerouslyExpensivelyGetSuggestedSpaceAccountIdsWithoutAu
     return Array.from(
         sliceIterable(
             filterMapIterable(items, item => {
+                // Were we told to exclude this `AccountId`?
+                if (item.accountId === excludeAccountId) return;
+
                 if (item.state.type !== "Active") return;
 
                 // Don't include bots in suggested accounts. We separately add affinity points
