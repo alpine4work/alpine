@@ -1,6 +1,6 @@
 import {Img, Text} from "@react-email/components";
 import {getAccountInitials} from "~/shared/accounts/get_account_initials.js";
-import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {
     Spacing,
@@ -130,7 +130,7 @@ function EmailAccountAvatarWithImage({
 
     const imageUrl = accountData.avatar.url
         ? accountData.avatar.url
-        : `data:${avatarContentType};base64,${encodeBase64(accountData.avatar.content!)}`;
+        : `data:${getAvatarContentType(accountData.avatar.content!)};base64,${encodeBase64(accountData.avatar.content!)}`;
 
     return (
         <div

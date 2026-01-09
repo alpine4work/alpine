@@ -1,5 +1,5 @@
 import {useMemo} from "react";
-import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {borderRadius as borderRadiusVar} from "~/shared/design/core/border_radius.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 
@@ -11,8 +11,7 @@ export function AvatarImage({
     borderRadius?: 1 | 1.5 | 2 | 3 | "full";
 }) {
     const imageUrl = useMemo(
-        // NOCOMMIT: Should this be png for png avatars?
-        () => `data:${avatarContentType};base64,${encodeBase64(content)}`,
+        () => `data:${getAvatarContentType(content)};base64,${encodeBase64(content)}`,
         [content],
     );
 

@@ -10,7 +10,6 @@ import {avatarsBucketName} from "~/server/helpers/avatars_cloudflare_r2_bucket_n
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {
-    avatarContentType,
     defaultAvatarSize,
     defaultProfileImageSize,
     maxAvatarUploadContentLength,
@@ -23,6 +22,7 @@ import {
     printAvatarEntityPathIntoCloudflareR2Key,
 } from "~/shared/avatar/avatar_entity_path.js";
 import {AvatarTheme, isAvatarTheme} from "~/shared/avatar/avatar_schema.js";
+import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
 import {ResizeAvatarForUploadResponseSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_response_schema.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
@@ -148,7 +148,9 @@ export async function uploadAvatar(
             putR2ObjectWithSpan(span, {
                 key: printAvatarEntityPathIntoCloudflareR2Key(avatarEntityPath, avatarId, "small"),
                 body: avatarImageContent,
-                contentType: avatarContentType,
+                // Should always be `image/avif`. Our file avatar resize endpoint should always
+                // output AVIF.
+                contentType: getAvatarContentType(avatarImageContent),
                 bucketName: avatarsBucketName,
                 contentLength: avatarImageContent.length,
                 bucket: env.AvatarsBucket,
@@ -160,7 +162,9 @@ export async function uploadAvatar(
                     "profile",
                 ),
                 body: profileImageContent,
-                contentType: avatarContentType,
+                // Should always be `image/avif`. Our file avatar resize endpoint should always
+                // output AVIF.
+                contentType: getAvatarContentType(profileImageContent),
                 bucketName: avatarsBucketName,
                 contentLength: profileImageContent.length,
                 bucket: env.AvatarsBucket,

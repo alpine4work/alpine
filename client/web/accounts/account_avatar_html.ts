@@ -1,7 +1,7 @@
 import {renderAvatarIconOverlay} from "~/client/web/accounts/internal/avatar_icon_overlay_html.js";
 import {renderAvatarDefaultHtml} from "~/client/web/avatar/avatar_default_html.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
-import {avatarContentType} from "~/shared/avatar/avatar_constants.js";
+import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {borderRadius as borderRadiusValues} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
@@ -133,7 +133,8 @@ function renderAccountImageAvatarDesign(avatarDesign: AccountImageAvatarDesign) 
     const imageUrl = getOrSetDefaultMapValue(
         imageUrlCache,
         avatarDesign.content,
-        () => `data:${avatarContentType};base64,${encodeBase64(avatarDesign.content)}`,
+        () =>
+            `data:${getAvatarContentType(avatarDesign.content)};base64,${encodeBase64(avatarDesign.content)}`,
     );
 
     const avatarHtml = new HtmlElementGenerator("img");
