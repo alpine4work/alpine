@@ -74,6 +74,7 @@ export function createAwsAppOrApiService(
         taskDefinition: taskDefinitionOptions,
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
+        withStripeSecrets,
     }: {
         serviceName: string;
         secretsName: string;
@@ -92,6 +93,7 @@ export function createAwsAppOrApiService(
             logicalName?: string;
         };
         withAgentServiceUrl?: boolean;
+        withStripeSecrets?: boolean;
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
@@ -284,6 +286,15 @@ export function createAwsAppOrApiService(
                 secrets,
                 "cloudflareR2SecretAccessKey",
             ),
+            ...(withStripeSecrets
+                ? {
+                      STRIPE_SECRET_KEY: EcsSecret.fromSecretsManager(secrets, "stripeSecretKey"),
+                      STRIPE_SIGNING_SECRET: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "stripeSigningSecret",
+                      ),
+                  }
+                : {}),
         },
         environment: {
             NODE_ENV: "production",
@@ -328,6 +339,12 @@ export function createAwsAppOrApiService(
             "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
             "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
             "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+            ...(withStripeSecrets
+                ? [
+                      "--stripeSecretKey=$STRIPE_SECRET_KEY",
+                      "--stripeSigningSecret=$STRIPE_SIGNING_SECRET",
+                  ]
+                : []),
         ],
         healthCheck: {
             command: [

@@ -24,6 +24,8 @@ export type AppServiceConstants = {
             readonly taskRealtimeServiceSecurityGroupId?: string;
             readonly allMiniLmL6V2LanguageModel?: string;
             readonly cohereApiKey?: string;
+            readonly stripeSecretKey?: string;
+            readonly stripeSigningSecret?: string;
             readonly apnsCertificate?: string;
             readonly apnsCertificatePrivateKey?: string;
             readonly webPushVapidPublicKey?: string;

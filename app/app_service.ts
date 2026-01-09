@@ -1,6 +1,7 @@
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
+import Stripe from "stripe";
 import * as build from "virtual:remix/server-build";
 import {
     AppServiceProcessContext,
@@ -17,6 +18,9 @@ import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_
 import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {BillingContextModule} from "~/server/billing/billing_context_module.js";
+import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
+import {BillingNoopDevelopmentContextModule} from "~/server/billing/billing_noop_development_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {
@@ -218,6 +222,34 @@ async function createAppService({
                   ),
               );
 
+    let billingContextModule: BillingContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        billingContextModule = new BillingContextModule({
+            stripe: new Stripe(
+                assertExists(
+                    options.stripeSecretKey,
+                    "`stripeSecretKey` option is required in production",
+                ),
+            ),
+        });
+    } else {
+        billingContextModule = options.stripeSecretKey
+            ? new BillingContextModule({
+                  stripe: new Stripe(options.stripeSecretKey),
+              })
+            : new BillingNoopDevelopmentContextModule();
+    }
+
+    // TODO: Create stripe webhook
+    //   https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/t2p3bdkf4498m2g1eedt0ks4qc
+    // const stripeSigningSecret =
+    //     process.env.NODE_ENV === "production"
+    //         ? assertExists(
+    //               options.stripeSigningSecret,
+    //               "`stripeSigningSecret` option is required in production",
+    //           )
+    //         : undefined;
+
     const basicProcessContext = Context.new(
         createServerBasicProcessContextModules({
             tracer,
@@ -329,6 +361,7 @@ async function createAppService({
                       vapidPublicKey: webPushVapidPublicKey,
                       vapidPrivateKey: webPushVapidPrivateKey,
                   }),
+        billing: billingContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),
         forumInjection: new ForumInjectionContextModule(forumInjection),

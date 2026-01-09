@@ -3,6 +3,7 @@ import {FileStorage} from "@miniflare/storage-file";
 import {join as joinPath} from "path";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {BillingNoopDevelopmentContextModule} from "~/server/billing/billing_noop_development_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
@@ -242,6 +243,7 @@ export async function withDevContext<Value>(
             tokenAgent,
             resourceServiceUrl: `http://localhost:${resourcesDevPort}`,
         }),
+        billing: new BillingNoopDevelopmentContextModule(),
         r2: new CloudflareR2ContextModule(cloudflareClient),
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),

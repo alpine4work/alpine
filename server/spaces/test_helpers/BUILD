@@ -9,6 +9,7 @@ ts_project(
     ],
     deps = [
         "//server/accounts",
+        "//server/billing",
         "//server/emails",
         "//server/forum/data",
         "//server/spaces",

@@ -100,6 +100,7 @@ ts_project(
         "//client/web/virtualized",
         "//server/accounts",
         "//server/alpha",
+        "//server/billing",
         "//server/bots",
         "//server/chat/data",
         "//server/content",

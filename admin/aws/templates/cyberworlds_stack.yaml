@@ -3428,6 +3428,8 @@ Resources:
                       - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                       - --webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
+                      - --stripeSecretKey=$STRIPE_SECRET_KEY
+                      - --stripeSigningSecret=$STRIPE_SIGNING_SECRET
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -3578,6 +3580,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:cloudflareR2SecretAccessKey::"
+                      - Name: STRIPE_SECRET_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:stripeSecretKey::"
+                      - Name: STRIPE_SIGNING_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:stripeSigningSecret::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:

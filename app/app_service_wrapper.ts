@@ -45,6 +45,8 @@ export const options = {
     taskRealtimeServiceSecurityGroupId: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
+    stripeSecretKey: {type: "string"},
+    stripeSigningSecret: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     webPushVapidPublicKey: {type: "string"},

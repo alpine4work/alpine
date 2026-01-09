@@ -1,3 +1,4 @@
+import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
@@ -19,6 +20,7 @@ type AppServiceExtraContextModules = {
     webPush: WebPushContextModuleBase;
     files: FilesContextModuleBase;
     r2: CloudflareR2ContextModule;
+    billing: BillingContextModuleBase;
 };
 
 export type AppServiceProcessContextModules = ServerProcessContextModules &

@@ -202,6 +202,9 @@ const externalHost = (() => {
 const webPushVapidPublicKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_public_key");
 const webPushVapidPrivateKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_private_key");
 
+const stripeSecretKey = env.STRIPE_SECRET_KEY;
+const stripeSigningSecret = env.STRIPE_SIGNING_SECRET;
+
 /**
  * An artifact which our dev process manager keeps up-to-date. There are two
  * kinds of artifacts:
@@ -374,6 +377,8 @@ function createArtifacts() {
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 `--webPushVapidPublicKey=${webPushVapidPublicKeyPath}`,
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
+                `--stripeSecretKey=${stripeSecretKey || ""}`,
+                `--stripeSigningSecret=${stripeSigningSecret || ""}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
                 `--agentServiceLocalPort=${agentsDevPort}`,

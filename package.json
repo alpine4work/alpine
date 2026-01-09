@@ -299,6 +299,7 @@
         "statuses": "^2.0.1",
         "stemmer": "^2.0.1",
         "strip-ansi": "^6.0.1",
+        "stripe": "^20.1.0",
         "supertest": "^7.1.4",
         "terser": "^5.31.6",
         "toml": "^3.0.0",
