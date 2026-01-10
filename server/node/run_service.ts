@@ -7,6 +7,7 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -14,7 +15,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {cast} from "~/shared/helpers/control/cast.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
 // This file is for running a Node.js service. It shouldn't be used in
 // Cloudflare Workers.
@@ -62,6 +63,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         run: (options: {
             options: ServiceOptions<Options>;
             tracer: TracerRoot;
+            startupSpan: TracerSpan;
             honeycombClient: HoneycombTracerClient | null;
             shutdownManager: ShutdownManager;
             workerIndex: number;
@@ -121,9 +123,64 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         if (!honeycombApiKey && process.env.NODE_ENV === "production")
             throw new InternalError("Must provide `honeycombApiKey` option in production");
 
+        let awsTracerSharedData:
+            | {
+                  ec2InstanceId: string;
+                  ecsTaskId: string | undefined;
+              }
+            | undefined;
+
+        if (process.env.NODE_ENV === "production") {
+            const [ec2InstanceId, ecsTaskId] = await runAllPromiseThunks(
+                async () => {
+                    // IMDSv2 requires a token first
+                    // eslint-disable-next-line no-global-fetch
+                    const tokenResponse = await fetch("http://169.254.169.254/latest/api/token", {
+                        method: "PUT",
+                        headers: {"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+                    });
+                    const token = await tokenResponse.text();
+
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(
+                        "http://169.254.169.254/latest/meta-data/instance-id",
+                        {headers: {"X-aws-ec2-metadata-token": token}},
+                    );
+
+                    const instanceId = await response.text();
+                    return instanceId.trim();
+                },
+                async () => {
+                    const metadataUri = process.env.ECS_CONTAINER_METADATA_URI_V4;
+
+                    // Some services (like `DeployService`) don't run in ECS and instead run
+                    // directly on EC2 instances.
+                    if (!metadataUri) return;
+
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(`${metadataUri}/task`);
+                    const metadata = await response.json();
+
+                    // Task ARN format: arn:aws:ecs:region:account:task/cluster-name/task-id
+                    const taskArn = metadata.TaskARN;
+                    assert(typeof taskArn === "string", "Expected `TaskARN` string");
+
+                    const taskId = assertExists(taskArn.split("/").pop());
+                    return taskId;
+                },
+            );
+
+            awsTracerSharedData = {
+                ec2InstanceId,
+                ecsTaskId,
+            };
+        }
+
         const [tracer, honeycombClient] = createServerTracerAndHoneycombClient({
             serviceName,
             jsHost: "Node",
+            awsEc2InstanceId: awsTracerSharedData?.ec2InstanceId,
+            awsEcsTaskId: awsTracerSharedData?.ecsTaskId,
             honeycombApiKey,
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(
@@ -267,17 +324,34 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             tracer.logException("Uncaught exception", error);
         });
 
+        const handleSpanName = `Startup ${serviceName} (worker)`;
+        const spanName = `Handle: ${handleSpanName}`;
+
+        const {span: startupSpan, finishSpan: finishStartupSpan} = tracer.startSpan(spanName);
+
+        startupSpan.addPropagatedDataForChildrenOnly({
+            context: {
+                handler: handleSpanName,
+            },
+        });
+
         try {
             const serviceModule = unwrapResult(serviceModuleResult);
 
             await serviceModule.run({
                 options: parsedOptions.values as ServiceOptions<Options>,
                 tracer,
+                startupSpan,
                 honeycombClient,
                 shutdownManager,
                 workerIndex,
             });
+
+            finishStartupSpan();
         } catch (error) {
+            startupSpan.addException(error);
+            finishStartupSpan();
+
             void shutdown({type: "Error", error}, null);
 
             // We don't need to `throw actualError` since calling `shutdown()` will make

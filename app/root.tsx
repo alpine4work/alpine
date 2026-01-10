@@ -57,14 +57,12 @@ import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta
 import {getFontsCriticalCss} from "~/client/web/styles/core/fonts_critical_css.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
@@ -96,30 +94,7 @@ const LoaderSchema = Schema.object({
     webPushVapidPublicKey: Schema.string,
 });
 
-let contentCodeBlockLanguagesPromise: "Unloaded" | Promise<void> | null = "Unloaded";
-
 export async function loader({context}: LoaderArgs) {
-    // Make sure to load all code block languages are loaded before rendering
-    // anything. That way if we server render a `<ContentView>` with a code block
-    // it'll have syntax highlighting.
-    //
-    // We do this in the root loader instead of `/s/:spaceId` since we may render
-    // `<ContentView>`s outside of a space. For example in a space share route or a
-    // blog post.
-    if (contentCodeBlockLanguagesPromise === null) {
-        // Loaded! All good...
-    } else {
-        if (contentCodeBlockLanguagesPromise === "Unloaded") {
-            contentCodeBlockLanguagesPromise = runAllPromises(
-                contentCodeBlockLanguages.map(language => language.getParser()),
-            ).then(() => {
-                contentCodeBlockLanguagesPromise = null;
-            });
-        }
-
-        await contentCodeBlockLanguagesPromise;
-    }
-
     return jsonWithSchema(LoaderSchema, {
         initialTime: context.loader.getInitialTime(),
         initialAppRenderId: generateId(),

@@ -326,7 +326,7 @@ export class AwsGithubRunners extends Construct {
                 }),
                 awsImageBuilderOptions: {
                     // We can use a different size when building our image.
-                    instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
+                    instanceType: InstanceType.of(deployInstanceClass, InstanceSize.MEDIUM),
                 },
 
                 components: createImageBuilderComponents(),

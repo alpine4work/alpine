@@ -61,6 +61,7 @@ import {
     globalLoadingIndicatorChipHeight,
 } from "~/client/web/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
+import {PurchasedLifetimeAccessModal} from "~/client/web/spaces/layout/purchased_lifetime_access_modal.js";
 import {SpaceLayoutNativeMobileInboxController} from "~/client/web/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {
     SpaceLayoutSideBar,
@@ -397,6 +398,12 @@ const outletContainerClassName = sprinkles({
 SpaceLayoutRoute.clientLoaderTaskStoreLoaderData = clientLoaderTaskStoreLoaderData;
 
 /**
+ * Search parameters that are useful for controlling the initial state of the layout.
+ * They are only one-shot parameters that should be removed after being processed.
+ */
+const searchParametersToDelete = ["from", "purchased"];
+
+/**
  * Routes that render under `/s/$spaceId` should generally render
  * `<SpaceRouteScrollView>` as their parent since it contains best practices for
  * a space route's content area. Ideally we would make it the default but some
@@ -417,6 +424,17 @@ export default function SpaceLayoutRoute() {
     const spaceId = params.spaceId as SpaceId;
 
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
+
+    const [isPurchasedLifetimeAccessModalVisible, setIsPurchasedLifetimeAccessModalVisible] =
+        useState(false);
+
+    if (
+        !isInitialAppRender &&
+        !isPurchasedLifetimeAccessModalVisible &&
+        searchParams.get("purchased") === "lifetime-access"
+    ) {
+        setIsPurchasedLifetimeAccessModalVisible(true);
+    }
 
     useEffect(() => {
         if (
@@ -550,21 +568,23 @@ export default function SpaceLayoutRoute() {
     }, [loaderData.type, platform, searchParams, setSearchQueryText]);
 
     // Delete search params we don't want to leave in the URL.
-    {
-        const hasSearchParamToDelete = searchParams.has("from");
-        useEffect(() => {
-            if (!hasSearchParamToDelete) return;
-
+    const hasSearchParamsToDelete = searchParametersToDelete.some(param => searchParams.has(param));
+    useEffect(() => {
+        if (hasSearchParamsToDelete) {
             setSearchParams(
                 oldSearchParams => {
                     const newSearchParams = new URLSearchParams(oldSearchParams);
-                    newSearchParams.delete("from");
+                    for (const param of searchParametersToDelete) {
+                        newSearchParams.delete(param);
+                    }
                     return newSearchParams;
                 },
+                // We don't want to revalidate when removing these search params or
+                // push new entries into the history stack.
                 {replace: true, unstable_shouldRevalidate: false},
             );
-        }, [hasSearchParamToDelete, setSearchParams]);
-    }
+        }
+    }, [hasSearchParamsToDelete, setSearchParams]);
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
         "cyberworlds/searchDebugOptions",
@@ -747,6 +767,14 @@ export default function SpaceLayoutRoute() {
                 break;
             }
         }
+    }
+
+    if (isPurchasedLifetimeAccessModalVisible) {
+        modals.push(
+            <PurchasedLifetimeAccessModal
+                onClose={() => setIsPurchasedLifetimeAccessModalVisible(false)}
+            />,
+        );
     }
 
     const hasSpaceLayoutWebMobileTabBar =

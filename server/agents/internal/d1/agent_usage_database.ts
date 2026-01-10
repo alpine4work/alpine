@@ -2,10 +2,14 @@ import {drizzle} from "drizzle-orm/d1";
 import * as Conditions from "drizzle-orm/sql/expressions/conditions";
 import {eq} from "drizzle-orm/sql/expressions/conditions";
 import {sum} from "drizzle-orm/sql/functions/aggregate";
-import {AgentRequest} from "~/server/agents/internal/d1/agent_usage_database_types.js";
+import {
+    AccountEntitlements,
+    AgentRequest,
+} from "~/server/agents/internal/d1/agent_usage_database_types.js";
 import {
     AgentUsageWindow,
     AgentUsageWindowType,
+    accountEntitlements,
     agentRequestsTable,
     agentUsageWindowsTable,
 } from "~/server/agents/internal/d1/agent_usage_schema.js";
@@ -56,6 +60,11 @@ export interface AgentUsageDatabaseInterface {
         wasModelDowngraded?: boolean,
     ): Promise<AgentUsageWindow>;
     downgradeModelForWindow(accountId: string, type: AgentUsageWindowType): Promise<void>;
+    getAccountEntitlements(accountId: string): Promise<AccountEntitlements | null>;
+    setAccountEntitlements(
+        accountId: string,
+        entitlements: Partial<Omit<AccountEntitlements, "accountId">>,
+    ): Promise<void>;
 }
 
 export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
@@ -163,6 +172,41 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
                         eq(agentUsageWindowsTable.type, type),
                     ),
                 ),
+        );
+    }
+
+    /**
+     * Get account entitlements for an account.
+     */
+    async getAccountEntitlements(accountId: string): Promise<AccountEntitlements | null> {
+        return retryD1Error(async () => {
+            const results = await this.database
+                .select()
+                .from(accountEntitlements)
+                .where(eq(accountEntitlements.accountId, accountId));
+
+            return results.length > 0 && results[0] ? results[0] : null;
+        });
+    }
+
+    /**
+     * Set entitlements for an account.
+     */
+    async setAccountEntitlements(
+        accountId: string,
+        entitlements: Partial<Omit<AccountEntitlements, "accountId">>,
+    ): Promise<void> {
+        await retryD1Error(() =>
+            this.database
+                .insert(accountEntitlements)
+                .values({
+                    accountId,
+                    ...entitlements,
+                })
+                .onConflictDoUpdate({
+                    target: [accountEntitlements.accountId],
+                    set: entitlements,
+                }),
         );
     }
 }

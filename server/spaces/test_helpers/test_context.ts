@@ -1,3 +1,4 @@
+import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {
     ServerAccountActionContextModules,
     ServerActionContextModules,
@@ -24,6 +25,7 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 type TestContextExtraModules = {
     email: EmailContextModuleBase;
+    billing: BillingContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };
 

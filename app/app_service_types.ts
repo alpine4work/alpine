@@ -4,9 +4,11 @@ import {ServerBasicProcessContextOptions} from "~/server/node/create_server_basi
 import {ServiceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type AppServiceConstants = {
     readonly tracer: TracerRoot;
+    readonly startupSpan: TracerSpan | null;
     readonly shutdownManager: ShutdownManagerBase;
     readonly options: ServiceTokenAgentOptions &
         ServerBasicProcessContextOptions &
@@ -22,6 +24,8 @@ export type AppServiceConstants = {
             readonly taskRealtimeServiceSecurityGroupId?: string;
             readonly allMiniLmL6V2LanguageModel?: string;
             readonly cohereApiKey?: string;
+            readonly stripeSecretKey?: string;
+            readonly stripeSigningSecret?: string;
             readonly apnsCertificate?: string;
             readonly apnsCertificatePrivateKey?: string;
             readonly webPushVapidPublicKey?: string;

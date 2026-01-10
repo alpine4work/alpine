@@ -1,3 +1,4 @@
+import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ApnsContextModuleBase} from "~/server/context/apns_context_module_base.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {WebPushContextModule} from "~/server/context/web_push_context_module.js";
@@ -18,5 +19,6 @@ export type RpcServerActionExtraContextModules = {
     languageModel: LanguageModelContextModule;
     apns: ApnsContextModuleBase;
     webPush: WebPushContextModule;
+    billing: BillingContextModuleBase;
     logoDev: LogoDevContextModuleBase;
 };

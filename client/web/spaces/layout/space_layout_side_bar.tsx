@@ -1,7 +1,8 @@
-import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut} from "phosphor-react";
+import {ArrowLeft, ArrowRight, Gear, House, MagnifyingGlass, SignOut, Star} from "phosphor-react";
 import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
@@ -16,8 +17,10 @@ import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal
 import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
+import {colors} from "~/shared/design/core/colors.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {createLifetimeAccessCheckoutUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -198,6 +201,7 @@ function SpaceLayoutSideBarNavigationButtons() {
 
 function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: AccountModel}) {
     const rootNavigate = useRootNavigate();
+    const context = useAppContext();
     const {space} = useSpaceContextAndRequireSpaceAccess();
 
     return (
@@ -211,6 +215,23 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                         pressErrorTitle: "Couldn’t open settings",
                         onPress: () => rootNavigate(`/s/${space.id}/settings/profile`),
                     },
+                    ...(currentAccount.initialData.plan !== "LifetimeAccess"
+                        ? [
+                              {
+                                  icon: <Star weight="fill" color={colors["yellow-50"]} />,
+                                  label: "Purchase lifetime access",
+                                  pressErrorTitle: "Couldn’t open purchase page",
+                                  onPress: async () => {
+                                      const {url} = await createLifetimeAccessCheckoutUrl(context, {
+                                          currentPathname: window.location.pathname,
+                                      });
+
+                                      // eslint-disable-next-line react-compiler/react-compiler
+                                      window.location.href = url;
+                                  },
+                              },
+                          ]
+                        : []),
                 ],
                 [
                     {

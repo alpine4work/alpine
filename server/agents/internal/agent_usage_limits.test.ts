@@ -25,6 +25,8 @@ const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {
     getWindowByAccountIdAndType: jest.fn(),
     setWindowByAccountIdAndType: jest.fn(),
     downgradeModelForWindow: jest.fn(),
+    getAccountEntitlements: jest.fn(),
+    setAccountEntitlements: jest.fn(),
 };
 
 const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUsageDatabase;
@@ -40,6 +42,7 @@ function intoUsageWindowWithWindowLimitsAndUsedMillicents(
         usedMillicents: number;
         wasModelDowngraded: boolean;
     }>,
+    withLifetimeAccess: boolean = false,
 ): Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents> {
     return windows.map(window => {
         const windowLimit = agentUsageWindowLimits.find(limit => limit.type === window.type)!;
@@ -47,7 +50,9 @@ function intoUsageWindowWithWindowLimitsAndUsedMillicents(
             ...window,
             accountId,
             durationMs: windowLimit.durationMs,
-            limitDollars: windowLimit.limitDollars,
+            limitDollars: withLifetimeAccess
+                ? windowLimit.limitDollarsByEntitlement.withLifetimeAccess
+                : windowLimit.limitDollarsByEntitlement.default,
         };
     });
 }
@@ -77,6 +82,9 @@ describe("getAgentUsageLimitWindows", () => {
         const weeklyStartTime = currentDate.getTime();
 
         const dynamicStartTime = currentTimestamp - 2 * 60 * 60 * 1000; // 2 hours ago
+
+        // Mock account entitlements (default case)
+        mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
 
         // Mock existing windows
         mockAgentUsageDatabase.getWindowByAccountIdAndType
@@ -126,6 +134,9 @@ describe("getAgentUsageLimitWindows", () => {
     test("handles new windows with zero usage", async () => {
         const currentTimestamp = new Date("2025-12-30T12:00:00.000Z").getTime();
         const accountId = "test_account" as AccountId;
+
+        // Mock account entitlements (default case)
+        mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
 
         // Mock no existing windows (new account)
         mockAgentUsageDatabase.getWindowByAccountIdAndType.mockResolvedValue(null);
@@ -194,6 +205,9 @@ describe("getAgentUsageLimitWindows", () => {
                 test(`weekly window reset: ${description}`, async () => {
                     const currentTimestamp = new Date(currentTime).getTime();
                     const accountId = "test_account" as AccountId;
+
+                    // Mock account entitlements (default case)
+                    mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
 
                     // Mock existing weekly window with stored week start
                     mockAgentUsageDatabase.getWindowByAccountIdAndType
@@ -278,6 +292,9 @@ describe("getAgentUsageLimitWindows", () => {
                 const dynamicStartTime = currentTimestamp - windowAge;
 
                 const accountId = "test_account" as AccountId;
+
+                // Mock account entitlements (default case)
+                mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
 
                 mockAgentUsageDatabase.getWindowByAccountIdAndType
                     .mockResolvedValueOnce({
@@ -367,6 +384,9 @@ describe("getAgentUsageLimitWindows", () => {
 
         const accountId = "test_account" as AccountId;
 
+        // Mock account entitlements (default case)
+        mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
+
         // Mock first window call to succeed, second to fail
         mockAgentUsageDatabase.getWindowByAccountIdAndType
             .mockResolvedValueOnce({
@@ -386,6 +406,140 @@ describe("getAgentUsageLimitWindows", () => {
                 }),
             ),
         ).rejects.toThrow("Database error");
+    });
+
+    describe("account entitlements and usage limits", () => {
+        const currentTimestamp = Date.now();
+        const accountId = "test_account" as AccountId;
+
+        // Calculate the correct Sunday start time for the current week
+        const currentDate = new Date(currentTimestamp);
+        currentDate.setUTCHours(0, 0, 0, 0);
+        currentDate.setUTCDate(currentDate.getUTCDate() - currentDate.getUTCDay());
+        const weeklyStartTime = currentDate.getTime();
+
+        const dynamicStartTime = currentTimestamp - 2 * 60 * 60 * 1000; // 2 hours ago
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
+        test("uses default limits when no account entitlements found", async () => {
+            // Mock no entitlements found
+            mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce(null);
+
+            // Mock existing windows
+            mockAgentUsageDatabase.getWindowByAccountIdAndType
+                .mockResolvedValueOnce({
+                    accountId,
+                    type: "Weekly",
+                    startedTime: weeklyStartTime,
+                    wasModelDowngraded: false,
+                })
+                .mockResolvedValueOnce({
+                    accountId,
+                    type: "Dynamic",
+                    startedTime: dynamicStartTime,
+                    wasModelDowngraded: false,
+                });
+
+            // Mock usage amounts
+            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
+                .mockResolvedValueOnce(15000) // weekly usage
+                .mockResolvedValueOnce(8000); // dynamic usage
+
+            const result = await testTracer.withSpan("test", async span =>
+                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                    accountId,
+                    currentTimestamp,
+                }),
+            );
+
+            expect(result).toEqual(
+                intoUsageWindowWithWindowLimitsAndUsedMillicents(
+                    accountId,
+                    [
+                        {
+                            type: "Weekly",
+                            startedTime: weeklyStartTime,
+                            usedMillicents: 15000,
+                            wasModelDowngraded: false,
+                        },
+                        {
+                            type: "Dynamic",
+                            startedTime: dynamicStartTime,
+                            usedMillicents: 8000,
+                            wasModelDowngraded: false,
+                        },
+                    ],
+                    false,
+                ), // false means using default limits
+            );
+
+            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(accountId);
+        });
+
+        test("uses higher limits for LifetimeAccess plan", async () => {
+            // Mock LifetimeAccess entitlements
+            mockAgentUsageDatabase.getAccountEntitlements.mockResolvedValueOnce({
+                accountId,
+                plan: "LifetimeAccess",
+            });
+
+            // Mock existing windows
+            mockAgentUsageDatabase.getWindowByAccountIdAndType
+                .mockResolvedValueOnce({
+                    accountId,
+                    type: "Weekly",
+                    startedTime: weeklyStartTime,
+                    wasModelDowngraded: false,
+                })
+                .mockResolvedValueOnce({
+                    accountId,
+                    type: "Dynamic",
+                    startedTime: dynamicStartTime,
+                    wasModelDowngraded: false,
+                });
+
+            // Mock usage amounts
+            mockAgentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp
+                .mockResolvedValueOnce(15000) // weekly usage
+                .mockResolvedValueOnce(8000); // dynamic usage
+
+            const result = await testTracer.withSpan("test", async span =>
+                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                    accountId,
+                    currentTimestamp,
+                }),
+            );
+
+            expect(result).toEqual(
+                intoUsageWindowWithWindowLimitsAndUsedMillicents(
+                    accountId,
+                    [
+                        {
+                            type: "Weekly",
+                            startedTime: weeklyStartTime,
+                            usedMillicents: 15000,
+                            wasModelDowngraded: false,
+                        },
+                        {
+                            type: "Dynamic",
+                            startedTime: dynamicStartTime,
+                            usedMillicents: 8000,
+                            wasModelDowngraded: false,
+                        },
+                    ],
+                    true,
+                ), // true means using LifetimeAccess limits
+            );
+
+            // Verify higher limits are applied
+            expect(result[0]!.limitDollars).toBe(4); // Weekly: LifetimeAccess limit
+            expect(result[1]!.limitDollars).toBe(2); // Dynamic: LifetimeAccess limit
+
+            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(accountId);
+        });
     });
 });
 
@@ -418,7 +572,7 @@ describe("isAgentUsageLimitExceeded", () => {
             usedMillicents: params.weekly.usage,
             wasModelDowngraded: params.weekly.wasModelDowngraded ?? false,
             durationMs: weeklyWindowLimit.durationMs,
-            limitDollars: weeklyWindowLimit.limitDollars,
+            limitDollars: weeklyWindowLimit.limitDollarsByEntitlement.default,
         },
         {
             accountId,
@@ -427,7 +581,7 @@ describe("isAgentUsageLimitExceeded", () => {
             usedMillicents: params.dynamic.usage,
             wasModelDowngraded: params.dynamic.wasModelDowngraded ?? false,
             durationMs: dynamicWindowLimit.durationMs,
-            limitDollars: dynamicWindowLimit.limitDollars,
+            limitDollars: dynamicWindowLimit.limitDollarsByEntitlement.default,
         },
     ];
 
@@ -435,8 +589,10 @@ describe("isAgentUsageLimitExceeded", () => {
         const testCases = [
             {
                 description: "both windows under limits",
-                weeklyUsage: weeklyWindowLimit.limitDollars * 100 * 1000 - 1000,
-                dynamicUsage: dynamicWindowLimit.limitDollars * 100 * 1000 - 500,
+                weeklyUsage:
+                    weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000 - 1000,
+                dynamicUsage:
+                    dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000 - 500,
             },
             {
                 description: "both windows at zero usage",
@@ -445,8 +601,9 @@ describe("isAgentUsageLimitExceeded", () => {
             },
             {
                 description: "one window at exact limit (not exceeded)",
-                weeklyUsage: weeklyWindowLimit.limitDollars * 100 * 1000,
-                dynamicUsage: dynamicWindowLimit.limitDollars * 100 * 1000 - 500,
+                weeklyUsage: weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000,
+                dynamicUsage:
+                    dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000 - 500,
             },
         ];
 
@@ -464,8 +621,8 @@ describe("isAgentUsageLimitExceeded", () => {
 
     describe("limit exceeded scenarios", () => {
         test("weekly window exceeds limit", () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit + 1000},
                 dynamic: {usage: dynamicLimit - 500},
@@ -481,8 +638,8 @@ describe("isAgentUsageLimitExceeded", () => {
         });
 
         test("dynamic window exceeds limit", () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit - 500},
                 dynamic: {usage: dynamicLimit + 1000},
@@ -499,8 +656,8 @@ describe("isAgentUsageLimitExceeded", () => {
         });
 
         test("both windows exceed limits - returns window with furthest reset time", () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit + 1000},
                 dynamic: {usage: dynamicLimit + 1000},
@@ -517,8 +674,8 @@ describe("isAgentUsageLimitExceeded", () => {
         });
 
         test("both windows exceed limits but dynamic resets later than weekly end", () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
 
             // Create scenario where dynamic window was started later and will reset after weekly ends
             const dynamicStartTime = nextWeekWeeklyStartTime - 6 * 60 * 60 * 1000; // 6 hours ago
@@ -530,7 +687,7 @@ describe("isAgentUsageLimitExceeded", () => {
                     usedMillicents: weeklyLimit + 1000,
                     wasModelDowngraded: false,
                     durationMs: weeklyWindowLimit.durationMs,
-                    limitDollars: weeklyWindowLimit.limitDollars,
+                    limitDollars: weeklyWindowLimit.limitDollarsByEntitlement.default,
                 },
                 {
                     accountId,
@@ -539,7 +696,7 @@ describe("isAgentUsageLimitExceeded", () => {
                     usedMillicents: dynamicLimit + 1000,
                     wasModelDowngraded: false,
                     durationMs: dynamicWindowLimit.durationMs,
-                    limitDollars: dynamicWindowLimit.limitDollars,
+                    limitDollars: dynamicWindowLimit.limitDollarsByEntitlement.default,
                 },
             ];
 
@@ -555,8 +712,8 @@ describe("isAgentUsageLimitExceeded", () => {
 
     describe("alpioneer account behavior", () => {
         test("never exceeds limits for alpioneer accounts", () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 10}, // Way over limits
                 dynamic: {usage: dynamicLimit * 10},
@@ -569,8 +726,8 @@ describe("isAgentUsageLimitExceeded", () => {
 
         test("works with any alpioneer account", () => {
             const anotherAlpioneer = Object.keys(alpioneers)[1] as AccountId;
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 5},
                 dynamic: {usage: dynamicLimit * 5},
@@ -610,7 +767,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             usedMillicents: params.weekly.usage,
             wasModelDowngraded: params.weekly.wasModelDowngraded ?? false,
             durationMs: weeklyWindowLimit.durationMs,
-            limitDollars: weeklyWindowLimit.limitDollars,
+            limitDollars: weeklyWindowLimit.limitDollarsByEntitlement.default,
         },
         {
             accountId,
@@ -619,7 +776,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             usedMillicents: params.dynamic.usage,
             wasModelDowngraded: params.dynamic.wasModelDowngraded ?? false,
             durationMs: dynamicWindowLimit.durationMs,
-            limitDollars: dynamicWindowLimit.limitDollars,
+            limitDollars: dynamicWindowLimit.limitDollarsByEntitlement.default,
         },
     ];
 
@@ -647,8 +804,10 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
 
         testCases.forEach(({description, weeklyPercent, dynamicPercent, downgradeThreshold}) => {
             test(`no downgrade: ${description}`, async () => {
-                const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-                const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+                const weeklyLimit =
+                    weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+                const dynamicLimit =
+                    dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
                 const windows = createWindows({
                     weekly: {usage: weeklyLimit * weeklyPercent},
                     dynamic: {usage: dynamicLimit * dynamicPercent},
@@ -667,8 +826,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
 
     describe("downgrade scenarios", () => {
         test("weekly window exceeds threshold - first time downgrade", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: false}, // Above 75%, not previously downgraded
                 dynamic: {usage: dynamicLimit * 0.5}, // Below 75%
@@ -692,8 +851,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
         });
 
         test("dynamic window exceeds threshold - first time downgrade", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.5}, // Below 75%
                 dynamic: {usage: dynamicLimit * 0.9, wasModelDowngraded: false}, // Above 75%, not previously downgraded
@@ -717,8 +876,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
         });
 
         test("both windows exceed threshold - first time downgrade", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: false}, // Above 75%, not previously downgraded
                 dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: false}, // Above 75%, not previously downgraded
@@ -746,8 +905,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
         });
 
         test("already downgraded window exceeds threshold - no alert", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
                 dynamic: {usage: dynamicLimit * 0.5}, // Below 75%
@@ -767,8 +926,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
         });
 
         test("mixed downgrade states - alert only for new downgrades", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
                 dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: false}, // Above 75%, not previously downgraded
@@ -793,8 +952,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
         });
 
         test("both already downgraded - no alert", async () => {
-            const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
-            const dynamicLimit = dynamicWindowLimit.limitDollars * 100 * 1000;
+            const weeklyLimit = weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
+            const dynamicLimit = dynamicWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
             const windows = createWindows({
                 weekly: {usage: weeklyLimit * 0.8, wasModelDowngraded: true}, // Above 75%, already downgraded
                 dynamic: {usage: dynamicLimit * 0.85, wasModelDowngraded: true}, // Above 75%, already downgraded
@@ -844,7 +1003,8 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
 
         testCases.forEach(({description, usagePercent, threshold, shouldDowngrade}) => {
             test(`downgrade threshold edge case: ${description}`, async () => {
-                const weeklyLimit = weeklyWindowLimit.limitDollars * 100 * 1000;
+                const weeklyLimit =
+                    weeklyWindowLimit.limitDollarsByEntitlement.default * 100 * 1000;
                 const windows = createWindows({
                     weekly: {usage: weeklyLimit * usagePercent},
                     dynamic: {usage: 0},

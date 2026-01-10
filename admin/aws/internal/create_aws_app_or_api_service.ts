@@ -1,7 +1,16 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceSize,
+    InstanceType,
+    LaunchTemplate,
+    Port,
+    SecurityGroup,
+    SubnetType,
+    UserData,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -16,7 +25,7 @@ import {
     ApplicationProtocol,
     ApplicationTargetGroupProps,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -61,12 +70,18 @@ export function createAwsAppOrApiService(
     {
         serviceName,
         secretsName,
+        autoScalingGroup: autoScalingGroupOptions,
         taskDefinition: taskDefinitionOptions,
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
+        withStripeSecrets,
     }: {
         serviceName: string;
         secretsName: string;
+        autoScalingGroup: {
+            minCapacity: number;
+            maxCapacity: number;
+        };
         taskDefinition: {
             tarballPath: string;
             containerCommandPath: string;
@@ -78,19 +93,31 @@ export function createAwsAppOrApiService(
             logicalName?: string;
         };
         withAgentServiceUrl?: boolean;
+        withStripeSecrets?: boolean;
     },
 ) {
+    const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
+        instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
+        machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+        role: new Role(parentConstruct, "LaunchTemplateRole", {
+            assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+            ],
+        }),
+        securityGroup: new SecurityGroup(parentConstruct, "LaunchTemplateSecurityGroup", {
+            vpc,
+            allowAllOutbound: true,
+        }),
+        userData: UserData.forLinux(),
+    });
+
     const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
         vpc,
-        // First 750 hours per month of this instance type are free. That effectively
-        // translates to 1 free capacity of this instance type across our AWS account.
-        instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
-        machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+        launchTemplate,
 
-        minCapacity: 2,
-        // During a deploy, we double our capacity needs since we keep running old
-        // instances to maintain availability while a new fleet of instances start.
-        maxCapacity: 4,
+        minCapacity: autoScalingGroupOptions.minCapacity,
+        maxCapacity: autoScalingGroupOptions.maxCapacity,
 
         // Run our service instances on a public subnet. This means we can send
         // outgoing connections to anyone on the internet, but it also means anyone on
@@ -196,7 +223,7 @@ export function createAwsAppOrApiService(
         // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
         // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
         // stuck in the "Provisioning" status forever.
-        memoryLimitMiB: 936,
+        memoryLimitMiB: 3906,
         // Send logs to AWS. Container logs are short-lived and used for debugging
         // obscure machine-level issues. Our long-lived logs are in Honeycomb.
         logging: ecsCluster.shortLivedLogDriver,
@@ -259,6 +286,15 @@ export function createAwsAppOrApiService(
                 secrets,
                 "cloudflareR2SecretAccessKey",
             ),
+            ...(withStripeSecrets
+                ? {
+                      STRIPE_SECRET_KEY: EcsSecret.fromSecretsManager(secrets, "stripeSecretKey"),
+                      STRIPE_SIGNING_SECRET: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "stripeSigningSecret",
+                      ),
+                  }
+                : {}),
         },
         environment: {
             NODE_ENV: "production",
@@ -303,6 +339,12 @@ export function createAwsAppOrApiService(
             "--apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY",
             "--webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY",
             "--webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY",
+            ...(withStripeSecrets
+                ? [
+                      "--stripeSecretKey=$STRIPE_SECRET_KEY",
+                      "--stripeSigningSecret=$STRIPE_SIGNING_SECRET",
+                  ]
+                : []),
         ],
         healthCheck: {
             command: [
@@ -337,7 +379,7 @@ export function createAwsAppOrApiService(
     const service = new Ec2Service(parentConstruct, "Service", {
         cluster: ecsCluster.cluster,
         taskDefinition,
-        desiredCount: 2,
+        desiredCount: autoScalingGroupOptions.minCapacity,
         // Specifies the max/min task count during a deploy.
         minHealthyPercent: 50,
         maxHealthyPercent: 200,

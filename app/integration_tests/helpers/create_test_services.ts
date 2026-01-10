@@ -238,9 +238,11 @@ export function createTestServices(): {
             taskRealtimeServicePort,
             appServicePort,
             fileProcessorServicePort,
+            agentServicePort,
             newAppServiceTokenAgentPrivateSide,
         ] = await runAllPromises([
             edgeServicePortPromise,
+            getPort(),
             getPort(),
             getPort(),
             getPort(),
@@ -305,6 +307,7 @@ export function createTestServices(): {
                 `--webPushVapidPrivateKey=${webPushVapidPrivateKeyPath}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorServicePort}`,
+                `--agentServiceUrl=http://localhost:${agentServicePort}`,
                 `--resourceServiceUrl=${resourceServiceUrl}`,
             ],
             {

@@ -130,7 +130,11 @@ function* intoApiContentListBlockElements(
 ): IterableIterator<ApiContentListBlockElementResponse> {
     let lastElement:
         | {type: "UnorderedList"; items: Array<ApiContentListBlockElementItemResponse>}
-        | {type: "OrderedList"; items: Array<ApiContentListBlockElementItemResponse>}
+        | {
+              type: "OrderedList";
+              orderStart?: number;
+              items: Array<ApiContentListBlockElementItemResponse>;
+          }
         | {type: "CheckList"; items: Array<ApiContentCheckListBlockElementItemResponse>}
         | null = null;
 
@@ -187,13 +191,19 @@ function* intoApiContentListBlockElements(
                     nestedListElements,
                 };
 
-                if (lastElement?.type === "OrderedList") {
+                const itemOrderStart = item.node?.attrs.orderStart ?? undefined;
+
+                // "Merge" the list item into the last element if
+                // 1. The last element is an ordered list
+                // 2. The current list item has no explicit `orderStart` attribute.
+                if (lastElement?.type === "OrderedList" && itemOrderStart === undefined) {
                     lastElement.items.push(elementItem);
                 } else {
                     if (lastElement !== null) yield lastElement;
 
                     lastElement = {
                         type: "OrderedList",
+                        orderStart: itemOrderStart,
                         items: [elementItem],
                     };
                 }

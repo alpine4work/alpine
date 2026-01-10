@@ -102,11 +102,10 @@ async function handleFetch(
         const cookieHeader = request.headers.get("cookie");
 
         if (!(cookieHeader && hasOwnProperty(parseCookieHeader(cookieHeader), "session"))) {
-            // Requests to the landing page don't generate tracer events. We get landing
-            // page analytics through Framer.
-            //
-            // eslint-disable-next-line no-global-fetch
-            return fetch("https://www.alpine.inc");
+            return new Response(null, {
+                status: 302,
+                headers: {location: "https://www.alpine.inc"},
+            });
         }
     }
 

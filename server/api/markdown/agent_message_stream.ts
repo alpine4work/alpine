@@ -14,7 +14,10 @@ import {
     parseApiMentionPath,
     parseApiNotMentionPath,
 } from "~/shared/api/parse_api_path.js";
-import {ApiMessageStreamPartPayload} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiContentBlockElement,
+    ApiMessageStreamPartPayload,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -94,10 +97,12 @@ export class AgentMessageStream {
             {
                 const firstMarkdownPart = markdownParts[0]!;
 
-                const firstPartContent = parseApiContentFromMarkdownTree(
-                    {type: "root", children: firstMarkdownPart},
-                    {spaceId: this._spaceId},
-                );
+                const getFirstPartContent = () => {
+                    return parseApiContentFromMarkdownTree(
+                        {type: "root", children: firstMarkdownPart},
+                        {spaceId: this._spaceId},
+                    );
+                };
 
                 if (
                     this._parts.length === 0 ||
@@ -105,17 +110,50 @@ export class AgentMessageStream {
                     // part instead of updating the last part.
                     this._parts[this._parts.length - 1]!.payload.type !== "Content"
                 ) {
+                    // NOTE(ifitzsimmons, 2026-01-07): When streaming lists back to our API, we use an
+                    // optimization to send each top-level list item as a separate stream part. Because
+                    // each top-level list item is/can be parsed in isolation, the markdown parser will
+                    // assign the appropriate `start` value to the list item. So for example, if this
+                    // class receives `1. First item\n\n`, it will parse that into a list item starting
+                    // at "1". Then, let's say `2. second item\n\n` is pushed into this class. At parse
+                    // time, we don't actually know if #2 was preceded by #1 or not or whether they
+                    // belong to the same ordered list.
+                    //
+                    // To address this, we wait until after markdown parsing and then "look back" to
+                    // see if the previous element
+                    // 1. Was an ordered list item and
+                    // 2. if yes, if the previous item's number was the neighbor of the current item's
+                    //    number (e.g. the previous item was "3" and the current item is "4")
+                    //
+                    // If both of these conditions are met, then we can remove the explicit order start
+                    // from the current item.
+                    //
+                    // We do this operation in three places because the "previous" element depends on
+                    // where we are in our parsing loop.
+                    //
+                    // In this specific case, we are creating our first part, so there is no previous
+                    // element
+                    removeOrderStartFromOrderedListItemsIfNeeded(firstMarkdownPart, undefined);
+
                     const firstPart: AgentMessageStreamPart = {
                         index: this._parts.length,
-                        payload: {type: "Content", content: firstPartContent},
+                        payload: {type: "Content", content: getFirstPartContent()},
                     };
 
                     putParts.push(firstPart);
                     this._parts.push(firstPart);
                 } else {
+                    // We're updating the last part, so the previous part is actually the second-to-last
+                    // part.
+                    removeOrderStartFromOrderedListItemsIfNeeded(firstMarkdownPart, {
+                        type: "AgentMessageStreamPart",
+                        previousPartIndex: this._parts.length - 2,
+                        streamParts: this._parts,
+                    });
+
                     const firstPart: AgentMessageStreamPart = {
                         index: this._parts.length - 1,
-                        payload: {type: "Content", content: firstPartContent},
+                        payload: {type: "Content", content: getFirstPartContent()},
                     };
 
                     // We only need to update the last part if it actually changed.
@@ -131,6 +169,45 @@ export class AgentMessageStream {
             // updated).
             for (let index = 1; index < markdownParts.length; index++) {
                 const markdownPart = markdownParts[index]!;
+                const previousMarkdownPart = markdownParts[index - 1]!;
+
+                // So let's say a list was started by pushing `1. First item\n\n` into the class and
+                // calling `update()`. So `_parts` consists of a single part with the following
+                // representation:
+                // ```
+                // [orderedList(null, [paragraph("First item")])]
+                // ```
+                //
+                // Then `pushText` is called with `2. second item\n\n3. third item\n\n4. fourth item\n\n`
+                // and `update()` is called. `markdownParts` will consist of
+                // ```
+                // [
+                //   orderedList(null, [paragraph("First item")])
+                //   orderedList({orderStart: 2}, [paragraph("Second item")]),
+                //   orderedList(null, [paragraph("Third item")]),
+                //   orderedList(null, [paragraph("Fourth item")])
+                //]
+                // ```
+                //
+                // We complete the first element of `_parts` and handle elements 2-4 in this loop. For
+                // the first element in this loop (the second element in `markdownParts`), we look back
+                // through the previous parts in `this._parts` to determine whether or not we should
+                // remove the explicit order start. In this case, we should.
+                //
+                // Elements 3 & 4 don't have an ordered start, so they don't need to be removed. In
+                // theory, we should never have to remove the order start from markdown parts after
+                // the first 2 elements.
+                // ```
+                removeOrderStartFromOrderedListItemsIfNeeded(
+                    markdownPart,
+                    previousMarkdownPart
+                        ? {type: "BlockContent", content: previousMarkdownPart}
+                        : {
+                              type: "AgentMessageStreamPart",
+                              previousPartIndex: this._parts.length - 1,
+                              streamParts: this._parts,
+                          },
+                );
 
                 const partContent = parseApiContentFromMarkdownTree(
                     {type: "root", children: markdownPart},
@@ -145,7 +222,6 @@ export class AgentMessageStream {
                 putParts.push(part);
                 this._parts.push(part);
 
-                const previousMarkdownPart = markdownParts[index - 1]!;
                 assert(previousMarkdownPart.length > 0);
                 const previousMarkdownPartLastContent =
                     previousMarkdownPart[previousMarkdownPart.length - 1]!;
@@ -307,7 +383,9 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
                     {
                         type: "list",
                         ordered: content.ordered,
-                        start: content.ordered ? (content.start ?? 1) + childIndex : undefined,
+                        // Only set the order start for the first item in the list. Consecutive
+                        // ordered list items do not need `start` values.
+                        start: childIndex === 0 ? content.start : undefined,
                         children: [item],
                         position: item.position,
                     },
@@ -344,4 +422,221 @@ function* splitMarkdownTreeIntoParts(root: Root): IterableIterator<Array<BlockCo
             yield [content];
         }
     }
+}
+
+function removeOrderStartFromOrderedListItemsIfNeeded(
+    content: Array<BlockContent>,
+    previousParts:
+        | {
+              type: "BlockContent";
+              content: Array<BlockContent>;
+          }
+        | {
+              type: "AgentMessageStreamPart";
+              previousPartIndex: number;
+              streamParts: Array<AgentMessageStreamPart>;
+          }
+        | undefined,
+) {
+    // If the content is not a list or it's not an ordered list, no-op
+    if (content[0]?.type !== "list" || !content[0].ordered) return;
+
+    let previousListItemNumber = getPreviousListItemNumberFromPreviousPart(previousParts);
+
+    for (let i = 0; i < content.length; i++) {
+        const item = content[i]!;
+
+        if (item.type !== "list") break;
+
+        const currentListStart = item.start;
+
+        // Two conditions to remove the order start:
+        // 1. This list element starts at 1 and was not preceded by an ordered list item.
+        //    there's no need to set explicit order start for lists starting at 1.
+        // 2. This list element starts at the next number in the sequence of the previous
+        //    list element (e.g. the previous list element ended at 3 and this list element
+        //    starts at 4).
+        if (
+            (previousListItemNumber === undefined && currentListStart === 1) ||
+            (previousListItemNumber !== undefined &&
+                currentListStart === previousListItemNumber + 1)
+        ) {
+            content[i] = {
+                ...item,
+                start: undefined,
+            };
+        }
+
+        // If the list element starts at 1 and was preceded by an ordered list item,
+        // we need to preserve the explicit order start of 1. See the comment for
+        // `addOrderedStartSpanToFirstItemInOrderedListIfNeeded` in
+        // `print_api_content_to_markdown.ts` for more details.
+        if (previousListItemNumber !== undefined && currentListStart === 1) {
+            if (currentListStart === 1) {
+                const firstItem = item.children[0]!;
+                const firstItemContentElement = firstItem.children[0];
+
+                if (firstItemContentElement?.type === "paragraph") {
+                    firstItemContentElement.children.unshift({
+                        type: "html",
+                        value: `<span data-start=”${currentListStart}”/>`,
+                    });
+                } else {
+                    firstItem.children.unshift({
+                        type: "html",
+                        value: `<span data-start=”${currentListStart}”/>`,
+                    });
+                }
+            }
+        }
+
+        if (currentListStart !== null && currentListStart !== undefined) {
+            previousListItemNumber = currentListStart;
+        }
+    }
+}
+
+function getPreviousListItemNumberFromPreviousPart(
+    previousParts:
+        | {
+              type: "BlockContent";
+              content: Array<BlockContent>;
+          }
+        | {
+              type: "AgentMessageStreamPart";
+              previousPartIndex: number;
+              streamParts: Array<AgentMessageStreamPart>;
+          }
+        | undefined,
+): number | undefined {
+    if (previousParts === undefined) return undefined;
+
+    if (previousParts.type === "AgentMessageStreamPart") {
+        return getPreviousListOrderStartFromPreviousAgentMessageStreamPart(previousParts);
+    } else {
+        return getPreviousListOrderStartFromPreviousBlockContent(previousParts.content);
+    }
+}
+
+/**
+ * This function looks backward from the list of block content until either:
+ * 1. It finds a non-ordered list
+ * 2. It finds a list with an explicit order start.
+ *
+ * Once it finds a non-ordered list OR an explicit order start, it adds them together to determine
+ * where the list ended. For example, if `orderStart = 5` and there are 3 items, the list ended
+ * at `7`.
+ */
+function getPreviousListOrderStartFromPreviousBlockContent(
+    previousBlockContent: Array<BlockContent>,
+): number | undefined {
+    const {numberOfItemsInList, previousListOrderStart} =
+        getListStartAndPreviousNumberOfItemsInListIfExists(previousBlockContent, {
+            isOrderedList: element => element.type === "list" && !!element.ordered,
+            getOrderStart: element => {
+                assert(element.type === "list");
+                return element.start ?? undefined;
+            },
+        });
+
+    if (previousListOrderStart || numberOfItemsInList > 0) {
+        return (previousListOrderStart ?? 1) + (numberOfItemsInList - 1);
+    }
+
+    return undefined;
+}
+/*
+ * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayload>>).
+ * This function looks backward from the stream parts until either:
+ * 1. It finds a non-ordered list
+ * 2. It finds a list with an explicit order start.
+ *
+ * So for each stream part, it searches backward through the through the ApiMessageStreamPartPayload
+ * elements.
+ *
+ * Once it finds a non-ordered list OR an explicit order start, it adds them together to determine
+ * where the list ended. For example, if `orderStart = 5` and there are 3 items, the list ended
+ * at `7`.
+ */
+function getPreviousListOrderStartFromPreviousAgentMessageStreamPart({
+    previousPartIndex,
+    streamParts,
+}: {
+    previousPartIndex: number;
+    streamParts: Array<AgentMessageStreamPart>;
+}): number | undefined {
+    let numberOfItemsInPreviousList = 0;
+    let previousListOrderStart: number | undefined = undefined;
+
+    const previousPart = streamParts[previousPartIndex];
+    if (previousPart?.payload.type !== "Content") return undefined;
+
+    // Look backwards until we find a non-ordered list.
+    for (let i = previousPartIndex; i >= 0; i--) {
+        const streamPart = streamParts[i]!;
+        if (streamPart.payload.type !== "Content") break;
+
+        const response = getListStartAndPreviousNumberOfItemsInListIfExists(
+            streamPart.payload.content.elements,
+            {
+                isOrderedList: element => element.type === "OrderedList",
+                getOrderStart: element => {
+                    assert(element.type === "OrderedList");
+                    return element.orderStart ?? undefined;
+                },
+            },
+        );
+
+        // If the previous element did not contain an ordered list at all, stop traversing.
+        if (response.previousListOrderStart === undefined && response.numberOfItemsInList === 0) {
+            break;
+        }
+
+        previousListOrderStart = response.previousListOrderStart;
+        numberOfItemsInPreviousList += response.numberOfItemsInList;
+
+        if (previousListOrderStart !== undefined) break;
+    }
+
+    if (previousListOrderStart || numberOfItemsInPreviousList > 0) {
+        return (previousListOrderStart ?? 1) + (numberOfItemsInPreviousList - 1);
+    }
+}
+
+/**
+ * Traverses a list of parts in reverse order until it finds a non-ordered list or an ordered
+ * list with an explicit order start.
+ */
+function getListStartAndPreviousNumberOfItemsInListIfExists<
+    Part extends BlockContent | ApiContentBlockElement,
+>(
+    parts: ReadonlyArray<Part>,
+    {
+        isOrderedList,
+        getOrderStart,
+    }: {
+        numberOfItemsInList?: number;
+        previousListOrderStart?: number | undefined;
+        isOrderedList: (element: Part) => boolean;
+        getOrderStart: (element: Part) => number | undefined;
+    },
+): {numberOfItemsInList: number; previousListOrderStart: number | undefined} {
+    let numberOfItemsInList = 0;
+    let previousListOrderStart: number | undefined = undefined;
+
+    for (let i = parts.length - 1; i >= 0; i--) {
+        const element = parts[i]!;
+
+        if (!isOrderedList(element)) break;
+
+        previousListOrderStart = getOrderStart(element);
+        numberOfItemsInList++;
+
+        if (previousListOrderStart !== undefined) break;
+    }
+
+    return {
+        numberOfItemsInList,
+        previousListOrderStart,
+    };
 }

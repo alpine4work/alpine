@@ -1,6 +1,7 @@
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
+import Stripe from "stripe";
 import * as build from "virtual:remix/server-build";
 import {
     AppServiceProcessContext,
@@ -17,6 +18,9 @@ import {getDefaultRouteLayoutForPlatform} from "~/client/web/remix/route_layout_
 import {getInitialAppRenderSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
 import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {BillingContextModule} from "~/server/billing/billing_context_module.js";
+import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
+import {BillingNoopDevelopmentContextModule} from "~/server/billing/billing_noop_development_context_module.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {
@@ -77,6 +81,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -122,6 +127,7 @@ export function getAppService(constants: AppServiceConstants): Promise<AppServic
 
 async function createAppService({
     tracer: originalTracer,
+    startupSpan,
     shutdownManager,
     options,
 }: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
@@ -193,9 +199,19 @@ async function createAppService({
                   };
               })()
             : null,
+
+        // Make sure to load all code block languages are loaded before `AppService`
+        // starts serving HTTP requests. That way if we server render a `<ContentView>`
+        // with a code block it'll have syntax highlighting.
+        runAllPromises(contentCodeBlockLanguages.map(language => language.getParser())),
     ]);
 
     const awsSigner = new AwsRequestSigner();
+    if (!startupSpan) {
+        assert(process.env.NODE_ENV !== "production", "`startupSpan` is required in production");
+    } else {
+        void awsSigner.prefetchState(startupSpan);
+    }
 
     const languageModel =
         process.env.NODE_ENV === "production"
@@ -211,6 +227,45 @@ async function createAppService({
                       "`allMiniLmL6V2LanguageModel` option is required in development",
                   ),
               );
+
+    const agentServiceUrl = options.agentServiceUrl ?? null;
+
+    if (process.env.NODE_ENV !== "test") {
+        assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
+    }
+
+    let billingContextModule: BillingContextModuleBase;
+    if (process.env.NODE_ENV === "production") {
+        assertExists(
+            options.stripeSigningSecret,
+            "`stripeSigningSecret` option is required in production",
+        );
+
+        billingContextModule = new BillingContextModule({
+            agentServiceUrl: assertExists(
+                agentServiceUrl,
+                "`agentServiceUrl` option is required in production",
+            ),
+            stripe: new Stripe(
+                assertExists(
+                    options.stripeSecretKey,
+                    "`stripeSecretKey` option is required in production",
+                ),
+            ),
+            stripeSigningSecret: options.stripeSigningSecret,
+        });
+    } else {
+        billingContextModule = options.stripeSecretKey
+            ? new BillingContextModule({
+                  agentServiceUrl: assertExists(
+                      agentServiceUrl,
+                      "`agentServiceUrl` option is when `stripeSecretKey` is provided in development",
+                  ),
+                  stripe: new Stripe(options.stripeSecretKey),
+                  stripeSigningSecret: options.stripeSigningSecret,
+              })
+            : new BillingNoopDevelopmentContextModule();
+    }
 
     const basicProcessContext = Context.new(
         createServerBasicProcessContextModules({
@@ -312,11 +367,6 @@ async function createAppService({
         "`edgeServiceUrl` option is required",
     );
 
-    const agentServiceUrl = options.agentServiceUrl ?? null;
-
-    if (process.env.NODE_ENV !== "test") {
-        assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
-    }
     const resourceServiceUrl = assertExists(
         options.resourceServiceUrl,
         "`resourceServiceUrl` option is required",
@@ -345,6 +395,7 @@ async function createAppService({
                       vapidPublicKey: webPushVapidPublicKey,
                       vapidPrivateKey: webPushVapidPrivateKey,
                   }),
+        billing: billingContextModule,
         logoDev: logoDevContextModule,
         chatInjection: new ChatInjectionContextModule(chatInjection),
         documentsInjection: new DocumentsInjectionContextModule(documentsInjection),

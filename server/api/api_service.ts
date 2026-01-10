@@ -63,6 +63,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type Options = ServiceOptions<typeof options>;
 
@@ -84,10 +85,12 @@ export const options = {
 export async function run({
     options,
     tracer,
+    startupSpan,
     shutdownManager,
 }: {
     options: Options;
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
 }) {
     const port = parseInt(assertExists(options.port, "`port` option is required"), 10);
@@ -109,6 +112,7 @@ export async function run({
     });
 
     const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
 
     const languageModel =
         process.env.NODE_ENV === "production"

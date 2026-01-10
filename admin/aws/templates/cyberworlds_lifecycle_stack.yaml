@@ -2094,7 +2094,7 @@ Resources:
             InstanceProfileName:
                 Ref: GithubRunnersDeployRunnerImageBuilderInstanceProfileB163A8A9
             InstanceTypes:
-                - t4g.small
+                - c8g.medium
             Name: CyberworldsLifecycleStack-GithubRunners-DeployRunnerImageBuilder-B1918EA5
             SecurityGroupIds:
                 - Fn::GetAtt:
@@ -3264,7 +3264,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
@@ -3371,7 +3371,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
@@ -3478,7 +3478,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
@@ -3585,7 +3585,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
@@ -3692,7 +3692,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
@@ -3798,7 +3798,7 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersDeployRunnerImageBuilderLaunchtemplateC6102225
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"t4g.xlarge\",\"UserDa\
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"c8g.xlarge\",\"UserDa\
                         ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5

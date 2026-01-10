@@ -290,6 +290,7 @@ const TracerEventDataSchema = {
             approximateReceiveCount: Schema.integer,
         },
         ecs: {
+            taskId: Schema.string,
             cluster: Schema.string,
             taskDefinitionFamily: Schema.string,
             taskCount: Schema.integer,
@@ -320,6 +321,7 @@ const TracerEventDataSchema = {
             },
         },
         ec2: {
+            instanceId: Schema.string,
             securityGroupId: Schema.string,
             instanceCount: Schema.integer,
         },
@@ -596,6 +598,16 @@ const TracerEventDataSchema = {
                 previousUsedMillicents: Schema.integer,
                 downgradedModel: Schema.boolean,
             },
+        },
+    },
+    billing: {
+        createdStripeCustomer: Schema.boolean,
+        stripeCustomerId: Schema.string,
+        stripeEvent: {
+            type: Schema.string,
+            id: Schema.string,
+            processed: Schema.boolean,
+            dollarAmount: Schema.float,
         },
     },
     auth: {

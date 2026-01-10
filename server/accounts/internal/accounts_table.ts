@@ -6,7 +6,33 @@ import {AccountId, BotId, SessionId, SpaceId} from "~/shared/id/types/id_types.j
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {emailAddressMaxLength} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+
+export const AccountsBillingSchema = Schema.object({
+    /**
+     * The ID of the customer in Stripe for this account's billing.
+     * If an entry exists, we should have a stripe customer created.
+     */
+    stripeCustomerId: Schema.string,
+
+    /**
+     * A historical log of this account's Stripe purchases.
+     */
+    stripePurchases: Schema.array(
+        Schema.object({
+            priceId: Schema.string,
+            price: Schema.float,
+            createdTime: Schema.date,
+        }),
+    ).default([]),
+
+    /**
+     * The time at which the account was created.
+     */
+    createdTime: Schema.date,
+});
+
+export type AccountsBilling = SchemaType<typeof AccountsBillingSchema>;
 
 export const AccountsTable = DynamoTableSchema.new({
     name: "Accounts",
@@ -34,6 +60,12 @@ export const AccountsTable = DynamoTableSchema.new({
                          * an account name changes to only update old names.
                          */
                         nameVersion: Schema.integer.default(0),
+
+                        /**
+                         * The plan for Alpine that this individual account is on.
+                         * This is the source of truth for any individual account limits.
+                         */
+                        plan: Schema.enum(["LifetimeAccess"]).optional(),
 
                         /**
                          * When was this account created?
@@ -114,6 +146,15 @@ export const AccountsTable = DynamoTableSchema.new({
                     name: "Settings",
                     sortKeyAttributes: {},
                     attributes: AccountsSettingsSchema,
+                },
+                {
+                    /**
+                     * Billing data related to the account. These fields should be considered
+                     * private and not sent to other clients.
+                     */
+                    name: "Billing",
+                    sortKeyAttributes: {},
+                    attributes: AccountsBillingSchema,
                 },
             ],
         },
@@ -240,6 +281,33 @@ export const AccountsTable = DynamoTableSchema.new({
         },
 
         /**
+         * We maintain a copy of Stripe Customers here to map from Stripe Customer ID
+         * to our internal Account ID. This allows us to map accounts from Stripe webhooks
+         * which only contain the Stripe Customer ID.
+         *
+         * We explicitly do not use an index here as indexes can only ever be eventually
+         * consistent. We need strong consistency to avoid missing this connection
+         * after creating new customers.
+         */
+        {
+            name: "StripeCustomer",
+            partitionKeyAttributes: {
+                // Stripe Customer IDs may be up to 255 characters.
+                // https://docs.stripe.com/upgrades#what-changes-does-stripe-consider-to-be-backward-compatible
+                stripeCustomerId: DynamoKeyAttributeSchema.labelString({maxLength: 255}),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        accountId: Schema.id<AccountId>(),
+                    }),
+                },
+            ],
+        },
+
+        /**
          * Allow an account to opt out of the "try on desktop" reminder email we
          * automatically send for them.
          */
@@ -310,5 +378,7 @@ export type AccountItem = AccountItemWithoutAvatar & {
 };
 
 export type AccountSettingsItem = DynamoTableItemType<typeof AccountsTable, "Account", "Settings">;
+
+export type AccountBillingItem = DynamoTableItemType<typeof AccountsTable, "Account", "Billing">;
 
 export type SessionItem = DynamoTableItemType<typeof AccountsTable, "Session", "Attributes">;

@@ -112,11 +112,13 @@ export const options = {
 export async function run({
     options,
     tracer,
+    startupSpan,
     shutdownManager,
     workerIndex,
 }: {
     options: Options;
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
     workerIndex: number;
 }) {
@@ -134,6 +136,7 @@ export async function run({
     });
 
     const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
 
     const processContext = Context.new({
         ...createServerBasicProcessContextModules({

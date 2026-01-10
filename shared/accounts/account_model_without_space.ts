@@ -27,6 +27,7 @@ export const AccountModelWithoutSpaceAndAvatarDataSchema = Schema.object({
     nameVersion: Schema.integer,
     // If the account is a bot then this will be defined.
     botId: Schema.id<BotId>().optional(),
+    plan: Schema.enum(["LifetimeAccess"]).optional(),
     reactionCharacter: ReactionCharacterSchema.nullable().default(null),
 });
 export const AccountModelWithoutSpaceDataSchema = AccountModelWithoutSpaceAndAvatarDataSchema.merge(

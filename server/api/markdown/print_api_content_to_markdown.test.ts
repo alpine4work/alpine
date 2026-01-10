@@ -1665,6 +1665,423 @@ test("mixed nested lists", async () => {
     );
 });
 
+test("ordered list with orderStart", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 5,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fifth item"}],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Sixth item"}],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Seventh item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+5. Fifth item
+
+6. Sixth item
+
+7. Seventh item
+`,
+    );
+});
+
+test("simple consecutive ordered lists respect orderStart", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 5,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fifth item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    orderStart: 3,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Restart at 3"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "3rd list merged into second list"},
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    orderStart: 11,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Restart again at 11"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+5. Fifth item
+
+3) Restart at 3
+
+4) 3rd list merged into second list
+
+11. Restart again at 11
+`,
+    );
+});
+
+test("consecutive ordered lists with orderStart", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 5,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fifth item"}],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Sixth item"}],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Seventh item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    orderStart: 3,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Restart at 3"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    orderStart: 2,
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {
+                                                            type: "Text",
+                                                            text: "Nested item starting at 2",
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                            nestedListElements: [
+                                                {
+                                                    type: "UnorderedList",
+                                                    items: [
+                                                        {
+                                                            elements: [
+                                                                {
+                                                                    type: "Paragraph",
+                                                                    elements: [
+                                                                        {
+                                                                            type: "Text",
+                                                                            text: "Nested unordered list item",
+                                                                        },
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            nestedListElements: [
+                                                                {
+                                                                    type: "OrderedList",
+                                                                    orderStart: 5,
+                                                                    items: [
+                                                                        {
+                                                                            elements: [
+                                                                                {
+                                                                                    type: "Paragraph",
+                                                                                    elements: [
+                                                                                        {
+                                                                                            type: "Text",
+                                                                                            text: "deeply nested item with order start 5",
+                                                                                        },
+                                                                                    ],
+                                                                                },
+                                                                            ],
+                                                                        },
+                                                                    ],
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    orderStart: 11,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Restart again at 11"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {
+                                                            type: "Text",
+                                                            text: "nested item without ordered start begins at 1",
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+5. Fifth item
+
+6. Sixth item
+
+7. Seventh item
+
+3) Restart at 3
+
+   2. Nested item starting at 2
+
+      - Nested unordered list item
+
+        5. deeply nested item with order start 5
+
+11. Restart again at 11
+
+    1. nested item without ordered start begins at 1
+`,
+    );
+});
+
+test("nested ordered lists with separate orderStart values", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 2,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second item"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    orderStart: 10,
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Tenth nested item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {
+                                                            type: "Text",
+                                                            text: "Eleventh nested item",
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Third item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+2. Second item
+
+   10. Tenth nested item
+
+   11. Eleventh nested item
+
+3. Third item
+`,
+    );
+});
+
+test("ordered list with orderStart nested inside unordered list", async () => {
+    await testPrintApiContentToMarkdown(
+        {
+            elements: [
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Bullet item"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    orderStart: 3,
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Third nested item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Fourth nested item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        `\
+- Bullet item
+
+  3. Third nested item
+
+  4. Fourth nested item
+`,
+    );
+});
+
 test("list with multiple paragraphs in item", async () => {
     await testPrintApiContentToMarkdown(
         {

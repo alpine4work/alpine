@@ -1,4 +1,5 @@
 import {
+    AccountItem,
     AccountItemWithoutAvatar,
     AccountSettingsItem,
     AccountsTable,
@@ -27,6 +28,7 @@ export async function createAccountForTest(
         hasInternalAccess = false,
         createdTime = new Date(),
         observedTimeZone = null,
+        plan,
         reactionCharacter = pickRandomReactionCharacterForAccount(),
     }: {
         id?: AccountId;
@@ -34,6 +36,7 @@ export async function createAccountForTest(
         hasInternalAccess?: boolean;
         createdTime?: Date;
         observedTimeZone?: TimeZone | null;
+        plan?: AccountItem["plan"];
         reactionCharacter?: ReactionCharacter;
     },
 ) {
@@ -47,6 +50,7 @@ export async function createAccountForTest(
         nameVersion: 0,
         createdTime,
         hasInternalAccess,
+        plan,
         reactionCharacter,
     };
 

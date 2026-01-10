@@ -7,6 +7,7 @@ ts_project(
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
         "//admin/helpers",
+        "//server/billing",
         "//server/chat/data",
         "//server/context",
         "//server/documents/data",

@@ -359,11 +359,10 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
                 CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69:
+    OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD0844369CA9230:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from
-                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
+            Description: from CyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD08:443
             FromPort: 443
             GroupId:
                 Fn::GetAtt:
@@ -372,16 +371,16 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                     - GroupId
             ToPort: 443
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481:
+                CyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD08:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F56844399D2FF0A:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
+            Description: from CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:443
             FromPort: 443
             GroupId:
                 Fn::GetAtt:
@@ -390,16 +389,16 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
+                    - AppServiceLaunchTemplateSecurityGroup25142A6C
                     - GroupId
             ToPort: 443
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098443B6A033DF:
+                CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup432566304431BAD3659:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:443
+            Description: from CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:443
             FromPort: 443
             GroupId:
                 Fn::GetAtt:
@@ -408,16 +407,16 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                    - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
                     - GroupId
             ToPort: 443
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F:
+                CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:443
+    OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3443A4E30F75:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
+            Description: from CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:443
             FromPort: 443
             GroupId:
                 Fn::GetAtt:
@@ -426,12 +425,12 @@ Resources:
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
+                    - JobQueueServiceLaunchTemplateSecurityGroupFDE59154
                     - GroupId
             ToPort: 443
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
+                CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:443
     OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -809,12 +808,12 @@ Resources:
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F
             - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33e576C5C1B
             - OpensearchDomainCED7C974
-            - OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098443B6A033DF
-            - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481
-            - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F
+            - OpensearchDomainSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup432566304431BAD3659
+            - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F56844399D2FF0A
+            - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3443A4E30F75
             - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
             - OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE
-            - OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69
+            - OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceLaunchTemplateSecurityGroup871DAD0844369CA9230
             - OpensearchDomainSecurityGroup046A436D
             - OpensearchDomainSlowIndexLogs76621B18
             - OpensearchDomainSlowSearchLogsCB6C5516
@@ -1847,10 +1846,10 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/TasksTable/Resource
-    TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730:
+    TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            GroupDescription: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup
+            GroupDescription: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup
             SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
                   Description: Allow all outbound traffic by default
@@ -1966,74 +1965,65 @@ Resources:
                   FromPort: 80
                   IpProtocol: tcp
                   ToPort: 80
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/TaskRealtimeService/AutoScalingGroup
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8ALLPORTSC44ED14A:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/Resource
+    TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568ALLPORTS7B069E84:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:ALL PORTS
+            Description: from CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
-                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                     - GroupId
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
+                    - AppServiceLaunchTemplateSecurityGroup25142A6C
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:ALL PORTS
-    TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098ALLPORTS4A5B9F6E:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackAppServiceLaunchTemplateSecurityGroupDC73F568:ALL PORTS
+    TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630ALLPORTS34975FDB:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description: from CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:ALL PORTS
+            Description: from CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
-                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                     - GroupId
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
+                    - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackApiServiceAutoScalingGroupInstanceSecurityGroupAE8C5098:ALL PORTS
-    TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99ALLPORTSD27DFFB6:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackApiServiceLaunchTemplateSecurityGroup43256630:ALL PORTS
+    TaskRealtimeServiceLaunchTemplateSecurityGroupfromCyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3ALLPORTS813529AF:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
-            Description:
-                from CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:ALL
-                PORTS
+            Description: from CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:ALL PORTS
             FromPort: 0
             GroupId:
                 Fn::GetAtt:
-                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                     - GroupId
             IpProtocol: tcp
             SourceSecurityGroupId:
                 Fn::GetAtt:
-                    - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
+                    - JobQueueServiceLaunchTemplateSecurityGroupFDE59154
                     - GroupId
             ToPort: 65535
         Metadata:
-            aws:cdk:path:
-                CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:ALL
-                PORTS
-    TaskRealtimeServiceAutoScalingGroupInstanceRole366B48F8:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackJobQueueServiceLaunchTemplateSecurityGroupD221A7E3:ALL PORTS
+    TaskRealtimeServiceLaunchTemplateRole88D6C595:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -2049,12 +2039,9 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/TaskRealtimeService/AutoScalingGroup
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceRole/Resource
-    TaskRealtimeServiceAutoScalingGroupInstanceRoleDefaultPolicy845B7F65:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateRole/Resource
+    TaskRealtimeServiceLaunchTemplateRoleDefaultPolicy89E98F70:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -2087,63 +2074,82 @@ Resources:
                       Effect: Allow
                       Resource: "*"
                 Version: 2012-10-17
-            PolicyName: TaskRealtimeServiceAutoScalingGroupInstanceRoleDefaultPolicy845B7F65
+            PolicyName: TaskRealtimeServiceLaunchTemplateRoleDefaultPolicy89E98F70
             Roles:
-                - Ref: TaskRealtimeServiceAutoScalingGroupInstanceRole366B48F8
+                - Ref: TaskRealtimeServiceLaunchTemplateRole88D6C595
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
-    TaskRealtimeServiceAutoScalingGroupInstanceProfileDDF1F2CB:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplateRole/DefaultPolicy/Resource
+    TaskRealtimeServiceLaunchTemplateProfile73C60351:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Roles:
-                - Ref: TaskRealtimeServiceAutoScalingGroupInstanceRole366B48F8
+                - Ref: TaskRealtimeServiceLaunchTemplateRole88D6C595
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/InstanceProfile
-    TaskRealtimeServiceAutoScalingGroupLaunchConfig22706485:
-        Type: AWS::AutoScaling::LaunchConfiguration
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplate/Profile
+    TaskRealtimeServiceLaunchTemplate47EF2B4B:
+        Type: AWS::EC2::LaunchTemplate
         Properties:
-            IamInstanceProfile:
-                Ref: TaskRealtimeServiceAutoScalingGroupInstanceProfileDDF1F2CB
-            ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
-                      - GroupId
-            UserData:
-                Fn::Base64:
-                    Fn::Join:
-                        - ""
-                        - - |-
-                              #!/bin/bash
-                              echo ECS_CLUSTER=
-                          - Ref: EcsClusterFB9B21B5
-                          - >2-
-                             >> /etc/ecs/ecs.config
-                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
-                            169.254.169.254/32 --jump DROP
+            LaunchTemplateData:
+                IamInstanceProfile:
+                    Arn:
+                        Fn::GetAtt:
+                            - TaskRealtimeServiceLaunchTemplateProfile73C60351
+                            - Arn
+                ImageId:
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                InstanceType: m6g.large
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
+                          - GroupId
+                TagSpecifications:
+                    - ResourceType: instance
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/TaskRealtimeService/LaunchTemplate
+                    - ResourceType: volume
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/TaskRealtimeService/LaunchTemplate
+                UserData:
+                    Fn::Base64:
+                        Fn::Join:
+                            - ""
+                            - - |-
+                                  #!/bin/bash
+                                  echo ECS_CLUSTER=
+                              - Ref: EcsClusterFB9B21B5
+                              - >2-
+                                 >> /etc/ecs/ecs.config
+                                sudo iptables --insert FORWARD 1 --in-interface docker+
+                                --destination 169.254.169.254/32 --jump DROP
 
-                            sudo service iptables save
+                                sudo service iptables save
 
-                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+                                echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+            TagSpecifications:
+                - ResourceType: launch-template
+                  Tags:
+                      - Key: Name
+                        Value: CyberworldsStack/TaskRealtimeService/LaunchTemplate
         DependsOn:
-            - TaskRealtimeServiceAutoScalingGroupInstanceRoleDefaultPolicy845B7F65
-            - TaskRealtimeServiceAutoScalingGroupInstanceRole366B48F8
+            - TaskRealtimeServiceLaunchTemplateRoleDefaultPolicy89E98F70
+            - TaskRealtimeServiceLaunchTemplateRole88D6C595
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/AutoScalingGroup/LaunchConfig
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/LaunchTemplate/Resource
     TaskRealtimeServiceAutoScalingGroupASGF7365475:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
-            LaunchConfigurationName:
-                Ref: TaskRealtimeServiceAutoScalingGroupLaunchConfig22706485
-            MaxSize: "4"
-            MinSize: "2"
+            LaunchTemplate:
+                LaunchTemplateId:
+                    Ref: TaskRealtimeServiceLaunchTemplate47EF2B4B
+                Version:
+                    Fn::GetAtt:
+                        - TaskRealtimeServiceLaunchTemplate47EF2B4B
+                        - LatestVersionNumber
+            MaxSize: "8"
+            MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
-            Tags:
-                - Key: Name
-                  PropagateAtLaunch: true
-                  Value: CyberworldsStack/TaskRealtimeService/AutoScalingGroup
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -2516,7 +2522,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionContainerLogGroup64BE4AA7
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 918
+                  MemoryReservation: 7686
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4001
@@ -2629,7 +2635,7 @@ Resources:
                               Ref: TaskRealtimeServiceTaskDefinitionGatewayContainerLogGroupC33881DF
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  MemoryReservation: 18
+                  MemoryReservation: 156
                   Name: GatewayContainer
                   PortMappings:
                       - ContainerPort: 80
@@ -2725,7 +2731,7 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/TaskRealtimeService/TaskDefinition/GatewayContainer/LogGroup/Resource
-    TaskRealtimeServicePartition1Of2Service0939E28C:
+    TaskRealtimeServicePartition1Of4ServiceD4755515:
         Type: AWS::ECS::Service
         Properties:
             CapacityProviderStrategy:
@@ -2755,8 +2761,8 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of2/Service/Service
-    TaskRealtimeServicePartition2Of2ServiceA52AA8BD:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition1Of4/Service/Service
+    TaskRealtimeServicePartition2Of4Service58B5770B:
         Type: AWS::ECS::Service
         Properties:
             CapacityProviderStrategy:
@@ -2786,41 +2792,70 @@ Resources:
             - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of2/Service/Service
-    AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8:
-        Type: AWS::EC2::SecurityGroup
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition2Of4/Service/Service
+    TaskRealtimeServicePartition3Of4Service9D31FC0E:
+        Type: AWS::ECS::Service
         Properties:
-            GroupDescription: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/AppService/AutoScalingGroup
-            VpcId:
-                Ref: Vpc8378EB38
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
+                MaximumPercent: 200
+                MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
+            DesiredCount: 1
+            EnableECSManagedTags: true
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: TaskRealtimeServiceTaskDefinition4487CD82
+        DependsOn:
+            - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    AppServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000527063C8:
-        Type: AWS::EC2::SecurityGroupIngress
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition3Of4/Service/Service
+    TaskRealtimeServicePartition4Of4Service542A453A:
+        Type: AWS::ECS::Service
         Properties:
-            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
-                    - GroupId
-            ToPort: 4000
+            CapacityProviderStrategy:
+                - CapacityProvider:
+                      Ref: TaskRealtimeServiceAutoScalingGroupCapacityProvider47234129
+                  Weight: 1
+            Cluster:
+                Ref: EcsClusterFB9B21B5
+            DeploymentConfiguration:
+                Alarms:
+                    AlarmNames: []
+                    Enable: false
+                    Rollback: false
+                DeploymentCircuitBreaker:
+                    Enable: true
+                    Rollback: true
+                MaximumPercent: 200
+                MinimumHealthyPercent: 100
+            DeploymentController:
+                Type: ECS
+            DesiredCount: 1
+            EnableECSManagedTags: true
+            SchedulingStrategy: REPLICA
+            TaskDefinition:
+                Ref: TaskRealtimeServiceTaskDefinition4487CD82
+        DependsOn:
+            - TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
+            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
-    AppServiceAutoScalingGroupInstanceRoleA46BECD2:
+            aws:cdk:path: CyberworldsStack/TaskRealtimeService/Partition4Of4/Service/Service
+    AppServiceLaunchTemplateRole07DED169:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -2836,12 +2871,9 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/AppService/AutoScalingGroup
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceRole/Resource
-    AppServiceAutoScalingGroupInstanceRoleDefaultPolicy2BF7CFF4:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateRole/Resource
+    AppServiceLaunchTemplateRoleDefaultPolicyFACB455B:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -2874,63 +2906,112 @@ Resources:
                       Effect: Allow
                       Resource: "*"
                 Version: 2012-10-17
-            PolicyName: AppServiceAutoScalingGroupInstanceRoleDefaultPolicy2BF7CFF4
+            PolicyName: AppServiceLaunchTemplateRoleDefaultPolicyFACB455B
             Roles:
-                - Ref: AppServiceAutoScalingGroupInstanceRoleA46BECD2
+                - Ref: AppServiceLaunchTemplateRole07DED169
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
-    AppServiceAutoScalingGroupInstanceProfile48AE1782:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateRole/DefaultPolicy/Resource
+    AppServiceLaunchTemplateSecurityGroup25142A6C:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/AppService/LaunchTemplateSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateSecurityGroup/Resource
+    AppServiceLaunchTemplateSecurityGroupfromCyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F4000DA794BF7:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - AppServiceLaunchTemplateSecurityGroup25142A6C
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - AppServiceLoadBalancer2SecurityGroupA5F365F8
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackAppServiceLoadBalancer2SecurityGroup2C495A0F:4000
+    AppServiceLaunchTemplateProfile42DDF9C1:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Roles:
-                - Ref: AppServiceAutoScalingGroupInstanceRoleA46BECD2
+                - Ref: AppServiceLaunchTemplateRole07DED169
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/InstanceProfile
-    AppServiceAutoScalingGroupLaunchConfig5E9CA167:
-        Type: AWS::AutoScaling::LaunchConfiguration
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplate/Profile
+    AppServiceLaunchTemplate42ACBC3C:
+        Type: AWS::EC2::LaunchTemplate
         Properties:
-            IamInstanceProfile:
-                Ref: AppServiceAutoScalingGroupInstanceProfile48AE1782
-            ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                      - GroupId
-            UserData:
-                Fn::Base64:
-                    Fn::Join:
-                        - ""
-                        - - |-
-                              #!/bin/bash
-                              echo ECS_CLUSTER=
-                          - Ref: EcsClusterFB9B21B5
-                          - >2-
-                             >> /etc/ecs/ecs.config
-                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
-                            169.254.169.254/32 --jump DROP
+            LaunchTemplateData:
+                IamInstanceProfile:
+                    Arn:
+                        Fn::GetAtt:
+                            - AppServiceLaunchTemplateProfile42DDF9C1
+                            - Arn
+                ImageId:
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                InstanceType: c8g.large
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - AppServiceLaunchTemplateSecurityGroup25142A6C
+                          - GroupId
+                TagSpecifications:
+                    - ResourceType: instance
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/AppService/LaunchTemplate
+                    - ResourceType: volume
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/AppService/LaunchTemplate
+                UserData:
+                    Fn::Base64:
+                        Fn::Join:
+                            - ""
+                            - - |-
+                                  #!/bin/bash
+                                  echo ECS_CLUSTER=
+                              - Ref: EcsClusterFB9B21B5
+                              - >2-
+                                 >> /etc/ecs/ecs.config
+                                sudo iptables --insert FORWARD 1 --in-interface docker+
+                                --destination 169.254.169.254/32 --jump DROP
 
-                            sudo service iptables save
+                                sudo service iptables save
 
-                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+                                echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+            TagSpecifications:
+                - ResourceType: launch-template
+                  Tags:
+                      - Key: Name
+                        Value: CyberworldsStack/AppService/LaunchTemplate
         DependsOn:
-            - AppServiceAutoScalingGroupInstanceRoleDefaultPolicy2BF7CFF4
-            - AppServiceAutoScalingGroupInstanceRoleA46BECD2
+            - AppServiceLaunchTemplateRoleDefaultPolicyFACB455B
+            - AppServiceLaunchTemplateRole07DED169
         Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/AutoScalingGroup/LaunchConfig
+            aws:cdk:path: CyberworldsStack/AppService/LaunchTemplate/Resource
     AppServiceAutoScalingGroupASG10BAC29D:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
-            LaunchConfigurationName:
-                Ref: AppServiceAutoScalingGroupLaunchConfig5E9CA167
-            MaxSize: "4"
-            MinSize: "2"
+            LaunchTemplate:
+                LaunchTemplateId:
+                    Ref: AppServiceLaunchTemplate42ACBC3C
+                Version:
+                    Fn::GetAtt:
+                        - AppServiceLaunchTemplate42ACBC3C
+                        - LatestVersionNumber
+            MaxSize: "16"
+            MinSize: "8"
             NewInstancesProtectedFromScaleIn: true
-            Tags:
-                - Key: Name
-                  PropagateAtLaunch: true
-                  Value: CyberworldsStack/AppService/AutoScalingGroup
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -3327,7 +3408,7 @@ Resources:
                             - ""
                             - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
-                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
@@ -3347,6 +3428,8 @@ Resources:
                       - --apnsCertificatePrivateKey=$APNS_CERTIFICATE_PRIVATE_KEY
                       - --webPushVapidPublicKey=$WEB_PUSH_VAPID_PUBLIC_KEY
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
+                      - --stripeSecretKey=$STRIPE_SECRET_KEY
+                      - --stripeSigningSecret=$STRIPE_SIGNING_SECRET
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -3371,7 +3454,7 @@ Resources:
                               Ref: AppServiceTaskDefinitionContainerLogGroup1060112F
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -3497,6 +3580,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:cloudflareR2SecretAccessKey::"
+                      - Name: STRIPE_SECRET_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:stripeSecretKey::"
+                      - Name: STRIPE_SIGNING_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:stripeSigningSecret::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
@@ -3598,7 +3695,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 2
+            DesiredCount: 8
             EnableECSManagedTags: false
             HealthCheckGracePeriodSeconds: 60
             LoadBalancers:
@@ -3829,40 +3926,7 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/Certificate/Resource
-    ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/ApiService/AutoScalingGroup
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    ApiServiceAutoScalingGroupInstanceSecurityGroupfromCyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A4000CFE0C3D1:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
-            FromPort: 4000
-            GroupId:
-                Fn::GetAtt:
-                    - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
-                    - GroupId
-            ToPort: 4000
-        Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceSecurityGroup/from
-                CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
-    ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD:
+    ApiServiceLaunchTemplateRole9E5ADACB:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -3878,12 +3942,9 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/ApiService/AutoScalingGroup
         Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceRole/Resource
-    ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateRole/Resource
+    ApiServiceLaunchTemplateRoleDefaultPolicy20B3AFAE:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -3916,63 +3977,112 @@ Resources:
                       Effect: Allow
                       Resource: "*"
                 Version: 2012-10-17
-            PolicyName: ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2
+            PolicyName: ApiServiceLaunchTemplateRoleDefaultPolicy20B3AFAE
             Roles:
-                - Ref: ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+                - Ref: ApiServiceLaunchTemplateRole9E5ADACB
         Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
-    ApiServiceAutoScalingGroupInstanceProfile1E0819BF:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateRole/DefaultPolicy/Resource
+    ApiServiceLaunchTemplateSecurityGroup96FC5ABE:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/Resource
+    ApiServiceLaunchTemplateSecurityGroupfromCyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A4000410CE0FC:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
+            FromPort: 4000
+            GroupId:
+                Fn::GetAtt:
+                    - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - ApiServiceLoadBalancerSecurityGroupBEE4C4F3
+                    - GroupId
+            ToPort: 4000
+        Metadata:
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateSecurityGroup/from
+                CyberworldsStackApiServiceLoadBalancerSecurityGroup2E7F099A:4000
+    ApiServiceLaunchTemplateProfile943D531F:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Roles:
-                - Ref: ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+                - Ref: ApiServiceLaunchTemplateRole9E5ADACB
         Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/InstanceProfile
-    ApiServiceAutoScalingGroupLaunchConfig8B24DF22:
-        Type: AWS::AutoScaling::LaunchConfiguration
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplate/Profile
+    ApiServiceLaunchTemplate5177EAE7:
+        Type: AWS::EC2::LaunchTemplate
         Properties:
-            IamInstanceProfile:
-                Ref: ApiServiceAutoScalingGroupInstanceProfile1E0819BF
-            ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - ApiServiceAutoScalingGroupInstanceSecurityGroup20984B5F
-                      - GroupId
-            UserData:
-                Fn::Base64:
-                    Fn::Join:
-                        - ""
-                        - - |-
-                              #!/bin/bash
-                              echo ECS_CLUSTER=
-                          - Ref: EcsClusterFB9B21B5
-                          - >2-
-                             >> /etc/ecs/ecs.config
-                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
-                            169.254.169.254/32 --jump DROP
+            LaunchTemplateData:
+                IamInstanceProfile:
+                    Arn:
+                        Fn::GetAtt:
+                            - ApiServiceLaunchTemplateProfile943D531F
+                            - Arn
+                ImageId:
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                InstanceType: c8g.large
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
+                          - GroupId
+                TagSpecifications:
+                    - ResourceType: instance
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/ApiService/LaunchTemplate
+                    - ResourceType: volume
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/ApiService/LaunchTemplate
+                UserData:
+                    Fn::Base64:
+                        Fn::Join:
+                            - ""
+                            - - |-
+                                  #!/bin/bash
+                                  echo ECS_CLUSTER=
+                              - Ref: EcsClusterFB9B21B5
+                              - >2-
+                                 >> /etc/ecs/ecs.config
+                                sudo iptables --insert FORWARD 1 --in-interface docker+
+                                --destination 169.254.169.254/32 --jump DROP
 
-                            sudo service iptables save
+                                sudo service iptables save
 
-                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+                                echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+            TagSpecifications:
+                - ResourceType: launch-template
+                  Tags:
+                      - Key: Name
+                        Value: CyberworldsStack/ApiService/LaunchTemplate
         DependsOn:
-            - ApiServiceAutoScalingGroupInstanceRoleDefaultPolicy062E13B2
-            - ApiServiceAutoScalingGroupInstanceRoleDBDFC3AD
+            - ApiServiceLaunchTemplateRoleDefaultPolicy20B3AFAE
+            - ApiServiceLaunchTemplateRole9E5ADACB
         Metadata:
-            aws:cdk:path: CyberworldsStack/ApiService/AutoScalingGroup/LaunchConfig
+            aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplate/Resource
     ApiServiceAutoScalingGroupASG48C3F143:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
-            LaunchConfigurationName:
-                Ref: ApiServiceAutoScalingGroupLaunchConfig8B24DF22
+            LaunchTemplate:
+                LaunchTemplateId:
+                    Ref: ApiServiceLaunchTemplate5177EAE7
+                Version:
+                    Fn::GetAtt:
+                        - ApiServiceLaunchTemplate5177EAE7
+                        - LatestVersionNumber
             MaxSize: "4"
             MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
-            Tags:
-                - Key: Name
-                  PropagateAtLaunch: true
-                  Value: CyberworldsStack/ApiService/AutoScalingGroup
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -4322,7 +4432,7 @@ Resources:
                             - ""
                             - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
-                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
@@ -4366,7 +4476,7 @@ Resources:
                               Ref: ApiServiceTaskDefinitionContainerLogGroup7F4869A8
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
@@ -4819,22 +4929,7 @@ Resources:
             ValidationMethod: DNS
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/Certificate/Resource
-    JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: CyberworldsStack/JobQueueService/AutoScalingGroup/InstanceSecurityGroup
-            SecurityGroupEgress:
-                - CidrIp: 0.0.0.0/0
-                  Description: Allow all outbound traffic by default
-                  IpProtocol: "-1"
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/JobQueueService/AutoScalingGroup
-            VpcId:
-                Ref: Vpc8378EB38
-        Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/AutoScalingGroup/InstanceSecurityGroup/Resource
-    JobQueueServiceAutoScalingGroupInstanceRole409E34B8:
+    JobQueueServiceLaunchTemplateRoleAB2A9F69:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -4850,12 +4945,9 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
-            Tags:
-                - Key: Name
-                  Value: CyberworldsStack/JobQueueService/AutoScalingGroup
         Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/AutoScalingGroup/InstanceRole/Resource
-    JobQueueServiceAutoScalingGroupInstanceRoleDefaultPolicy9604FAD9:
+            aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplateRole/Resource
+    JobQueueServiceLaunchTemplateRoleDefaultPolicy169D1E69:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -4888,63 +4980,94 @@ Resources:
                       Effect: Allow
                       Resource: "*"
                 Version: 2012-10-17
-            PolicyName: JobQueueServiceAutoScalingGroupInstanceRoleDefaultPolicy9604FAD9
+            PolicyName: JobQueueServiceLaunchTemplateRoleDefaultPolicy169D1E69
             Roles:
-                - Ref: JobQueueServiceAutoScalingGroupInstanceRole409E34B8
+                - Ref: JobQueueServiceLaunchTemplateRoleAB2A9F69
         Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/AutoScalingGroup/InstanceRole/DefaultPolicy/Resource
-    JobQueueServiceAutoScalingGroupInstanceProfile43FB4AEC:
+            aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplateRole/DefaultPolicy/Resource
+    JobQueueServiceLaunchTemplateSecurityGroupFDE59154:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/JobQueueService/LaunchTemplateSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplateSecurityGroup/Resource
+    JobQueueServiceLaunchTemplateProfileBBFF57CB:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Roles:
-                - Ref: JobQueueServiceAutoScalingGroupInstanceRole409E34B8
+                - Ref: JobQueueServiceLaunchTemplateRoleAB2A9F69
         Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/AutoScalingGroup/InstanceProfile
-    JobQueueServiceAutoScalingGroupLaunchConfig9C233F6F:
-        Type: AWS::AutoScaling::LaunchConfiguration
+            aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplate/Profile
+    JobQueueServiceLaunchTemplate05372F6D:
+        Type: AWS::EC2::LaunchTemplate
         Properties:
-            IamInstanceProfile:
-                Ref: JobQueueServiceAutoScalingGroupInstanceProfile43FB4AEC
-            ImageId:
-                Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: t4g.micro
-            SecurityGroups:
-                - Fn::GetAtt:
-                      - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
-                      - GroupId
-            UserData:
-                Fn::Base64:
-                    Fn::Join:
-                        - ""
-                        - - |-
-                              #!/bin/bash
-                              echo ECS_CLUSTER=
-                          - Ref: EcsClusterFB9B21B5
-                          - >2-
-                             >> /etc/ecs/ecs.config
-                            sudo iptables --insert FORWARD 1 --in-interface docker+ --destination
-                            169.254.169.254/32 --jump DROP
+            LaunchTemplateData:
+                IamInstanceProfile:
+                    Arn:
+                        Fn::GetAtt:
+                            - JobQueueServiceLaunchTemplateProfileBBFF57CB
+                            - Arn
+                ImageId:
+                    Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+                InstanceType: c8g.large
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - JobQueueServiceLaunchTemplateSecurityGroupFDE59154
+                          - GroupId
+                TagSpecifications:
+                    - ResourceType: instance
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/JobQueueService/LaunchTemplate
+                    - ResourceType: volume
+                      Tags:
+                          - Key: Name
+                            Value: CyberworldsStack/JobQueueService/LaunchTemplate
+                UserData:
+                    Fn::Base64:
+                        Fn::Join:
+                            - ""
+                            - - |-
+                                  #!/bin/bash
+                                  echo ECS_CLUSTER=
+                              - Ref: EcsClusterFB9B21B5
+                              - >2-
+                                 >> /etc/ecs/ecs.config
+                                sudo iptables --insert FORWARD 1 --in-interface docker+
+                                --destination 169.254.169.254/32 --jump DROP
 
-                            sudo service iptables save
+                                sudo service iptables save
 
-                            echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+                                echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+            TagSpecifications:
+                - ResourceType: launch-template
+                  Tags:
+                      - Key: Name
+                        Value: CyberworldsStack/JobQueueService/LaunchTemplate
         DependsOn:
-            - JobQueueServiceAutoScalingGroupInstanceRoleDefaultPolicy9604FAD9
-            - JobQueueServiceAutoScalingGroupInstanceRole409E34B8
+            - JobQueueServiceLaunchTemplateRoleDefaultPolicy169D1E69
+            - JobQueueServiceLaunchTemplateRoleAB2A9F69
         Metadata:
-            aws:cdk:path: CyberworldsStack/JobQueueService/AutoScalingGroup/LaunchConfig
+            aws:cdk:path: CyberworldsStack/JobQueueService/LaunchTemplate/Resource
     JobQueueServiceAutoScalingGroupASG222BE472:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
-            LaunchConfigurationName:
-                Ref: JobQueueServiceAutoScalingGroupLaunchConfig9C233F6F
-            MaxSize: "2"
-            MinSize: "1"
+            LaunchTemplate:
+                LaunchTemplateId:
+                    Ref: JobQueueServiceLaunchTemplate05372F6D
+                Version:
+                    Fn::GetAtt:
+                        - JobQueueServiceLaunchTemplate05372F6D
+                        - LatestVersionNumber
+            MaxSize: "8"
+            MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
-            Tags:
-                - Key: Name
-                  PropagateAtLaunch: true
-                  Value: CyberworldsStack/JobQueueService/AutoScalingGroup
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -5338,7 +5461,7 @@ Resources:
                             - ""
                             - - --taskRealtimeServiceSecurityGroupId=
                               - Fn::GetAtt:
-                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - TaskRealtimeServiceLaunchTemplateSecurityGroup4CAB7B53
                                     - GroupId
                       - --honeycombApiKey=$HONEYCOMB_API_KEY
                       - --cohereApiKey=$COHERE_API_KEY
@@ -5387,7 +5510,7 @@ Resources:
                               Ref: JobQueueServiceTaskDefinitionContainerLogGroup4CA57652
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 936
+                  Memory: 3906
                   Name: Container
                   Secrets:
                       - Name: APP_SERVICE_PUBLIC_KEY
@@ -5683,7 +5806,7 @@ Resources:
                 MinimumHealthyPercent: 50
             DeploymentController:
                 Type: ECS
-            DesiredCount: 1
+            DesiredCount: 4
             EnableECSManagedTags: false
             SchedulingStrategy: REPLICA
             TaskDefinition:

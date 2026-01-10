@@ -1,12 +1,15 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
+    InstanceClass,
     InstanceSize,
     InstanceType,
+    LaunchTemplate,
     Peer,
     Port,
     SecurityGroup,
     SubnetType,
+    UserData,
     Vpc,
 } from "aws-cdk-lib/aws-ec2";
 import {
@@ -20,20 +23,18 @@ import {
     NetworkMode,
     TaskDefinition,
 } from "aws-cdk-lib/aws-ecs";
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
-import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export class AwsTaskRealtimeService extends Construct {
     public readonly autoScalingGroup: AutoScalingGroup;
@@ -79,7 +80,7 @@ export class AwsTaskRealtimeService extends Construct {
         // `TaskRealtimeService` instances keeping a copy of the same space's data.
         // Namely you decrease your chance of cache hits. Generally your tool for
         // scaling `TaskRealtimeService` should be increasing the number of partitions.
-        const partitionCount = 2;
+        const partitionCount = 4;
         const partitionInstanceCount = 1;
 
         // First 750 hours per month of the `t3.micro` instance type are free. That
@@ -90,13 +91,28 @@ export class AwsTaskRealtimeService extends Construct {
         // (`instanceCpuCount`). If you change the instance type you should also change
         // `instanceCpuCount` to the correct number of vCPUs according to:
         // https://aws.amazon.com/ec2/instance-types/
-        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO);
+        const instanceType = InstanceType.of(InstanceClass.M6G, InstanceSize.LARGE);
         const instanceCpuCount = 2;
+
+        const launchTemplateSecurityGroup = new SecurityGroup(this, "LaunchTemplateSecurityGroup", {
+            vpc,
+            allowAllOutbound: true,
+        });
 
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
-            instanceType,
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            launchTemplate: new LaunchTemplate(this, "LaunchTemplate", {
+                instanceType,
+                machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+                role: new Role(this, "LaunchTemplateRole", {
+                    assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+                    managedPolicies: [
+                        ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                    ],
+                }),
+                securityGroup: launchTemplateSecurityGroup,
+                userData: UserData.forLinux(),
+            }),
 
             minCapacity: partitionCount * partitionInstanceCount,
             // During a deploy, we double our capacity needs since we keep running old
@@ -115,15 +131,7 @@ export class AwsTaskRealtimeService extends Construct {
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
-        this.securityGroup = assertExists(
-            // @ts-expect-error: The `securityGroup` property is private but we need to use
-            // it. We could construct our own `SecurityGroup` and pass it into
-            // `new AutoScalingGroup()` but that would delete the existing `SecurityGroup`
-            // which is probably fine but would rather not risk it.
-            //
-            // https://github.com/aws/aws-cdk/blob/a0289271aa9990f85c120d0549b878bd3c6ea484/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1337
-            this.autoScalingGroup.securityGroup,
-        );
+        this.securityGroup = launchTemplateSecurityGroup;
 
         // Add the ability to connect to our EC2 instances with Session Manager.
         // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
@@ -202,7 +210,7 @@ export class AwsTaskRealtimeService extends Construct {
         // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
         // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
         // stuck in the "Provisioning" status forever.
-        const memoryLimitMiB = 936;
+        const memoryLimitMiB = 7842;
 
         const gatewayResourcePercent = 0.02;
 

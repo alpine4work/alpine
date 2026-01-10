@@ -45,6 +45,8 @@ export const options = {
     taskRealtimeServiceSecurityGroupId: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
+    stripeSecretKey: {type: "string"},
+    stripeSigningSecret: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     webPushVapidPublicKey: {type: "string"},
@@ -65,10 +67,12 @@ export const options = {
 export async function run({
     options,
     tracer,
+    startupSpan,
     shutdownManager,
 }: {
     options: Options;
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
 }) {
     const port = parseInt(assertExists(options.port, "`port` option is required"), 10);
@@ -121,6 +125,9 @@ export async function run({
 
     const constants: AppServiceConstants = {
         tracer,
+        // When running in development, Vite will restart `AppService` many times.
+        // Don't use the `startupSpan` from `app_service_wrapper.ts` startup.
+        startupSpan: isViteDevEnabled ? null : startupSpan,
         shutdownManager: isViteDevEnabled
             ? new HotShutdownManager(tracer, shutdownManager)
             : shutdownManager,

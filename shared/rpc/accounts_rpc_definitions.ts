@@ -119,6 +119,17 @@ export const updateAccountReactionCharacter = defineRpc({
     },
 });
 
+export const createLifetimeAccessCheckoutUrl = defineRpc({
+    name: "createLifetimeAccessCheckoutUrl",
+    isIdempotent: false,
+    input: {
+        currentPathname: Schema.string,
+    },
+    output: {
+        url: Schema.string,
+    },
+});
+
 export const regenerateOneTimePasswordSignIn = defineRpc({
     name: "regenerateOneTimePasswordSignIn",
     // Generates a new one time password every call.

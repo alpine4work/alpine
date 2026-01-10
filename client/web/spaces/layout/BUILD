@@ -23,6 +23,7 @@ ts_project(
         "//client/web/icons",
         "//client/web/inbox",
         "//client/web/peek",
+        "//client/web/reactions",
         "//client/web/remix",
         "//client/web/search",
         "//client/web/shimmer",

@@ -7,12 +7,12 @@ import {OverlayTriggerButton} from "~/client/web/design/overlay_trigger_button.j
 import {PrettyNumber} from "~/client/web/design/pretty_number.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
+import {ReactionBarPicker} from "~/client/web/reactions/internal/reaction_bar_picker.js";
 import {ReactionMegaPicker} from "~/client/web/reactions/internal/reaction_mega_picker.js";
-import {
-    ReactionRadialPicker,
-    ReactionRadialPickerRef,
-} from "~/client/web/reactions/internal/reaction_radial_picker.js";
+import {ReactionPickerRef} from "~/client/web/reactions/internal/reaction_picker_base.js";
+import {ReactionRadialPicker} from "~/client/web/reactions/internal/reaction_radial_picker.js";
 import {ReactionTooltip} from "~/client/web/reactions/internal/reaction_tooltip.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {
@@ -59,7 +59,7 @@ export function ReactionButton({
             onSetReaction={onSetReaction}
             onDeleteReaction={onDeleteReaction}
         >
-            {({isMouseDownFromOverlayOpen}) => (
+            {({isPointerDownFromOverlayOpen}) => (
                 <ReactionTooltip
                     introduction="Liked by"
                     reactions={genericLikeReactions}
@@ -79,7 +79,7 @@ export function ReactionButton({
                     >
                         <Button
                             variant={genericLikeReactions.length > 0 ? "quieter" : "quietest"}
-                            isPressed={isMouseDownFromOverlayOpen}
+                            isPressed={isPointerDownFromOverlayOpen}
                             height={postContentViewFooterButtonHeight}
                             paddingX="1.5"
                             icon={({isPressed}) =>
@@ -148,23 +148,26 @@ export function ReactionButtonBase({
     onSetReaction,
     onDeleteReaction,
     withoutButtonElementRequirement,
+    onReactionPickerClose,
     children,
 }: {
     reactions: ReactionSet;
     onSetReaction: (reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: () => void;
     withoutButtonElementRequirement?: boolean;
+    onReactionPickerClose?: () => void;
     children: (props: {
         currentAccountReaction: Reaction | "GenericLike" | undefined;
-        isMouseDownFromOverlayOpen: boolean;
+        isPointerDownFromOverlayOpen: boolean;
     }) => ReactElement;
 }) {
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const platform = usePlatform();
 
-    const radialPickerRef = useRef<ReactionRadialPickerRef>(null);
+    const reactionPickerRef = useRef<ReactionPickerRef>(null);
 
     const [translate, setTranslate] = useState<{xRem: number; yRem: number} | null>(null);
-    const [isMouseDownFromOverlayOpen, setIsMouseDownFromOverlayOpen] = useState(false);
+    const [isPointerDownFromOverlayOpen, setIsPointerDownFromOverlayOpen] = useState(false);
 
     const [isMegaPickerOpen, setIsMegaPickerOpen] = useState(false);
 
@@ -173,7 +176,7 @@ export function ReactionButtonBase({
     return (
         <OverlayTriggerButton
             aria-haspopup="true"
-            placement="bottom-start"
+            placement={platform === "mobile" ? "top-start" : "bottom-start"}
             offset={!isMegaPickerOpen ? "0" : undefined}
             // Don't allow clicking the overlay element before we've applied additional
             // translations to it.
@@ -184,50 +187,65 @@ export function ReactionButtonBase({
             withoutButtonElementRequirement={withoutButtonElementRequirement}
             overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Box>
-                    {isMegaPickerOpen ? (
-                        <ReactionMegaPicker
+                    {platform === "mobile" ? (
+                        <ReactionBarPicker
+                            ref={reactionPickerRef}
+                            isVisible={isVisible}
                             currentAccountReaction={currentAccountReaction}
                             onSetReaction={onSetReaction}
                             onDeleteReaction={onDeleteReaction}
-                            onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            isPointerDownFromOverlayOpen={isPointerDownFromOverlayOpen}
                         />
                     ) : (
-                        <Box
-                            style={{
-                                transform: `translate(${
-                                    (translate?.xRem ?? 0) - reactionRadialPickerSizeRem / 2
-                                }rem, ${
-                                    (translate?.yRem ?? 0) -
-                                    reactionRadialPickerSizeRem / 2 -
-                                    postContentViewFooterButtonHeightRem
-                                }rem)`,
-                            }}
-                        >
-                            <ReactionRadialPicker
-                                ref={radialPickerRef}
-                                isVisible={isVisible}
-                                currentAccountReaction={currentAccountReaction}
-                                onSetReaction={onSetReaction}
-                                onDeleteReaction={onDeleteReaction}
-                                onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
-                                onCloseWithAnimation={onCloseWithAnimation}
-                                isMouseDownFromOverlayOpen={isMouseDownFromOverlayOpen}
-                            />
-                        </Box>
+                        <>
+                            {isMegaPickerOpen ? (
+                                <ReactionMegaPicker
+                                    currentAccountReaction={currentAccountReaction}
+                                    onSetReaction={onSetReaction}
+                                    onDeleteReaction={onDeleteReaction}
+                                    onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                />
+                            ) : (
+                                <Box
+                                    style={{
+                                        transform: `translate(${
+                                            (translate?.xRem ?? 0) - reactionRadialPickerSizeRem / 2
+                                        }rem, ${
+                                            (translate?.yRem ?? 0) -
+                                            reactionRadialPickerSizeRem / 2 -
+                                            postContentViewFooterButtonHeightRem
+                                        }rem)`,
+                                    }}
+                                >
+                                    <ReactionRadialPicker
+                                        ref={reactionPickerRef}
+                                        isVisible={isVisible}
+                                        currentAccountReaction={currentAccountReaction}
+                                        onSetReaction={onSetReaction}
+                                        onDeleteReaction={onDeleteReaction}
+                                        onOpenMegaPicker={() => setIsMegaPickerOpen(true)}
+                                        onCloseWithAnimation={onCloseWithAnimation}
+                                        isPointerDownFromOverlayOpen={isPointerDownFromOverlayOpen}
+                                    />
+                                </Box>
+                            )}
+                        </>
                     )}
                 </Box>
             )}
             animateOverlayOut={
                 !isMegaPickerOpen
                     ? () => {
-                          const radialPicker = assertExists(radialPickerRef.current);
-                          return radialPicker.animateOut();
+                          const reactionPicker = assertExists(reactionPickerRef.current);
+                          return reactionPicker.animateOut();
                       }
                     : undefined
             }
             onActuallyVisibleChange={isActuallyVisible => {
                 if (!isActuallyVisible) {
                     setIsMegaPickerOpen(false);
+                    onReactionPickerClose?.();
                 }
             }}
             onPointerDown={event => {
@@ -242,26 +260,22 @@ export function ReactionButtonBase({
                     yRem: (event.clientY - buttonRect.top) / remPxBySpacingScale[spacingScale],
                 });
 
-                if (event.pointerType === "mouse") {
-                    setIsMouseDownFromOverlayOpen(true);
+                setIsPointerDownFromOverlayOpen(true);
 
-                    const cleanup = () => {
-                        setIsMouseDownFromOverlayOpen(false);
+                const cleanup = () => {
+                    setIsPointerDownFromOverlayOpen(false);
 
-                        document.removeEventListener("pointerup", cleanup);
-                        document.removeEventListener("pointercancel", cleanup);
-                        document.removeEventListener("dragstart", cleanup);
-                    };
+                    document.removeEventListener("pointerup", cleanup);
+                    document.removeEventListener("pointercancel", cleanup);
+                };
 
-                    document.addEventListener("pointerup", cleanup);
-                    document.addEventListener("pointercancel", cleanup);
-                    document.addEventListener("dragstart", cleanup);
-                }
+                document.addEventListener("pointerup", cleanup);
+                document.addEventListener("pointercancel", cleanup);
             }}
         >
             {children({
                 currentAccountReaction,
-                isMouseDownFromOverlayOpen,
+                isPointerDownFromOverlayOpen,
             })}
         </OverlayTriggerButton>
     );

@@ -27,6 +27,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // NOTE(calebmer): My vision for `MigrationService`:
 //
@@ -73,6 +74,7 @@ export const options = {
 
 export async function run({
     tracer,
+    startupSpan,
     shutdownManager,
     options: {
         migration: migrationString,
@@ -82,6 +84,7 @@ export async function run({
     },
 }: {
     tracer: TracerRoot;
+    startupSpan: TracerSpan;
     shutdownManager: ShutdownManager;
     options: Options;
 }) {
@@ -101,6 +104,7 @@ export async function run({
     }
 
     const awsSigner = new AwsRequestSigner();
+    void awsSigner.prefetchState(startupSpan);
 
     const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 

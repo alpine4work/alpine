@@ -21,6 +21,7 @@ export function createAccountModelDataWithoutSpaceAndWithoutAvatarFromItem(
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
         botId: accountItem.bot?.botId,
+        plan: accountItem.plan,
         reactionCharacter: accountItem.reactionCharacter,
     };
 }

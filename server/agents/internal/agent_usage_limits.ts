@@ -23,7 +23,10 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type AgentUsageWindowLimit = {
     type: AgentUsageWindowType;
     durationMs: number;
-    limitDollars: number;
+    limitDollarsByEntitlement: {
+        default: number;
+        withLifetimeAccess: number;
+    };
 };
 
 /**
@@ -31,10 +34,6 @@ type AgentUsageWindowLimit = {
  * This is the window that starts when a user sends their first request,
  * or surpasses their previous window duration. After this duration, the
  * window resets and usage is reset.
- *
- * The ordering of the keys is the order/priority in which limits are checked.
- * For example, the "weekly" limit is checked before the "dynamic" limit. This is to
- * ensure that if a user exceeds both limits, the longest limit is enforced first.
  */
 export const agentUsageWindowLimits: Array<AgentUsageWindowLimit> = [
     // Weekly windows are fixed windows that start at the beginning of the week (Sunday 00:00 UTC)
@@ -42,14 +41,20 @@ export const agentUsageWindowLimits: Array<AgentUsageWindowLimit> = [
     {
         type: "Weekly",
         durationMs: 7 * 24 * 60 * 60 * 1000, // 7 days
-        limitDollars: 2,
+        limitDollarsByEntitlement: {
+            default: 2,
+            withLifetimeAccess: 4,
+        },
     },
     // The dynamic window is a rolling 8 hour window. If a user hasn't sent a request in 10 hours,
     // on their next request, a new window will start with an 8 hour timer.
     {
         type: "Dynamic",
         durationMs: 8 * 60 * 60 * 1000, // 8 hours
-        limitDollars: 1,
+        limitDollarsByEntitlement: {
+            default: 1,
+            withLifetimeAccess: 2,
+        },
     },
 ];
 
@@ -61,10 +66,11 @@ assert(
     ),
 );
 
-export type AgentUsageWindowWithWindowLimitsAndUsedMillicents = AgentUsageWindow &
-    Omit<AgentUsageWindowLimit, "type"> & {
-        usedMillicents: number;
-    };
+export type AgentUsageWindowWithWindowLimitsAndUsedMillicents = AgentUsageWindow & {
+    durationMs: number;
+    limitDollars: number;
+    usedMillicents: number;
+};
 
 /**
  * For a given account ID and type, get the current agent usage window.
@@ -166,6 +172,9 @@ export async function getAgentUsageLimitWindows(
 ): Promise<Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>> {
     const {accountId, currentTimestamp} = params;
 
+    const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(accountId);
+    const withLifetimeAccess = accountEntitlements?.plan === "LifetimeAccess";
+
     // NOTE(ifitzsimmons, #ai): We use `Promise.all` here instead of `runAllPromises`
     // because we want to ensure that the windows are created in the correct order.
     return Promise.all(
@@ -202,7 +211,10 @@ export async function getAgentUsageLimitWindows(
 
                 return {
                     usedMillicents: usedMillicents,
-                    ...windowLimit,
+                    durationMs: windowLimit.durationMs,
+                    limitDollars: withLifetimeAccess
+                        ? windowLimit.limitDollarsByEntitlement.withLifetimeAccess
+                        : windowLimit.limitDollarsByEntitlement.default,
                     ...window,
                 };
             });

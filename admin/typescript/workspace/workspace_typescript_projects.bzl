@@ -88,6 +88,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/api/markdown:markdown",
     "//server/apns:apns",
     "//server/aws:aws",
+    "//server/billing:billing",
     "//server/bots:bots",
     "//server/bots/jobs:jobs",
     "//server/bots/test_helpers:test_helpers",

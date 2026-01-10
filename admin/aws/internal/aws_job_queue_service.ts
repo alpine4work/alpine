@@ -1,6 +1,15 @@
 import {ArnFormat, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceSize,
+    InstanceType,
+    LaunchTemplate,
+    Port,
+    SecurityGroup,
+    SubnetType,
+    UserData,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -51,17 +60,30 @@ export class AwsJobQueueService extends Construct {
 
         const stack = Stack.of(this);
 
+        const launchTemplate = new LaunchTemplate(this, "LaunchTemplate", {
+            instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.LARGE),
+            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            role: new Role(this, "LaunchTemplateRole", {
+                assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+                managedPolicies: [
+                    ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                ],
+            }),
+            securityGroup: new SecurityGroup(this, "LaunchTemplateSecurityGroup", {
+                vpc,
+                allowAllOutbound: true,
+            }),
+            userData: UserData.forLinux(),
+        });
+
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
-            // First 750 hours per month of this instance type are free. That effectively
-            // translates to 1 free capacity of this instance type across our AWS account.
-            instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
-            machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
+            launchTemplate,
 
-            minCapacity: 1,
+            minCapacity: 4,
             // During a deploy, we double our capacity needs since we keep running old
             // instances to maintain availability while a new fleet of instances start.
-            maxCapacity: 2,
+            maxCapacity: 8,
 
             // See the long comment in `AwsAppService` for why we use a public
             // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
@@ -165,7 +187,7 @@ export class AwsJobQueueService extends Construct {
             // NOTE(calebmer, 2024-11-25): I've observed that if you reserve too much
             // memory on `t4g.nano` instances you don't get an error. Instead the tasks are
             // stuck in the "Provisioning" status forever.
-            memoryLimitMiB: 936,
+            memoryLimitMiB: 3906,
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
@@ -329,7 +351,7 @@ export class AwsJobQueueService extends Construct {
         new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
-            desiredCount: 1,
+            desiredCount: 4,
             // Specifies the max/min task count during a deploy.
             minHealthyPercent: 50,
             maxHealthyPercent: 200,

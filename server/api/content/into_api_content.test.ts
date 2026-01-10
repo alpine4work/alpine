@@ -3854,3 +3854,286 @@ describe("checklist", () => {
         );
     });
 });
+
+test("converts ordered list with orderStart into API content", () => {
+    testIntoApiContent(
+        doc(
+            schema.nodes.orderedListItem.create({indent: 0, orderStart: 5}, [
+                paragraph(text("Fifth item")),
+                paragraph(text("Sixth item")),
+                paragraph(text("Seventh item")),
+            ]),
+        ),
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 5,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fifth item"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Sixth item"}],
+                                },
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Seventh item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts ordered list with orderStart on first item only", () => {
+    testIntoApiContentOnly(
+        doc(
+            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
+                paragraph(text("Second item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Third item"))]),
+            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Fourth item"))]),
+        ),
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 2,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second item"}],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {type: "Paragraph", elements: [{type: "Text", text: "Third item"}]},
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fourth item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts nested ordered lists with separate orderStart values", () => {
+    testIntoApiContent(
+        doc(
+            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
+                paragraph(text("Second item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 1, orderStart: 5}, [
+                paragraph(text("Nested fifth item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 1}, [
+                paragraph(text("Nested sixth item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Third item"))]),
+        ),
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 2,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second item"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    orderStart: 5,
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Nested fifth item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Nested sixth item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {type: "Paragraph", elements: [{type: "Text", text: "Third item"}]},
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts ordered list nested inside unordered list with orderStart", () => {
+    testIntoApiContent(
+        doc(
+            schema.nodes.unorderedListItem.create({indent: 0}, [paragraph(text("Bullet item"))]),
+            schema.nodes.orderedListItem.create({indent: 1, orderStart: 3}, [
+                paragraph(text("Nested third item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 1}, [
+                paragraph(text("Nested fourth item")),
+            ]),
+        ),
+        {
+            elements: [
+                {
+                    type: "UnorderedList",
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Bullet item"}],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    orderStart: 3,
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Nested third item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [
+                                                        {type: "Text", text: "Nested fourth item"},
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});
+
+test("converts ordered list with second item having different orderStart", () => {
+    testIntoApiContent(
+        doc(
+            schema.nodes.orderedListItem.create({indent: 0, orderStart: 2}, [
+                paragraph(text("Second item")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 0, orderStart: 5}, [
+                paragraph(text("Third item with different order start")),
+            ]),
+            schema.nodes.orderedListItem.create({indent: 1}, [paragraph(text("Nested item"))]),
+            schema.nodes.orderedListItem.create({indent: 0}, [paragraph(text("Fourth item"))]),
+        ),
+        {
+            elements: [
+                {
+                    type: "OrderedList",
+                    orderStart: 2,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "OrderedList",
+                    orderStart: 5,
+                    items: [
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {
+                                            type: "Text",
+                                            text: "Third item with different order start",
+                                        },
+                                    ],
+                                },
+                            ],
+                            nestedListElements: [
+                                {
+                                    type: "OrderedList",
+                                    items: [
+                                        {
+                                            elements: [
+                                                {
+                                                    type: "Paragraph",
+                                                    elements: [{type: "Text", text: "Nested item"}],
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Fourth item"}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    );
+});

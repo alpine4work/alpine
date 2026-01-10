@@ -1,10 +1,11 @@
-import {AnimationPlaybackControls, animate, spring} from "motion";
+import {animate, spring} from "motion";
 import {DotsThree} from "phosphor-react";
 import {
     Fragment,
     Memo,
     Ref,
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
     useMemo,
@@ -17,6 +18,10 @@ import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
+import {
+    ReactionPickerRef,
+    reactionPickerIconEmotions,
+} from "~/client/web/reactions/internal/reaction_picker_base.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
 import {reactionRadialPickerSizeRem} from "~/client/web/styles/reaction_shared_styles.js";
@@ -36,7 +41,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
-import {Reaction, ReactionEmotion, areReactionsEqual} from "~/shared/reactions/reaction.js";
+import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";
 
 const reactionRadialPickerAnimationInitialScale = 0.25;
 
@@ -63,21 +68,8 @@ const reactionRadialPickerDonutWidthRem =
         2 +
     reactionRadialPickerOptionButtonSizeRem;
 
-export type ReactionRadialPickerRef = {
-    animateOut(): AnimationPlaybackControls;
-};
-
 const ReactionRadialPickerForwardRef = forwardRef(ReactionRadialPicker);
 export {ReactionRadialPickerForwardRef as ReactionRadialPicker};
-
-const reactionRadialPickerIconEmotions: ReadonlyArray<ReactionEmotion> = [
-    "Laugh",
-    "Celebrate",
-    "Yes",
-    "DeadInside",
-    "Shock",
-    "Lolsob",
-];
 
 function ReactionRadialPicker(
     {
@@ -87,7 +79,7 @@ function ReactionRadialPicker(
         onDeleteReaction: onDeleteReactionFromProps,
         onOpenMegaPicker: onOpenMegaPickerFromProps,
         onCloseWithAnimation,
-        isMouseDownFromOverlayOpen,
+        isPointerDownFromOverlayOpen,
     }: {
         isVisible: boolean;
         currentAccountReaction: Reaction | "GenericLike" | undefined;
@@ -95,9 +87,9 @@ function ReactionRadialPicker(
         onDeleteReaction: () => void;
         onOpenMegaPicker: () => void;
         onCloseWithAnimation: Memo<() => void>;
-        isMouseDownFromOverlayOpen: boolean;
+        isPointerDownFromOverlayOpen: boolean;
     },
-    ref: Ref<ReactionRadialPickerRef>,
+    ref: Ref<ReactionPickerRef>,
 ) {
     const {currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
@@ -114,7 +106,7 @@ function ReactionRadialPicker(
         () =>
             currentAccountReaction &&
             currentAccountReaction !== "GenericLike" &&
-            reactionRadialPickerIconEmotions.every(
+            reactionPickerIconEmotions.every(
                 emotion => !areReactionsEqual(currentAccountReaction, {character, emotion}),
             )
                 ? currentAccountReaction
@@ -127,8 +119,12 @@ function ReactionRadialPicker(
     const circleContentsRef = useRef<HTMLDivElement>(null);
 
     const hasInitiallyMountedRef = useRef(false);
+    const pointerDownCleanupRef = useRef<((event: PointerEvent) => void) | null>(null);
 
     const [isPressed, setIsPressed] = useState(false);
+    // This state is only used for styling and animations and is possibly null when the pointer is
+    // a touch device. On final reaction selection, we call `calculateActiveIndex` to get the actual
+    // active index.
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
     const {onSetReaction, onDeleteReaction, onOpenMegaPicker} = useEvents({
@@ -195,6 +191,28 @@ function ReactionRadialPicker(
         [],
     );
 
+    const calculateActiveIndex = useCallback((xCoordinate: number, yCoordinate: number) => {
+        const circleContainerElement = assertExists(circleContainerRef.current);
+        const spacingScale = getSpacingScaleWithoutListening();
+
+        const circleContainerRect = circleContainerElement.getBoundingClientRect();
+        const circleContainerCenterX = circleContainerRect.left + circleContainerRect.width / 2;
+        const circleContainerCenterY = circleContainerRect.top + circleContainerRect.height / 2;
+
+        const pointerVector = new Vector2(
+            xCoordinate - circleContainerCenterX,
+            yCoordinate - circleContainerCenterY,
+        );
+
+        const minActiveMagnitude =
+            ((reactionRadialPickerSizeRem - reactionRadialPickerDonutWidthRem * 2) / 2) *
+            remPxBySpacingScale[spacingScale];
+
+        const activeIndex = (Math.round((pointerVector.angle / (2 * Math.PI) + 0.25) * 8) + 8) % 8;
+
+        return pointerVector.magnitude > minActiveMagnitude ? activeIndex : null;
+    }, []);
+
     useEffect(() => {
         // If we're closing the radial picker, don't update the transform based on the
         // pointer position.
@@ -233,17 +251,12 @@ function ReactionRadialPicker(
             // Detect which icon is active. (So if there's a click, we'll select
             // this icon.)
             {
-                const minActiveMagnitude =
-                    ((reactionRadialPickerSizeRem - reactionRadialPickerDonutWidthRem * 2) / 2) *
-                    remPxBySpacingScale[spacingScale];
-
-                const activeIndex =
-                    (Math.round((pointerVector.angle / (2 * Math.PI) + 0.25) * 8) + 8) % 8;
-
-                setActiveIndex(pointerVector.magnitude > minActiveMagnitude ? activeIndex : null);
+                setActiveIndex(calculateActiveIndex(event.clientX, event.clientY));
             }
         };
 
+        // TODO(rmtobin, #chrome-responsive-mode): This is always fired in Chrome devtools in
+        // "responsive" mode even when the pointer has not left. Works as expected on actual devices.
         // Called when the pointer leaves the document.
         const handlePointerLeave = () => {
             onCloseWithAnimation();
@@ -255,23 +268,23 @@ function ReactionRadialPicker(
             document.removeEventListener("pointermove", handlePointerMove);
             document.removeEventListener("pointerleave", handlePointerLeave);
         };
-    }, [isVisible, onCloseWithAnimation]);
+    }, [calculateActiveIndex, isVisible, onCloseWithAnimation]);
 
-    const shouldCloseOnMouseUpFromOverlayOpenRef = useRef(isMouseDownFromOverlayOpen);
+    const shouldCloseOnPointerUpFromOverlayOpenRef = useRef(isPointerDownFromOverlayOpen);
 
-    // Layout effect since when the mouse is released, we want the background color
+    // Layout effect since when the pointer is released, we want the background color
     // of `<ReactionButton>` to change in the same paint as whatever this hook is
     // doing (which could be setting a like or opening the mega picker).
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!shouldCloseOnMouseUpFromOverlayOpenRef.current) return;
+        if (!shouldCloseOnPointerUpFromOverlayOpenRef.current) return;
 
-        // Wait until mouse up.
-        if (isMouseDownFromOverlayOpen) return;
+        // Wait until pointer up.
+        if (isPointerDownFromOverlayOpen) return;
 
         // Don't run this effect again.
-        shouldCloseOnMouseUpFromOverlayOpenRef.current = false;
+        shouldCloseOnPointerUpFromOverlayOpenRef.current = false;
 
-        // Don't select if the mouse is over the center heart button.
+        // Don't select if the pointer is over the center empty space.
         if (activeIndex !== null) {
             if (activeIndex === 0) {
                 if (currentAccountReaction === "GenericLike") {
@@ -284,7 +297,7 @@ function ReactionRadialPicker(
                 onOpenMegaPicker();
             } else {
                 const emotionIndex = activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
-                const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+                const emotion = reactionPickerIconEmotions[emotionIndex]!;
 
                 const reaction: Reaction =
                     missingCurrentAccountReaction && emotionIndex === 0
@@ -303,13 +316,58 @@ function ReactionRadialPicker(
         activeIndex,
         character,
         currentAccountReaction,
-        isMouseDownFromOverlayOpen,
+        isPointerDownFromOverlayOpen,
         missingCurrentAccountReaction,
         onCloseWithAnimation,
         onDeleteReaction,
         onOpenMegaPicker,
         onSetReaction,
     ]);
+
+    // Clean up pointer event listeners on unmount to prevent memory leaks.
+    useEffect(() => {
+        return () => {
+            if (pointerDownCleanupRef.current) {
+                document.removeEventListener("pointerup", pointerDownCleanupRef.current);
+                document.removeEventListener("pointercancel", pointerDownCleanupRef.current);
+            }
+        };
+    }, []);
+
+    // The background color for the like reaction varies based on selection and pointer interaction.
+    // It is darkest when it is selected and interacted with, slightly lighter when selected and not
+    // interacted with, and lightest when it is not selected but interacted with.
+    const getThumbsUpBackgroundColor = useCallback(
+        (isPressed: boolean, isPointerDownFromOverlayOpen: boolean) => {
+            // Like is currently selected
+            if (currentAccountReaction === "GenericLike") {
+                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                if (activeIndex === 0) {
+                    if (isPressed || isPointerDownFromOverlayOpen) {
+                        return "grey-20";
+                    } else {
+                        return "grey-10";
+                    }
+                } else {
+                    return "grey-5";
+                }
+                // Like is not currently selected
+            } else {
+                // Like is currently active (the like icon is being pressed or the pointer is over it)
+                if (activeIndex === 0) {
+                    if (isPressed || isPointerDownFromOverlayOpen) {
+                        return "grey-10";
+                    } else {
+                        return "grey-5";
+                    }
+                    // Not selected or active
+                } else {
+                    return undefined;
+                }
+            }
+        },
+        [currentAccountReaction, activeIndex],
+    );
 
     return (
         <Box
@@ -361,29 +419,37 @@ function ReactionRadialPicker(
 
                     setIsPressed(true);
 
-                    const cleanup = () => {
+                    const cleanup = (event: PointerEvent) => {
                         setIsPressed(false);
 
                         document.removeEventListener("pointerup", cleanup);
                         document.removeEventListener("pointercancel", cleanup);
-                        document.removeEventListener("dragstart", cleanup);
 
-                        if (activeIndex === null) {
+                        pointerDownCleanupRef.current = null;
+
+                        // We calculate the active index here instead of using the `activeIndex`
+                        // state because that state is only updated on pointer move which may not fire
+                        // when the pointer is a touch device.
+                        const finalActiveIndex = calculateActiveIndex(event.clientX, event.clientY);
+
+                        if (finalActiveIndex === null) {
                             onCloseWithAnimation();
                         } else {
-                            if (activeIndex === 0) {
+                            if (finalActiveIndex === 0) {
                                 if (currentAccountReaction === "GenericLike") {
                                     onDeleteReaction();
                                 } else {
                                     onSetReaction("GenericLike");
                                 }
                                 onCloseWithAnimation();
-                            } else if (activeIndex === 4) {
+                            } else if (finalActiveIndex === 4) {
                                 onOpenMegaPicker();
                             } else {
                                 const emotionIndex =
-                                    activeIndex > 4 ? activeIndex - 2 : activeIndex - 1;
-                                const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+                                    finalActiveIndex > 4
+                                        ? finalActiveIndex - 2
+                                        : finalActiveIndex - 1;
+                                const emotion = reactionPickerIconEmotions[emotionIndex]!;
 
                                 const reaction: Reaction =
                                     missingCurrentAccountReaction && emotionIndex === 0
@@ -400,9 +466,9 @@ function ReactionRadialPicker(
                         }
                     };
 
+                    pointerDownCleanupRef.current = cleanup;
                     document.addEventListener("pointerup", cleanup);
                     document.addEventListener("pointercancel", cleanup);
-                    document.addEventListener("dragstart", cleanup);
                 }}
             >
                 <Box
@@ -443,22 +509,13 @@ function ReactionRadialPicker(
                                     display="flex"
                                     alignItems="center"
                                     justifyContent="center"
-                                    backgroundColor={
-                                        currentAccountReaction === "GenericLike"
-                                            ? activeIndex === index
-                                                ? isPressed || isMouseDownFromOverlayOpen
-                                                    ? "grey-20"
-                                                    : "grey-10"
-                                                : "grey-5"
-                                            : activeIndex === index
-                                              ? isPressed || isMouseDownFromOverlayOpen
-                                                  ? "grey-10"
-                                                  : "grey-5"
-                                              : undefined
-                                    }
+                                    backgroundColor={getThumbsUpBackgroundColor(
+                                        isPressed,
+                                        isPointerDownFromOverlayOpen,
+                                    )}
                                     color={
                                         activeIndex === index &&
-                                        (isPressed || isMouseDownFromOverlayOpen)
+                                        (isPressed || isPointerDownFromOverlayOpen)
                                             ? {light: "theme-60-const", dark: "theme-40-const"}
                                             : "theme-50-const"
                                     }
@@ -496,7 +553,7 @@ function ReactionRadialPicker(
                                     justifyContent="center"
                                     backgroundColor={
                                         activeIndex === index
-                                            ? isPressed || isMouseDownFromOverlayOpen
+                                            ? isPressed || isPointerDownFromOverlayOpen
                                                 ? "grey-10"
                                                 : "grey-5"
                                             : undefined
@@ -526,7 +583,7 @@ function ReactionRadialPicker(
                             // 0. So to get the correct emotion index we need to "skip" index 0 and index
                             // 4. This code does that.
                             const emotionIndex = index > 4 ? index - 2 : index - 1;
-                            const emotion = reactionRadialPickerIconEmotions[emotionIndex]!;
+                            const emotion = reactionPickerIconEmotions[emotionIndex]!;
 
                             const reaction =
                                 missingCurrentAccountReaction && emotionIndex === 0

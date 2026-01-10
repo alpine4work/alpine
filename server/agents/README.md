@@ -111,4 +111,10 @@ dev agents d1 execute set-last-request-used-80-percent
 
 # Expire dynamic windows (set startedAt to 8 hours ago + 30 seconds, making them ready for reset)
 dev agents d1 execute expire-dynamic-window-30-seconds
+
+# Fetches all account entitlements
+dev agents d1 execute get-account-entitlements
+
+# Delete all account entitlements
+dev agents d1 execute reset-account-entitlements
 ```

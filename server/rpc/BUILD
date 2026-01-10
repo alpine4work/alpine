@@ -25,6 +25,7 @@ ts_project(
         "//server/accounts",
         "//server/alpha",
         "//server/apns",
+        "//server/billing",
         "//server/chat/data",
         "//server/cloudflare/r2",
         "//server/content",
