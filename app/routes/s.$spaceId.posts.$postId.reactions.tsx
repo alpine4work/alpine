@@ -16,7 +16,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     post: createDynamoGeneralRealtimeItemSchema(PostModel.schema()),
@@ -37,14 +36,11 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         ),
     );
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            postId,
-            channelId: post.model.channel.id,
-        },
-    };
-
-    return jsonWithSchema(LoaderSchema, {post, accounts}, {propagateEventData});
+    return jsonWithSchema(
+        LoaderSchema,
+        {post, accounts},
+        {propagateEventData: {context: {channelId: post.model.channel.id}}},
+    );
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [

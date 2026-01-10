@@ -18,7 +18,6 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     author: AccountModel.schema,
@@ -55,13 +54,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
         ),
     ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            documentId,
-        },
-    };
-
-    return jsonWithSchema(LoaderSchema, {author, reactions, accounts}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {author, reactions, accounts});
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {author}}) => [

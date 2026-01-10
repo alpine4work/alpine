@@ -158,6 +158,9 @@ export function createFileProcessorServiceServer(
             spaceId,
         );
 
+        // Add identification information for the actor to all child spans.
+        span.addPropagatedData(actorContextModule.getPropagatedData());
+
         return baseActionContext.with({actor: actorContextModule}, context => {
             switch (route.type) {
                 case "Resize": {

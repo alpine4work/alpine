@@ -54,7 +54,6 @@ import {
     unarchiveInboxChannelPostsEntryPost,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -113,24 +112,14 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         }),
     ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            channelId,
-        },
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            checkpoint,
-            channel,
-            bucketGeneration,
-            inboxEntry,
-            posts,
-            initialCommentsByPostId,
-        },
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        checkpoint,
+        channel,
+        bucketGeneration,
+        inboxEntry,
+        posts,
+        initialCommentsByPostId,
+    });
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {channel, posts}}) => [

@@ -134,7 +134,6 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.union({
     WithAccess: Schema.object({
@@ -247,18 +246,10 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                 },
             });
 
-            const propagateEventData: TracerEventData = {
-                context: {
-                    isAnonymous: true,
-                    spaceId,
-                    withoutSpaceAccess: true,
-                },
-            };
-
             return jsonWithSchema(
                 LoaderSchema,
                 {type: "WithoutAccess", space, currentAccountWithoutSpace: null},
-                {propagateEventData},
+                {propagateEventData: {context: {withoutSpaceAccess: true}}},
             );
         }
 
@@ -323,25 +314,12 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
 
                 const inbox = unwrapResult(inboxResult);
 
-                // NOCOMMIT: Propagate from root `AppService` span?
-                // NOCOMMIT: `AccountId` and `SpaceId` for bot webhook calls
-                const propagateEventData: TracerEventData = {
-                    context: {
-                        accountId: currentAccount.id,
-                        spaceId: space.id,
-                    },
-                };
-
-                return jsonWithSchema(
-                    LoaderSchema,
-                    {
-                        type: "WithAccess",
-                        space,
-                        currentAccount,
-                        inbox,
-                    },
-                    {propagateEventData},
-                );
+                return jsonWithSchema(LoaderSchema, {
+                    type: "WithAccess",
+                    space,
+                    currentAccount,
+                    inbox,
+                });
             } catch (error) {
                 // If we failed to load the space route because the session actor doesn't have
                 // access to the space then we still want to attempt to load the page in
@@ -372,14 +350,6 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                     },
                 });
 
-                const propagateEventData: TracerEventData = {
-                    context: {
-                        accountId: account.id,
-                        spaceId,
-                        withoutSpaceAccess: true,
-                    },
-                };
-
                 return jsonWithSchema(
                     LoaderSchema,
                     {
@@ -387,7 +357,7 @@ export async function loader({context: loaderContext, params, request}: LoaderAr
                         space: limitedSpace,
                         currentAccountWithoutSpace: account,
                     },
-                    {propagateEventData},
+                    {propagateEventData: {context: {withoutSpaceAccess: true}}},
                 );
             }
         }

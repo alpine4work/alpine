@@ -267,6 +267,9 @@ export async function run({
             spaceId,
         );
 
+        // Add identification information for the actor to all child spans.
+        span.addPropagatedData(actorContextModule.getPropagatedData());
+
         switch (route.type) {
             case "Main": {
                 // NOTE(calebmer): This condition is important for security!

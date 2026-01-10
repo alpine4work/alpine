@@ -293,6 +293,9 @@ export function createDurableObject<
                         authorizationHeaderToken,
                     );
 
+                    // Add identification information for the actor to all child spans.
+                    span.addPropagatedData(actorContextModule.getPropagatedData());
+
                     const response = await this._processContext.with<
                         Omit<
                             WorkerActionContextModules,

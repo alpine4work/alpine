@@ -96,21 +96,13 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const createSearchParam = url.searchParams.get("create");
 
     if (createSearchParam === "") {
-        return jsonWithSchema(
-            LoaderSchema,
-            {
-                key: generateId(),
-                collectionState: {
-                    type: "NotExists",
-                },
-                filterReferences: emptyTaskQueryFilterReferences,
+        return jsonWithSchema(LoaderSchema, {
+            key: generateId(),
+            collectionState: {
+                type: "NotExists",
             },
-            {
-                propagateEventData: {
-                    context: {taskCollectionId: collectionId},
-                },
-            },
-        );
+            filterReferences: emptyTaskQueryFilterReferences,
+        });
     }
 
     if (createSearchParam !== null) {
@@ -292,9 +284,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
             filterReferences,
         },
         {
-            propagateEventData: {
-                context: {taskCollectionId: collectionId},
-            },
             taskStoreLoaderData: loadQueryResult
                 ? {
                       queries: [

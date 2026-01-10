@@ -12,7 +12,6 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createDynamoGeneralRealtimeQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
@@ -28,11 +27,7 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
         postFilesLimit: getInitialChannelFilesViewFileLoadCount(context.loader.getClientInfo()),
     });
 
-    const propagateEventData: TracerEventData = {
-        context: {channelId},
-    };
-
-    return jsonWithSchema(LoaderSchema, {channelResult}, {propagateEventData});
+    return jsonWithSchema(LoaderSchema, {channelResult});
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {channelResult}}) => {

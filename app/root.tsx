@@ -76,6 +76,7 @@ import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/cl
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -306,6 +307,11 @@ function useRootAppContext(
             },
         });
 
+        const pathnamePropagatedData = getTracerEventPropagatedDataForPathname(
+            dataRouterStateContext.location.pathname,
+        );
+        if (pathnamePropagatedData) propagatedEventData.push(pathnamePropagatedData);
+
         const loaderData = Object.values(dataRouterStateContext.loaderData);
         for (const data of loaderData) {
             if (!data) continue;
@@ -323,11 +329,12 @@ function useRootAppContext(
 
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
     }, [
+        dataRouterStateContext.matches,
+        dataRouterStateContext.location.pathname,
+        dataRouterStateContext.loaderData,
         platform,
         spacingScale,
         clientInfo.renderingEngine,
-        dataRouterStateContext.loaderData,
-        dataRouterStateContext.matches,
         loadingIndicatorLoaderDataResult.isPending,
         loadingIndicatorLoaderDataResult.value,
         context.tracer,

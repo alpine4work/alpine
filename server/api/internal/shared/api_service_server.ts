@@ -702,6 +702,9 @@ export async function createApiServiceRequestListener(
                     ),
                 });
 
+                // Add propagated data identifying the bot actor.
+                span.addPropagatedData(contextWithActor.actor.getPropagatedData());
+
                 /* ========================================================================== *\
                  *                                 Validation                                 *
                 \* ========================================================================== */

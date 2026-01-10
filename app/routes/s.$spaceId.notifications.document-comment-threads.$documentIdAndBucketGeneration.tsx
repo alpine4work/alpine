@@ -73,7 +73,6 @@ import {
     unarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpoint,
     ServerSynchronizationCheckpointSchema,
@@ -136,25 +135,15 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
                 documentCommentThreadCountAgainstLimit[platform][spacingScale],
         });
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            documentId,
-        },
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            key: generateId(),
-            checkpoint,
-            document,
-            bucketGeneration,
-            inboxEntry,
-            commentThreads,
-            initialCommentsByCommentThreadId,
-        },
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        key: generateId(),
+        checkpoint,
+        document,
+        bucketGeneration,
+        inboxEntry,
+        commentThreads,
+        initialCommentsByCommentThreadId,
+    });
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document, commentThreads}}) => [

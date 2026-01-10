@@ -283,9 +283,6 @@ export async function loader({params, context: unauthenticatedContext, request}:
             initialFieldsAssignee,
         },
         {
-            propagateEventData: {
-                context: {taskId},
-            },
             taskStoreLoaderData: loadQueriesOutput
                 ? {
                       queries: [

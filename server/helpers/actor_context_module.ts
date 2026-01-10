@@ -3,6 +3,7 @@ import {BotTokenPayloadScope, TokenPayload} from "~/server/tokens/token_payload.
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -11,6 +12,7 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Services that may perform an action against our system.
@@ -44,6 +46,11 @@ interface ActorContextModuleBase extends ContextModuleBase {
      * initiated an action the service name is `AppClient`.
      */
     readonly serviceName: ActorServiceName;
+
+    /**
+     * Get data to propagate to all spans in the trace.
+     */
+    getPropagatedData(): TracerEventData;
 
     /**
      * Get the token payload for this actor so we can create a new token with the
@@ -103,11 +110,21 @@ export class UnknownActorContextModule<Modules extends {} = {}> extends ContextM
         return contextModule instanceof SessionActorContextModule;
     }
 
-    public async authenticate<CurrentModules extends Modules>(
+    public async authenticate<CurrentModules extends Modules & {tracer: TracerContextModule}>(
         this: ContextModuleBase<CurrentModules> & UnknownActorContextModule<Modules>,
-    ): Promise<Context<Replace<CurrentModules, {actor: ActorContextModule}>>> {
+    ): Promise<
+        Context<Replace<CurrentModules, {actor: ActorContextModule; tracer: TracerContextModule}>>
+    > {
         const contextModule = await this._getContextModule();
-        return this._context.clone({actor: contextModule});
+
+        return this._context.clone({
+            actor: contextModule,
+            tracer: new TracerContextModule(
+                this._context.tracer
+                    .getTracer()
+                    .withPropagatedData(contextModule.getPropagatedData()),
+            ),
+        });
     }
 }
 
@@ -160,7 +177,9 @@ export class SessionActorContextModule
 
     public override async authenticate<Modules extends {}>(
         this: ContextModuleBase<Modules> & SessionActorContextModule,
-    ): Promise<Context<Replace<Modules, {actor: SessionActorContextModule}>>> {
+    ): Promise<
+        Context<Replace<Modules, {actor: SessionActorContextModule; tracer: TracerContextModule}>>
+    > {
         return this._context as any;
     }
 
@@ -173,6 +192,15 @@ export class SessionActorContextModule
             type: "Session",
             sessionId: this._sessionId,
             accountId: this._accountId,
+        };
+    }
+
+    public getPropagatedData(): TracerEventData {
+        return {
+            context: {
+                actor: "Session",
+                accountId: this._accountId,
+            },
         };
     }
 
@@ -260,7 +288,9 @@ export class SystemActorContextModule
 
     public override async authenticate<Modules extends {}>(
         this: ContextModuleBase<Modules> & SystemActorContextModule,
-    ): Promise<Context<Replace<Modules, {actor: SystemActorContextModule}>>> {
+    ): Promise<
+        Context<Replace<Modules, {actor: SystemActorContextModule; tracer: TracerContextModule}>>
+    > {
         return this._context as any;
     }
 
@@ -268,6 +298,15 @@ export class SystemActorContextModule
         return {
             type: "System",
             spaceId: this._spaceId,
+        };
+    }
+
+    public getPropagatedData(): TracerEventData {
+        return {
+            context: {
+                actor: "System",
+                spaceId: this._spaceId,
+            },
         };
     }
 
@@ -333,6 +372,14 @@ export class AnonymousActorContextModule
 
     public getTokenPayload(): TokenPayload {
         return {type: "Anonymous"};
+    }
+
+    public getPropagatedData(): TracerEventData {
+        return {
+            context: {
+                actor: "Anonymous",
+            },
+        };
     }
 
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
@@ -404,6 +451,16 @@ export class ImpersonatedAccountActorContextModule
         // NOTE(calebmer): We don't need cross-service communication for impersonated
         // actors right now but may need the capability in the future.
         throw new InternalError("Can’t create token for impersonated account actor");
+    }
+
+    public getPropagatedData(): TracerEventData {
+        return {
+            context: {
+                actor: "ImpersonatedAccount",
+                spaceId: this._spaceId,
+                accountId: this._accountId,
+            },
+        };
     }
 
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
@@ -497,7 +554,9 @@ export class BotActorContextModule
 
     public override async authenticate<Modules extends {}>(
         this: ContextModuleBase<Modules> & BotActorContextModule,
-    ): Promise<Context<Replace<Modules, {actor: BotActorContextModule}>>> {
+    ): Promise<
+        Context<Replace<Modules, {actor: BotActorContextModule; tracer: TracerContextModule}>>
+    > {
         return this._context as any;
     }
 
@@ -507,6 +566,16 @@ export class BotActorContextModule
             spaceId: this._spaceId,
             accountId: this._accountId,
             scope: this._scope,
+        };
+    }
+
+    public getPropagatedData(): TracerEventData {
+        return {
+            context: {
+                actor: "Bot",
+                spaceId: this._spaceId,
+                botAccountId: this._accountId,
+            },
         };
     }
 

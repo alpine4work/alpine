@@ -20,6 +20,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -76,7 +77,6 @@ export default function PeekLayout() {
                 : {};
 
         replacePropagatedEventData.context = replaceContextPropagatedEventData;
-        replaceContextPropagatedEventData.peekId = peekContext.id;
         replaceContextPropagatedEventData.peek = replaceContextPeekPropagatedEventData;
         replaceContextPropagatedEventData.route = getRouteStringFromMatches(
             dataRouterStateContext.matches,
@@ -96,6 +96,11 @@ export default function PeekLayout() {
         }
 
         const propagatedEventData = [replacePropagatedEventData];
+
+        const pathnamePropagatedData = getTracerEventPropagatedDataForPathname(
+            dataRouterStateContext.location.pathname,
+        );
+        if (pathnamePropagatedData) propagatedEventData.push(pathnamePropagatedData);
 
         const loaderData = Object.values(dataRouterStateContext.loaderData);
         for (const data of loaderData) {
@@ -119,10 +124,10 @@ export default function PeekLayout() {
         });
     }, [
         context,
-        peekContext.id,
         peekContext.layout,
-        dataRouterStateContext.loaderData,
         dataRouterStateContext.matches,
+        dataRouterStateContext.location.pathname,
+        dataRouterStateContext.loaderData,
         loadingIndicatorLoaderDataResult.isPending,
         loadingIndicatorLoaderDataResult.value,
     ]);

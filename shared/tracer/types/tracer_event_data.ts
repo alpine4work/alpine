@@ -11,7 +11,6 @@ import {
     DocumentId,
     FileId,
     NotificationEventId,
-    PeekId,
     PostId,
     RealmId,
     SpaceId,
@@ -485,6 +484,9 @@ export type TracerEventData = {
          */
         readonly handler?: string;
 
+        /** The type of actor making a request against our system. */
+        readonly actor?: string;
+
         /** Information about the account who caused this event. */
         readonly accountId?: AccountId;
 
@@ -505,12 +507,6 @@ export type TracerEventData = {
         readonly botAccountId?: AccountId;
 
         /**
-         * True if this is an anonymous request. Instead of `context.accountId` this'll
-         * be set when there is no authenticated account.
-         */
-        readonly isAnonymous?: boolean;
-
-        /**
          * True if the actor is accessing a space (in `context.spaceId`) it doesn't
          * have access to. Will be true for anonymous requests and session actors that
          * aren't a member of the space.
@@ -519,12 +515,6 @@ export type TracerEventData = {
 
         /** The WebSocket connection our event is on behalf of. */
         readonly webSocketConnectionId?: WebSocketConnectionId;
-
-        /**
-         * The ID of the peek this event is coming from. May be accompanied by some
-         * `peek` properties.
-         */
-        readonly peekId?: PeekId;
 
         /** Information about the task the event was fired while looking at. */
         readonly taskId?: TaskId;
@@ -562,17 +552,12 @@ export type TracerEventData = {
          * be the document ID the peek is rendered on top of.
          */
         readonly peek?: {
-            /** Information about the document the peek the event is coming from is above. */
             readonly aboveDocumentId?: DocumentId;
-
-            /** Information about the channel the peek the event is coming from is above. */
             readonly aboveChannelId?: ChannelId;
-
-            /** Information about the post the peek the event is coming from is above. */
             readonly abovePostId?: PostId;
-
-            /** Information about the chat the peek the event is coming from is above. */
             readonly aboveChatId?: ChatId;
+            readonly aboveTaskId?: TaskId;
+            readonly aboveTaskCollectionId?: TaskCollectionId;
         };
 
         /**

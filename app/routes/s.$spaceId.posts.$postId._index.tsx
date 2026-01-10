@@ -26,7 +26,6 @@ import {FileId} from "~/shared/id/types/id_types.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -68,13 +67,6 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 : null,
         ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            postId,
-            channelId: post.model.channel.id,
-        },
-    };
-
     return jsonWithSchema(
         LoaderSchema,
         {
@@ -84,7 +76,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             initialOtherReferencedPostComments: initialOtherReferencedComments,
             inboxEntry,
         },
-        {propagateEventData},
+        {propagateEventData: {context: {channelId: post.model.channel.id}}},
     );
 }
 

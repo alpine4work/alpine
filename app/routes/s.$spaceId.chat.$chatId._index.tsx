@@ -27,7 +27,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -94,17 +93,14 @@ export async function loader({context: unauthenticatedContext, request, params}:
             ),
         ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            chatId,
-        },
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {checkpoint, chat, initialMessages, initialOtherReferencedMessages, inboxEntry, isFavorite},
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        checkpoint,
+        chat,
+        initialMessages,
+        initialOtherReferencedMessages,
+        inboxEntry,
+        isFavorite,
+    });
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentData}) => {

@@ -90,6 +90,7 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
+import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 let appService: {
@@ -482,6 +483,12 @@ async function createAppService({
                                     renderingEngine: clientInfo.renderingEngine,
                                 },
                             });
+
+                            const pathnamePropagatedData = getTracerEventPropagatedDataForPathname(
+                                url.pathname,
+                            );
+                            if (pathnamePropagatedData)
+                                span.addPropagatedData(pathnamePropagatedData);
                         }
 
                         // The first time our server process runs in development, seed DynamoDB with

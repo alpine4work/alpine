@@ -32,7 +32,6 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -75,24 +74,14 @@ export async function loader({context: unauthenticatedContext, params, request}:
                 : null,
         ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {
-            taskId,
-        },
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            taskTitle: addFallbackToTaskTitle(task.getTitle().getText()),
-            checkpoint,
-            commentCount,
-            comments,
-            otherReferencedComments,
-            inboxEntry,
-        },
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        taskTitle: addFallbackToTaskTitle(task.getTitle().getText()),
+        checkpoint,
+        commentCount,
+        comments,
+        otherReferencedComments,
+        inboxEntry,
+    });
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {taskTitle}}) => [

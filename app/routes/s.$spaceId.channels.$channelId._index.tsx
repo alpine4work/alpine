@@ -56,7 +56,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {isId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,
@@ -195,20 +194,12 @@ export async function loader({request, params, context: unauthenticatedContext}:
         }),
     ]);
 
-    const propagateEventData: TracerEventData = {
-        context: {channelId},
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            channelResult,
-            postsResult,
-            isSubscribed,
-            isFavorite,
-        },
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        channelResult,
+        postsResult,
+        isSubscribed,
+        isFavorite,
+    });
 }
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({

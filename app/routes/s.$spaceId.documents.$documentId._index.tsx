@@ -47,7 +47,6 @@ import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,
@@ -125,20 +124,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
         spellCheckIgnoredLints = unwrapResult(spellCheckIgnoredLintsResult);
     }
 
-    const propagateEventData: TracerEventData = {
-        context: {documentId},
-    };
-
-    return jsonWithSchema(
-        LoaderSchema,
-        {
-            document,
-            commentThreadResult,
-            isFavorite,
-            spellCheckIgnoredLints,
-        },
-        {propagateEventData},
-    );
+    return jsonWithSchema(LoaderSchema, {
+        document,
+        commentThreadResult,
+        isFavorite,
+        spellCheckIgnoredLints,
+    });
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
