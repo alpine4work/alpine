@@ -1,7 +1,7 @@
 import {getAccountByEmailAddressAsAdmin} from "~/server/accounts/get_account_by_email_address_as_admin.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 

@@ -1,6 +1,5 @@
 import {createSessionForTest} from "~/server/accounts/create_account_for_test.js";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
@@ -10,6 +9,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 
 const context = createTestContext({
     notificationsInjection: {

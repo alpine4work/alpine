@@ -1,6 +1,5 @@
 import {createAccountVersionConditionCheckTransactionEntry} from "~/server/accounts/create_account_version_condition_check_transaction_entry.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
-import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
@@ -26,6 +25,7 @@ import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
 import {getMaxId, getMinId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {SpaceAccountState} from "~/shared/spaces/space_account_state.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";

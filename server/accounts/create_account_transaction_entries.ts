@@ -1,8 +1,8 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**

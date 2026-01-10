@@ -5,7 +5,6 @@ import {dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutA
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
-import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
@@ -34,6 +33,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const addSearchAffinityEntityPoints = import.meta.jest.fn(
