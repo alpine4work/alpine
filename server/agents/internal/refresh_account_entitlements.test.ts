@@ -13,6 +13,9 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+// If you update this, be sure to also update the token used in app/routes/api.internal.accounts.$accountId.plan.ts
+const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
+
 // Mock fetch function
 const mockFetch = jest.fn<typeof fetch>();
 
@@ -373,6 +376,9 @@ describe("refreshAccountEntitlements", () => {
                 ).toString(),
             );
             expect(request.method).toBe("GET");
+            expect(request.headers.get("authorization")).toBe(
+                `Bearer ${appServiceAccountPlanSecretToken}`,
+            );
         });
     });
 });

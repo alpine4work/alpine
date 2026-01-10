@@ -8,14 +8,28 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
+
 const context = createTestContext();
 
-async function requestAccountPlanLoader(accountId: AccountId, method: string) {
+async function requestAccountPlanLoader(
+    accountId: AccountId,
+    method: string,
+    options?: {authHeader?: string},
+) {
     const tracerContext = new TracerContextModule(testTracer);
     const span = tracerContext.getRoot().startSpan("test").span;
 
+    const headers: Record<string, string> = {};
+    if (options && "authHeader" in options) {
+        headers.authorization = options.authHeader!;
+    } else {
+        headers.authorization = `Bearer ${appServiceAccountPlanSecretToken}`;
+    }
+
     const request = new Request(`http://localhost/api/internal/accounts/${accountId}/plan`, {
         method,
+        headers,
     });
 
     const response = await loader({
@@ -107,6 +121,44 @@ describe("api.internal.accounts.$accountId.plan", () => {
             error: expect.objectContaining({
                 name: "InvalidArgumentError",
                 message: "Must use GET HTTP method",
+            }),
+        });
+    });
+
+    test("returns 400 error when authorization header is missing", async () => {
+        const accountId = generateId<AccountId>();
+
+        const response = await requestAccountPlanLoader(accountId, "GET", {authHeader: undefined});
+
+        expect(response.status).toBe(400);
+        expect(response.headers.get("content-type")).toBe("application/json");
+
+        const data = await response.json();
+        expect(data).toEqual({
+            ok: false,
+            error: expect.objectContaining({
+                name: "InvalidArgumentError",
+                message: "Invalid authorization token",
+            }),
+        });
+    });
+
+    test("returns 400 error when authorization header is invalid", async () => {
+        const accountId = generateId<AccountId>();
+
+        const response = await requestAccountPlanLoader(accountId, "GET", {
+            authHeader: "Bearer invalid-token",
+        });
+
+        expect(response.status).toBe(400);
+        expect(response.headers.get("content-type")).toBe("application/json");
+
+        const data = await response.json();
+        expect(data).toEqual({
+            ok: false,
+            error: expect.objectContaining({
+                name: "InvalidArgumentError",
+                message: "Invalid authorization token",
             }),
         });
     });

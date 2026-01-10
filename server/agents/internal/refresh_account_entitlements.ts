@@ -8,6 +8,17 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
+ * README
+ *
+ * There are a lot of warnings in here. Be very careful here as this endpoint
+ * is unauthenticated (but authorized via a secret token, hardcoded token). If
+ * you are updating this file, please know what you are doing and why.
+ */
+
+// If you update this, be sure to also update the token used in app/routes/api.internal.accounts.$accountId.plan.ts
+const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
+
+/**
  * Given an account ID, this makes a call to our internal plan API to
  * retrieve the account's plan, then updates the agent usage database
  * with the new entitlements.
@@ -21,6 +32,7 @@ export async function refreshAccountEntitlements(
 ) {
     const fetchPlanUrl = new URL(`/api/internal/accounts/${accountId}/plan`, env.EDGE_SERVICE_URL);
 
+    // This is unauthenticated route, besides a hardcoded secret token. Be very careful with this.
     const plan = await retryWithExponentialBackoff(
         retry =>
             fetchWithTracer(
@@ -30,7 +42,10 @@ export async function refreshAccountEntitlements(
                     serviceName: "EdgeService",
                     method: "GET",
                     route: "/api/internal/accounts/:accountId/plan",
-                    headers: {"content-type": "application/json"},
+                    headers: {
+                        "content-type": "application/json",
+                        authorization: `Bearer ${appServiceAccountPlanSecretToken}`,
+                    },
                     ...(options?.fetch && {fetch: options.fetch}),
                 },
                 async response => {

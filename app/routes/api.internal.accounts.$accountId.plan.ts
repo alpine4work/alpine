@@ -6,6 +6,20 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
+/**
+ * README
+ *
+ * There are a lot of warnings in here. Be very careful here as this endpoint
+ * is unauthenticated (but authorized via a secret token, hardcoded token). If
+ * you are updating this file, please know what you are doing and why.
+ *
+ * This is very much a temporary solution designed to get us going quickly. Please do not use
+ * this as a pattern we should follow elsewhere in the system. I repeat, this is bad practice.
+ */
+
+// If you update this, be sure to also update the token used in refreshAccountEntitlements
+const appServiceAccountPlanSecretToken = "cyberworlds-super-secret-internal-agent-service-token";
+
 // If you're adding any data here, be very certain this is safe
 // to return here!
 type InternalAccountsPlanResponse = {
@@ -48,6 +62,12 @@ async function getInternalAccountsPlanResponse(
 export async function loader({request, context, span, params}: LoaderArgs) {
     try {
         if (request.method !== "GET") throw new InvalidArgumentError("Must use GET HTTP method");
+
+        // Validate authorization header
+        const authHeader = request.headers.get("authorization");
+        if (authHeader !== `Bearer ${appServiceAccountPlanSecretToken}`) {
+            throw new InvalidArgumentError("Invalid authorization token");
+        }
 
         const response = await getInternalAccountsPlanResponse(
             context,
