@@ -830,7 +830,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -844,7 +844,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -867,7 +867,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -919,7 +919,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -933,7 +933,7 @@ test("`getAccountIfExists()` will return a removed account", async () => {
             space: {
                 version: 3,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -978,7 +978,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1066,7 +1066,7 @@ test("`getAccountIfExists()` will cache eventually consistent reads in context",
             space: {
                 version: 3,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1111,7 +1111,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1125,7 +1125,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1148,7 +1148,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1162,7 +1162,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1182,7 +1182,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1228,7 +1228,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1280,7 +1280,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1298,7 +1298,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 3,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1344,7 +1344,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1358,7 +1358,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
             space: {
                 version: 3,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1389,7 +1389,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1403,7 +1403,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1423,7 +1423,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1437,7 +1437,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -1460,7 +1460,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1507,7 +1507,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1557,7 +1557,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1604,7 +1604,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 0,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Admin",
             },
         }),
@@ -1618,7 +1618,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
             space: {
                 version: 3,
                 addedTime: expect.any(Date),
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
                 role: "Member",
             },
         }),
@@ -5434,7 +5434,7 @@ test("can’t make a bot account a space admin", async () => {
             botId: bot.id,
             space: expect.objectContaining({
                 role: "Member",
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
             }),
         }),
     );
@@ -5465,7 +5465,7 @@ test("can’t make a bot account a space admin", async () => {
             botId: bot.id,
             space: expect.objectContaining({
                 role: "Member",
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
             }),
         }),
     );
@@ -5490,7 +5490,7 @@ test("can’t make a bot account a space owner", async () => {
             botId: bot.id,
             space: expect.objectContaining({
                 role: "Member",
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
             }),
         }),
     );
@@ -5513,7 +5513,7 @@ test("can’t make a bot account a space owner", async () => {
             botId: bot.id,
             space: expect.objectContaining({
                 role: "Member",
-                state: {type: "Active"},
+                state: {type: "Active", activatedTime: expect.any(Date)},
             }),
         }),
     );

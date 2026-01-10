@@ -7863,7 +7863,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     addedTime: expect.any(Date),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: expect.any(Date)},
                                     role: "Member",
                                 },
                             }),
@@ -8034,7 +8034,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     addedTime: expect.any(Date),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: expect.any(Date)},
                                     role: "Member",
                                 },
                             }),
@@ -8153,7 +8153,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741823,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                             }),
@@ -8168,7 +8168,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                                 avatar: {
@@ -8257,7 +8257,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741823,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                             }),
@@ -8272,7 +8272,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                                 avatar: {
@@ -8362,7 +8362,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     addedTime: expect.any(Date),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: expect.any(Date)},
                                     role: "Member",
                                 },
                             }),
@@ -8473,7 +8473,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741823,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                             }),
@@ -8488,7 +8488,7 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),
-                                    state: {type: "Active"},
+                                    state: {type: "Active", activatedTime: new Date(0)},
                                     role: "Member",
                                 },
                                 avatar: {

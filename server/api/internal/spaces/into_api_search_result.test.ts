@@ -30,7 +30,7 @@ describe("intoApiSearchResult", () => {
                 space: {
                     version: 1,
                     addedTime: new Date(),
-                    state: {type: "Active"},
+                    state: {type: "Active", activatedTime: new Date()},
                     role: "Member",
                 },
             });

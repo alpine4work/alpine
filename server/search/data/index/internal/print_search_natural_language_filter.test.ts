@@ -4,33 +4,12 @@ import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
-const createdTime = new Date();
 const testTimeZone = assertTimeZone("UTC");
 const testCurrentTime = new Date("2025-11-04T00:00:00.000Z");
 
 const accounts = [
-    createTestAccountModel({
-        version: 0,
-        name: "John Smith",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
-    createTestAccountModel({
-        version: 0,
-        name: "Emily Lin",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
+    createTestAccountModel({name: "John Smith"}),
+    createTestAccountModel({name: "Emily Lin"}),
 ];
 
 describe("printSearchNaturalLanguageFilter", () => {

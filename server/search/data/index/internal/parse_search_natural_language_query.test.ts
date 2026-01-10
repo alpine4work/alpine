@@ -16,64 +16,12 @@ import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model
 type Fuse<T> = _Fuse.default<T>;
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-const createdTime = new Date();
-
 const accounts = [
-    createTestAccountModel({
-        version: 0,
-        name: "Budd Deey",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
-    createTestAccountModel({
-        version: 0,
-        name: "John Smith",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
-    createTestAccountModel({
-        version: 0,
-        name: "Emily Smith",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
-    createTestAccountModel({
-        version: 0,
-        name: "Anthony Mose",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
-    createTestAccountModel({
-        version: 0,
-        name: "Emily Lin",
-        nameVersion: 0,
-        space: {
-            version: 0,
-            addedTime: createdTime,
-            state: {type: "Active"},
-            role: "Member",
-        },
-    }),
+    createTestAccountModel({name: "Budd Deey"}),
+    createTestAccountModel({name: "John Smith"}),
+    createTestAccountModel({name: "Emily Smith"}),
+    createTestAccountModel({name: "Anthony Mose"}),
+    createTestAccountModel({name: "Emily Lin"}),
 ];
 
 const accountNameIndex = new Fuse(accounts, {
