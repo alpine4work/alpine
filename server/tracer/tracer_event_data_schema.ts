@@ -183,6 +183,7 @@ const TracerEventDataSchema = {
         accountId: Schema.id(),
         spaceId: Schema.id(),
         botId: Schema.id(),
+        botAccountId: Schema.id(),
         isAnonymous: Schema.boolean,
         withoutSpaceAccess: Schema.boolean,
         webSocketConnectionId: Schema.id(),

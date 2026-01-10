@@ -460,15 +460,29 @@ async function createAppService({
                         const clientInfo = context.loader.getClientInfo();
                         const platform = getInitialAppRenderPlatform(clientInfo);
 
-                        span.addPropagatedData({
-                            context: {
-                                route,
-                                platform,
-                                spacingScale: getInitialAppRenderSpacingScale(clientInfo),
-                                routeLayout: getDefaultRouteLayoutForPlatform(platform),
-                                renderingEngine: clientInfo.renderingEngine,
-                            },
-                        });
+                        // Only include `route`, `platform`, and other information about the client
+                        // state if this is a Remix data request or document request. The definition of
+                        // data requests and document requests can be found here:
+                        //
+                        // https://github.com/remix-run/remix/blob/ff06e1656108bc21244e1fd4b33ed53e22b85158/packages/remix-server-runtime/server.ts#L136-L256
+                        //
+                        // - Data requests are requests with the `_data` search param
+                        // - Document requests are requests for a route with a `default` component
+                        //   exported
+                        if (
+                            url.searchParams.has("_data") ||
+                            (matches && matches[matches.length - 1]?.route.module.default)
+                        ) {
+                            span.addPropagatedData({
+                                context: {
+                                    route,
+                                    platform,
+                                    spacingScale: getInitialAppRenderSpacingScale(clientInfo),
+                                    routeLayout: getDefaultRouteLayoutForPlatform(platform),
+                                    renderingEngine: clientInfo.renderingEngine,
+                                },
+                            });
+                        }
 
                         // The first time our server process runs in development, seed DynamoDB with
                         // some initial data. The seed function should be idempotent.

@@ -391,7 +391,16 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
                         eventId: event.id,
                     },
                 });
-                span.addPropagatedData({context: {botId, accountId: botAccountId}});
+
+                span.addPropagatedData({
+                    context: {
+                        botId,
+                        botAccountId,
+                        // Use the account that initiated the bot as `context.accountId` and include
+                        // the bot itself as `context.botAccountId`.
+                        accountId: event.authorId,
+                    },
+                });
 
                 const {bytes: originalBytes, time} = decodeEventId();
 

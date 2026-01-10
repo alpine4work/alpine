@@ -498,6 +498,13 @@ export type TracerEventData = {
         readonly botId?: BotId;
 
         /**
+         * If this action is being performed by a bot, this is the `AccountId`
+         * instantiated for the bot which is performing the action. `context.accountId`
+         * is reserved for the account which initiated the bot.
+         */
+        readonly botAccountId?: AccountId;
+
+        /**
          * True if this is an anonymous request. Instead of `context.accountId` this'll
          * be set when there is no authenticated account.
          */
