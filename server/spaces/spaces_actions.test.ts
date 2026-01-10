@@ -2233,7 +2233,6 @@ test("`addSpaceAccount()` can’t add an account that is already a member", asyn
         addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: alreadyMember.account.id,
-            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 });
@@ -2248,7 +2247,6 @@ test("`addSpaceAccount()` can’t add an account that is already invited", async
         addSpaceAccount(ownerSession.action(), {
             spaceId: space.id,
             accountId: invitedAccount.id,
-            withoutInviteForTest: true,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 });
@@ -5249,7 +5247,7 @@ test("can instantiate a bot in a space as an admin", async () => {
         expect.objectContaining({
             name: "Test Bot",
             botId: bot.id,
-            space: expect.objectContaining({state: {type: "Active"}}),
+            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
         }),
     );
 
@@ -5272,7 +5270,7 @@ test("can instantiate a bot in a space as an admin", async () => {
         expect.objectContaining({
             name: "Test Bot",
             botId: bot.id,
-            space: expect.objectContaining({state: {type: "Active"}}),
+            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
         }),
     );
 });
@@ -5305,7 +5303,7 @@ test("can instantiate a bot in a space as an owner", async () => {
         expect.objectContaining({
             name: "Test Bot",
             botId: bot.id,
-            space: expect.objectContaining({state: {type: "Active"}}),
+            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
         }),
     );
 
@@ -5361,7 +5359,7 @@ test("can remove bot from space it was instantiated in and can add it back", asy
         expect.objectContaining({
             name: "Test Bot",
             botId: bot.id,
-            space: expect.objectContaining({state: {type: "Active"}}),
+            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
         }),
     );
 
@@ -5410,7 +5408,7 @@ test("can remove bot from space it was instantiated in and can add it back", asy
         expect.objectContaining({
             name: "Test Bot",
             botId: bot.id,
-            space: expect.objectContaining({state: {type: "Active"}}),
+            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
         }),
     );
 });

@@ -28,7 +28,7 @@ test("can get any account by email address as admin", async () => {
 
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), session1.account.id as any),
-    ).rejects.toThrow(InvalidArgumentError);
+    ).rejects.toThrow(NotFoundError);
 
     await expect(
         getAccountByEmailAddressAsAdmin(

@@ -2844,7 +2844,7 @@ exports[`account long mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #c4e79a"
+              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #a9edf3"
             >
               <span
                 aria-hidden="true"
@@ -2852,7 +2852,7 @@ exports[`account long mention 1`] = `
               >
                 <span>
                   <img
-                    alt="Olive yeti who’s happy"
+                    alt="Pink cat who’s happy"
                     draggable="false"
                   />
                 </span>
@@ -2913,7 +2913,7 @@ exports[`account short mention 1`] = `
         <span>
           <span>
             <span
-              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #c4e79a"
+              style="width: 1.75rem;height: 1.75rem;borderRadius: 9999px;background-color: #a9edf3"
             >
               <span
                 aria-hidden="true"
@@ -2921,7 +2921,7 @@ exports[`account short mention 1`] = `
               >
                 <span>
                   <img
-                    alt="Olive yeti who’s happy"
+                    alt="Pink cat who’s happy"
                     draggable="false"
                   />
                 </span>

@@ -65,8 +65,10 @@ test(
                 {
                     type: "Welcome",
                     addedTime: expect.any(Date),
+                    emailDomainWithAutoAddAccountsEnabled: null,
                 },
             ],
+            wasFeedCreated: true,
         });
     },
     // Match Bazel's `medium` test size timeout.

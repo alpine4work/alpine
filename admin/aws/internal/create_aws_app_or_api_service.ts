@@ -75,6 +75,7 @@ export function createAwsAppOrApiService(
         loadBalancer: loadBalancerOptions,
         withAgentServiceUrl,
         withStripeSecrets,
+        withLogoDevSecrets,
     }: {
         serviceName: string;
         secretsName: string;
@@ -94,6 +95,7 @@ export function createAwsAppOrApiService(
         };
         withAgentServiceUrl?: boolean;
         withStripeSecrets?: boolean;
+        withLogoDevSecrets?: boolean;
     },
 ) {
     const launchTemplate = new LaunchTemplate(parentConstruct, "LaunchTemplate", {
@@ -295,6 +297,18 @@ export function createAwsAppOrApiService(
                       ),
                   }
                 : {}),
+            ...(withLogoDevSecrets
+                ? {
+                      LOGO_DEV_SECRET_KEY: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "logoDevSecretKey",
+                      ),
+                      LOGO_DEV_PUBLISHABLE_KEY: EcsSecret.fromSecretsManager(
+                          secrets,
+                          "logoDevPublishableKey",
+                      ),
+                  }
+                : {}),
         },
         environment: {
             NODE_ENV: "production",
@@ -343,6 +357,12 @@ export function createAwsAppOrApiService(
                 ? [
                       "--stripeSecretKey=$STRIPE_SECRET_KEY",
                       "--stripeSigningSecret=$STRIPE_SIGNING_SECRET",
+                  ]
+                : []),
+            ...(withLogoDevSecrets
+                ? [
+                      "--logoDevSecretKey=$LOGO_DEV_SECRET_KEY",
+                      "--logoDevPublishableKey=$LOGO_DEV_PUBLISHABLE_KEY",
                   ]
                 : []),
         ],

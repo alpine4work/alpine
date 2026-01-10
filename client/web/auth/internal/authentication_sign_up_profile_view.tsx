@@ -11,14 +11,13 @@ import {Button} from "~/client/web/design/button.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
-import {orderedReactionCharacters} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {ReactionPartyBase} from "~/client/web/reactions/reaction_party.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {saveAccountSignUpProfile} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -53,17 +52,9 @@ export function AuthenticationSignUpProfileView({
 
     const reactionCharacterLabelId = useId();
 
-    const [reactionCharacter, setReactionCharacter] = useState<ReactionCharacter>(() => {
-        const stableRandom = new StableRandom(`SignUp:${state.emailAddress}`);
-
-        const reactionCharacterIndex = stableRandom.randomInteger(
-            "reactionCharacter",
-            0,
-            orderedReactionCharacters.length,
-        );
-
-        return orderedReactionCharacters[reactionCharacterIndex]!;
-    });
+    const [reactionCharacter, setReactionCharacter] = useState<ReactionCharacter>(() =>
+        getUnstableReactionCharacterForNewAccountId(state.accountId),
+    );
 
     const [[exampleAccount1Id, exampleAccount2Id, exampleAccount3Id]] = useState(() => {
         return [generateId<AccountId>(), generateId<AccountId>(), generateId<AccountId>()] as const;

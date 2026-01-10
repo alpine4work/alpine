@@ -1050,6 +1050,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -1067,6 +1068,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1074,6 +1076,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1081,6 +1084,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1088,6 +1092,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1095,6 +1100,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1105,6 +1111,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -1122,6 +1129,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1129,6 +1137,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1146,6 +1155,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1153,6 +1163,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1170,6 +1181,7 @@ test("creating a private channel adds entry to own feed then when shared to spac
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1186,6 +1198,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1193,6 +1206,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1200,6 +1214,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1207,6 +1222,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1214,6 +1230,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1221,6 +1238,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1231,6 +1249,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1247,6 +1266,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1254,6 +1274,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1261,6 +1282,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1268,6 +1290,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1275,6 +1298,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1285,6 +1309,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1301,6 +1326,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1308,6 +1334,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1315,6 +1342,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1322,6 +1350,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1329,6 +1358,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1339,6 +1369,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1355,6 +1386,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1362,6 +1394,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1378,6 +1411,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1385,6 +1419,7 @@ test("creating a private document adds entry to own feed then when shared to spa
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1401,6 +1436,7 @@ test("creating a private document adds entry to own feed then when shared to spa
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1417,6 +1453,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1424,6 +1461,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1431,6 +1469,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1438,6 +1477,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1445,6 +1485,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1452,6 +1493,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1462,6 +1504,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1478,6 +1521,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1485,6 +1529,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1492,6 +1537,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1499,6 +1545,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1506,6 +1553,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1516,6 +1564,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1532,6 +1581,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1539,6 +1589,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1546,6 +1597,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1553,6 +1605,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1560,6 +1613,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1570,6 +1624,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1586,6 +1641,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1593,6 +1649,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1609,6 +1666,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -1616,6 +1674,7 @@ test("creating a private task collection adds entry to own feed then when shared
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -1632,6 +1691,7 @@ test("creating a private task collection adds entry to own feed then when shared
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2519,6 +2579,7 @@ test("get and update feed gets new entries every call", async () => {
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [12, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -2541,6 +2602,7 @@ test("get and update feed gets new entries every call", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2550,6 +2612,7 @@ test("get and update feed gets new entries every call", async () => {
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [12, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -2572,6 +2635,7 @@ test("get and update feed gets new entries every call", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2586,6 +2650,7 @@ test("get and update feed gets new entries every call", async () => {
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [25, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -2613,6 +2678,7 @@ test("get and update feed gets new entries every call", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2620,6 +2686,7 @@ test("get and update feed gets new entries every call", async () => {
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [25, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -2647,6 +2714,7 @@ test("get and update feed gets new entries every call", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2690,6 +2758,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -2707,6 +2776,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2714,6 +2784,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2721,6 +2792,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2728,6 +2800,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2735,6 +2808,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2747,6 +2821,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -2765,6 +2840,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2772,6 +2848,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [0, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2779,6 +2856,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2786,6 +2864,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2794,6 +2873,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2806,6 +2886,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -2825,6 +2906,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2832,6 +2914,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2850,6 +2933,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2857,6 +2941,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2876,6 +2961,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2888,6 +2974,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -2895,6 +2982,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2902,6 +2990,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2920,6 +3009,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2927,6 +3017,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2946,6 +3037,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2955,6 +3047,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -2962,6 +3055,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2969,6 +3063,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -2987,6 +3082,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -2994,6 +3090,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3013,6 +3110,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3025,6 +3123,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3032,6 +3131,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3039,6 +3139,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3058,6 +3159,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3065,6 +3167,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [3, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3085,6 +3188,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3095,6 +3199,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3114,6 +3219,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3121,6 +3227,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3140,6 +3247,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3147,6 +3255,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [3, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3167,6 +3276,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3176,6 +3286,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session1.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3195,6 +3306,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3202,6 +3314,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [2, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3221,6 +3334,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3228,6 +3342,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
     expect(
         await getAndUpdateFeedEntries(session3.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [3, 0],
         endCursor: [0, 0],
         hasMoreEntries: false,
@@ -3248,6 +3363,7 @@ test("won’t add entries to feed account doesn’t have access to", async () =>
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3271,6 +3387,7 @@ test("get and update limits the number of returned entries", async () => {
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 20}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [12, 0],
         endCursor: [11, 9],
         hasMoreEntries: true,
@@ -3286,6 +3403,7 @@ test("get and update limits the number of returned entries", async () => {
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 20}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [12, 0],
         endCursor: [11, 9],
         hasMoreEntries: true,
@@ -3328,6 +3446,7 @@ test("get and update limits the number of returned entries up until the second t
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [1, 0],
         endCursor: [1, 9],
         hasMoreEntries: true,
@@ -3342,6 +3461,7 @@ test("get and update limits the number of returned entries up until the second t
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [1, 9],
         hasMoreEntries: true,
@@ -3382,6 +3502,7 @@ test("get and update limits the number of returned entries up until the last ent
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [1, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3404,6 +3525,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3412,6 +3534,7 @@ test("get and update limits the number of returned entries up until the last ent
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [1, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3434,6 +3557,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3461,6 +3585,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3488,6 +3613,7 @@ test("get and update limits the number of returned entries up until the second t
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [10, 0],
         endCursor: [1, 0],
         hasMoreEntries: true,
@@ -3502,6 +3628,7 @@ test("get and update limits the number of returned entries up until the second t
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 10}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [10, 0],
         endCursor: [1, 0],
         hasMoreEntries: true,
@@ -3546,6 +3673,7 @@ test("get and update limits the number of returned entries up until the last ent
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [10, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3568,6 +3696,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3576,6 +3705,7 @@ test("get and update limits the number of returned entries up until the last ent
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 12}),
     ).toEqual({
+        wasFeedCreated: false,
         startCursor: [10, 0],
         endCursor: [0, 1],
         hasMoreEntries: false,
@@ -3598,6 +3728,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3625,6 +3756,7 @@ test("get and update limits the number of returned entries up until the last ent
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3654,6 +3786,7 @@ test("can paginate through feed entries", async () => {
     expect(
         await getAndUpdateFeedEntries(session2.action(), {spaceId: space.id, limit: 500}),
     ).toEqual({
+        wasFeedCreated: true,
         startCursor: [12, 0],
         endCursor: [0, 6],
         hasMoreEntries: false,
@@ -3676,6 +3809,7 @@ test("can paginate through feed entries", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3703,6 +3837,7 @@ test("can paginate through feed entries", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3835,6 +3970,7 @@ test("can paginate through feed entries", async () => {
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });
@@ -3939,6 +4075,7 @@ test("can paginate through feed entries when each block only has a single entry"
             {
                 type: "Welcome",
                 addedTime: expect.any(Date),
+                emailDomainWithAutoAddAccountsEnabled: null,
             },
         ],
     });

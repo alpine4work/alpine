@@ -72,7 +72,7 @@ import {getSpaceAccountsCacheForTest} from "~/server/spaces/get_space_accounts_c
 import {
     LogoDevContextModule,
     LogoDevContextModuleBase,
-    TestLogoDevContextModule,
+    LogoDevNoopContextModule,
 } from "~/server/spaces/logo_dev_context_module.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {createServiceTaskRealtimeServiceRouter} from "~/server/tasks/data/create_service_task_realtime_service_router.js";
@@ -312,7 +312,7 @@ async function createAppService({
     } else {
         logoDevContextModule =
             !options.logoDevSecretKey || !options.logoDevPublishableKey
-                ? new TestLogoDevContextModule()
+                ? new LogoDevNoopContextModule()
                 : new LogoDevContextModule({
                       secretKey: options.logoDevSecretKey,
                       publishableKey: options.logoDevPublishableKey,

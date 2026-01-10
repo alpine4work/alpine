@@ -6,6 +6,7 @@ import {
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {
     AccountModel,
     AccountModelData,
@@ -14,6 +15,7 @@ import {
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 export function createTestAccountModel(accountModelDataOptions: Partial<AccountModelData> = {}) {
+    const accountId = accountModelDataOptions.id ?? generateId<AccountId>();
     const time = new Date("2025-01-01T00:00:00Z");
 
     return new AccountModel({
@@ -26,11 +28,9 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
             addedTime: time,
         },
         avatar: null,
-        // NOTE(calebmer): This may be called in Playwright which doesn't have a global
-        // `expect()` function.
-        reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
         ...accountModelDataOptions,
-        id: accountModelDataOptions.id ?? generateId<AccountId>(),
+        id: accountId,
         name: accountModelDataOptions.name ?? "Test Account",
     });
 }
@@ -38,15 +38,15 @@ export function createTestAccountModel(accountModelDataOptions: Partial<AccountM
 export function createTestAccountModelWithoutSpace(
     accountModelDataOptions: Partial<AccountModelData>,
 ) {
+    const accountId = accountModelDataOptions.id ?? generateId<AccountId>();
+
     return new AccountModelWithoutSpace({
-        id: accountModelDataOptions.id ?? generateId<AccountId>(),
+        id: accountId,
         name: accountModelDataOptions.name ?? "Test Account",
         version: 0,
         nameVersion: 0,
         avatar: null,
-        // NOTE(calebmer): This may be called in Playwright which doesn't have a global
-        // `expect()` function.
-        reactionCharacter: typeof expect === "function" ? expect.any(Object) : null,
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
         ...accountModelDataOptions,
     });
 }

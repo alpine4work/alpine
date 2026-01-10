@@ -1,5 +1,5 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -79,7 +79,7 @@ export function createAccountTransactionEntries({
             // go through the `/sign-up` flow.
             hasNotSignedUp: !dangerouslyInstantiateBot ? true : undefined,
             bot: dangerouslyInstantiateBot,
-            reactionCharacter: pickRandomReactionCharacterForAccount(),
+            reactionCharacter: getUnstableReactionCharacterForNewAccountId(id),
         }),
         ...(dangerouslyInstantiateBot?.avatar
             ? [

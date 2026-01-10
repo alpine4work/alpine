@@ -8165,6 +8165,7 @@ test("can get a document with references as actors that don’t have access to t
                                 version: -1073741823,
                                 name: session3.account.initialName,
                                 nameVersion: -1073741823,
+                                reactionCharacter: null,
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),
@@ -8269,6 +8270,7 @@ test("can get a document with references as actors that don’t have access to t
                                 version: -1073741823,
                                 name: session3.account.initialName,
                                 nameVersion: -1073741823,
+                                reactionCharacter: null,
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),
@@ -8485,6 +8487,7 @@ test("can get a document with references as actors that don’t have access to t
                                 version: -1073741823,
                                 name: session3.account.initialName,
                                 nameVersion: -1073741823,
+                                reactionCharacter: null,
                                 space: {
                                     version: -1073741822,
                                     addedTime: new Date(0),

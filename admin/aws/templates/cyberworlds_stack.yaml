@@ -3430,6 +3430,8 @@ Resources:
                       - --webPushVapidPrivateKey=$WEB_PUSH_VAPID_PRIVATE_KEY
                       - --stripeSecretKey=$STRIPE_SECRET_KEY
                       - --stripeSigningSecret=$STRIPE_SIGNING_SECRET
+                      - --logoDevSecretKey=$LOGO_DEV_SECRET_KEY
+                      - --logoDevPublishableKey=$LOGO_DEV_PUBLISHABLE_KEY
                   Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
@@ -3594,6 +3596,20 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:stripeSigningSecret::"
+                      - Name: LOGO_DEV_SECRET_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:logoDevSecretKey::"
+                      - Name: LOGO_DEV_PUBLISHABLE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:AppServiceSecrets:logoDevPublishableKey::"
                   StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:

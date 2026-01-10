@@ -1,6 +1,6 @@
 import {createSessionForTest} from "~/server/accounts/create_account_for_test.js";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
@@ -46,7 +46,7 @@ describe("updateOurStripeCustomerId()", () => {
             nameVersion: 0,
             createdTime: new Date(),
             hasInternalAccess: false,
-            reactionCharacter: pickRandomReactionCharacterForAccount(),
+            reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
         });
 
         const initialBillingItem = await AccountsTable.getItemIfExists(context, {

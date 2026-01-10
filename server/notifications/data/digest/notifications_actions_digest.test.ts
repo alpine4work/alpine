@@ -1228,7 +1228,7 @@ describe("getNotificationDigestContent", () => {
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
-                            state: {type: "Active"},
+                            state: {type: "Active", activatedTime: expect.any(Date)},
                             version: 0,
                         },
                         version: 0,
@@ -1246,7 +1246,7 @@ describe("getNotificationDigestContent", () => {
                         space: {
                             addedTime: expect.any(Date),
                             role: "Member",
-                            state: {type: "Active"},
+                            state: {type: "Active", activatedTime: expect.any(Date)},
                             version: 0,
                         },
                         version: 0,

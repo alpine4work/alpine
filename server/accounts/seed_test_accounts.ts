@@ -1,5 +1,5 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -18,7 +18,7 @@ export async function seedTestAccounts(context: DynamoContext) {
         createdTime: new Date(),
         hasInternalAccess: true,
         observedTimeZone: defaultTimeZone,
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(adminAccountId),
     });
 
     await AccountsTable.createItemIfNoneExists(context, {

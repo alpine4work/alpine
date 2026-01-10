@@ -5,7 +5,7 @@ import {
     AccountsTable,
 } from "~/server/accounts/internal/accounts_table.js";
 import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
@@ -29,7 +29,7 @@ export async function createAccountForTest(
         createdTime = new Date(),
         observedTimeZone = null,
         plan,
-        reactionCharacter = pickRandomReactionCharacterForAccount(),
+        reactionCharacter = getUnstableReactionCharacterForNewAccountId(id),
     }: {
         id?: AccountId;
         name: string;

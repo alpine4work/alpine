@@ -2,10 +2,10 @@ import {attemptOneTimePasswordSignIn} from "~/server/accounts/attempt_one_time_p
 import {captureOneTimePasswordSignInEmailsForTest} from "~/server/accounts/capture_one_time_password_sign_in_emails_for_test.js";
 import {getAccountEmailAddressForTest} from "~/server/accounts/create_account_for_test.js";
 import {dangerouslyGetAccountAndWithFinishSignUpTransactionEntryIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {saveAccountSignUpProfile} from "~/server/accounts/save_account_sign_up_profile.js";
 import {signUpAccountWithEmailAddress} from "~/server/accounts/sign_up_account_with_email_address.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
@@ -156,7 +156,7 @@ async function testSignUpUntilAttemptOneTimePasswordSignUp({
     await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
         name,
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 
     return {accountId, emailAddress: validatedEmailAddress, oneTimePassword};
@@ -643,13 +643,13 @@ test("cannot save sign up profile after finishing sign up", async () => {
     await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
         name: "Anthony Mose 1",
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 
     await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
         name: "Anthony Mose 2",
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 
     await attemptOneTimePasswordSignUpThenCreateSpace(
@@ -684,7 +684,7 @@ test("save account sign up profile then sign in", async () => {
     await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
         name: "Anthony Mose 1",
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 
     await attemptOneTimePasswordSignIn(
@@ -709,7 +709,7 @@ test("save account sign up profile then sign in", async () => {
     await saveAccountSignUpProfile(context.anonymousAction(), {
         accountId,
         name: "Anthony Mose 2",
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 });
 
@@ -732,7 +732,7 @@ test("save account sign up profile after signing in and accepting invite but bef
     await saveAccountSignUpProfile(context.withCache(), {
         accountId,
         name: "Anthony Mose 1",
-        reactionCharacter: pickRandomReactionCharacterForAccount(),
+        reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
     });
 
     const {sessionId} = await attemptOneTimePasswordSignIn(
@@ -762,7 +762,7 @@ test("save account sign up profile after signing in and accepting invite but bef
         saveAccountSignUpProfile(context.anonymousAction(), {
             accountId,
             name: "Anthony Mose 2",
-            reactionCharacter: pickRandomReactionCharacterForAccount(),
+            reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountId),
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(

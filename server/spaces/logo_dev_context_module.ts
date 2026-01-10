@@ -1,4 +1,5 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
@@ -12,9 +13,12 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
  *
  * [1]: https://www.logo.dev
  */
-export abstract class LogoDevContextModuleBase extends ContextModuleBase<{
-    tracer: TracerContextModule;
-}> {
+export abstract class LogoDevContextModuleBase
+    extends ContextModuleBase<{
+        tracer: TracerContextModule;
+    }>
+    implements ForkableContextModuleBase
+{
     /**
      * Describe a company using the [Logo.dev brand API][1]. Returns null if no
      * company was found.
@@ -33,6 +37,8 @@ export abstract class LogoDevContextModuleBase extends ContextModuleBase<{
         query: string,
         options: {size: number; theme: "light" | "dark"},
     ): Promise<ArrayBuffer | null>;
+
+    public abstract fork(): LogoDevContextModuleBase;
 }
 
 export class LogoDevContextModule extends LogoDevContextModuleBase {
@@ -167,14 +173,25 @@ export class LogoDevContextModule extends LogoDevContextModuleBase {
             );
         });
     }
+
+    public override fork() {
+        return new LogoDevContextModule({
+            secretKey: this._secretKey,
+            publishableKey: this._publishableKey,
+        });
+    }
 }
 
-export class TestLogoDevContextModule extends LogoDevContextModuleBase {
+export class LogoDevNoopContextModule extends LogoDevContextModuleBase {
     public override async describe(): Promise<null> {
         return null;
     }
 
     public override async logo(): Promise<null> {
         return null;
+    }
+
+    public override fork() {
+        return new LogoDevNoopContextModule();
     }
 }

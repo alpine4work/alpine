@@ -1,6 +1,6 @@
 import {createAccountVersionConditionCheckTransactionEntry} from "~/server/accounts/create_account_version_condition_check_transaction_entry.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
-import {pickRandomReactionCharacterForAccount} from "~/server/accounts/pick_random_reaction_character_for_account.js";
+import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
@@ -357,7 +357,7 @@ export async function getAddSpaceAccountTransactionEntries(
                     // Pick a random character for the account since we don't want to reveal the
                     // character selected by the account (which is private information along with
                     // the rest of the account's data).
-                    reactionCharacter: pickRandomReactionCharacterForAccount(),
+                    reactionCharacter: getUnstableReactionCharacterForNewAccountId(accountInput.id),
                 },
                 // Should always be false since `accountInput.spaceAccountItem` is always null
                 // in this code path.

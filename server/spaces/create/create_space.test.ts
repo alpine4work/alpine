@@ -123,7 +123,7 @@ describe("createSpaceForAccountAsAdmin()", () => {
                 spaceId: space.id,
                 accountId: session.account.id,
                 entityId: `Channel:${generalChannel!.id}`,
-                points: 2.999,
+                points: 3,
             });
         });
     });
