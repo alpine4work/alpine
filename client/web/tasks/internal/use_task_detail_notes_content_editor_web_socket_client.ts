@@ -80,8 +80,6 @@ export function useTaskDetailNotesContentEditorWebSocketClient({
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
     const {currentAccount} = useSpaceContext();
 
-    console.log(context);
-
     const events = useEvents({
         getContext: () => context,
         getReporter: () => reporter,

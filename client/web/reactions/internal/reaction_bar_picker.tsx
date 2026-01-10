@@ -18,11 +18,11 @@ import {useEvents} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {ThumbsUpFill2Icon} from "~/client/web/icons/thumbs_up_fill2_icon.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
-import {orderedReactionEmotions} from "~/client/web/reactions/internal/ordered_reaction_characters_and_emotions.js";
 import {
     ReactionPickerRef,
     reactionPickerIconEmotions,
 } from "~/client/web/reactions/internal/reaction_picker_base.js";
+import {orderedReactionEmotions} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";

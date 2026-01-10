@@ -192,7 +192,7 @@ export function MessageViewTouchMenu<
                                 createdTime={message.createdTime}
                                 contentUpdatedTime={
                                     message.payload.type === "Content"
-                                        ? message.payload.contentUpdate?.time ?? null
+                                        ? (message.payload.contentUpdate?.time ?? null)
                                         : null
                                 }
                                 deletedTime={
