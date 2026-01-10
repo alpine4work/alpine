@@ -1,6 +1,7 @@
 import {TracerEventFlatDataSchema} from "~/server/tracer/tracer_event_data_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {
     SchemaSerializedValue,
     withSchemaDeserializationStackFrame,
@@ -21,7 +22,11 @@ export function validateTracerEventFlatData(
         if (value === undefined) continue;
 
         const schema = TracerEventFlatDataSchema.get(key);
-        if (!schema) throw new InvalidArgumentError("Unrecognized event attribute");
+
+        // NOTE(calebmer): `key` could accidentally be sensitive user data but seems
+        // unlikely given it's a tracer event JSON key. It's very useful to have this
+        // value for debugging.
+        if (!schema) throw new InvalidArgumentError(quote`Unrecognized event attribute: ${key}`);
 
         withSchemaDeserializationStackFrame({type: "ObjectProperty", key}, () => {
             const deserializedValue = schema.deserialize(value);
