@@ -768,12 +768,29 @@ async function createChatGptAgentResponse(
         // https://platform.openai.com/docs/guides/prompt-caching
         prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.roomPath),
         safety_identifier: request.event.authorId,
-        tools: [
-            chatGptReadLinkTool.get(),
-            chatGptSearchAlpineTool.get(),
-            // https://platform.openai.com/docs/guides/tools-web-search
-            {type: "web_search"},
-        ],
+        // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search [1] tool to
+        // our agent but decided against it for several reasons:
+        // 1. **Security/Privacy**: Perhaps the most compelling reason to omit web search calls.
+        //    Ultimately, our users (and us admins) have no control over the information the agent may
+        //    come across while searching the world wide web. Bad actors can expose this by simply
+        //    injecting malicious content into a web page, for instance, and "trick" our agent into
+        //    doing something dangerous. Read this article on agent security [2] for more on the
+        //    topic – it's a super interesting read!
+        // 2. **Cost**: The web search tool is actually quite expensive. Every 1000 calls costs $10 [3].
+        //     By comparison, GPT-5.1 costs $1.25 per million output tokens. Users may not understand
+        //     the comparitive cost of making web search calls (e.g. "What's the weather today?") and
+        //     we don't want them to blow all of their token budget on these types of queries – they're
+        //     not where our agent shines.
+        // 3. **Tracking**: We didn't build a way to track Web Search tool call usage in our agent usage
+        //    database. Even if we were comfortable with the cost, we'd need to calculate and include
+        //    the cost of those calls in our agent usage database.
+        // 4. **UX**: We weren't able to build a solid UI for web search tool calls pre-launch (no API
+        //    compatibility and no UI).
+        //
+        // [1]: https://platform.openai.com/docs/guides/tools-web-search
+        // [2]: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+        // [3]: https://platform.openai.com/docs/pricing#built-in-tools
+        tools: [chatGptReadLinkTool.get(), chatGptSearchAlpineTool.get()],
         reasoning: {
             // Default reasoning effort is "medium", so we're just being explicit here.
             effort: "medium",
