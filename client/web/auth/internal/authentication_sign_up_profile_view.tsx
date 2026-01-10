@@ -1,4 +1,4 @@
-import {useId, useState} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {
     AuthenticationSignUpProfileState,
     AuthenticationState,
@@ -13,7 +13,9 @@ import {TextInput} from "~/client/web/design/text_input.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {orderedReactionCharacters} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
 import {ReactionPartyBase} from "~/client/web/reactions/reaction_party.js";
+import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -29,6 +31,22 @@ export function AuthenticationSignUpProfileView({
     onStateChange: (state: AuthenticationState) => void;
 }) {
     const context = useAppContext();
+    const platform = usePlatform();
+
+    const nameInputRef = useRef<HTMLInputElement>(null);
+
+    // Immediately focus the name input when the component mounts. Only on
+    // desktop when focusing the input won't open a giant keyboard.
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        if (platform === "desktop") {
+            const nameInputElement = assertExists(nameInputRef.current);
+            nameInputElement.focus();
+        }
+    }, [platform]);
 
     const [name, setName] = useState("");
     const trimmedName = name.trim();
@@ -87,6 +105,7 @@ export function AuthenticationSignUpProfileView({
             </Box>
             <Spacer space="8" />
             <TextInput
+                ref={nameInputRef}
                 formName="name"
                 label="Full name"
                 autoComplete="name"

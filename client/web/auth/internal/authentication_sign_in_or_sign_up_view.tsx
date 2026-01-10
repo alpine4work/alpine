@@ -202,6 +202,7 @@ export function AuthenticationSignInOrSignUpView({
                                 fontSize={formErrorFontSize}
                                 color="grey-50"
                                 userSelect="text"
+                                style={{lineHeight: 1.5}}
                             >
                                 Tip: Using your work email lets us automatically connect you with
                                 your coworkers

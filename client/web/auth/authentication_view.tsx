@@ -19,6 +19,7 @@ import {AuthenticationSignInOrSignUpView} from "~/client/web/auth/internal/authe
 import {AuthenticationSignUpProfileView} from "~/client/web/auth/internal/authentication_sign_up_profile_view.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -125,7 +126,15 @@ export function AuthenticationView() {
             paddingBottom={authenticationViewPaddingBottom}
             style={{minHeight: "inherit"}}
         >
-            <main className={sprinkles({width: "full", maxWidth: "96", minHeight: "full"})}>
+            <main
+                className={sprinkles({width: "full", minHeight: "full"})}
+                style={{
+                    // We use a slightly off spacing scale value for `maxWidth` so the "By signing
+                    // up, you agree to our Terms of Service and Privacy Policy" text on the last
+                    // step of sign up doesn't wrap onto two lines.
+                    maxWidth: addRemLengths("96", "4"),
+                }}
+            >
                 <AuthenticationViewOutlet
                     // Fully remount the component whenever the state changes type.
                     key={state.type}

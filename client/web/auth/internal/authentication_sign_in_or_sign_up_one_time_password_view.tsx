@@ -5,7 +5,12 @@ import {
     AuthenticationSignUpOneTimePasswordState,
     AuthenticationState,
 } from "~/client/web/auth/authentication_state.js";
-import {Form, FormRef} from "~/client/web/auth/internal/form.js";
+import {
+    Form,
+    FormRef,
+    formErrorFontSize,
+    formErrorMarginTop,
+} from "~/client/web/auth/internal/form.js";
 import {navigateAfterSignInOrSignUp} from "~/client/web/auth/internal/navigate_after_sign_in_or_sign_up.js";
 import {
     OneTimePasswordInput,
@@ -14,6 +19,7 @@ import {
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {Link} from "~/client/web/design/link.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {LogoWordmark} from "~/client/web/icons/brand/logo_wordmark.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
@@ -43,8 +49,8 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
     const formRef = useRef<FormRef>(null);
     const inputRef = useRef<OneTimePasswordInputRef>(null);
 
-    // Immediately focus the one time password input when the component mounts on
-    // desktop when focusing the input won't open a giant keyboard.
+    // Immediately focus the one time password input when the component mounts.
+    // Only on desktop when focusing the input won't open a giant keyboard.
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
@@ -167,6 +173,25 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                 >
                     {buttonLabel}
                 </Button>
+            }
+            afterButton={
+                state.type === "SignUpOneTimePassword" && (
+                    <Box
+                        paddingTop={formErrorMarginTop}
+                        fontSize={formErrorFontSize}
+                        color="grey-50"
+                        userSelect="text"
+                        style={{lineHeight: 1.5}}
+                    >
+                        By signing up, you agree to our{" "}
+                        <Link url="https://www.alpine.inc/terms-of-service">
+                            Terms&nbsp;of&nbsp;Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link url="https://www.alpine.inc/privacy-policy">Privacy&nbsp;Policy</Link>
+                        .
+                    </Box>
+                )
             }
         >
             <LogoWordmark size="32" />
