@@ -1,11 +1,14 @@
 import {Stripe} from "stripe";
+import {getOwnAccount} from "~/server/accounts/get_own_account.js";
 import {BillingContextModuleBase} from "~/server/billing/billing_context_module_base.js";
 import {ensureAccountHasStripeCustomerId} from "~/server/billing/internal/ensure_account_has_stripe_customer_id.js";
 import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -43,11 +46,23 @@ export class BillingContextModule extends BillingContextModuleBase {
         return this._context.tracer.withSpan(
             "Create lifetime access checkout session",
             async (context, span) => {
-                const customerId: string = await ensureAccountHasStripeCustomerId({
-                    context,
-                    stripe: this._stripe,
-                    span,
-                });
+                const [customerId, account] = await runAllPromises([
+                    ensureAccountHasStripeCustomerId({
+                        context,
+                        stripe: this._stripe,
+                        span,
+                    }),
+                    getOwnAccount(context, {consistency: "Strong"}),
+                ]);
+
+                if (account.initialData.plan === "LifetimeAccess") {
+                    throw new FailedPreconditionError(
+                        "Account has already purchased lifetime access",
+                        {
+                            displayMessage: errorDisplayMessage`You have already purchased lifetime access.`,
+                        },
+                    );
+                }
 
                 let session: Stripe.Response<Stripe.Checkout.Session>;
                 try {
