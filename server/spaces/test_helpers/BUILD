@@ -5,6 +5,7 @@ ts_project(
     visibility = [
         "//admin:__subpackages__",
         "//app/integration_tests:__subpackages__",
+        "//app/routes_test:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

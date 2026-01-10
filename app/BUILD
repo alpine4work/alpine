@@ -49,7 +49,10 @@ ts_project(
             "**/*.test.tsx",
         ],
     ),
-    visibility = ["//app/integration_tests:__pkg__"],
+    visibility = [
+        "//app/integration_tests:__pkg__",
+        "//app/routes_test:__pkg__",
+    ],
     deps = [
         ":app_wrapper_lib",
         "//:node_modules/@react-email/components",

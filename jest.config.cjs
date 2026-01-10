@@ -28,6 +28,7 @@ module.exports = {
                 ...baseJestConfig.testPathIgnorePatterns,
                 "<rootDir>/server/",
                 "<rootDir>/admin/",
+                "<rootDir>/app/routes_test/",
             ],
             setupFilesAfterEnv: [
                 require.resolve("./admin/jest/jest_setup_shared.cjs"),
@@ -38,7 +39,7 @@ module.exports = {
             ...baseJestConfig,
             displayName: "server",
             testEnvironment: "node",
-            testMatch: [`<rootDir>/server/${testMatch}`, `<rootDir>/admin/${testMatch}`],
+            testMatch: [`<rootDir>/server/${testMatch}`, `<rootDir>/admin/${testMatch}`, `<rootDir>/app/routes_test/${testMatch}`],
             setupFilesAfterEnv: [
                 require.resolve("./admin/jest/jest_setup_shared.cjs"),
                 require.resolve("./admin/jest/jest_setup_server.cjs"),
