@@ -3,6 +3,7 @@ export type AgentServiceEnv = {
     MockAgentDurableObjectNamespace: DurableObjectNamespace;
     AgentUsageDatabase: D1Database;
     API_SERVICE_URL: string;
+    EDGE_SERVICE_URL: string;
     CHAT_GPT_API_SERVICE_KEY: string;
     MOCK_CHAT_GPT_API_SERVICE_KEY?: string;
     OPEN_AI_API_KEY?: string;

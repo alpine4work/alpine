@@ -36,6 +36,7 @@ async function main() {
             durableObjectsLocalDataPath,
             d1LocalDataPath,
             apiServiceUrl,
+            edgeServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
             mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
             honeycombApiKey,
@@ -49,6 +50,7 @@ async function main() {
             durableObjectsLocalDataPath: {type: "string"},
             d1LocalDataPath: {type: "string"},
             apiServiceUrl: {type: "string"},
+            edgeServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
             mockChatGptApiServiceKey: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -102,6 +104,7 @@ async function main() {
         d1Persist: d1LocalDataPath,
         bindings: {
             API_SERVICE_URL: apiServiceUrl,
+            EDGE_SERVICE_URL: edgeServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
             MOCK_CHAT_GPT_API_SERVICE_KEY: mockChatGptApiServiceKey,
             OPEN_AI_API_KEY: openAiDevApiKey,

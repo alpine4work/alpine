@@ -25,6 +25,8 @@ const mockAgentUsageDatabase: jest.Mocked<AgentUsageDatabaseInterface> = {
     getWindowByAccountIdAndType: jest.fn(),
     setWindowByAccountIdAndType: jest.fn(),
     downgradeModelForWindow: jest.fn(),
+    getAccountEntitlements: jest.fn(),
+    setAccountEntitlements: jest.fn(),
 };
 
 const mockAgentUsageDatabaseClass = mockAgentUsageDatabase as unknown as AgentUsageDatabase;

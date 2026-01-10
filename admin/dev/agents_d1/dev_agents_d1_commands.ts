@@ -35,6 +35,7 @@ const namedQueries = new Map<string, string>([
             Date.now() - 8 * 60 * 60 * 1000 + 30 * 1000
         };`,
     ],
+    ["get-account-entitlements", "SELECT * FROM account_entitlements;"],
 ]);
 
 async function runDevAgentsD1Process(

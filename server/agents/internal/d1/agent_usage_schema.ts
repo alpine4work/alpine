@@ -2,8 +2,10 @@ import {InferSelectModel} from "drizzle-orm";
 import {int, primaryKey, sqliteTable, text} from "drizzle-orm/sqlite-core";
 
 export const agentUsageWindowTypes = ["Weekly", "Dynamic"] as const;
+export const accountPlanTypes = ["LifetimeAccess"] as const;
 
 export type AgentUsageWindowType = (typeof agentUsageWindowTypes)[number];
+export type AccountPlanType = (typeof accountPlanTypes)[number];
 
 export const agentRequestsTable = sqliteTable(
     "agent_requests",
@@ -30,5 +32,10 @@ export const agentUsageWindowsTable = sqliteTable(
     },
     table => [primaryKey({columns: [table.accountId, table.type]})],
 );
+
+export const accountEntitlements = sqliteTable("account_entitlements", {
+    accountId: text().notNull().primaryKey(),
+    plan: text({enum: accountPlanTypes}),
+});
 
 export type AgentUsageWindow = InferSelectModel<typeof agentUsageWindowsTable>;

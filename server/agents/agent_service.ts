@@ -1,4 +1,6 @@
 import {AgentServiceEnv} from "~/server/agents/internal/agent_service_env.js";
+import {AgentUsageDatabase} from "~/server/agents/internal/d1/agent_usage_database.js";
+import {refreshAccountEntitlements} from "~/server/agents/internal/refresh_account_entitlements.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
@@ -11,6 +13,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type AgentServiceRoute =
     | "ChatGptWebhook"
     | "ChatGptConversationState"
+    | "RefreshAccountEntitlements"
     | "MockWebhook"
     | "MockRecording"
     | "NotFound";
@@ -34,6 +37,11 @@ async function handleFetch(
         case "/chat-gpt/conversation-state": {
             routeString = "/chat-gpt/conversation-state";
             route = "ChatGptConversationState";
+            break;
+        }
+        case "/refresh-account-entitlements": {
+            routeString = "/refresh-account-entitlements";
+            route = "RefreshAccountEntitlements";
             break;
         }
         case "/mock/webhook": {
@@ -110,6 +118,30 @@ async function handleFetch(
                             headers: request.headers,
                         }),
                     );
+                }
+                case "RefreshAccountEntitlements": {
+                    if (request.method !== "POST") {
+                        return new Response("405 Method Not Allowed", {
+                            status: 405,
+                            headers: {"content-type": "text/plain"},
+                        });
+                    }
+
+                    const {accountId} = await request.json();
+
+                    if (!accountId) throw new InvalidArgumentError("Missing `accountId`");
+
+                    await refreshAccountEntitlements(
+                        tracer,
+                        env,
+                        new AgentUsageDatabase(env.AgentUsageDatabase),
+                        accountId,
+                    );
+
+                    return new Response("200 OK", {
+                        status: 200,
+                        headers: {"content-type": "text/plain"},
+                    });
                 }
                 case "MockWebhook": {
                     const requestBody: ApiBotWebhookRequestBody = await request.json();

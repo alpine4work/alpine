@@ -632,6 +632,7 @@ function createArtifacts() {
                 `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents/do")}`,
                 `--d1LocalDataPath=${joinPath(devEnvPaths.data, "agents/d1")}`,
                 `--apiServiceUrl=http://localhost:${apiDevPort}`,
+                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
