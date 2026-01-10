@@ -222,6 +222,12 @@ async function createAppService({
                   ),
               );
 
+    const agentServiceUrl = options.agentServiceUrl ?? null;
+
+    if (process.env.NODE_ENV !== "test") {
+        assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
+    }
+
     let billingContextModule: BillingContextModuleBase;
     if (process.env.NODE_ENV === "production") {
         assertExists(
@@ -230,6 +236,10 @@ async function createAppService({
         );
 
         billingContextModule = new BillingContextModule({
+            agentServiceUrl: assertExists(
+                agentServiceUrl,
+                "`agentServiceUrl` option is required in production",
+            ),
             stripe: new Stripe(
                 assertExists(
                     options.stripeSecretKey,
@@ -241,6 +251,10 @@ async function createAppService({
     } else {
         billingContextModule = options.stripeSecretKey
             ? new BillingContextModule({
+                  agentServiceUrl: assertExists(
+                      agentServiceUrl,
+                      "`agentServiceUrl` option is when `stripeSecretKey` is provided in development",
+                  ),
                   stripe: new Stripe(options.stripeSecretKey),
                   stripeSigningSecret: options.stripeSigningSecret,
               })
@@ -325,11 +339,6 @@ async function createAppService({
         "`edgeServiceUrl` option is required",
     );
 
-    const agentServiceUrl = options.agentServiceUrl ?? null;
-
-    if (process.env.NODE_ENV !== "test") {
-        assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
-    }
     const resourceServiceUrl = assertExists(
         options.resourceServiceUrl,
         "`resourceServiceUrl` option is required",

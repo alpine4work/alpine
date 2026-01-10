@@ -3,16 +3,28 @@ import {dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount} from "~/se
 import {getAccountIdForStripeCustomerId} from "~/server/accounts/get_account_id_for_stripe_customer_id.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {DataLossError, FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-async function processCheckoutSessionCompletedEvent(
-    context: Context<DynamoContextModules>,
-    stripe: Stripe,
-    event: Stripe.CheckoutSessionCompletedEvent,
-    span: TracerSpan,
-): Promise<void> {
+async function processCheckoutSessionCompletedEvent({
+    context,
+    stripe,
+    event,
+    span,
+    agentServiceUrl,
+    fetch,
+}: {
+    context: Context<DynamoContextModules & {constants: ConstantsContextModule}>;
+    stripe: Stripe;
+    event: Stripe.CheckoutSessionCompletedEvent;
+    span: TracerSpan;
+    agentServiceUrl: string;
+    fetch?: typeof globalThis.fetch;
+}): Promise<void> {
     if (!event.data.object.customer) {
         throw new FailedPreconditionError("Stripe event is missing customer");
     }
@@ -79,19 +91,73 @@ async function processCheckoutSessionCompletedEvent(
         createdTime: new Date(event.data.object.created * 1000),
         accountPlan: "LifetimeAccess",
     });
+
+    const refreshAgentServiceEntitlementsUrl = new URL(
+        `/refresh-account-entitlements`,
+        agentServiceUrl,
+    );
+
+    await retryWithExponentialBackoff(
+        retry =>
+            fetchWithTracer(
+                span,
+                refreshAgentServiceEntitlementsUrl,
+                {
+                    serviceName: "AgentService",
+                    method: "POST",
+                    route: "/refresh-account-entitlements",
+                    headers: {"content-type": "application/json"},
+                    body: JSON.stringify({accountId}),
+                    ...(fetch && {fetch}),
+                },
+                async response => {
+                    if (!response.ok) {
+                        const error = new UnknownError(
+                            `Failed to refresh agent entitlements for account: ${accountId}`,
+                            {
+                                cause: {
+                                    status: response.status,
+                                    responseText: await response.text(),
+                                },
+                            },
+                        );
+
+                        throw retry(error);
+                    }
+                },
+            ),
+        // Generally, we don't want to set a limit and allow retries to happen within
+        // retryWithExponentialBackoff. However, the /refresh-account-entitlements
+        // endpoint calls out to our internal accounts plan API, which could fail
+        // due to transient errors. Since that call also retries, there could be a very
+        // small chance of this call retrying max times and the agent call retrying max times.
+        // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
+        // we limit this to 5 and 5, for 25 total.
+        {maxAttemptCount: 5},
+    );
 }
 
 /**
  * Handles an incoming Stripe webhook request.
  * https://docs.stripe.com/webhooks
  */
-export async function processStripeWebhook(
-    context: Context<DynamoContextModules>,
-    request: Request,
-    stripe: Stripe,
-    span: TracerSpan,
-    stripeSigningSecret: string,
-): Promise<void> {
+export async function processStripeWebhook({
+    context,
+    request,
+    stripe,
+    span,
+    stripeSigningSecret,
+    agentServiceUrl,
+    fetch,
+}: {
+    context: Context<DynamoContextModules & {constants: ConstantsContextModule}>;
+    request: Request;
+    stripe: Stripe;
+    span: TracerSpan;
+    stripeSigningSecret: string;
+    agentServiceUrl: string;
+    fetch?: typeof globalThis.fetch;
+}): Promise<void> {
     const givenSigningSecret = request.headers.get("stripe-signature");
     if (!givenSigningSecret) {
         throw new FailedPreconditionError("Missing stripe-signature header");
@@ -128,7 +194,14 @@ export async function processStripeWebhook(
     }
 
     if (event.type === "checkout.session.completed") {
-        await processCheckoutSessionCompletedEvent(context, stripe, event, span);
+        await processCheckoutSessionCompletedEvent({
+            context,
+            stripe,
+            event,
+            span,
+            agentServiceUrl,
+            fetch,
+        });
     }
 
     // TODO: handle refunds - `refund.created` ?

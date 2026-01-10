@@ -36,6 +36,7 @@ const namedQueries = new Map<string, string>([
         };`,
     ],
     ["get-account-entitlements", "SELECT * FROM account_entitlements;"],
+    ["reset-account-entitlements", "DELETE FROM account_entitlements;"],
 ]);
 
 async function runDevAgentsD1Process(

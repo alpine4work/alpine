@@ -54,6 +54,12 @@ export async function refreshAccountEntitlements(
                     return (body.plan || undefined) as AccountEntitlements["plan"];
                 },
             ),
+        // Generally, we don't want to set a limit and allow retries to happen within
+        // retryWithExponentialBackoff. However, this function is called by processStripeWebhook,
+        // which could fail due to transient errors. Since that call also retries, there could be a
+        // very small chance of this call retrying max times and the agent call retrying max times.
+        // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
+        // we limit this to 5 and 5, for 25 total.
         {maxAttemptCount: 5},
     );
 

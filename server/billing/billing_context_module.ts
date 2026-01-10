@@ -13,11 +13,21 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * Context module for billing operations using Stripe.
  */
 export class BillingContextModule extends BillingContextModuleBase {
+    private readonly _agentServiceUrl: string;
     private readonly _stripe: Stripe;
     private readonly _stripeSigningSecret: string | undefined;
 
-    constructor({stripe, stripeSigningSecret}: {stripe: Stripe; stripeSigningSecret?: string}) {
+    constructor({
+        agentServiceUrl,
+        stripe,
+        stripeSigningSecret,
+    }: {
+        agentServiceUrl: string;
+        stripe: Stripe;
+        stripeSigningSecret?: string;
+    }) {
         super();
+        this._agentServiceUrl = agentServiceUrl;
         this._stripe = stripe;
         this._stripeSigningSecret = stripeSigningSecret;
     }
@@ -74,17 +84,19 @@ export class BillingContextModule extends BillingContextModuleBase {
         request: Request,
         span: TracerSpan,
     ): Promise<void> {
-        return processStripeWebhook(
-            this._context,
+        return processStripeWebhook({
+            context: this._context,
             request,
-            this._stripe,
+            stripe: this._stripe,
             span,
-            assertExists(this._stripeSigningSecret),
-        );
+            stripeSigningSecret: assertExists(this._stripeSigningSecret),
+            agentServiceUrl: this._agentServiceUrl,
+        });
     }
 
     fork(): BillingContextModuleBase {
         return new BillingContextModule({
+            agentServiceUrl: this._agentServiceUrl,
             stripe: this._stripe,
             stripeSigningSecret: this._stripeSigningSecret,
         });

@@ -14,6 +14,8 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 const tracer = new TracerContextModule(testTracer);
 const tracerRoot = tracer.getRoot();
 
+const agentServiceUrl = "http://localhost";
+
 type MockStripe = {
     checkout: {
         sessions: {
@@ -79,7 +81,14 @@ describe("processStripeWebhook", () => {
         const span = tracerRoot.startSpan("Test Span").span;
 
         await expect(
-            processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+            processStripeWebhook({
+                context,
+                request,
+                stripe: stripe.instance,
+                span,
+                agentServiceUrl,
+                stripeSigningSecret,
+            }),
         ).rejects.toThrow(new FailedPreconditionError("Missing stripe-signature header"));
     });
 
@@ -95,7 +104,14 @@ describe("processStripeWebhook", () => {
         const span = tracerRoot.startSpan("Test Span").span;
 
         await expect(
-            processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+            processStripeWebhook({
+                context,
+                request,
+                stripe: stripe.instance,
+                span,
+                agentServiceUrl,
+                stripeSigningSecret,
+            }),
         ).rejects.toThrow(new FailedPreconditionError("Missing request body"));
     });
 
@@ -110,7 +126,14 @@ describe("processStripeWebhook", () => {
         });
 
         await expect(
-            processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+            processStripeWebhook({
+                context,
+                request,
+                stripe: stripe.instance,
+                span,
+                agentServiceUrl,
+                stripeSigningSecret,
+            }),
         ).rejects.toThrow(
             new FailedPreconditionError("Invalid Stripe webhook signature", {cause: stripeError}),
         );
@@ -144,7 +167,14 @@ describe("processStripeWebhook", () => {
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
 
             await expect(
-                processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+                processStripeWebhook({
+                    context,
+                    request,
+                    stripe: stripe.instance,
+                    span,
+                    agentServiceUrl,
+                    stripeSigningSecret,
+                }),
             ).rejects.toThrow(new FailedPreconditionError("Stripe event is missing customer"));
         });
 
@@ -169,7 +199,14 @@ describe("processStripeWebhook", () => {
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
 
             await expect(
-                processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+                processStripeWebhook({
+                    context,
+                    request,
+                    stripe: stripe.instance,
+                    span,
+                    agentServiceUrl,
+                    stripeSigningSecret,
+                }),
             ).rejects.toThrow(
                 new FailedPreconditionError("Stripe event is missing payment_intent"),
             );
@@ -199,7 +236,14 @@ describe("processStripeWebhook", () => {
             stripe.checkout.sessions.retrieve.mockRejectedValue(stripeError);
 
             await expect(
-                processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+                processStripeWebhook({
+                    context,
+                    request,
+                    stripe: stripe.instance,
+                    span,
+                    agentServiceUrl,
+                    stripeSigningSecret,
+                }),
             ).rejects.toThrow(
                 new UnknownError("Failed to retrieve Stripe checkout session", {
                     cause: stripeError,
@@ -242,16 +286,22 @@ describe("processStripeWebhook", () => {
                 },
             };
 
+            // Mock successful agent service response
+            const mockFetch = import.meta.jest.fn();
+            mockFetch.mockResolvedValue(new Response("OK", {status: 200}));
+
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
-            await processStripeWebhook(
+            await processStripeWebhook({
                 context,
                 request,
-                stripe.instance,
+                stripe: stripe.instance,
                 span,
+                agentServiceUrl,
                 stripeSigningSecret,
-            );
+                fetch: mockFetch,
+            });
 
             expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_test", {
                 expand: ["line_items"],
@@ -293,7 +343,14 @@ describe("processStripeWebhook", () => {
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
             await expect(
-                processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret),
+                processStripeWebhook({
+                    context,
+                    request,
+                    stripe: stripe.instance,
+                    span,
+                    agentServiceUrl,
+                    stripeSigningSecret,
+                }),
             ).rejects.toThrow(new DataLossError("No account found for Stripe customer ID"));
 
             expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_test", {
@@ -345,16 +402,22 @@ describe("processStripeWebhook", () => {
                 },
             };
 
+            // Mock successful agent service response
+            const mockFetch = import.meta.jest.fn();
+            mockFetch.mockResolvedValue(new Response("OK", {status: 200}));
+
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
-            await processStripeWebhook(
+            await processStripeWebhook({
                 context,
                 request,
-                stripe.instance,
+                stripe: stripe.instance,
                 span,
+                agentServiceUrl,
                 stripeSigningSecret,
-            );
+                fetch: mockFetch,
+            });
 
             expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_test", {
                 expand: ["line_items"],
@@ -368,6 +431,10 @@ describe("processStripeWebhook", () => {
                     })
                 ).initialData.plan,
             ).toBe("LifetimeAccess");
+
+            // Verify the agent service was called to refresh entitlements
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(mockFetch).toHaveBeenCalledWith(expect.any(Request));
 
             // Verify the purchase was recorded with correct price in dollars
             const billingItem = await getAccountBillingItemIfExistsForTest(
@@ -428,16 +495,22 @@ describe("processStripeWebhook", () => {
                 },
             };
 
+            // Mock successful agent service response
+            const mockFetch = import.meta.jest.fn();
+            mockFetch.mockResolvedValue(new Response("OK", {status: 200}));
+
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
-            await processStripeWebhook(
+            await processStripeWebhook({
                 context,
                 request,
-                stripe.instance,
+                stripe: stripe.instance,
                 span,
+                agentServiceUrl,
                 stripeSigningSecret,
-            );
+                fetch: mockFetch,
+            });
 
             expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_test", {
                 expand: ["line_items"],
@@ -508,19 +581,25 @@ describe("processStripeWebhook", () => {
                 },
             };
 
+            // Mock successful agent service response
+            const mockFetch = import.meta.jest.fn();
+            mockFetch.mockResolvedValue(new Response("OK", {status: 200}));
+
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
             // Process the same event 3 times
             for (let i = 0; i < 3; i++) {
                 const request = createMockRequest("test body", `valid_signature_${i}`);
-                await processStripeWebhook(
+                await processStripeWebhook({
                     context,
                     request,
-                    stripe.instance,
+                    stripe: stripe.instance,
                     span,
+                    agentServiceUrl,
                     stripeSigningSecret,
-                );
+                    fetch: mockFetch,
+                });
             }
 
             // Verify the account was updated to LifetimeAccess
@@ -590,16 +669,22 @@ describe("processStripeWebhook", () => {
                 },
             };
 
+            // Mock successful agent service response
+            const mockFetch = import.meta.jest.fn();
+            mockFetch.mockResolvedValue(new Response("OK", {status: 200}));
+
             stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
             stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
 
-            await processStripeWebhook(
+            await processStripeWebhook({
                 context,
                 request,
-                stripe.instance,
+                stripe: stripe.instance,
                 span,
+                agentServiceUrl,
                 stripeSigningSecret,
-            );
+                fetch: mockFetch,
+            });
 
             expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_test_pricing", {
                 expand: ["line_items"],
@@ -626,6 +711,154 @@ describe("processStripeWebhook", () => {
                 createdTime: new Date(1640995200 * 1000),
             });
         });
+
+        test("should retry agent service fetch on failure and eventually succeed", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const sessionContext = session.action();
+            const stripeCustomerId = "cus_test_retry";
+
+            await updateOurStripeCustomerId(sessionContext, stripeCustomerId);
+
+            const stripe = createMockStripeClient();
+            const request = createMockRequest("test body", "valid_signature");
+            const span = tracerRoot.startSpan("Test Span").span;
+
+            const mockEvent: Stripe.CheckoutSessionCompletedEvent = {
+                id: "evt_test_retry",
+                type: "checkout.session.completed",
+                data: {
+                    object: {
+                        id: "cs_test_retry",
+                        customer: stripeCustomerId,
+                        payment_intent: "pi_test_retry",
+                        created: 1640995200,
+                    } as Stripe.Checkout.Session,
+                },
+            } as Stripe.CheckoutSessionCompletedEvent;
+
+            const mockCheckoutSession = {
+                id: "cs_test_retry",
+                line_items: {
+                    data: [
+                        {
+                            price: {
+                                id: stripeLifetimeAccessPriceId,
+                                unit_amount: 19999,
+                            },
+                            quantity: 1,
+                        },
+                    ],
+                },
+            };
+
+            // Mock agent service to fail first, then succeed
+            const mockFetch = import.meta.jest.fn();
+            mockFetch
+                .mockResolvedValueOnce(new Response("Server Error", {status: 500}))
+                .mockResolvedValueOnce(new Response("OK", {status: 200}));
+
+            stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
+            stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
+
+            await processStripeWebhook({
+                context,
+                request,
+                stripe: stripe.instance,
+                span,
+                agentServiceUrl,
+                stripeSigningSecret,
+                fetch: mockFetch,
+            });
+
+            // Verify the agent service was called twice (retry)
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+
+            // Verify account was still updated despite the initial failure
+            expect(
+                (
+                    await getAccount(sessionContext, space.id, session.account.id, {
+                        consistency: "Strong",
+                    })
+                ).initialData.plan,
+            ).toBe("LifetimeAccess");
+        });
+
+        test("should continue to retry agent service fetch until success", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const sessionContext = session.action();
+            const stripeCustomerId = "cus_test_multiple_retry";
+
+            await updateOurStripeCustomerId(sessionContext, stripeCustomerId);
+
+            const stripe = createMockStripeClient();
+            const request = createMockRequest("test body", "valid_signature");
+            const span = tracerRoot.startSpan("Test Span").span;
+
+            const mockEvent: Stripe.CheckoutSessionCompletedEvent = {
+                id: "evt_test_multiple_retry",
+                type: "checkout.session.completed",
+                data: {
+                    object: {
+                        id: "cs_test_multiple_retry",
+                        customer: stripeCustomerId,
+                        payment_intent: "pi_test_multiple_retry",
+                        created: 1640995200,
+                    } as Stripe.Checkout.Session,
+                },
+            } as Stripe.CheckoutSessionCompletedEvent;
+
+            const mockCheckoutSession = {
+                id: "cs_test_multiple_retry",
+                line_items: {
+                    data: [
+                        {
+                            price: {
+                                id: stripeLifetimeAccessPriceId,
+                                unit_amount: 19999,
+                            },
+                            quantity: 1,
+                        },
+                    ],
+                },
+            };
+
+            // Mock agent service to fail 3 times, then succeed on the 4th
+            const mockFetch = import.meta.jest.fn();
+            mockFetch
+                .mockResolvedValueOnce(new Response("Server Error", {status: 500}))
+                .mockResolvedValueOnce(new Response("Server Error", {status: 502}))
+                .mockResolvedValueOnce(new Response("Server Error", {status: 503}))
+                .mockResolvedValueOnce(new Response("OK", {status: 200}));
+
+            stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
+            stripe.checkout.sessions.retrieve.mockResolvedValue(mockCheckoutSession);
+
+            await processStripeWebhook({
+                context,
+                request,
+                stripe: stripe.instance,
+                span,
+                agentServiceUrl,
+                stripeSigningSecret,
+                fetch: mockFetch,
+            });
+
+            // Verify the agent service was called 4 times (3 failures + 1 success)
+            expect(mockFetch).toHaveBeenCalledTimes(4);
+
+            // Verify the correct URL and payload were called
+            expect(mockFetch).toHaveBeenCalledWith(expect.any(Request));
+
+            const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
+            const sentFetch = lastCall![0] as Request;
+            expect(sentFetch.url).toContain("/refresh-account-entitlements");
+            expect(sentFetch.method).toBe("POST");
+
+            const body = await sentFetch.json();
+            expect(body).toEqual({accountId: session.account.id});
+        });
     });
 
     test("should handle unknown event types gracefully", async () => {
@@ -643,7 +876,14 @@ describe("processStripeWebhook", () => {
 
         stripe.webhooks.constructEvent.mockReturnValue(mockEvent);
 
-        await processStripeWebhook(context, request, stripe.instance, span, stripeSigningSecret);
+        await processStripeWebhook({
+            context,
+            request,
+            stripe: stripe.instance,
+            span,
+            agentServiceUrl,
+            stripeSigningSecret,
+        });
 
         expect(stripe.webhooks.constructEvent).toHaveBeenCalledWith(
             "test body",

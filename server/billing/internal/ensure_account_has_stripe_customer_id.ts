@@ -41,7 +41,7 @@ export async function ensureAccountHasStripeCustomerId({
     const weekSinceEpoch = Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 7);
     const options =
         developingWithManyResets && process.env.NODE_ENV === "development"
-            ? {}
+            ? undefined
             : // We should only ever create one customer per account, so
               // use an idempotency key to prevent duplicates. There's an edge case
               // here where if we were to delete a stripe customer, the next time this is called

@@ -115,4 +115,7 @@ dev agents d1 execute expire-dynamic-window-30-seconds
 
 # Fetches all account entitlements
 dev agents d1 execute get-account-entitlements
+
+# Delete all account entitlements
+dev agents d1 execute reset-account-entitlements
 ```
