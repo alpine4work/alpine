@@ -4254,7 +4254,8 @@ var StableRandom = class {
     /**
      * Generates a stable random integer between `a` and `b` (exclusive).
      *
-     * If `b` is not defined, generates a random integer between 0 and `a`.
+     * If `b` is not defined, generates a random integer between 0 and `a`
+     * (exclusive).
      */
     randomInteger(keyString, index, a, b) {
         return Math.floor(this.randomFloat(keyString, index, a, b));
