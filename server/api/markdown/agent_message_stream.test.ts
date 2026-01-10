@@ -3880,3 +3880,1671 @@ describe("headers", () => {
         ]);
     });
 });
+
+describe("ordered list continuation", () => {
+    test("simple ordered list", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("2. Second item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("3.");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [{elements: []}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" Third item");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Third item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams ordered list items that continue from previous items without explicit start", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("2");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [{type: "Paragraph", elements: [{type: "Text", text: "2"}]}],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(". ");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [{elements: []}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("Second");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" ");
+        expect(await message.update()).toEqual([]);
+
+        message.pushText("item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("3. Third item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Third item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(`\
+4. fourth and
+
+5. fifth item
+`);
+
+        expect(await message.update()).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "fourth and"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+            {
+                index: 4,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "fifth item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams ordered list with explicit start number when restarting numbering", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("2. Second item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        // Restart numbering at 1
+        message.pushText("5");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "5"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(")");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 5,
+                                items: [{elements: []}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" Skip to fifth item");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 5,
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {type: "Text", text: "Skip to fifth item"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("\n\n");
+        expect(await message.update()).toEqual([]);
+
+        message.pushText("1. Restart first item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 1,
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {type: "Text", text: "Restart first item"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams ordered list with explicit start number when skipping numbers", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("2. Second item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        // Skip to 5
+        message.pushText("5. Fifth item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Fifth item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams ordered list starting at non-1 value with explicit start", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("5. Fifth item\n\n");
+        await message.update();
+
+        message.pushText("6. Sixth item\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        // First part should have explicit orderStart of 5
+        expect(parts[0]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        orderStart: 5,
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Fifth item"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        // Second part continues from first (no explicit start needed)
+        expect(parts[1]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        orderStart: undefined,
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Sixth item"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams ordered list after non-list content", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("Some paragraph text\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Some paragraph text"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        // Start new list after paragraph
+        message.pushText("1. New list first item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {type: "Text", text: "New list first item"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("sets orderStart to explicit value if the list is not contiguous", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("Some paragraph text\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Some paragraph text"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        // Start new list after paragraph
+        message.pushText("2. Second item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 2,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 2,
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Second item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("3. Third item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 3,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Third item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("Another paragraph break\n\n");
+
+        expect(await message.update()).toEqual([
+            {
+                index: 4,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "Another paragraph break"}],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("4. Fourth item\n\n5. Fifth item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 5,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 4,
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Fourth item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+            {
+                index: 6,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Fifth item"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams ordered list after unordered list", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("- Unordered item\n\n");
+        await message.update();
+
+        message.pushText("1. Ordered item\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        expect(parts[0]?.payload.type).toBe("Content");
+        expect(parts[0]?.payload).toMatchObject({
+            type: "Content",
+            content: {
+                elements: [{type: "UnorderedList"}],
+            },
+        });
+
+        expect(parts[1]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        orderStart: undefined,
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Ordered item"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams ordered list that restarts at non-1 value after previous list", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n");
+        await message.update();
+
+        message.pushText("2. Second item\n\n");
+        await message.update();
+
+        // Restart at 3 (should have explicit start since it's not continuing)
+        message.pushText("3. Third item (new list)\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        // Third part continues naturally from second, so no explicit start
+        expect(parts[2]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        orderStart: undefined,
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Third item (new list)"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams multiple consecutive ordered list items in single update", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First item\n\n2. Second item\n\n3. Third item\n\n");
+
+        const updates = await message.update();
+
+        // Should create 3 separate parts
+        expect(updates.length).toBe(3);
+
+        expect(updates[0]).toEqual({
+            index: 0,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "OrderedList",
+                            orderStart: undefined,
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "First item"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+
+        expect(updates[1]).toEqual({
+            index: 1,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "OrderedList",
+                            orderStart: undefined,
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Second item"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+
+        expect(updates[2]).toEqual({
+            index: 2,
+            payload: {
+                type: "Content",
+                content: {
+                    elements: [
+                        {
+                            type: "OrderedList",
+                            orderStart: undefined,
+                            items: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [{type: "Text", text: "Third item"}],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+    });
+
+    test("streams simple nested ordered list", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First level\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First level"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("   1. Nested item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "First level"}],
+                                            },
+                                        ],
+                                        nestedListElements: [
+                                            {
+                                                type: "OrderedList",
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {
+                                                                        type: "Text",
+                                                                        text: "Nested item",
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("2. Back to first level\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 1,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [
+                                                    {type: "Text", text: "Back to first level"},
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams nested ordered list with multiple nested items", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. Parent item\n\n");
+        await message.update();
+
+        message.pushText("   1. First nested\n\n");
+        await message.update();
+
+        message.pushText("   2. Second nested\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        expect(parts[0]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Parent item"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "First nested"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Second nested"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams deeply nested ordered lists", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. Level 1\n\n");
+        await message.update();
+
+        message.pushText("   1. Level 2\n\n");
+        await message.update();
+
+        message.pushText("      1. Level 3\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        expect(parts[0]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Level 1"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Level 2"}],
+                                                    },
+                                                ],
+                                                nestedListElements: [
+                                                    {
+                                                        type: "OrderedList",
+                                                        items: [
+                                                            {
+                                                                elements: [
+                                                                    {
+                                                                        type: "Paragraph",
+                                                                        elements: [
+                                                                            {
+                                                                                type: "Text",
+                                                                                text: "Level 3",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams nested ordered list with non-1 start", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. Parent item\n\n");
+        await message.update();
+
+        message.pushText("   5. Nested starting at 5\n\n");
+        await message.update();
+
+        message.pushText("   6. Nested item 6\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        expect(parts[0]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Parent item"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        orderStart: 5,
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Nested starting at 5",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Nested item 6"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test("streams nested ordered list incrementally", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. Parent\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Parent"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("   1");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Parent"}],
+                                            },
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "1"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(". ");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Parent"}],
+                                            },
+                                        ],
+                                        nestedListElements: [
+                                            {
+                                                type: "OrderedList",
+                                                items: [{elements: []}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText("Nested");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Parent"}],
+                                            },
+                                        ],
+                                        nestedListElements: [
+                                            {
+                                                type: "OrderedList",
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {type: "Text", text: "Nested"},
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        message.pushText(" item\n\n");
+        expect(await message.update()).toEqual([
+            {
+                index: 0,
+                payload: {
+                    type: "Content",
+                    content: {
+                        elements: [
+                            {
+                                type: "OrderedList",
+                                items: [
+                                    {
+                                        elements: [
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "Parent"}],
+                                            },
+                                        ],
+                                        nestedListElements: [
+                                            {
+                                                type: "OrderedList",
+                                                items: [
+                                                    {
+                                                        elements: [
+                                                            {
+                                                                type: "Paragraph",
+                                                                elements: [
+                                                                    {
+                                                                        type: "Text",
+                                                                        text: "Nested item",
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+    });
+
+    test("streams mixed parent and nested ordered list items", async () => {
+        const message = new AgentMessageStream({
+            spaceId,
+            getTargetPathIfExists: async () => null,
+        });
+
+        message.pushText("1. First parent\n\n");
+        await message.update();
+
+        message.pushText("   1. First nested\n\n");
+        await message.update();
+
+        message.pushText("2. Second parent\n\n");
+        await message.update();
+
+        message.pushText("   1. Second nested\n\n");
+        await message.update();
+
+        const parts = message.getParts();
+
+        // First part has parent with nested list
+        expect(parts[0]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "First parent"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "First nested"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        // Second part is continuation of parent list
+        expect(parts[1]?.payload).toEqual({
+            type: "Content",
+            content: {
+                elements: [
+                    {
+                        type: "OrderedList",
+                        items: [
+                            {
+                                elements: [
+                                    {
+                                        type: "Paragraph",
+                                        elements: [{type: "Text", text: "Second parent"}],
+                                    },
+                                ],
+                                nestedListElements: [
+                                    {
+                                        type: "OrderedList",
+                                        items: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {type: "Text", text: "Second nested"},
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+});

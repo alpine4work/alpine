@@ -1,5 +1,13 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
-import {BlockContent, DefinitionContent, ListItem, PhrasingContent, Root, RootContent} from "mdast";
+import {
+    BlockContent,
+    DefinitionContent,
+    List,
+    ListItem,
+    PhrasingContent,
+    Root,
+    RootContent,
+} from "mdast";
 import {fromMarkdown} from "mdast-util-from-markdown";
 import {frontmatterFromMarkdown} from "mdast-util-frontmatter";
 import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
@@ -252,6 +260,7 @@ function* parseApiContentBlockElementFromMarkdown(
             if (content.ordered) {
                 yield {
                     type: "OrderedList",
+                    orderStart: getOrderStartIfExists(content),
                     items: parseContentListBlockElementItems(
                         content.children,
                         definitions,
@@ -2319,4 +2328,65 @@ function intoApiContentCodeBlockElementTextInlineElementMarks(
     }
 
     return result.length > 0 ? result : undefined;
+}
+
+// NOTE(ifitzsimmons, 2026-01-07): See the comment for `addOrderedStartSpanToFirstItemInOrderedListIfNeeded` in
+// `print_api_content_to_markdown.ts` for more details.
+function getOrderStartIfExists(content: List): number | undefined {
+    if (!content.ordered) return undefined;
+
+    const orderedStart = content.start;
+
+    // If order start is not `1`, always use the order start value.
+    if (orderedStart === undefined || orderedStart === null || orderedStart !== 1) {
+        return orderedStart ?? undefined;
+    }
+
+    const firstListItem = content.children[0];
+    const firstListItemContent = firstListItem?.children[0];
+
+    // In this case, `orderStart = 1` and the list content is empty. Since we always
+    // inject an html element to preserve the explicit `orderStart` value of `1`, we
+    // assume that the the lack of html content means that we should not preserve the
+    // explicit `orderStart` value of `1`.
+    if (!firstListItem || !firstListItemContent) return undefined;
+
+    // If the first content element is an HTML element with the data-start attribute
+    // return the explicit `orderStart` value of 1.
+    // We only inject the span into the first element if the list item is empty
+    // (has no content).
+    // Example:
+    // ```markdown
+    // 1. <span data-start=”1”/>
+    // ```
+    if (doesElementHaveExplicitOrderStart(firstListItemContent)) return orderedStart;
+
+    // Our `orderedListItem` does not currently support non-paragraph content.
+    // Secondly, if markdown list is an empty paragraph, that means we did
+    // not inject the html span for explicit `orderStart = 1`.
+    if (firstListItemContent.type !== "paragraph" || firstListItemContent.children.length === 0) {
+        return undefined;
+    }
+
+    // When a list item with explicit `orderStart = 1` *does* have content, we inject
+    // the span into the first paragraph element like so:
+    //
+    // ```markdown
+    // 1. <span data-start=”1”/>Hello world!
+    // ```
+    if (doesElementHaveExplicitOrderStart(firstListItemContent.children[0]!)) {
+        return orderedStart;
+    }
+
+    return undefined;
+
+    // When order start is explcitly set to 1 in our Prosemirror content representation,
+    // we inject a span with the data-start attribute into the first item in the list.
+    // While parsing, we look for this span to determine if we should preserve the explicit
+    // order start value of `1`.
+    function doesElementHaveExplicitOrderStart(
+        element: PhrasingContent | BlockContent | DefinitionContent,
+    ): boolean {
+        return element.type === "html" && element.value.includes(`span data-start=”1”`);
+    }
 }

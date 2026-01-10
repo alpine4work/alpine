@@ -73,6 +73,11 @@ function normalizeApiContentBlockElements(elements: Draft<ReadonlyArray<ApiConte
                     break;
                 }
 
+                // Don't merge ordered lists if the next ordered list has a custom order start.
+                if (nextElement.type === "OrderedList" && nextElement.orderStart !== undefined) {
+                    break;
+                }
+
                 for (const item of nextElement.items) {
                     if (element.type === "CheckList") {
                         element.items.push(castDraft(assertApiChecklistBlockElementItem(item)));

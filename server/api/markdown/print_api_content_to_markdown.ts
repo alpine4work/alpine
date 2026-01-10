@@ -1,5 +1,14 @@
 import escapeHtml from "escape-html";
-import {BlockContent, PhrasingContent, Root, TableCell, TableRow} from "mdast";
+import {
+    BlockContent,
+    List,
+    ListItem,
+    Paragraph,
+    PhrasingContent,
+    Root,
+    TableCell,
+    TableRow,
+} from "mdast";
 import {frontmatterToMarkdown} from "mdast-util-frontmatter";
 import {gfmStrikethroughToMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmTableToMarkdown} from "mdast-util-gfm-table";
@@ -154,11 +163,17 @@ function* printApiContentBlockElementsToMarkdown(
             if (
                 pendingContent?.type === "list" &&
                 content.type === "list" &&
-                pendingContent.ordered === content.ordered
+                pendingContent.ordered === content.ordered &&
+                // Only merge ordered lists if the second list does not have an explicit order start.
+                (content.start === undefined || content.start === null)
             ) {
                 for (const childContent of content.children)
                     pendingContent.children.push(childContent);
                 continue;
+            }
+
+            if (content.type === "list" && content.ordered) {
+                addOrderedStartSpanToFirstItemInOrderedListIfNeeded(content);
             }
 
             if (pendingContent !== null) yield pendingContent;
@@ -196,9 +211,17 @@ function* printApiContentBlockElementToMarkdown(
         case "CheckList": {
             if (element.items.length === 0) break;
 
+            const orderedAttributes =
+                element.type === "OrderedList"
+                    ? {
+                          ordered: true,
+                          start: element.orderStart,
+                      }
+                    : {ordered: false};
+
             yield {
                 type: "list",
-                ordered: element.type === "OrderedList",
+                ...orderedAttributes,
                 children: element.items.map(item => {
                     const children = Array.from(
                         concatIterables(
@@ -1334,5 +1357,115 @@ function printApiContentInlineElementHighlightMarkColor(
             return "purple";
         default:
             throw exhaustive(color);
+    }
+}
+
+/**
+ * If the list has an orderStart of 1, we inject an empty html `span` element
+ * into the list content so that something like
+ * `1. ` becomes `1. <span data-start=”1”/>`
+ * or `1. first item` becomes `1. <span data-start=”1”/>first item`.
+ *
+ * This ensures that we maintain the orderStart value from the original content
+ * and can parse it back into the exact same content later. See the note below
+ * for more details.
+ *
+ * **Importantly**, we only need to play this game when `orderStart = 1`. Markdown
+ * will parse the following content:
+ * ```
+ * doc(
+ *   orderedListItem(null, [paragraph("first item")])
+ *   orderedListItem(null, [paragraph("second item")])
+ *   orderedListItem({orderStart: 5}, [paragraph("skip to 5")])
+ * )
+ * ```
+ *
+ * into the following markdown content:
+ * ```markdown
+ * 1. first item
+ * 2. second item
+ * 5) skip to 5
+ * ```
+ *
+ * So when we parse that markdown back, we know that the list "resets" to 5 at the
+ * third item because of the change in punctuation.
+ */
+// NOTE(ifitzsimmons, 2026-01-06): Our public API should maintain symmetry such
+// that all content printed into Markdown should be able to be parsed back into
+// the exact same content.
+//
+// If an ordered list has an explicit order start of `1`, we inject a span with the
+// data-start attribute into the first item in the list. This is necessary in order
+// to avoid lossiness when going from
+// Prosemirror -> ApiContent -> Markdown -> ApiContent -> Prosemirror.
+//
+// For example, if we have the following list in prosemirror:
+// ```
+// doc(
+//   orderedListItem({orderStart: 1}, [paragraph("first item")])
+//   orderedListItem(null, [paragraph("second item")])
+// )
+// ```
+//
+// Should be printed as the following markdown:
+// ```markdown
+// 1. first item
+// 2. second item
+// ```
+//
+// However, when we parse this markdown back into Prosemirror (via ApiContent), how do we
+// know that the ordered list must ALWAYS start with 1?
+//
+// What happens if the user changes that list to the following:
+// ```markdown
+// 1. new first item
+// 1. first item
+// 2. second item
+// ```
+//
+// Well, the order start will be lost and this will get stored as
+// ```
+// doc(
+//   orderedListItem(null, [paragraph("new first item")])
+//   orderedListItem(null, [paragraph("first item")]) <------ WE LOST THE `orderStart`!!
+//   orderedListItem(null, [paragraph("second item")])
+// )
+// ```
+//
+// We address this by injecting an empty html `span` element with the data-start
+// attribute and look for it when parsing the content back from markdown
+function addOrderedStartSpanToFirstItemInOrderedListIfNeeded(listContent: List): void {
+    // If this is not an ordered list, or the order start is not 1, never add the span
+    if (
+        !listContent.ordered ||
+        listContent.start === undefined ||
+        listContent.start === null ||
+        listContent.start !== 1
+    ) {
+        return;
+    }
+
+    const firstListItem = listContent.children[0];
+    // It should be impossible to have a list element without any items -- they're only
+    // created when we see a list item.
+    assert(firstListItem, "Ordered list must have at least one item");
+
+    const firstListItemContentElement = firstListItem.children[0];
+
+    if (firstListItemContentElement?.type !== "paragraph") {
+        // If the list item has no content or the first content element in the list item is
+        // not a paragraph, then inject the span as the first element in the list item
+        // content
+        insertSpanIntoContent(firstListItem);
+    } else {
+        // Otherwise, inject the span in the first "paragraph" of the list item.
+        insertSpanIntoContent(firstListItemContentElement);
+    }
+
+    function insertSpanIntoContent(content: ListItem | Paragraph) {
+        content.children.unshift({
+            type: "html",
+            value: `<span data-start=”${listContent.start}”/>`,
+        });
     }
 }

@@ -1591,6 +1591,7 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "OrderedList";
+                readonly orderStart?: number;
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem"][];
             };
             readonly ContentCheckListBlockElement: {
@@ -2320,6 +2321,7 @@ export namespace ApiSpecification {
                  * @enum {string}
                  */
                 readonly type: "OrderedList";
+                readonly orderStart?: number;
                 readonly items: readonly components["schemas"]["ContentListBlockElementItem_Response"][];
             };
             readonly ContentCheckListBlockElement_Response: {

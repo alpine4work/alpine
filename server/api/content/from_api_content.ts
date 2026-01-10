@@ -80,12 +80,21 @@ export function* fromApiContentBlockElements(
                             throw exhaustive(element);
                     }
 
-                    for (const item of element.items) {
+                    for (let itemIndex = 0; itemIndex < element.items.length; itemIndex++) {
+                        const item = element.items[itemIndex]!;
+
                         if (item.elements.length > 0) {
-                            const attrs: {indent: number; checked?: boolean} = {indent};
+                            const attrs: {indent: number; checked?: boolean; orderStart?: number} =
+                                {indent};
 
                             if (typeName === "checkListItem") {
                                 attrs.checked = assertCheckListItem(item).checked;
+                            }
+
+                            // Only set orderStart for the first ordered list item.
+                            // Subsequent items auto-increment naturally.
+                            if (element.type === "OrderedList" && itemIndex === 0) {
+                                attrs.orderStart = element.orderStart;
                             }
 
                             yield schema.nodes[typeName]!.create(
