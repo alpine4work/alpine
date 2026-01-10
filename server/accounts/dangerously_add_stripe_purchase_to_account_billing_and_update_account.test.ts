@@ -16,7 +16,7 @@ describe("dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount()", () =>
     test("should add a Stripe purchase to billing history", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
-        await updateOurStripeCustomerId(session.action(), "cus_test123");
+        await updateOurStripeCustomerId(session.action(), "cus_test_basic");
         const priceId = "price_test123";
         const price = 99.99;
         const createdTime = new Date("2025-01-01T00:00:00Z");
@@ -53,7 +53,7 @@ describe("dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount()", () =>
     test("should add multiple purchases to billing history", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
-        await updateOurStripeCustomerId(session.action(), "cus_test123");
+        await updateOurStripeCustomerId(session.action(), "cus_test_multiple");
         const priceId1 = "price_test123";
         const price1 = 99.99;
         const createdTime1 = new Date("2025-01-01T00:00:00Z");
@@ -108,7 +108,7 @@ describe("dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount()", () =>
     test("should not add duplicate purchases", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
-        await updateOurStripeCustomerId(session.action(), "cus_test123");
+        await updateOurStripeCustomerId(session.action(), "cus_test_duplicate");
         const priceId = "price_test123";
         const price = 99.99;
         const createdTime = new Date("2025-01-01T00:00:00Z");
@@ -155,7 +155,7 @@ describe("dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount()", () =>
     test("should update account plan to LifetimeAccess for lifetime access purchase", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
-        await updateOurStripeCustomerId(session.action(), "cus_test123");
+        await updateOurStripeCustomerId(session.action(), "cus_test_lifetime");
         const price = 199.99;
         const priceId = "price_test123";
         const createdTime = new Date("2025-01-01T00:00:00Z");

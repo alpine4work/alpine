@@ -7,7 +7,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 /**
  * Get the account ID for a given Stripe customer ID.
  */
-export async function getAccountIdForStripeCustomerId(
+export async function getAccountIdForStripeCustomerIdWithoutAuthorization(
     context: Context<DynamoContextModules>,
     stripeCustomerId: string,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},

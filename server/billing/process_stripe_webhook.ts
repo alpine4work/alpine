@@ -1,11 +1,16 @@
 import Stripe from "stripe";
 import {dangerouslyAddStripePurchaseToAccountBillingAndUpdateAccount} from "~/server/accounts/dangerously_add_stripe_purchase_to_account_billing_and_update_account.js";
-import {getAccountIdForStripeCustomerId} from "~/server/accounts/get_account_id_for_stripe_customer_id.js";
+import {getAccountIdForStripeCustomerIdWithoutAuthorization} from "~/server/accounts/get_account_id_for_stripe_customer_id_without_authorization.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {DataLossError, FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    InvalidArgumentError,
+    UnknownError,
+} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -68,12 +73,25 @@ async function processCheckoutSessionCompletedEvent({
 
     if (!lifetimeAccessPurchase) {
         // We only handle lifetime access purchases for now, so this is an unknown purchase.
+        span.addException(
+            new InvalidArgumentError(`Unknown purchase in checkout session`, {
+                cause: {
+                    checkoutSessionId,
+                    priceIds: checkoutSession.line_items?.data.map(item => item.price?.id),
+                },
+            }),
+        );
+
         return;
     }
 
-    const accountId = await getAccountIdForStripeCustomerId(context, customerId, {
-        consistency: "Strong",
-    });
+    const accountId = await getAccountIdForStripeCustomerIdWithoutAuthorization(
+        context,
+        customerId,
+        {
+            consistency: "Strong",
+        },
+    );
     if (!accountId) {
         throw new DataLossError("No account found for Stripe customer ID", {
             cause: {customerId},

@@ -77,4 +77,22 @@ describe("updateOurStripeCustomerId()", () => {
 
         expect(result?.stripeCustomerId).toBe(stripeCustomerId);
     });
+
+    test("should throw assertion error when customerId already exists on another account", async () => {
+        const account1 = await TestAccount.create(context);
+        const account2 = await TestAccount.create(context);
+        const session1 = await TestSession.create(account1);
+        const session2 = await TestSession.create(account2);
+        const stripeCustomerId = "cus_duplicate123";
+
+        // First account successfully sets the customer ID
+        await updateOurStripeCustomerId(session1.action(), stripeCustomerId);
+
+        // Second account tries to use the same customer ID and should get an assertion error
+        await expect(
+            updateOurStripeCustomerId(session2.action(), stripeCustomerId),
+        ).rejects.toThrow(
+            `Stripe customer ID ${stripeCustomerId} is already associated with a different account.`,
+        );
+    });
 });

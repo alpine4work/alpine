@@ -10,9 +10,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
  * authorization checks and should only be used in administrative or
  * system-level operations where you have already verified the operation
  * is permitted.
- *
- * This function accepts AppServiceProcessContext but the type is relaxed
- * to avoid circular dependencies in tests.
  */
 export async function dangerouslyUpdateAccountPlan(
     context: Context<DynamoContextModules>,

@@ -3,6 +3,7 @@ import {getInitialAccountBillingItem} from "~/server/accounts/internal/get_initi
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Update our account's Stripe customer ID.
@@ -17,6 +18,7 @@ export async function updateOurStripeCustomerId(
     stripeCustomerId: string,
 ): Promise<void> {
     const authorizedContext = context.actor.authorizeSession();
+    const ourAccountId = authorizedContext.actor.getAccountId();
 
     const [customerItem, accountBillingItem] = await runAllPromises([
         AccountsTable.getItemIfExists(authorizedContext, {
@@ -28,10 +30,17 @@ export async function updateOurStripeCustomerId(
         AccountsTable.getItemIfExists(authorizedContext, {
             partitionType: "Account",
             sortRangeType: "Billing",
-            accountId: authorizedContext.actor.getAccountId(),
+            accountId: ourAccountId,
             consistency: "Strong",
         }),
     ]);
+
+    if (customerItem) {
+        assert(
+            customerItem.accountId === ourAccountId,
+            `Stripe customer ID ${stripeCustomerId} is already associated with a different account.`,
+        );
+    }
 
     await DynamoTableSchema.executeTransaction(context, [
         customerItem
@@ -42,7 +51,7 @@ export async function updateOurStripeCustomerId(
             : AccountsTable.transactionCreateItem({
                   partitionType: "StripeCustomer",
                   sortRangeType: "Attributes",
-                  accountId: authorizedContext.actor.getAccountId(),
+                  accountId: ourAccountId,
                   stripeCustomerId,
               }),
         accountBillingItem
@@ -51,10 +60,7 @@ export async function updateOurStripeCustomerId(
                   stripeCustomerId,
               })
             : AccountsTable.transactionCreateItem(
-                  getInitialAccountBillingItem(
-                      authorizedContext.actor.getAccountId(),
-                      stripeCustomerId,
-                  ),
+                  getInitialAccountBillingItem(ourAccountId, stripeCustomerId),
               ),
     ]);
 }

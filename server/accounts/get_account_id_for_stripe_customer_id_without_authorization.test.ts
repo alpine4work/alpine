@@ -1,4 +1,4 @@
-import {getAccountIdForStripeCustomerId} from "~/server/accounts/get_account_id_for_stripe_customer_id.js";
+import {getAccountIdForStripeCustomerIdWithoutAuthorization} from "~/server/accounts/get_account_id_for_stripe_customer_id_without_authorization.js";
 import {updateOurStripeCustomerId} from "~/server/accounts/update_our_stripe_customer_id.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
@@ -13,7 +13,10 @@ const context = createTestContext({
 
 describe("getAccountIdForStripeCustomerId()", () => {
     test("should return null when no account has the Stripe customer ID", async () => {
-        const result = await getAccountIdForStripeCustomerId(context, "cus_nonexistent");
+        const result = await getAccountIdForStripeCustomerIdWithoutAuthorization(
+            context,
+            "cus_nonexistent",
+        );
         expect(result).toBe(null);
     });
 
@@ -23,7 +26,10 @@ describe("getAccountIdForStripeCustomerId()", () => {
 
         await updateOurStripeCustomerId(session.action(), stripeCustomerId);
 
-        const result = await getAccountIdForStripeCustomerId(context, stripeCustomerId);
+        const result = await getAccountIdForStripeCustomerIdWithoutAuthorization(
+            context,
+            stripeCustomerId,
+        );
         expect(result).toBe(session.account.id);
     });
 
@@ -36,8 +42,14 @@ describe("getAccountIdForStripeCustomerId()", () => {
         await updateOurStripeCustomerId(session1.action(), stripeCustomerId1);
         await updateOurStripeCustomerId(session2.action(), stripeCustomerId2);
 
-        const result1 = await getAccountIdForStripeCustomerId(context, stripeCustomerId1);
-        const result2 = await getAccountIdForStripeCustomerId(context, stripeCustomerId2);
+        const result1 = await getAccountIdForStripeCustomerIdWithoutAuthorization(
+            context,
+            stripeCustomerId1,
+        );
+        const result2 = await getAccountIdForStripeCustomerIdWithoutAuthorization(
+            context,
+            stripeCustomerId2,
+        );
 
         expect(result1).toBe(session1.account.id);
         expect(result2).toBe(session2.account.id);
