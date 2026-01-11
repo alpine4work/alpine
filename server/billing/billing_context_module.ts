@@ -59,7 +59,7 @@ export class BillingContextModule extends BillingContextModuleBase {
                     throw new FailedPreconditionError(
                         "Account has already purchased lifetime access",
                         {
-                            displayMessage: errorDisplayMessage`You have already purchased lifetime access.`,
+                            displayMessage: errorDisplayMessage`You’ve already purchased lifetime access.`,
                         },
                     );
                 }
@@ -75,7 +75,6 @@ export class BillingContextModule extends BillingContextModuleBase {
                             },
                         ],
                         mode: "payment",
-                        // TODO: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9e7qbd070bmrvsh5vqhhn6nc14
                         success_url: `${context.constants.edgeServiceUrl}${currentPathname}?purchased=lifetime-access`,
                         cancel_url: `${context.constants.edgeServiceUrl}${currentPathname}`,
                     });

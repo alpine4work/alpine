@@ -4,12 +4,24 @@ import {LoaderContext} from "~/server/remix/loader_context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+// Search params that we allow to be forwarded when redirecting to the authenticated home
+const searchParamsAllowlist = new Set<string>(["purchased"]);
+
 /**
  * Redirect to the homepage for an account if they are successfully
  * authenticated.
  */
 export async function redirectToAuthenticatedHome(loaderContext: LoaderContext) {
     const context = await loaderContext.actor.authenticate();
+
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of loaderContext.loader.getSearchParams().entries()) {
+        if (searchParamsAllowlist.has(key)) {
+            searchParams.append(key, value);
+        }
+    }
+
+    const searchParamsString = searchParams.toString() ? `?${searchParams.toString()}` : "";
 
     switch (context.actor.type) {
         case "System": {
@@ -35,14 +47,19 @@ export async function redirectToAuthenticatedHome(loaderContext: LoaderContext) 
         case "Anonymous": {
             // We don't have any context to what Anonymous users will expect to see here
             // Just throw them to the space switcher
-            return redirect("/switch-space");
+            return redirect(`/switch-space${searchParamsString}`);
         }
 
         case "Session": {
             const defaultSpaceId = await getOurLastOpenedSpaceId(
                 await context.actor.authenticate(),
             );
-            return redirect(defaultSpaceId ? `/s/${defaultSpaceId}` : "/switch-space");
+
+            return redirect(
+                defaultSpaceId
+                    ? `/s/${defaultSpaceId}${searchParamsString}`
+                    : `/switch-space${searchParamsString}`,
+            );
         }
 
         default:

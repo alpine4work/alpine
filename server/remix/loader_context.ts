@@ -145,6 +145,13 @@ export class LoaderContextModule extends ContextModuleBase {
     }
 
     /**
+     * Get the URL search params for the current request.
+     */
+    public getSearchParams(): URLSearchParams {
+        return new URL(this._request.url).searchParams;
+    }
+
+    /**
      * We store a persistent identifier for the user's web browser in a cookie.
      * This way we can associate state and analytics with that browser.
      *
