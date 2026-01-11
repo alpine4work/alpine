@@ -15,8 +15,7 @@ import {ThreadsLogo} from "~/client/web/icons/socials/threads_logo.js";
 import {XLogo} from "~/client/web/icons/socials/x_logo.js";
 import {ReactionPartyBase} from "~/client/web/reactions/reaction_party.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {invertLightSelectionColorsClassName} from "~/client/web/styles/styles.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {colorSchemeVars, invertLightSelectionColorsClassName} from "~/client/web/styles/styles.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -46,6 +45,7 @@ function PurchasedLifetimeAccessModalContent({platform}: {platform: "mobile" | "
                 fontStyle="bold"
                 textAlign="center"
                 maxWidth={platform === "mobile" ? "64" : undefined}
+                color="grey-100"
             >
                 Thank you for purchasing lifetime access
             </Box>
@@ -64,7 +64,7 @@ function PurchasedLifetimeAccessModalContent({platform}: {platform: "mobile" | "
             >
                 <Link url="mailto:feedback@alpine.inc">
                     <Box display="flex" alignItems="center" gap="1">
-                        <EnvelopeSimple color={colors["grey-0"]} size="1.2rem" /> Email
+                        <EnvelopeSimple color={colorSchemeVars["grey-100"]} size="1.2rem" /> Email
                     </Box>
                 </Link>
                 <Link url="https://x.com/alpine4work">

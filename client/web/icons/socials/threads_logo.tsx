@@ -1,8 +1,8 @@
 import {CSSProperties} from "react";
-import {colors} from "~/shared/design/core/colors.js";
+import {colorSchemeVars} from "~/client/web/styles/styles.js";
 
 export function ThreadsLogo({
-    color = colors["grey-0"],
+    color = colorSchemeVars["grey-100"],
     style,
 }: {
     color?: string;
