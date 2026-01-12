@@ -105,7 +105,12 @@ export class AwsJobQueueService extends Construct {
         const autoScalingGroupCapacityProvider = new AsgCapacityProvider(
             this,
             "AutoScalingGroupCapacityProvider",
-            {autoScalingGroup},
+            {
+                autoScalingGroup,
+                enableManagedDraining: true,
+                enableManagedScaling: true,
+                enableManagedTerminationProtection: true,
+            },
         );
 
         ecsCluster.cluster.addAsgCapacityProvider(autoScalingGroupCapacityProvider);

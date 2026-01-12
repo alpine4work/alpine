@@ -175,7 +175,12 @@ export function createAwsAppOrApiService(
     const autoScalingGroupCapacityProvider = new AsgCapacityProvider(
         parentConstruct,
         "AutoScalingGroupCapacityProvider",
-        {autoScalingGroup},
+        {
+            autoScalingGroup,
+            enableManagedDraining: true,
+            enableManagedScaling: true,
+            enableManagedTerminationProtection: true,
+        },
     );
 
     ecsCluster.cluster.addAsgCapacityProvider(autoScalingGroupCapacityProvider);

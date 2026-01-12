@@ -2164,6 +2164,7 @@ Resources:
             AutoScalingGroupProvider:
                 AutoScalingGroupArn:
                     Ref: TaskRealtimeServiceAutoScalingGroupASGF7365475
+                ManagedDraining: ENABLED
                 ManagedScaling:
                     Status: ENABLED
                     TargetCapacity: 100
@@ -3026,6 +3027,7 @@ Resources:
             AutoScalingGroupProvider:
                 AutoScalingGroupArn:
                     Ref: AppServiceAutoScalingGroupASG10BAC29D
+                ManagedDraining: ENABLED
                 ManagedScaling:
                     Status: ENABLED
                     TargetCapacity: 100
@@ -4113,6 +4115,7 @@ Resources:
             AutoScalingGroupProvider:
                 AutoScalingGroupArn:
                     Ref: ApiServiceAutoScalingGroupASG48C3F143
+                ManagedDraining: ENABLED
                 ManagedScaling:
                     Status: ENABLED
                     TargetCapacity: 100
@@ -5098,6 +5101,7 @@ Resources:
             AutoScalingGroupProvider:
                 AutoScalingGroupArn:
                     Ref: JobQueueServiceAutoScalingGroupASG222BE472
+                ManagedDraining: ENABLED
                 ManagedScaling:
                     Status: ENABLED
                     TargetCapacity: 100
@@ -7446,6 +7450,7 @@ Resources:
             AutoScalingGroupProvider:
                 AutoScalingGroupArn:
                     Ref: FileProcessorServiceAutoScalingGroupASG01D937BC
+                ManagedDraining: ENABLED
                 ManagedScaling:
                     Status: ENABLED
                     TargetCapacity: 100

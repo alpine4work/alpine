@@ -164,7 +164,12 @@ export class AwsTaskRealtimeService extends Construct {
         const autoScalingGroupCapacityProvider = new AsgCapacityProvider(
             this,
             "AutoScalingGroupCapacityProvider",
-            {autoScalingGroup: this.autoScalingGroup},
+            {
+                autoScalingGroup: this.autoScalingGroup,
+                enableManagedDraining: true,
+                enableManagedScaling: true,
+                enableManagedTerminationProtection: true,
+            },
         );
 
         ecsCluster.cluster.addAsgCapacityProvider(autoScalingGroupCapacityProvider);
