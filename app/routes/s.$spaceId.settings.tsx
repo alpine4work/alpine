@@ -134,12 +134,18 @@ export default function SettingsLayout() {
 
     const title = titleBySettingsRoute[currentRoute];
 
+    const {space} = useSpaceContextAndRequireSpaceAccess();
+    const defaultPreviousRoute = isMobile
+        ? `/s/${space.id}/more/settings`
+        : `/s/${space.id}/settings/general`;
+
     if (isMobile) {
         return (
             <SpaceRouteScrollView
                 title={title}
                 titleJustifyContent="center"
                 desktopMaxWidth={spaceSettingsMaxDesktopContentWidth}
+                defaultPreviousRoute={defaultPreviousRoute}
                 withoutDisappearingTitle
             >
                 <Box width="full" paddingX={screenPaddingX}>

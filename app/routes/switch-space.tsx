@@ -58,6 +58,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
             title="Switch space"
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
+            defaultPreviousRoute={selectedSpace ? `/s/${selectedSpace.id}/more` : "/"}
             withoutDisappearingTitle
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">

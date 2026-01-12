@@ -27,6 +27,7 @@ export default function MobileSpaceSettingsRoute() {
             titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
             title="Settings"
+            defaultPreviousRoute={`/s/${space.id}/more`}
         >
             <Box
                 width="full"
