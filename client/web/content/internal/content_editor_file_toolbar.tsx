@@ -121,15 +121,17 @@ export function ContentEditorFileToolbarController({
     }
 
     const hasFileToolbar = !!fileToolbar;
+    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     useEffect(() => {
-        if (!isFileToolbarVisible && hasFileToolbar) {
+        // Don't unmount the toolbar while the delete confirmation dialog is showing
+        if (!isFileToolbarVisible && hasFileToolbar && !showDeleteConfirmationDialog) {
             const timeout = createTimeout(() => {
                 setFileToolbar(null);
             }, overlayFadeOutAnimationDurationMs);
             return () => timeout.clear();
         }
-    }, [hasFileToolbar, isFileToolbarVisible]);
+    }, [hasFileToolbar, isFileToolbarVisible, showDeleteConfirmationDialog]);
 
     return fileToolbar ? (
         <ContentEditorFileToolbar
@@ -144,6 +146,8 @@ export function ContentEditorFileToolbarController({
             isDisablingInitialAnimation={fileToolbar.isDisablingInitialAnimation}
             onInsertFiles={onInsertFiles}
             onMobileCommentInputOpen={onMobileCommentInputOpen}
+            showDeleteConfirmationDialog={showDeleteConfirmationDialog}
+            setShowDeleteConfirmationDialog={setShowDeleteConfirmationDialog}
         />
     ) : null;
 }
@@ -158,6 +162,8 @@ function ContentEditorFileToolbar({
     isDisablingInitialAnimation: isDisablingInitialAnimationFromProps,
     onInsertFiles,
     onMobileCommentInputOpen,
+    showDeleteConfirmationDialog,
+    setShowDeleteConfirmationDialog,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -168,6 +174,8 @@ function ContentEditorFileToolbar({
     isDisablingInitialAnimation: boolean;
     onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
     onMobileCommentInputOpen: () => void;
+    showDeleteConfirmationDialog: boolean;
+    setShowDeleteConfirmationDialog: (show: boolean) => void;
 }) {
     const platform = usePlatform();
 
@@ -229,8 +237,6 @@ function ContentEditorFileToolbar({
         if (!isDisablingInitialAnimation) return;
         setIsDisablingInitialAnimation(false);
     }, [isDisablingInitialAnimation]);
-
-    const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
 
     return (
         <>
