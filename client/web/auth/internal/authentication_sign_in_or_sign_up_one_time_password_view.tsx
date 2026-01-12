@@ -184,11 +184,11 @@ export function AuthenticationSignInOrSignUpOneTimePasswordView({
                         style={{lineHeight: 1.5}}
                     >
                         By signing up, you agree to our{" "}
-                        <Link url="https://www.alpine.inc/legal/terms-of-service">
+                        <Link url="https://www.alpine.inc/legal/terms-of-service" newTab>
                             Terms&nbsp;of&nbsp;Service
                         </Link>{" "}
                         and{" "}
-                        <Link url="https://www.alpine.inc/legal/privacy-policy">
+                        <Link url="https://www.alpine.inc/legal/privacy-policy" newTab>
                             Privacy&nbsp;Policy
                         </Link>
                         .

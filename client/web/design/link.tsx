@@ -13,11 +13,13 @@ export function Link({
     url,
     onClick,
     children,
+    newTab = false,
     colorSchemeOverride,
 }: {
     url: string;
     onClick?: (event: MouseEvent) => void;
     children?: ReactNode;
+    newTab?: boolean;
     colorSchemeOverride?: "light" | "dark";
 }) {
     // Make sure link is well-formed.
@@ -48,8 +50,8 @@ export function Link({
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not
                     // all URLs are openable in the native mobile app.
-                    target={isNativeMobile ? "_blank" : undefined}
-                    rel={isNativeMobile ? "noreferrer" : undefined}
+                    target={newTab || isNativeMobile ? "_blank" : undefined}
+                    rel={newTab || isNativeMobile ? "noreferrer" : undefined}
                 >
                     {children}
                 </a>
@@ -69,8 +71,8 @@ export function Link({
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not
                     // all URLs are openable in the native mobile app.
-                    target={isNativeMobile ? "_blank" : undefined}
-                    rel={isNativeMobile ? "noreferrer" : undefined}
+                    target={newTab || isNativeMobile ? "_blank" : undefined}
+                    rel={newTab || isNativeMobile ? "noreferrer" : undefined}
                 >
                     {children}
                 </OriginalLink>
