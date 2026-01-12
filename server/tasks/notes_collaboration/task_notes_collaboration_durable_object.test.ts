@@ -626,6 +626,7 @@ testMessagingRealtimeImplementation<TaskId>(context, {
             spaceId: task.space.id,
             createdTime: new Date(task.createdTime[0]),
             messageCount: 0,
+            messageNoun: "comment",
         };
     },
     async connectForTest(context, roomKey) {

@@ -12,6 +12,7 @@ import {
     deleteTaskComment,
     deleteTaskCommentReaction,
     getTaskComment,
+    getTaskCommentParentContent,
     getTaskCommentPayload,
     getTaskCommentPayloadsFromEnd,
     getTaskCommentPayloadsFromStart,
@@ -62,6 +63,7 @@ testMessagingImplementation<TaskId>(processContext, {
             spaceId,
             createdTime: new Date((await task.getItem()).createdTime[0]),
             messageCount: 0,
+            messageNoun: "comment",
         };
     },
 
@@ -103,6 +105,7 @@ testMessagingImplementation<TaskId>(processContext, {
             spaceId,
             createdTime: new Date((await task.getItem()).createdTime[0]),
             messageCount: 0,
+            messageNoun: "comment",
             doesInsideViewerSessionHaveRoomAccess: false,
             revokeInsideSession: async (context, revokeSession) => {
                 await taskCollection.access.revoke(session, revokeSession.account.id);
@@ -126,6 +129,7 @@ testMessagingImplementation<TaskId>(processContext, {
                 taskItemWithCommentAttributes !== null
                     ? sumIterable(taskItemWithCommentAttributes.commentCountByAuthorId.values())
                     : 0,
+            messageNoun: "comment",
         };
     },
     getMissingRoomKey() {
@@ -181,6 +185,9 @@ testMessagingImplementation<TaskId>(processContext, {
     },
     async getMessagePayload(context, {roomKey: taskId, messageIndex: commentIndex}) {
         return getTaskCommentPayload(context, {taskId, commentIndex});
+    },
+    async getMessageParentContent(context, {roomKey: taskId, parent}) {
+        return getTaskCommentParentContent(context, taskId, {parent});
     },
     async updateMessageContent(
         context,

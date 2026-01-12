@@ -3,8 +3,10 @@ import {
     ApiContentMentionInlineElement,
     ApiContentMentionInlineElementResponse,
     ApiContentResponse,
+    ApiContentTextInlineElement,
     ApiMentionTarget,
     ApiMentionTargetResponse,
+    ApiMessageContentPayloadParentContentSnippetTextInlineElement,
     ApiMessageStreamToolCallPartPayloadCall,
     ApiMessageStreamToolCallPartPayloadCallResponse,
     ApiSearchResult,
@@ -61,5 +63,12 @@ test("`ApiMessageStreamToolCallPartPayloadCallResponse` is assignable to `ApiMes
     assertAssignableTypes<
         ApiMessageStreamToolCallPartPayloadCallResponse,
         ApiMessageStreamToolCallPartPayloadCall
+    >();
+});
+
+test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable to `ContentTextInlineElement`", () => {
+    assertAssignableTypes<
+        ApiMessageContentPayloadParentContentSnippetTextInlineElement,
+        ApiContentTextInlineElement
     >();
 });

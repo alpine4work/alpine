@@ -4,7 +4,13 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestPost} from "~/server/forum/test_helpers/test_post.js";
+import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {
+    PostContentProsemirrorSchema,
+    assertPostContent,
+} from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, PostId} from "~/shared/id/types/id_types.js";
@@ -578,6 +584,221 @@ describe("post creation", () => {
                     createdTimeZone: defaultTimeZone,
                 },
             },
+        });
+    });
+});
+
+describe("post comment parents", () => {
+    test("includes PostRange parent with short content snippet (not truncated)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Discussion Channel",
+            access: "Public",
+        });
+        const post = await channel.createPost(session, "Short post content");
+
+        const comment = await TestMessagingRoomBase.createMessage(
+            post,
+            session,
+            "This is a reply to the post",
+            {
+                parent: {type: "PostRange", contentVersion: 0, startPos: 0, endPos: 10},
+            },
+        );
+
+        const response = await server.GET(`/posts/${post.id}/messages/${comment.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(200);
+        expect(response.body.message.payload.type).toEqual("Content");
+        expect(response.body.message.payload.parent).toEqual({
+            type: "Post",
+            contentSnippet: {
+                elements: [
+                    {
+                        type: "Text",
+                        text: "Short pos",
+                    },
+                ],
+                isTruncated: false,
+            },
+            author: expect.objectContaining({
+                id: session.account.id,
+                name: "Alice Smith",
+            }),
+        });
+    });
+
+    test("includes PostRange parent with long content snippet (truncated)", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Bob Jones", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Long Posts Channel",
+            access: "Public",
+        });
+
+        // Create a long post that should be truncated
+        const longText = "This is a very long post that should be truncated. ".repeat(20);
+        const post = await channel.createPost(session, longText);
+
+        const comment = await TestMessagingRoomBase.createMessage(
+            post,
+            session,
+            "Reply to long post",
+            {
+                parent: {type: "PostRange", contentVersion: 0, startPos: 10, endPos: 20},
+            },
+        );
+
+        const response = await server.GET(`/posts/${post.id}/messages/${comment.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(200);
+        expect(response.body.message.payload.parent).toEqual(
+            expect.objectContaining({
+                type: "Post",
+                contentSnippet: {
+                    elements: [
+                        {
+                            type: "Text",
+                            text: " very long",
+                        },
+                    ],
+                    isTruncated: false,
+                },
+                author: expect.objectContaining({
+                    id: session.account.id,
+                    name: "Bob Jones",
+                }),
+            }),
+        );
+    });
+
+    test("includes PostRange parent with marks in content snippet", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Charlie Brown", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Rich Content Channel",
+            access: "Public",
+        });
+
+        // Create post with bold and italic text
+        const postContent = PostContentProsemirrorSchema.node("doc", {}, [
+            PostContentProsemirrorSchema.node("paragraph", {}, [
+                PostContentProsemirrorSchema.text("This is "),
+                PostContentProsemirrorSchema.text("bold", [
+                    PostContentProsemirrorSchema.mark("bold"),
+                ]),
+                PostContentProsemirrorSchema.text(" and "),
+                PostContentProsemirrorSchema.text("italic", [
+                    PostContentProsemirrorSchema.mark("italic"),
+                ]),
+                PostContentProsemirrorSchema.text(" text"),
+            ]),
+        ]);
+
+        const post = await TestPost._create(session, channel, assertPostContent(postContent));
+
+        const comment = await TestMessagingRoomBase.createMessage(
+            post,
+            session,
+            "Reply with marks",
+            {
+                parent: {type: "PostRange", contentVersion: 0, startPos: 0, endPos: 10},
+            },
+        );
+
+        const response = await server.GET(`/posts/${post.id}/messages/${comment.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(200);
+        expect(response.body.message.payload.type).toEqual("Content");
+        expect(response.body.message.payload.parent).toEqual({
+            type: "Post",
+            contentSnippet: {
+                elements: [
+                    {
+                        type: "Text",
+                        text: "This is ",
+                    },
+                    {
+                        type: "Text",
+                        text: "b",
+                        marks: [{type: "Bold"}],
+                    },
+                ],
+                isTruncated: false,
+            },
+            author: expect.objectContaining({
+                id: session.account.id,
+                name: "Charlie Brown",
+            }),
+        });
+    });
+
+    test("includes PostRange parent with multiple marks on same text", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Dana White", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Formatting Channel",
+            access: "Public",
+        });
+
+        // Create post with multiple marks on same text
+        const postContent = PostContentProsemirrorSchema.node("doc", {}, [
+            PostContentProsemirrorSchema.node("paragraph", {}, [
+                PostContentProsemirrorSchema.text("Normal text and "),
+                PostContentProsemirrorSchema.text("bold italic", [
+                    PostContentProsemirrorSchema.mark("bold"),
+                    PostContentProsemirrorSchema.mark("italic"),
+                ]),
+            ]),
+        ]);
+
+        const post = await TestPost._create(session, channel, assertPostContent(postContent));
+
+        const comment = await TestMessagingRoomBase.createMessage(post, session, "Reply", {
+            parent: {type: "PostRange", contentVersion: 0, startPos: 0, endPos: 10},
+        });
+
+        const response = await server.GET(`/posts/${post.id}/messages/${comment.index}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect(response.status).toEqual(200);
+        expect(response.body.message.payload.type).toEqual("Content");
+        expect(response.body.message.payload.parent).toEqual({
+            type: "Post",
+            contentSnippet: {
+                elements: [
+                    {
+                        type: "Text",
+                        text: "Normal te",
+                    },
+                ],
+                isTruncated: false,
+            },
+            author: expect.objectContaining({id: session.account.id}),
         });
     });
 });

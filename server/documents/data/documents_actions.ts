@@ -160,7 +160,11 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
@@ -6895,4 +6899,82 @@ export async function getResolvedDocumentCommentThreadRanges(
         version: commentThreadItem.resolutionState.version,
         ranges: commentThreadItem.resolutionState.ranges,
     };
+}
+
+export async function getDocumentCommentParentContent(
+    context: ServerActionContext,
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+    {
+        parent,
+        consistency,
+    }: {parent: MessageContentPayloadParent; consistency?: DynamoCacheReadConsistency},
+): Promise<{content: MessageContent; authorId: AccountId}> {
+    await authorizeDocumentAccess(context, documentId, "View", {consistency});
+
+    const messageNoun = "comment";
+
+    switch (parent.type) {
+        case "Message": {
+            const {commentItem} = await getDocumentCommentItem(context, {
+                documentId,
+                commentThreadId,
+                commentIndex: parent.index,
+                consistency,
+            });
+
+            return {
+                authorId: commentItem.authorId,
+                content:
+                    commentItem.payload.content ??
+                    createSimpleMessageContent(`Deleted ${messageNoun}`),
+            };
+        }
+        case "MessagesRange": {
+            const messageItems = await arrayFromAsyncIterable(
+                runCommentsQuery(context, {
+                    cache: DocumentCommentItemContextCache,
+                    cacheKeyPrefix: `${documentId}-${commentThreadId}`,
+                    consistency,
+                    startIndex: parent.startIndex,
+                    endIndex: parent.endIndex,
+                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                        DocumentsTable.query(context, {
+                            consistency,
+                            limit,
+                            partitionKey: {
+                                partitionType: "DocumentCommentThread",
+                                documentId,
+                                commentThreadId,
+                            },
+                            startSortKey,
+                            endSortKey,
+                        }),
+                }),
+            );
+
+            validateMessageContentPayloadMessagesRangeParent(parent, messageItems, {
+                allowDeletedMessagesForStartAndEndMessages: true,
+            });
+
+            return {
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
+                // have the same author and the list is not empty.
+                authorId: messageItems[0]!.authorId,
+                content: getTruncatedParentMessagesRangeContentWithoutReferences({
+                    messages: messageItems,
+                    messageNoun,
+                    startContentVersion: parent.startContentVersion,
+                    startPos: parent.startPos,
+                    endContentVersion: parent.endContentVersion,
+                    endPos: parent.endPos,
+                }),
+            };
+        }
+        case "PostRange": {
+            throw new InvalidArgumentError("Post range parent can only be used with post comments");
+        }
+        default:
+            throw exhaustive(parent);
+    }
 }

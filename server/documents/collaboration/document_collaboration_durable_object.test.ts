@@ -6082,6 +6082,7 @@ testMessagingRealtimeImplementation<DocumentCommentRoomKey>(context, {
             spaceId: document.space.id,
             createdTime: document.createdTime,
             messageCount: 1,
+            messageNoun: "comment",
         };
     },
     async connectForTest(context, roomKey) {

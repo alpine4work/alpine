@@ -13,6 +13,7 @@ import {
     ApiContentTableBlockElementCellResponse,
     ApiContentTableBlockElementRowResponse,
     ApiMentionTargetResponse,
+    ApiMessageContentPayloadParentContentSnippetInlineElementMark,
 } from "~/shared/api/types/api_specification_convenience_types.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -575,6 +576,31 @@ function intoApiContentInlineElementMark(mark: Mark): ApiContentInlineElementMar
         }
         default:
             throw exhaustive(typeName);
+    }
+}
+
+export function intoApiContentSnippetInlineElementMarks(
+    marks: ReadonlyArray<Mark>,
+): ReadonlyArray<ApiMessageContentPayloadParentContentSnippetInlineElementMark> {
+    return marks.map(intoApiContentSnippetInlineElementMark);
+}
+
+function intoApiContentSnippetInlineElementMark(
+    mark: Mark,
+): ApiMessageContentPayloadParentContentSnippetInlineElementMark {
+    switch (mark.type.name) {
+        case "bold":
+            return {type: "Bold"};
+        case "italic":
+            return {type: "Italic"};
+        case "strike":
+            return {type: "Strike"};
+        case "code":
+            return {type: "Code"};
+        default:
+            throw new InternalError(
+                quote`${mark.type.name} mark isn’t supported in \`ContentSnippet\` inline element`,
+            );
     }
 }
 

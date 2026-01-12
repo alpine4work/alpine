@@ -1,4 +1,5 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {getApiPostCommentParentMessageResponse} from "~/server/api/internal/forum/internal/get_api_post_comment_parent_message_response.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
@@ -184,7 +185,16 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(context, message.spaceId, message),
+                    message: await intoApiMessage(
+                        context,
+                        message.spaceId,
+                        message,
+                        getApiPostCommentParentMessageResponse(
+                            context,
+                            message.spaceId,
+                            pathParameters.id,
+                        ),
+                    ),
                 },
             };
         },
@@ -237,7 +247,18 @@ export const apiForumPaths: Pick<
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(message => intoApiMessage(context, spaceId, message)),
+                        comments.map(message =>
+                            intoApiMessage(
+                                context,
+                                spaceId,
+                                message,
+                                getApiPostCommentParentMessageResponse(
+                                    context,
+                                    spaceId,
+                                    pathParameters.id,
+                                ),
+                            ),
+                        ),
                     ),
                 },
             };
@@ -307,17 +328,22 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, spaceId, {
-                        index,
-                        version: 0,
-                        authorId: context.actor.getBotAccountId(),
-                        createdTime,
-                        createdTimeZone,
-                        payload,
-                        stream: requestBody.isStream
-                            ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
-                            : null,
-                    }),
+                    message: await intoApiMessage(
+                        context,
+                        spaceId,
+                        {
+                            index,
+                            version: 0,
+                            authorId: context.actor.getBotAccountId(),
+                            createdTime,
+                            createdTimeZone,
+                            payload,
+                            stream: requestBody.isStream
+                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                : null,
+                        },
+                        getApiPostCommentParentMessageResponse(context, spaceId, pathParameters.id),
+                    ),
                 },
             };
         },

@@ -9,6 +9,11 @@ import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js"
 export function validateMessageContentPayloadMessagesRangeParent(
     parent: MessageContentPayloadParent & {readonly type: "MessagesRange"},
     messageItems: Array<MessageItem>,
+    {
+        allowDeletedMessagesForStartAndEndMessages,
+    }: {
+        allowDeletedMessagesForStartAndEndMessages?: boolean;
+    } = {},
 ) {
     // The following should be true since they're
     // `MessageContentPayloadParentSchema` validations. We `assert()` here to
@@ -36,22 +41,27 @@ export function validateMessageContentPayloadMessagesRangeParent(
         throw new DataLossError("Incorrect number of messages loaded");
     }
 
-    if (startMessageItem.payload.type !== "Content") {
-        throw new FailedPreconditionError("Message range starts in deleted message");
-    }
+    if (!allowDeletedMessagesForStartAndEndMessages) {
+        if (startMessageItem.payload.type !== "Content") {
+            throw new FailedPreconditionError("Message range starts in deleted message");
+        }
 
-    if (endMessageItem.payload.type !== "Content") {
-        throw new FailedPreconditionError("Message range ends in deleted message");
-    }
+        if (endMessageItem.payload.type !== "Content") {
+            throw new FailedPreconditionError("Message range ends in deleted message");
+        }
 
-    if (
-        parent.startContentVersion > (startMessageItem.payload.contentUpdate?.mappings.length ?? 0)
-    ) {
-        throw new FailedPreconditionError("Invalid message range start content version");
-    }
+        if (
+            parent.startContentVersion >
+            (startMessageItem.payload.contentUpdate?.mappings.length ?? 0)
+        ) {
+            throw new FailedPreconditionError("Invalid message range start content version");
+        }
 
-    if (parent.endContentVersion > (endMessageItem.payload.contentUpdate?.mappings.length ?? 0)) {
-        throw new FailedPreconditionError("Invalid message range end content version");
+        if (
+            parent.endContentVersion > (endMessageItem.payload.contentUpdate?.mappings.length ?? 0)
+        ) {
+            throw new FailedPreconditionError("Invalid message range end content version");
+        }
     }
 
     // We don't currently validate `startPos` and `endPos` since if we're using a

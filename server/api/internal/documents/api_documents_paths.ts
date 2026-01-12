@@ -1,4 +1,5 @@
 import {fromApiContent} from "~/server/api/content/from_api_content.js";
+import {getApiDocumentCommentParentMessageResponse} from "~/server/api/internal/documents/internal/get_api_document_comment_parent_message_response.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
@@ -129,7 +130,17 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(context, message.spaceId, message),
+                    message: await intoApiMessage(
+                        context,
+                        message.spaceId,
+                        message,
+                        getApiDocumentCommentParentMessageResponse(
+                            context,
+                            message.spaceId,
+                            pathParameters.id,
+                            pathParameters.threadId,
+                        ),
+                    ),
                 },
             };
         },
@@ -184,7 +195,19 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(message => intoApiMessage(context, spaceId, message)),
+                        comments.map(message =>
+                            intoApiMessage(
+                                context,
+                                spaceId,
+                                message,
+                                getApiDocumentCommentParentMessageResponse(
+                                    context,
+                                    spaceId,
+                                    pathParameters.id,
+                                    pathParameters.threadId,
+                                ),
+                            ),
+                        ),
                     ),
                 },
             };
@@ -255,17 +278,27 @@ export const apiDocumentsPaths: Pick<ApiPaths, keyof ApiPaths & `/documents/${st
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, spaceId, {
-                        index,
-                        version: 0,
-                        authorId: context.actor.getBotAccountId(),
-                        createdTime,
-                        createdTimeZone,
-                        payload: payload,
-                        stream: requestBody.isStream
-                            ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
-                            : null,
-                    }),
+                    message: await intoApiMessage(
+                        context,
+                        spaceId,
+                        {
+                            index,
+                            version: 0,
+                            authorId: context.actor.getBotAccountId(),
+                            createdTime,
+                            createdTimeZone,
+                            payload: payload,
+                            stream: requestBody.isStream
+                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                : null,
+                        },
+                        getApiDocumentCommentParentMessageResponse(
+                            context,
+                            spaceId,
+                            pathParameters.id,
+                            pathParameters.threadId,
+                        ),
+                    ),
                 },
             };
         },

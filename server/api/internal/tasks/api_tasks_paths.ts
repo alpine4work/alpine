@@ -4,6 +4,7 @@ import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
+import {getApiTaskCommentParentMessageResponse} from "~/server/api/internal/tasks/internal/get_api_task_comment_parent_message_response.js";
 import {getApiTasksWithoutContent} from "~/server/api/internal/tasks/internal/get_api_tasks_without_content.js";
 import {
     FileTaskAuthorizer,
@@ -135,7 +136,16 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId: message.spaceId,
-                    message: await intoApiMessage(context, message.spaceId, message),
+                    message: await intoApiMessage(
+                        context,
+                        message.spaceId,
+                        message,
+                        getApiTaskCommentParentMessageResponse(
+                            context,
+                            message.spaceId,
+                            pathParameters.id,
+                        ),
+                    ),
                 },
             };
         },
@@ -188,7 +198,18 @@ export const apiTasksPaths: Pick<
                     totalMessageCount: commentCount,
                     nextCursor,
                     messages: await runAllPromises(
-                        comments.map(message => intoApiMessage(context, spaceId, message)),
+                        comments.map(message =>
+                            intoApiMessage(
+                                context,
+                                spaceId,
+                                message,
+                                getApiTaskCommentParentMessageResponse(
+                                    context,
+                                    spaceId,
+                                    pathParameters.id,
+                                ),
+                            ),
+                        ),
                     ),
                 },
             };
@@ -258,17 +279,22 @@ export const apiTasksPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    message: await intoApiMessage(context, spaceId, {
-                        index,
-                        version: 0,
-                        authorId: context.actor.getBotAccountId(),
-                        createdTime,
-                        createdTimeZone,
-                        payload,
-                        stream: requestBody.isStream
-                            ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
-                            : null,
-                    }),
+                    message: await intoApiMessage(
+                        context,
+                        spaceId,
+                        {
+                            index,
+                            version: 0,
+                            authorId: context.actor.getBotAccountId(),
+                            createdTime,
+                            createdTimeZone,
+                            payload,
+                            stream: requestBody.isStream
+                                ? {createdTime, completedTime: null, parts: [], lastPingTime: null}
+                                : null,
+                        },
+                        getApiTaskCommentParentMessageResponse(context, spaceId, pathParameters.id),
+                    ),
                 },
             };
         },

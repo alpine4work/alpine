@@ -51,6 +51,7 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {getAccount} from "~/server/spaces/get_account.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {cutContent} from "~/shared/content/cut_content.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     FailedPreconditionError,
@@ -63,6 +64,7 @@ import {
     createPostCommentNotFoundError,
     createPostNotFoundError,
 } from "~/shared/forum/forum_error_messages.js";
+import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -74,13 +76,18 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, FileId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadContentUpdate,
     MessageContentPayloadParent,
@@ -921,6 +928,17 @@ async function getPostCommentItemIfExists(
     assert(items.length <= 1);
 
     return items[0] ?? null;
+}
+
+async function getPostCommentItem(
+    context: ServerActionContext,
+    postId: PostId,
+    commentIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem> {
+    const item = await getPostCommentItemIfExists(context, postId, commentIndex, {consistency});
+    if (!item) throw createPostCommentNotFoundError(postId, commentIndex);
+    return item;
 }
 
 /**
@@ -2096,4 +2114,119 @@ export async function backfillPostComments(
         newOtherReferencedComments: otherReferencedComments,
         commentUpdatesResult,
     };
+}
+
+export async function getPostCommentParentContent(
+    context: ServerActionContext,
+    postId: PostId,
+    {
+        parent,
+        consistency,
+    }: {
+        parent: MessageContentPayloadParent;
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<
+    | {
+          authorId: AccountId;
+          content: MessageContent;
+          type: "Message" | "MessagesRange";
+      }
+    | {
+          authorId: AccountId;
+          content: PostContent;
+          type: "PostRange";
+      }
+> {
+    const messageNoun = "comment";
+
+    switch (parent.type) {
+        case "Message": {
+            const postItem = await getPostItemForAuthorization(context, postId, {
+                consistency,
+            });
+            await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
+
+            const commentItem = await getPostCommentItem(context, postId, parent.index, {
+                consistency,
+            });
+
+            return {
+                authorId: commentItem.authorId,
+                content:
+                    commentItem.payload.content ??
+                    createSimpleMessageContent(`Deleted ${messageNoun}`),
+                type: "Message",
+            };
+        }
+        case "MessagesRange": {
+            const postItem = await getPostItemForAuthorization(context, postId, {
+                consistency,
+            });
+            await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
+
+            const messageItems = await arrayFromAsyncIterable(
+                runCommentsQuery(context, {
+                    cache: PostCommentItemContextCache,
+                    cacheKeyPrefix: postId,
+                    consistency,
+                    startIndex: parent.startIndex,
+                    endIndex: parent.endIndex,
+                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                        ForumTable.query(context, {
+                            consistency,
+                            limit,
+                            partitionKey: {partitionType: "Post", postId},
+                            startSortKey,
+                            endSortKey,
+                        }),
+                }),
+            );
+
+            validateMessageContentPayloadMessagesRangeParent(parent, messageItems, {
+                allowDeletedMessagesForStartAndEndMessages: true,
+            });
+
+            return {
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
+                // have the same author and the list is not empty.
+                authorId: messageItems[0]!.authorId,
+                content: getTruncatedParentMessagesRangeContentWithoutReferences({
+                    messages: messageItems,
+                    messageNoun,
+                    startContentVersion: parent.startContentVersion,
+                    startPos: parent.startPos,
+                    endContentVersion: parent.endContentVersion,
+                    endPos: parent.endPos,
+                }),
+                type: "MessagesRange",
+            };
+        }
+        case "PostRange": {
+            const postItem = await getPostItemWithContentForAuthorization(context, postId, {
+                consistency,
+            });
+            await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
+
+            if (parent.contentVersion > (postItem.contentUpdate?.mappings.length ?? 0)) {
+                throw new FailedPreconditionError("Invalid post range content version");
+            }
+
+            const content = postItem.content;
+
+            return {
+                authorId: postItem.authorId,
+                content: assertPostContent(
+                    cutContent(
+                        postItem.content,
+                        clamp(0, parent.startPos ?? 0, content.content.size),
+                        clamp(0, parent.endPos ?? content.content.size, content.content.size),
+                    ),
+                ),
+                type: "PostRange",
+            };
+        }
+        default:
+            throw exhaustive(parent);
+    }
 }

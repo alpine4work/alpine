@@ -1,6 +1,6 @@
 /* eslint-disable string-quotes */
 import {addDays, addMinutes} from "date-fns";
-import {Fragment, Slice} from "prosemirror-model";
+import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
@@ -125,6 +125,20 @@ type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
             payload: MessageStreamPartPayload;
         }>;
     } | null;
+}>;
+
+/**
+ * Get the content without references for a message parent
+ */
+type GetMessageParentContentFunctionForTest<Message extends MessageModel> = (
+    context: ServerAccountActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        parent: MessageContentPayloadParent;
+    },
+) => Promise<{
+    content: MessageContent;
+    authorId: AccountId;
 }>;
 
 /**
@@ -437,6 +451,11 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     getMessagePayload: GetMessagePayloadFunctionForTest<MessageModel<RoomKey>>;
 
     /**
+     * Gets the content without references for a message parent
+     */
+    getMessageParentContent: GetMessageParentContentFunctionForTest<MessageModel<RoomKey>>;
+
+    /**
      * Update the content of a message.
      *
      * We will record the time at which the content was updated and show that the
@@ -538,6 +557,8 @@ export type RoomInterface<RoomKey> = {
      * decremented when we delete a message.
      */
     readonly messageCount: number;
+
+    readonly messageNoun: "message" | "comment";
 };
 
 function textSlice(text: string) {
@@ -557,6 +578,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         createMessage,
         getMessage,
         getMessagePayload,
+        getMessageParentContent,
         getMessagesFromStart,
         getMessagesFromEnd,
         getMessagePayloadsFromStart,
@@ -16236,6 +16258,242 @@ export function testMessagingImplementation<RoomKey extends string>(
                     checkpoint: expect.any(Date),
                     messages: [expect.objectContaining({index: message.index, version: 2})],
                 });
+            });
+        });
+
+        describe("getMessageParentContent", () => {
+            const doc = (...content: Array<Node>) => schema.nodes.doc.create(null, content);
+            const paragraph = (...content: Array<Node>) =>
+                schema.nodes.paragraph.create(null, content);
+            const text = (string: string, marks?: Array<Mark>) => schema.text(string, marks);
+
+            test("can get content for Message parent type", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession();
+                const session2 = await space.createSession();
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+                const parentMessage = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Parent message content"),
+                    fileIds: [],
+                });
+
+                const {content, authorId} = await getMessageParentContent(session1.action(), {
+                    roomKey: room.key,
+                    parent: {type: "Message", index: parentMessage.index},
+                });
+
+                expect(content).toEqual(createSimpleMessageContent("Parent message content"));
+                expect(authorId).toEqual(session1.account.id);
+            });
+
+            test("can get content for MessagesRange parent type including deleted messages", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2] = await space.createSessions(2);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                ]);
+                const message1 = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("First message in range"),
+                    fileIds: [],
+                });
+                await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Second message in range"),
+                    fileIds: [],
+                });
+                const message3 = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Third message in range"),
+                    fileIds: [],
+                });
+                const message4 = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Fourth message in range"),
+                    fileIds: [],
+                });
+
+                await deleteMessage(session1.action(), {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                });
+
+                const {content, authorId} = await getMessageParentContent(session1.action(), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        endIndex: message4.index,
+                        startContentVersion: 0,
+                        startPos: 0,
+                        endContentVersion: 0,
+                        endPos: 100,
+                    },
+                });
+
+                expect(authorId).toEqual(session1.account.id);
+                // The content should be truncated and combined from the range
+                expect(content).toEqual(
+                    doc(
+                        paragraph(text("First message in range")),
+                        paragraph(text("Second message in range")),
+                        paragraph(text(`Deleted ${room.messageNoun}`)),
+                        paragraph(text("Fourth message in range")),
+                    ),
+                );
+            });
+
+            test("can get content for MessagesRange parent type including if first and last messages are deleted", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                ]);
+                const message1 = await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("First message in range"),
+                    fileIds: [],
+                });
+                await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Second message in range"),
+                    fileIds: [],
+                });
+                await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Third message in range"),
+                    fileIds: [],
+                });
+                const message4 = await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Fourth message in range"),
+                    fileIds: [],
+                });
+
+                await runAllPromises([
+                    deleteMessage(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message1.index,
+                    }),
+                    deleteMessage(session.action(), {
+                        roomKey: room.key,
+                        messageIndex: message4.index,
+                    }),
+                ]);
+
+                const {content, authorId} = await getMessageParentContent(session.action(), {
+                    roomKey: room.key,
+                    parent: {
+                        type: "MessagesRange",
+                        startIndex: message1.index,
+                        endIndex: message4.index,
+                        startContentVersion: 0,
+                        startPos: 0,
+                        endContentVersion: 0,
+                        endPos: 100,
+                    },
+                });
+
+                const deletedMessage = paragraph(text(`Deleted ${room.messageNoun}`));
+
+                expect(authorId).toEqual(session.account.id);
+                // The content should be truncated and combined from the range
+                expect(content).toEqual(
+                    doc(
+                        deletedMessage,
+                        paragraph(text("Second message in range")),
+                        paragraph(text("Third message in range")),
+                        deletedMessage,
+                    ),
+                );
+            });
+
+            test("throws error when parent message doesn’t exist", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                ]);
+
+                await expect(
+                    getMessageParentContent(session.action(), {
+                        roomKey: room.key,
+                        parent: {type: "Message", index: 999},
+                    }),
+                ).rejects.toThrow(NotFoundError);
+            });
+
+            test("throws error when user doesn’t have access to chat", async () => {
+                const space = await TestSpace.create(context);
+                const [session1, session2, session3] = await space.createSessions(3);
+
+                const room = await actuallyCreatePrivateRoom(context.action(session1), space.id, {
+                    insideSessions: [
+                        {accountId: session1.account.id},
+                        {accountId: session2.account.id},
+                    ],
+                    insideViewerSession: null,
+                    insideBotAccount: null,
+                    outsideSession: {accountId: session3.account.id},
+                });
+                const parentMessage = await createMessage(session1.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("Parent message"),
+                    fileIds: [],
+                });
+
+                await expect(
+                    getMessageParentContent(session3.action(), {
+                        roomKey: room.key,
+                        parent: {type: "Message", index: parentMessage.index},
+                    }),
+                ).rejects.toThrow(PermissionDeniedError);
+            });
+
+            test("returns ‘Deleted message’ content for deleted Message parent", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession();
+
+                const room = await actuallyCreateRoom(context.action(session), space.id, [
+                    {accountId: session.account.id},
+                ]);
+                const parentMessage = await createMessage(session.action(), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent("This will be deleted"),
+                    fileIds: [],
+                });
+                await deleteMessage(session.action(), {
+                    roomKey: room.key,
+                    messageIndex: parentMessage.index,
+                });
+
+                const {content, authorId} = await getMessageParentContent(session.action(), {
+                    roomKey: room.key,
+                    parent: {type: "Message", index: parentMessage.index},
+                });
+
+                expect(content).toEqual(createSimpleMessageContent(`Deleted ${room.messageNoun}`));
+                expect(authorId).toEqual(session.account.id);
             });
         });
     });

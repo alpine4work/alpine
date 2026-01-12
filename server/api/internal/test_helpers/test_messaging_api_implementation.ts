@@ -3836,5 +3836,485 @@ export function testMessagingApiImplementation(
                 }
             });
         });
+
+        describe("message parents", () => {
+            test("includes parent with short content snippet (not truncated)", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                const parentMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Short parent",
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "This is a reply",
+                    {parent: parentMessage},
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.type).toEqual("Content");
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: parentMessage.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "Short parent",
+                            },
+                        ],
+                        isTruncated: false,
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Alice Smith",
+                    }),
+                });
+            });
+
+            test("includes parent with long content snippet (truncated)", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Bob Jones", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                // Create a long parent message that should be truncated
+                const longText =
+                    "This is a very long parent message that should be truncated. ".repeat(10);
+                const parentMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    longText,
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply to long message",
+                    {parent: parentMessage},
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: parentMessage.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "Text",
+                                text:
+                                    "This is a very long parent message that should be truncated. ".repeat(
+                                        6,
+                                    ) + "This is a very long parent",
+                            },
+                        ],
+                        isTruncated: true,
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Bob Jones",
+                    }),
+                });
+            });
+
+            test("includes parent with marks in content snippet", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Charlie Brown", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                // Create parent message with bold and italic text
+                const parentContent = MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("This is "),
+                        MessageContentProsemirrorSchema.text("bold", [
+                            MessageContentProsemirrorSchema.mark("bold"),
+                        ]),
+                        MessageContentProsemirrorSchema.text(" and "),
+                        MessageContentProsemirrorSchema.text("italic", [
+                            MessageContentProsemirrorSchema.mark("italic"),
+                        ]),
+                        MessageContentProsemirrorSchema.text(" text"),
+                    ]),
+                ]);
+
+                const parentMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    assertMessageContent(parentContent),
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply with marks",
+                    {parent: parentMessage},
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.type).toEqual("Content");
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: parentMessage.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "This is ",
+                            },
+                            {
+                                type: "Text",
+                                text: "bold",
+                                marks: [{type: "Bold"}],
+                            },
+                            {
+                                type: "Text",
+                                text: " and ",
+                            },
+                            {
+                                type: "Text",
+                                text: "italic",
+                                marks: [{type: "Italic"}],
+                            },
+                            {
+                                type: "Text",
+                                text: " text",
+                            },
+                        ],
+                        isTruncated: false,
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Charlie Brown",
+                    }),
+                });
+            });
+
+            test("includes parent with multiple marks on same text", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Dana White", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                // Create parent message with multiple marks on same text
+                const parentContent = MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("Normal text and "),
+                        MessageContentProsemirrorSchema.text("bold italic", [
+                            MessageContentProsemirrorSchema.mark("bold"),
+                            MessageContentProsemirrorSchema.mark("italic"),
+                        ]),
+                    ]),
+                ]);
+
+                const parentMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    assertMessageContent(parentContent),
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply",
+                    {parent: parentMessage},
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response).toEqual({
+                    status: 200,
+                    headers: expect.objectContaining({"content-type": "application/json"}),
+                    body: expect.objectContaining({
+                        message: expect.objectContaining({
+                            payload: expect.objectContaining({
+                                type: "Content",
+                                parent: {
+                                    type: "Message",
+                                    index: parentMessage.index,
+                                    contentSnippet: {
+                                        elements: [
+                                            {
+                                                type: "Text",
+                                                text: "Normal text and ",
+                                            },
+                                            {
+                                                type: "Text",
+                                                text: "bold italic",
+                                                marks: [{type: "Bold"}, {type: "Italic"}],
+                                            },
+                                        ],
+                                        isTruncated: false,
+                                    },
+                                    author: expect.objectContaining({id: session.account.id}),
+                                },
+                            }),
+                        }),
+                    }),
+                });
+            });
+
+            test("includes MessagesRange parent with short content snippet (not truncated)", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Eve Adams", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                const message1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "First message",
+                );
+                await TestMessagingRoomBase.createMessage(room, session, "Second message");
+                const message3 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Third message",
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply to range",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: message1.index,
+                            endIndex: message3.index,
+                            startContentVersion: 0,
+                            endContentVersion: 0,
+                            startPos: 5,
+                            endPos: 4,
+                        },
+                    },
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.type).toEqual("Content");
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: message1.index,
+                    endIndex: message3.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "Text",
+                                text: "t message. Second message. Thi",
+                            },
+                        ],
+                        isTruncated: false,
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Eve Adams",
+                    }),
+                });
+            });
+
+            test("includes MessagesRange parent with long content snippet (truncated)", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Frank Miller", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                // Create a long first message that should be truncated
+                const longText = "This is a very long message that should be truncated. ".repeat(
+                    10,
+                );
+                const message1 = await TestMessagingRoomBase.createMessage(room, session, longText);
+                const message2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Second message",
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply to range",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: message1.index,
+                            endIndex: message2.index,
+                            startContentVersion: 0,
+                            endContentVersion: 0,
+                            startPos: 5,
+                            endPos: 100,
+                        },
+                    },
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.parent).toEqual(
+                    expect.objectContaining({
+                        type: "Message",
+                        index: message1.index,
+                        endIndex: message2.index,
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Text",
+                                    text: " is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long message that should be truncated. This is a very long",
+                                },
+                            ],
+                            isTruncated: true,
+                        },
+                        author: expect.objectContaining({
+                            id: session.account.id,
+                            name: "Frank Miller",
+                        }),
+                    }),
+                );
+
+                // Verify that contentSnippet exists but is truncated
+                expect(response.body.message.payload.parent.contentSnippet).toBeDefined();
+                const snippetText =
+                    response.body.message.payload.parent.contentSnippet.elements[0].text;
+                expect(snippetText.length).toBeLessThan(longText.length);
+            });
+
+            test("includes MessagesRange parent with marks in content snippet", async () => {
+                const space = await TestSpace.create(context);
+                const session = await space.createSession({name: "Grace Kelly", role: "Admin"});
+
+                const bot = await TestBot.createAndInstantiate(session);
+                const apiKey = await bot.createApiKey(session);
+
+                const {roomPath, room} = await createPrivateRoom(session, bot);
+
+                // Create first message with bold and italic text
+                const message1Content = MessageContentProsemirrorSchema.node("doc", {}, [
+                    MessageContentProsemirrorSchema.node("paragraph", {}, [
+                        MessageContentProsemirrorSchema.text("This is "),
+                        MessageContentProsemirrorSchema.text("bold", [
+                            MessageContentProsemirrorSchema.mark("bold"),
+                        ]),
+                        MessageContentProsemirrorSchema.text(" and "),
+                        MessageContentProsemirrorSchema.text("italic", [
+                            MessageContentProsemirrorSchema.mark("italic"),
+                        ]),
+                        MessageContentProsemirrorSchema.text(" text"),
+                    ]),
+                ]);
+
+                const message1 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    assertMessageContent(message1Content),
+                );
+                const message2 = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Second message",
+                );
+
+                const replyMessage = await TestMessagingRoomBase.createMessage(
+                    room,
+                    session,
+                    "Reply with marks",
+                    {
+                        parent: {
+                            type: "MessagesRange",
+                            startIndex: message1.index,
+                            endIndex: message2.index,
+                            startContentVersion: 0,
+                            endContentVersion: 0,
+                            startPos: 5,
+                            endPos: 10,
+                        },
+                    },
+                );
+
+                const response = await server.GET(`${roomPath}/messages/${replyMessage.index}`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                });
+
+                expect(response.status).toEqual(200);
+                expect(response.body.message.payload.type).toEqual("Content");
+                expect(response.body.message.payload.parent).toEqual({
+                    type: "Message",
+                    index: message1.index,
+                    endIndex: message2.index,
+                    contentSnippet: {
+                        elements: [
+                            {
+                                type: "Text",
+                                text: " is ",
+                            },
+                            {
+                                type: "Text",
+                                text: "bold",
+                                marks: [{type: "Bold"}],
+                            },
+                            {
+                                type: "Text",
+                                text: " and ",
+                            },
+                            {
+                                type: "Text",
+                                text: "italic",
+                                marks: [{type: "Italic"}],
+                            },
+                            {
+                                type: "Text",
+                                text: " text. Second me",
+                            },
+                        ],
+                        isTruncated: false,
+                    },
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Grace Kelly",
+                    }),
+                });
+            });
+        });
     });
 }

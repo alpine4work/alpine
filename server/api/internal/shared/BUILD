@@ -2,7 +2,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "shared",
-    test_deps = ["//shared/documents"],
+    test_deps = [
+        "//server/bots/test_helpers",
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+        "//shared/documents",
+        "//shared/forum",
+    ],
     visibility = ["//server/api:__subpackages__"],
     deps = [
         "//:node_modules/@lezer/json",

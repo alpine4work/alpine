@@ -2245,16 +2245,36 @@ components:
                 type:
                     const: Content
                 parent:
-                    oneOf:
-                        - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
-                    discriminator:
-                        propertyName: type
-                        mapping:
-                            Message: "#/components/schemas/MessageContentPayloadMessageParent"
+                    $ref: "#/components/schemas/MessageContentPayloadParent"
                 content:
                     $ref: "#/components/schemas/Content"
 
-                # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
+        # NOTE(ifitzsimmons, #public-api): We don't currently support replying to Posts
+        # (via ranges) through the API, but we *can* return reply ranges when fetching
+        # messages. So we create a response specialization in order to return reply ranges
+        # when fetching messages without exposing the creation flow.
+        #
+        # I'm not actually convinced that we *should* enable replying to ranges via the
+        # API. If we do, we can probably remove this specialization.
+        MessageContentPayloadParent:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent"
+
+        MessageContentPayloadParent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+
+        # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
 
         MessageContentPayloadMessageParent:
             type: object
@@ -2266,6 +2286,47 @@ components:
                 index:
                     type: integer
                     minimum: 0
+
+        MessageContentPayloadMessageParent_Response:
+            type: object
+            required: [type, author, index, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Message
+                author:
+                    $ref: "#/components/schemas/Account"
+                index:
+                    type: integer
+                    minimum: 0
+                # NOTE(ifitzsimmons, #api): Alpine users can reply to a selection of content that
+                # that can span across more than 1 message (we refer to this as a "range"). If the
+                # parent is a "range", the `index` is the start index of the range the `endIndex`
+                # will be a positive integer (instead of undefined).
+                endIndex:
+                    type: integer
+                    minimum: 0
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+
+        # TODO(ifitzsimmons, #public-api): We don't actually return the range information for
+        # now. In order for a client to use the actual range, we need to return the start
+        # and end index *along with the content version*. Eventually, we should encode these
+        # into `postSelectionId` – but I don't think we should expose the range in the meantime.
+        # In terms of our agents, we can use the `isTruncated` property to determine whether we
+        # need to fetch the whole post. The full message and the truncated message should give
+        # the agent enough context to reply to the request.
+        MessageContentPayloadPostParent_Response:
+            type: object
+            required: [type, author, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
+                author:
+                    $ref: "#/components/schemas/Account"
+                contentSnippet:
+                    $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
 
         MessageDeletedPayload:
             type: object
@@ -2394,6 +2455,46 @@ components:
                     $ref: "#/components/schemas/TimeZone"
                 wasMentioned:
                     type: boolean
+
+        MessageContentPayloadParentContentSnippet:
+            type: object
+            required: [isTruncated, elements]
+            additionalProperties: false
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetTextInlineElement"
+                isTruncated:
+                    type: boolean
+
+        MessageContentPayloadParentContentSnippetTextInlineElement:
+            type: object
+            required: [type, text]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Text
+                text:
+                    type: string
+                marks:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessageContentPayloadParentContentSnippetInlineElementMark"
+
+        MessageContentPayloadParentContentSnippetInlineElementMark:
+            oneOf:
+                - $ref: "#/components/schemas/ContentInlineElementBoldMark"
+                - $ref: "#/components/schemas/ContentInlineElementItalicMark"
+                - $ref: "#/components/schemas/ContentInlineElementStrikeMark"
+                - $ref: "#/components/schemas/ContentInlineElementCodeMark"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Bold: "#/components/schemas/ContentInlineElementBoldMark"
+                    Italic: "#/components/schemas/ContentInlineElementItalicMark"
+                    Strike: "#/components/schemas/ContentInlineElementStrikeMark"
+                    Code: "#/components/schemas/ContentInlineElementCodeMark"
 
         # =========================================================================== #
         #                                  Search                                    #

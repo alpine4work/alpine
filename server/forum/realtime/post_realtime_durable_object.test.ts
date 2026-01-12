@@ -92,6 +92,7 @@ testMessagingRealtimeImplementation<PostId>(context, {
             spaceId: space.id,
             createdTime: post.createdTime,
             messageCount: 0,
+            messageNoun: "comment",
         };
     },
     async connectForTest(context, roomKey) {

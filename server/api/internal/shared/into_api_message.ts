@@ -4,6 +4,7 @@ import {intoApiMessageStreamPartPayload} from "~/server/api/internal/shared/into
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {
+    ApiMessageContentPayloadParentResponse,
     ApiMessagePayloadResponse,
     ApiMessageResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
@@ -12,16 +13,19 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {MessagePayload} from "~/shared/messaging/message_schema.js";
+import {MessageContentPayloadParent, MessagePayload} from "~/shared/messaging/message_schema.js";
 
 export async function intoApiMessage(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     message: MessageItem,
+    getApiMessageParentResponse: (
+        parent: MessageContentPayloadParent,
+    ) => Promise<ApiMessageContentPayloadParentResponse | null>,
 ): Promise<ApiMessageResponse> {
     const [author, payload, streamParts] = await runAllPromises([
         getApiAccount(context, spaceId, message.authorId, {consistency: "StrongWithinCache"}),
-        intoApiMessagePayload(context, spaceId, message.payload),
+        intoApiMessagePayload(context, spaceId, message.payload, getApiMessageParentResponse),
         message.stream
             ? runAllPromises(
                   message.stream.parts.map(part =>
@@ -102,24 +106,28 @@ async function intoApiMessagePayload(
     context: ServerBotActionContext,
     spaceId: SpaceId,
     payload: MessagePayload,
+    getApiMessageParentResponse: (
+        parent: MessageContentPayloadParent,
+    ) => Promise<ApiMessageContentPayloadParentResponse | null>,
 ): Promise<ApiMessagePayloadResponse> {
     switch (payload.type) {
         case "Deleted": {
             return {type: "Deleted"};
         }
         case "Content":
+            const [contentWithReferences, parent] = await runAllPromises([
+                intoApiMessageContentWithReferences(context, spaceId, payload.content),
+                (async () => {
+                    if (!payload.parent) return undefined;
+
+                    return getApiMessageParentResponse(payload.parent);
+                })(),
+            ]);
+
             return {
                 type: "Content",
-                parent:
-                    // TODO(calebmer, #ai, #api, #public-api): Support message ranges here too.
-                    payload.parent?.type === "Message"
-                        ? {type: "Message", index: payload.parent.index}
-                        : undefined,
-                content: await intoApiMessageContentWithReferences(
-                    context,
-                    spaceId,
-                    payload.content,
-                ),
+                parent: parent ?? undefined,
+                content: contentWithReferences,
             };
         default:
             throw exhaustive(payload);

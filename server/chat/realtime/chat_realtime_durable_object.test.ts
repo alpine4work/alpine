@@ -97,6 +97,7 @@ testMessagingRealtimeImplementation<ChatId>(context, {
             spaceId: sessions[0].space.id,
             createdTime: chat.createdTime,
             messageCount: 0,
+            messageNoun: "message",
         };
     },
     async connectForTest(context, roomKey) {

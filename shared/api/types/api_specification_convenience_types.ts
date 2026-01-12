@@ -100,6 +100,15 @@ export type ApiContentHeadingBlockElementResponse =
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
 
+export type ApiMessageContentPayloadParentContentSnippet =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippet"];
+
+export type ApiMessageContentPayloadParentContentSnippetTextInlineElement =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetTextInlineElement"];
+
+export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"];
+
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
 
@@ -194,6 +203,9 @@ export type ApiMessageStreamPartPayloadResponse =
 
 export type ApiMessageContentPayloadResponse =
     ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
+
+export type ApiMessageContentPayloadParentResponse =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
 
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];

@@ -31,11 +31,7 @@ export const PostItemAuthorizationCache = new DynamoContextCache<
     whenActorChanges: "DangerouslyShare",
 });
 
-export async function getPostItemForAuthorizationIfExists(
-    context: ServerMinimalActionContext,
-    postId: PostId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
-): Promise<Pick<
+export type PostItemForAuthorization = Pick<
     PostAttributesItem,
     | "partitionType"
     | "sortRangeType"
@@ -47,7 +43,13 @@ export async function getPostItemForAuthorizationIfExists(
     | "contentUpdate"
     | "commentsSummary"
     | "updateLockVersion"
-> | null> {
+>;
+
+export async function getPostItemForAuthorizationIfExists(
+    context: ServerMinimalActionContext,
+    postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<PostItemForAuthorization | null> {
     return PostItemAuthorizationCache.get(context, consistency, postId, consistency =>
         ForumRealtimeTable.getPartialItemIfExists(
             context,
@@ -76,19 +78,7 @@ export async function getPostItemForAuthorization(
     context: ServerMinimalActionContext,
     postId: PostId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<
-    Pick<
-        PostAttributesItem,
-        | "partitionType"
-        | "sortRangeType"
-        | "postId"
-        | "spaceId"
-        | "channelId"
-        | "authorId"
-        | "createdTime"
-        | "commentsSummary"
-    >
-> {
+): Promise<PostItemForAuthorization> {
     const item = await getPostItemForAuthorizationIfExists(context, postId, options);
     if (!item) throw createPostNotFoundError(postId);
     return item;

@@ -1,18 +1,14 @@
-import {Node} from "prosemirror-model";
 import {Fragment, ReactNode} from "react";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {FileRegistry} from "~/client/web/content/file_registry.js";
 import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/client/web/content/print_content_single_line_text_snippet_for_client.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {
-    ContentReferences,
     ContentWithReferences,
     emptyContentReferences,
-    mergeContentReferences,
 } from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
-import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
+import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_content_for_message_reply_preview.js";
 import {
     boldClassName,
     codeClassName,
@@ -21,17 +17,12 @@ import {
 } from "~/shared/design/core/constant_class_names.js";
 import {assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
+import {getTruncatedParentMessagesRangeContentWithReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
-import {
-    MessageContent,
-    MessageContentProsemirrorSchema,
-    MessageContentWithReferences,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -52,11 +43,7 @@ function getTruncatedMessageContentForReplyPreviewBase(
     const segments = printContentSingleLineTextSnippetPreservingMarksForClient(
         get,
         {
-            doc: getContentSnippet(content.doc.resolve(0), 1, {
-                // `printContentSingleLineTextSnippet()` collapses newlines. So also consider
-                // newlines to be collapsed when generating a snippet.
-                ignoreLineBreaks: true,
-            }),
+            doc: truncateContentForMessageReplyPreview(content.doc),
             references: content.references,
         },
         {
@@ -212,197 +199,17 @@ export function getTruncatedMessagesRangeContentForReplyPreview(
         fileRegistry: FileRegistry;
     },
 ): ReactNode {
-    const startMessage = messages[0]!;
-    const endMessage = messages[messages.length - 1]!;
-
-    let startPayload: {type: "Deleted"} | {type: "Content"; content: MessageContentWithReferences};
-
-    let endPayload:
-        | {type: "Deleted"}
-        | {type: "Content"; content: MessageContentWithReferences}
-        | undefined;
-
-    if (startMessage.index === endMessage.index) {
-        switch (startMessage.payload.type) {
-            case "Deleted": {
-                startPayload = startMessage.payload;
-                break;
-            }
-            case "Content": {
-                const actualStartPos = mapMessagePosFromContentVersion(
-                    startMessage.payload,
-                    startContentVersion,
-                    startPos,
-                    1,
-                );
-
-                const actualEndPos = mapMessagePosFromContentVersion(
-                    startMessage.payload,
-                    startContentVersion,
-                    endPos,
-                    -1,
-                );
-
-                startPayload = {
-                    type: "Content",
-                    content: {
-                        doc: cutMessageContentPayload(startMessage, actualStartPos, actualEndPos),
-                        references: startMessage.payload.content.references,
-                    },
-                };
-                break;
-            }
-            default:
-                throw exhaustive(startMessage.payload);
-        }
-    } else {
-        switch (startMessage.payload.type) {
-            case "Deleted": {
-                startPayload = startMessage.payload;
-                break;
-            }
-            case "Content": {
-                const pos = mapMessagePosFromContentVersion(
-                    startMessage.payload,
-                    startContentVersion,
-                    startPos,
-                    1,
-                );
-
-                startPayload = {
-                    type: "Content",
-                    content: {
-                        doc: cutMessageContentPayload(startMessage, pos),
-                        references: startMessage.payload.content.references,
-                    },
-                };
-                break;
-            }
-            default:
-                throw exhaustive(startMessage.payload);
-        }
-
-        switch (endMessage.payload.type) {
-            case "Deleted": {
-                endPayload = endMessage.payload;
-                break;
-            }
-            case "Content": {
-                const pos = mapMessagePosFromContentVersion(
-                    endMessage.payload,
-                    endContentVersion,
-                    endPos,
-                    -1,
-                );
-
-                endPayload = {
-                    type: "Content",
-                    content: {
-                        doc: cutMessageContentPayload(endMessage, 0, pos),
-                        references: endMessage.payload.content.references,
-                    },
-                };
-                break;
-            }
-            default:
-                throw exhaustive(endMessage.payload);
-        }
-    }
-
-    const payloads = [startPayload, ...messages.slice(1, -1).map(message => message.payload)];
-
-    if (endPayload !== undefined) payloads.push(endPayload);
-
-    const docs: Array<MessageContent> = [];
-    let references: ContentReferences | null = null;
-
-    for (const payload of payloads) {
-        switch (payload.type) {
-            case "Content": {
-                docs.push(payload.content.doc);
-                if (references === null) {
-                    references = payload.content.references;
-                } else {
-                    references = mergeContentReferences(references, payload.content.references);
-                }
-                break;
-            }
-            case "Deleted": {
-                docs.push(createSimpleMessageContent(`Deleted ${messageNoun}`));
-                break;
-            }
-            default:
-                throw exhaustive(payload);
-        }
-    }
-
     return getTruncatedMessageContentForReplyPreviewBase(get, {
-        content: {
-            doc: assertMessageContent(
-                MessageContentProsemirrorSchema.nodes.doc.create(
-                    null,
-                    docs.flatMap(doc => doc.content.content),
-                ),
-            ),
-            references: references ?? emptyContentReferences,
-        },
+        content: getTruncatedParentMessagesRangeContentWithReferences({
+            messages,
+            startContentVersion,
+            startPos,
+            endContentVersion,
+            endPos,
+            messageNoun,
+        }),
         accountRegistry,
         searchEntityRegistry,
         fileRegistry,
     });
-}
-
-/**
- * Cut the message content. If the message is a stream then we include stream
- * parts in the cut content.
- */
-function cutMessageContentPayload(
-    message: MessageModel<string>,
-    from?: number,
-    to?: number,
-): MessageContent {
-    assert(message.payload.type === "Content");
-
-    const {
-        payload: {
-            content: {doc: content},
-        },
-        stream,
-    } = message;
-
-    if (stream === null) {
-        return assertMessageContent(
-            cutContent(
-                content,
-                clamp(0, from ?? 0, content.content.size),
-                clamp(0, to ?? content.content.size, content.content.size),
-            ),
-        );
-    }
-
-    const nodes: Array<Node> = [];
-
-    if (!isContentBodyEmpty(content)) {
-        for (const node of content.content.content) {
-            nodes.push(node);
-        }
-    }
-
-    for (const part of stream.parts) {
-        if (part.payload.type === "Content") {
-            for (const node of part.payload.content.content.content) {
-                nodes.push(node);
-            }
-        }
-    }
-
-    const contentWithStream = MessageContentProsemirrorSchema.nodes.doc.create({}, nodes);
-
-    return assertMessageContent(
-        cutContent(
-            contentWithStream,
-            clamp(0, from ?? 0, contentWithStream.content.size),
-            clamp(0, to ?? contentWithStream.content.size, contentWithStream.content.size),
-        ),
-    );
 }

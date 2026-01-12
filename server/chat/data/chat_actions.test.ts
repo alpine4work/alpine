@@ -12,6 +12,7 @@ import {
     getChatAccountIds,
     getChatAccountIdsForBotScope,
     getChatMessage,
+    getChatMessageParentContent,
     getChatMessagePayload,
     getChatMessagePayloadsFromEnd,
     getChatMessagePayloadsFromStart,
@@ -4376,6 +4377,7 @@ testMessagingImplementation<ChatId>(context, {
             spaceId,
             createdTime: chat.createdTime,
             messageCount: 0,
+            messageNoun: "message",
         };
     },
     async createPrivateRoom(context, spaceId, {insideSessions, insideBotAccount}) {
@@ -4392,6 +4394,7 @@ testMessagingImplementation<ChatId>(context, {
             spaceId,
             createdTime: chat.createdTime,
             messageCount: 0,
+            messageNoun: "message",
             doesInsideViewerSessionHaveRoomAccess: "Unimplemented",
             revokeInsideSession: "Unimplemented",
         };
@@ -4404,6 +4407,7 @@ testMessagingImplementation<ChatId>(context, {
             spaceId: post.spaceId,
             createdTime: post.createdTime,
             messageCount: post.messageCount,
+            messageNoun: "message",
         };
     },
     getMissingRoomKey() {
@@ -4438,6 +4442,9 @@ testMessagingImplementation<ChatId>(context, {
     },
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
         return getChatMessagePayload(context, {chatId, messageIndex});
+    },
+    async getMessageParentContent(context, {roomKey: chatId, parent}) {
+        return getChatMessageParentContent(context, chatId, {parent});
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, contentVersion, steps}) {
         return updateChatMessageContent(context, {

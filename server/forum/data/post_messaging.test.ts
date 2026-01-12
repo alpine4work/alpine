@@ -12,6 +12,7 @@ import {
     deletePostComment,
     deletePostCommentReaction,
     getPostComment,
+    getPostCommentParentContent,
     getPostCommentPayload,
     getPostCommentPayloadsFromEnd,
     getPostCommentPayloadsFromStart,
@@ -26,6 +27,7 @@ import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_acce
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {generateId} from "~/shared/id/id.js";
@@ -56,6 +58,7 @@ testMessagingImplementation<PostId>(context, {
             spaceId,
             createdTime: post.createdTime,
             messageCount: 0,
+            messageNoun: "comment",
         };
     },
 
@@ -100,6 +103,7 @@ testMessagingImplementation<PostId>(context, {
             spaceId,
             createdTime: post.createdTime,
             messageCount: 0,
+            messageNoun: "comment",
             doesInsideViewerSessionHaveRoomAccess: true,
             revokeInsideSession: async (context, session) => {
                 const {accessPolicy} = await getChannelPreview(context, channel.id);
@@ -130,6 +134,7 @@ testMessagingImplementation<PostId>(context, {
             spaceId: post.spaceId,
             createdTime: post.createdTime,
             messageCount: post.commentCount,
+            messageNoun: "comment",
         };
     },
     getMissingRoomKey() {
@@ -185,6 +190,18 @@ testMessagingImplementation<PostId>(context, {
     },
     async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
         return await getPostCommentPayload(context, {postId, commentIndex});
+    },
+    async getMessageParentContent(context, {roomKey: postId, parent}) {
+        const parentContent = await getPostCommentParentContent(context, postId, {
+            parent,
+        });
+
+        assert(parentContent.type !== "PostRange");
+
+        return {
+            content: parentContent.content,
+            authorId: parentContent.authorId,
+        };
     },
     async updateMessageContent(
         context,

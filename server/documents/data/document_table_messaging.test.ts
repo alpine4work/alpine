@@ -10,6 +10,7 @@ import {
     deleteDocumentCommentReaction,
     getDocument,
     getDocumentComment,
+    getDocumentCommentParentContent,
     getDocumentCommentPayload,
     getDocumentCommentPayloadsFromEnd,
     getDocumentCommentPayloadsFromStart,
@@ -101,6 +102,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             spaceId,
             createdTime,
             messageCount: 0,
+            messageNoun: "comment",
         };
     },
     async createPrivateRoom(context, spaceId, {insideSessions, insideViewerSession}) {
@@ -169,6 +171,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             spaceId,
             createdTime,
             messageCount: 0,
+            messageNoun: "comment",
             doesInsideViewerSessionHaveRoomAccess: false,
             revokeInsideSession: async (context, session) => {
                 const currentDocument = await getDocument(context, document.id);
@@ -221,6 +224,7 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             messageCount: sumIterable(
                 commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
             ),
+            messageNoun: "comment",
         };
     },
     getMissingRoomKey() {
@@ -298,6 +302,11 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
             commentThreadId,
             commentIndex,
         });
+    },
+    async getMessageParentContent(context, {roomKey, parent}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return getDocumentCommentParentContent(context, documentId, commentThreadId, {parent});
     },
     async updateMessageContent(
         context,

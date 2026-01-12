@@ -23,10 +23,7 @@ import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
-import {
-    DynamoCacheReadConsistency,
-    DynamoReadConsistency,
-} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
@@ -105,7 +102,11 @@ import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
-import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageContentPayloadClerical,
     MessageContentPayloadContentUpdate,
@@ -2115,6 +2116,17 @@ async function getChatMessageItemIfExists(
     return items[0] ?? null;
 }
 
+async function getChatMessageItem(
+    context: ServerActionContext,
+    chatId: ChatId,
+    messageIndex: number,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<MessageItem> {
+    const item = await getChatMessageItemIfExists(context, chatId, messageIndex, {consistency});
+    if (!item) throw createChatMessageNotFoundError(chatId, messageIndex);
+    return item;
+}
+
 /**
  * Get a single chat message comment.
  */
@@ -2670,7 +2682,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     messages: Array<ChatMessageModel>;
@@ -3240,4 +3252,71 @@ export async function processSendShareNotificationJob(
             }
         }),
     );
+}
+
+export async function getChatMessageParentContent(
+    context: ServerActionContext,
+    chatId: ChatId,
+    {
+        parent,
+        consistency,
+    }: {parent: MessageContentPayloadParent; consistency?: DynamoCacheReadConsistency},
+): Promise<{content: MessageContent; authorId: AccountId}> {
+    await authorizeChatAccess(context, chatId, {consistency});
+
+    const messageNoun = "message";
+
+    switch (parent.type) {
+        case "Message": {
+            const message = await getChatMessageItem(context, chatId, parent.index, {consistency});
+
+            return {
+                authorId: message.authorId,
+                content:
+                    message.payload.content ?? createSimpleMessageContent(`Deleted ${messageNoun}`),
+            };
+        }
+        case "MessagesRange": {
+            const messageItems = await arrayFromAsyncIterable(
+                runMessagesQuery(context, {
+                    cache: ChatMessageItemContextCache,
+                    cacheKeyPrefix: chatId,
+                    consistency,
+                    startIndex: parent.startIndex,
+                    endIndex: parent.endIndex,
+                    query: ({consistency, limit, startSortKey, endSortKey}) =>
+                        ChatTable.query(context, {
+                            consistency,
+                            limit,
+                            partitionKey: {partitionType: "Chat", chatId},
+                            startSortKey,
+                            endSortKey,
+                        }),
+                }),
+            );
+
+            validateMessageContentPayloadMessagesRangeParent(parent, messageItems, {
+                allowDeletedMessagesForStartAndEndMessages: true,
+            });
+
+            return {
+                // `validateMessageContentPayloadMessagesRangeParent()` guarantees that all messages
+                // have the same author and the list is not empty.
+                authorId: messageItems[0]!.authorId,
+                content: getTruncatedParentMessagesRangeContentWithoutReferences({
+                    messages: messageItems,
+                    messageNoun,
+                    startContentVersion: parent.startContentVersion,
+                    startPos: parent.startPos,
+                    endContentVersion: parent.endContentVersion,
+                    endPos: parent.endPos,
+                }),
+            };
+        }
+        case "PostRange": {
+            throw new InvalidArgumentError("Post range parent can only be used with post comments");
+        }
+        default:
+            throw exhaustive(parent);
+    }
 }
