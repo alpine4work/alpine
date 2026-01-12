@@ -7,7 +7,13 @@ export function getAgentModelDowngradedMessage(
     timeZone: TimeZone,
 ): string {
     return (
-        "*⚠️ To help extend your usage, your AI models have been downgraded temporarily. " +
-        `This will reset ${getAgentUsageLocalResetTimeString(resetTime, currentTime, timeZone)}.*`
+        "*⚠️ To help extend your usage, I’m now using a less intelligent model. I’ll be back to " +
+        `using the best available model ${getAgentUsageLocalResetTimeString(
+            resetTime,
+            currentTime,
+            timeZone,
+        )}. ` +
+        "If you’d like to continue using the most intelligent models, purchase " +
+        "[Alpine Lifetime access](https://www.alpine.inc#pricing).*"
     );
 }

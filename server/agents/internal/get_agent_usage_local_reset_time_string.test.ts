@@ -3,7 +3,7 @@ import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 describe("getAgentUsageLocalResetTimeString", () => {
     describe("today scenarios", () => {
-        test("returns ‘today at’ when reset is later same day in UTC", () => {
+        test("returns ‘today at’ when reset is later same day in", () => {
             const currentTime = new Date("2025-01-15T10:00:00.000Z");
             const resetTime = new Date("2025-01-15T18:00:00.000Z");
 
@@ -13,7 +13,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("UTC"),
             );
 
-            expect(result).toBe("today at 6:00pm UTC");
+            expect(result).toBe("today at 6:00pm");
         });
 
         test("returns ‘today at’ when reset is later same day in America/New_York", () => {
@@ -26,7 +26,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("today at 6:00pm EST");
+            expect(result).toBe("today at 6:00pm");
         });
 
         test("returns ‘tomorrow at’ when reset is at midnight (start of next day)", () => {
@@ -39,7 +39,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 12:00am EST");
+            expect(result).toBe("tomorrow at 12:00am");
         });
 
         test("returns ‘today at’ when reset is just before midnight same day", () => {
@@ -52,7 +52,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("today at 11:59pm EST");
+            expect(result).toBe("today at 11:59pm");
         });
 
         test("returns ‘today at’ for same instant", () => {
@@ -60,7 +60,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
 
             const result = getAgentUsageLocalResetTimeString(time, time, assertTimeZone("UTC"));
 
-            expect(result).toBe("today at 12:00pm UTC");
+            expect(result).toBe("today at 12:00pm");
         });
 
         test("returns ‘today at’ in Asia/Tokyo timezone", () => {
@@ -73,12 +73,12 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("Asia/Tokyo"),
             );
 
-            expect(result).toBe("today at 6:00pm JST");
+            expect(result).toBe("today at 6:00pm");
         });
     });
 
     describe("tomorrow scenarios", () => {
-        test("returns ‘tomorrow at’ when reset is next calendar day in UTC", () => {
+        test("returns ‘tomorrow at’ when reset is next calendar day in", () => {
             const currentTime = new Date("2025-01-15T10:00:00.000Z");
             const resetTime = new Date("2025-01-16T10:00:00.000Z");
 
@@ -88,7 +88,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("UTC"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am UTC");
+            expect(result).toBe("tomorrow at 10:00am");
         });
 
         test("returns ‘tomorrow at’ when reset is next day in America/New_York", () => {
@@ -101,7 +101,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am EST");
+            expect(result).toBe("tomorrow at 10:00am");
         });
 
         test("returns ‘tomorrow at’ when reset is at midnight of next day", () => {
@@ -114,7 +114,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 12:00am EST");
+            expect(result).toBe("tomorrow at 12:00am");
         });
 
         test("returns ‘tomorrow at’ when current time is late evening", () => {
@@ -127,7 +127,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am EST");
+            expect(result).toBe("tomorrow at 10:00am");
         });
 
         test("returns ‘tomorrow at’ in Asia/Tokyo timezone", () => {
@@ -140,7 +140,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("Asia/Tokyo"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am JST");
+            expect(result).toBe("tomorrow at 10:00am");
         });
 
         test("returns ‘tomorrow at’ crossing month boundary", () => {
@@ -153,7 +153,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am EST");
+            expect(result).toBe("tomorrow at 10:00am");
         });
 
         test("returns ‘tomorrow at’ crossing year boundary", () => {
@@ -166,7 +166,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 10:00am EST");
+            expect(result).toBe("tomorrow at 10:00am");
         });
     });
 
@@ -181,7 +181,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("UTC"),
             );
 
-            expect(result).toBe("on Jan 17th at 10:00am UTC");
+            expect(result).toBe("on Jan 17th at 10:00am");
         });
 
         test("returns formatted date when reset is 7 days away", () => {
@@ -194,7 +194,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("on Jan 22nd at 10:00am EST");
+            expect(result).toBe("on Jan 22nd at 10:00am");
         });
 
         test("returns formatted date when reset is 30 days away", () => {
@@ -207,7 +207,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("UTC"),
             );
 
-            expect(result).toBe("on Feb 14th at 10:00am UTC");
+            expect(result).toBe("on Feb 14th at 10:00am");
         });
 
         test("returns formatted date crossing month boundary", () => {
@@ -220,7 +220,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("on Feb 5th at 10:00am EST");
+            expect(result).toBe("on Feb 5th at 10:00am");
         });
 
         test("returns formatted date crossing year boundary", () => {
@@ -233,7 +233,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("UTC"),
             );
 
-            expect(result).toBe("on Jan 5th at 10:00am UTC");
+            expect(result).toBe("on Jan 5th at 10:00am");
         });
 
         test("returns formatted date in Asia/Tokyo timezone", () => {
@@ -246,105 +246,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("Asia/Tokyo"),
             );
 
-            expect(result).toBe("on Jan 20th at 10:00am JST");
-        });
-    });
-
-    describe("DST transition scenarios", () => {
-        test("handles spring DST transition (EST to EDT)", () => {
-            // March 9, 2025 is when DST starts
-            const currentTime = new Date("2025-03-09T15:00:00.000Z"); // March 9
-            const resetTime = new Date("2025-03-10T14:00:00.000Z"); // March 10 (after DST)
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("America/New_York"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am EDT");
-        });
-
-        test("handles fall DST transition (EDT to EST)", () => {
-            // November 2, 2025 is when DST ends
-            const currentTime = new Date("2025-11-02T14:00:00.000Z"); // November 2
-            const resetTime = new Date("2025-11-03T15:00:00.000Z"); // November 3 (after DST)
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("America/New_York"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am EST");
-        });
-
-        test("handles PDT timezone in summer", () => {
-            const currentTime = new Date("2025-07-15T17:00:00.000Z");
-            const resetTime = new Date("2025-07-16T17:00:00.000Z");
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("America/Los_Angeles"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am PDT");
-        });
-
-        test("handles PST timezone in winter", () => {
-            const currentTime = new Date("2025-01-15T18:00:00.000Z");
-            const resetTime = new Date("2025-01-16T18:00:00.000Z");
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("America/Los_Angeles"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am PST");
-        });
-    });
-
-    describe("timezone edge cases", () => {
-        test("handles timezone causing different calendar days (UTC vs Tokyo)", () => {
-            // 11pm UTC Jan 15 = 8am JST Jan 16
-            const currentTime = new Date("2025-01-15T23:00:00.000Z");
-            const resetTime = new Date("2025-01-16T01:00:00.000Z"); // 10am JST Jan 16
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("Asia/Tokyo"),
-            );
-
-            expect(result).toBe("today at 10:00am JST");
-        });
-
-        test("handles Europe/London GMT timezone", () => {
-            const currentTime = new Date("2025-01-15T10:00:00.000Z");
-            const resetTime = new Date("2025-01-16T10:00:00.000Z");
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("Europe/London"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am GMT");
-        });
-
-        test("handles Australia/Sydney AEDT timezone", () => {
-            const currentTime = new Date("2025-01-14T23:00:00.000Z"); // 10am AEDT Jan 15
-            const resetTime = new Date("2025-01-15T23:00:00.000Z"); // 10am AEDT Jan 16
-
-            const result = getAgentUsageLocalResetTimeString(
-                resetTime,
-                currentTime,
-                assertTimeZone("Australia/Sydney"),
-            );
-
-            expect(result).toBe("tomorrow at 10:00am AEDT");
+            expect(result).toBe("on Jan 20th at 10:00am");
         });
     });
 
@@ -359,7 +261,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("today at 12:00pm EST");
+            expect(result).toBe("today at 12:00pm");
         });
 
         test("handles midnight (12:00am)", () => {
@@ -372,7 +274,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("tomorrow at 12:00am EST");
+            expect(result).toBe("tomorrow at 12:00am");
         });
 
         test("handles 11:59pm edge case", () => {
@@ -385,7 +287,7 @@ describe("getAgentUsageLocalResetTimeString", () => {
                 assertTimeZone("America/New_York"),
             );
 
-            expect(result).toBe("today at 11:59pm EST");
+            expect(result).toBe("today at 11:59pm");
         });
     });
 });

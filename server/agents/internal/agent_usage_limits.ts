@@ -173,7 +173,8 @@ export async function getAgentUsageLimitWindows(
     const {accountId, currentTimestamp} = params;
 
     const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(accountId);
-    const withLifetimeAccess = accountEntitlements?.plan === "LifetimeAccess";
+    const plan = accountEntitlements?.plan ?? null;
+    assert(plan === null || plan === "LifetimeAccess", "Unhandled agent plan type");
 
     // NOTE(ifitzsimmons, #ai): We use `Promise.all` here instead of `runAllPromises`
     // because we want to ensure that the windows are created in the correct order.
@@ -212,9 +213,10 @@ export async function getAgentUsageLimitWindows(
                 return {
                     usedMillicents: usedMillicents,
                     durationMs: windowLimit.durationMs,
-                    limitDollars: withLifetimeAccess
-                        ? windowLimit.limitDollarsByEntitlement.withLifetimeAccess
-                        : windowLimit.limitDollarsByEntitlement.default,
+                    limitDollars:
+                        plan === "LifetimeAccess"
+                            ? windowLimit.limitDollarsByEntitlement.withLifetimeAccess
+                            : windowLimit.limitDollarsByEntitlement.default,
                     ...window,
                 };
             });
@@ -324,9 +326,21 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         };
     }
 
+    // NOTE(ifitzsimmons, 2026-01-11): We only ever send the downgraded message once per window.
+    // So while this may seem expensive, we'll call this at most once per day per account.
+    const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(
+        triggeredByWindows[0]!.accountId,
+    );
+    const plan = accountEntitlements?.plan ?? null;
+    assert(plan === null || plan === "LifetimeAccess", "Unhandled agent plan type");
+
     return {
         shouldDowngrade: true,
-        shouldAlertUser: true,
+        // NOTE(ifitzsimmons, 2026-01-11): We send users a message when the model is
+        // downgraded because it's an opportunity to upsell them on the LifetimeAccess
+        // plan. If they've already purchased lifetime access, I don't think we should
+        // alert them of downgraded models – there's nothing they can do to change it.
+        shouldAlertUser: plan !== "LifetimeAccess",
         // Find the window that triggered this downgrade and will last the longest
         // For example, if both weekly and dynamic windows triggered the downgrade,
         // but the dynamic window actually resets after the end of the week, we want

@@ -13,6 +13,6 @@ export function getAgentTokenLimitExceededMessage(
             currentTime,
             timeZone,
         )}. ` +
-        "You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing)."
+        "You can get higher usage limits by [buying lifetime Alpine access](https://www.alpine.inc#pricing)."
     );
 }

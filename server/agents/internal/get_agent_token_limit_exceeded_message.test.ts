@@ -13,7 +13,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
         );
 
         expect(result).toBe(
-            "You’ve reached your agent usage limit. Your limit will reset today at 6:00pm EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",
+            "You’ve reached your agent usage limit. Your limit will reset today at 6:00pm. You can get higher usage limits by [buying lifetime Alpine access](https://www.alpine.inc#pricing).",
         );
     });
 
@@ -28,7 +28,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
         );
 
         expect(result).toBe(
-            "You’ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",
+            "You’ve reached your agent usage limit. Your limit will reset tomorrow at 10:00am. You can get higher usage limits by [buying lifetime Alpine access](https://www.alpine.inc#pricing).",
         );
     });
 
@@ -43,7 +43,7 @@ describe("getAgentTokenLimitExceededMessage", () => {
         );
 
         expect(result).toBe(
-            "You’ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am EST. You can get higher usage limits by [buying lifetime Alpine access](https://alpine.inc#pricing).",
+            "You’ve reached your agent usage limit. Your limit will reset on Jan 22nd at 10:00am. You can get higher usage limits by [buying lifetime Alpine access](https://www.alpine.inc#pricing).",
         );
     });
 });

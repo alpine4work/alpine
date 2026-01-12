@@ -13,7 +13,7 @@ describe("getAgentModelDowngradedMessage", () => {
         );
 
         expect(result).toBe(
-            "*⚠️ To help extend your usage, your AI models have been downgraded temporarily. This will reset today at 6:00pm EST.*",
+            "*⚠️ To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model today at 6:00pm. If you’d like to continue using the most intelligent models, purchase [Alpine Lifetime access](https://www.alpine.inc#pricing).*",
         );
     });
 
@@ -28,7 +28,7 @@ describe("getAgentModelDowngradedMessage", () => {
         );
 
         expect(result).toBe(
-            "*⚠️ To help extend your usage, your AI models have been downgraded temporarily. This will reset tomorrow at 10:00am EST.*",
+            "*⚠️ To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model tomorrow at 10:00am. If you’d like to continue using the most intelligent models, purchase [Alpine Lifetime access](https://www.alpine.inc#pricing).*",
         );
     });
 
@@ -43,7 +43,7 @@ describe("getAgentModelDowngradedMessage", () => {
         );
 
         expect(result).toBe(
-            "*⚠️ To help extend your usage, your AI models have been downgraded temporarily. This will reset on Jan 22nd at 10:00am EST.*",
+            "*⚠️ To help extend your usage, I’m now using a less intelligent model. I’ll be back to using the best available model on Jan 22nd at 10:00am. If you’d like to continue using the most intelligent models, purchase [Alpine Lifetime access](https://www.alpine.inc#pricing).*",
         );
     });
 });
