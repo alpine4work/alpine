@@ -13,6 +13,7 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -27,6 +28,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 export async function signUpAccountWithEmailAddress(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
     emailAddress: EmailAddress,
+    options?: {toSearchParam?: string | null},
 ): Promise<AccountId> {
     const accountId = generateId<AccountId>();
 
@@ -63,6 +65,7 @@ export async function signUpAccountWithEmailAddress(
         const existingAccountId = await handleSignUpAccountWithEmailAddressConditionCheckError(
             context,
             emailAddress,
+            options,
         );
 
         return existingAccountId;
@@ -81,6 +84,7 @@ export async function signUpAccountWithEmailAddress(
 async function handleSignUpAccountWithEmailAddressConditionCheckError(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
     emailAddress: EmailAddress,
+    {toSearchParam = null}: {toSearchParam?: string | null} = {},
 ): Promise<AccountId> {
     const accountEmailAddressItem = await AccountsTable.getItemWithEventualThenStrongConsistency(
         context,
@@ -97,10 +101,14 @@ async function handleSignUpAccountWithEmailAddressConditionCheckError(
     );
 
     if (!accountItem.hasNotSignedUp) {
+        const urlPath = new UrlPath("/auth/sign-in");
+        urlPath.searchParams.set("email", emailAddress);
+        if (toSearchParam) urlPath.searchParams.set("to", toSearchParam);
+
         throw new FailedPreconditionError("Email address has already signed up", {
             displayMessage: errorDisplayMessage`The email “${emailAddress}” has already been used. Try ${errorDisplayMessage.link(
                 "signing in",
-                `/auth/sign-in?email=${encodeURIComponent(emailAddress)}`,
+                urlPath.toString(),
             )}.`,
         });
     }

@@ -136,6 +136,7 @@ export function AuthenticationSignInOrSignUpView({
                                 const {accountId, hasNotSignedUp} =
                                     await regenerateOneTimePasswordSignIn(context, {
                                         emailAddress: validatedEmailAddress,
+                                        toSearchParam: searchParams.get("to"),
                                     });
 
                                 // If the account hasn't signed up yet then we'll redirect them to the sign
@@ -170,6 +171,7 @@ export function AuthenticationSignInOrSignUpView({
                             case "SignUp": {
                                 const {accountId} = await signUpAccountWithEmailAddress(context, {
                                     emailAddress: validatedEmailAddress,
+                                    toSearchParam: searchParams.get("to"),
                                 });
 
                                 onStateChange({

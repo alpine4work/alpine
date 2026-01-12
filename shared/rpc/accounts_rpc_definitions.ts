@@ -136,6 +136,7 @@ export const regenerateOneTimePasswordSignIn = defineRpc({
     isIdempotent: false,
     input: {
         emailAddress: EmailAddressSchema,
+        toSearchParam: Schema.string.nullable(),
     },
     output: {
         accountId: Schema.id<AccountId>(),
@@ -149,6 +150,7 @@ export const signUpAccountWithEmailAddress = defineRpc({
     isIdempotent: false,
     input: {
         emailAddress: EmailAddressSchema,
+        toSearchParam: Schema.string.nullable(),
     },
     output: {
         accountId: Schema.id<AccountId>(),

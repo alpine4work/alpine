@@ -16,6 +16,7 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 export async function regenerateOneTimePasswordSignIn(
     context: Context<Omit<ServerActionContextModules, "actor"> & {email: EmailContextModuleBase}>,
     emailAddress: EmailAddress,
+    {toSearchParam = null}: {toSearchParam?: string | null} = {},
 ): Promise<{
     accountId: AccountId;
     hasNotSignedUp: boolean;
@@ -26,7 +27,8 @@ export async function regenerateOneTimePasswordSignIn(
         emailAddress,
     });
 
-    if (!accountEmailAddressItem) throw accountEmailAddressNotFoundError(emailAddress);
+    if (!accountEmailAddressItem)
+        throw accountEmailAddressNotFoundError(emailAddress, {toSearchParam});
 
     const accountItemPromise = getAccountItemWithoutAvatarWithEventualThenStrongConsistency(
         context,

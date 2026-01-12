@@ -110,7 +110,7 @@ export function attemptOneTimePasswordSignInWithAction<Value>(
         });
         if (!accountEmailAddressItem) {
             span.addData({common: {branch: "EmailAddressNotFound"}});
-            throw accountEmailAddressNotFoundError(emailAddress);
+            throw accountEmailAddressNotFoundError(emailAddress, {toSearchParam: null});
         }
 
         span.addPropagatedData({context: {accountId: accountEmailAddressItem.accountId}});

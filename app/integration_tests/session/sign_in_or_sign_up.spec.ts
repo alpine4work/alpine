@@ -655,3 +655,84 @@ test("sign in will redirect to sign up if if sign up hasn’t finished", async (
 
     await page2.close();
 });
+
+test("can’t sign in with email that doesn’t have an account and preserve `to` search param", async ({
+    page,
+}) => {
+    await page.goto(`/auth/sign-in?to=${encodeURIComponent("/create-space")}`);
+
+    const emailId = generateId();
+
+    await page.getByPlaceholder("name@company.com").click();
+    await page.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+
+    await page.getByRole("button", {name: "Sign in"}).click();
+
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeVisible();
+
+    await page.getByRole("link", {name: "sign up", exact: true}).click();
+
+    await expect(page.getByText("Couldn’t sign in. Can’t find an account")).toBeHidden();
+    await expect(page.getByRole("button", {name: "Sign up"})).toBeVisible();
+
+    await expect(page).toHaveURL(/\/auth\/sign-up(?:\?|$)/);
+    await expect(page).toHaveURL(/(?:\?|&)to=%2Fcreate-space(?:&|$)/);
+});
+
+test("can’t sign up with email that already has an account and preserve `to` search param", async ({
+    browser,
+    page: page1,
+    isMobile,
+}) => {
+    await page1.goto("/auth/sign-up");
+
+    const emailId = generateId();
+
+    await page1.getByPlaceholder("name@company.com").click();
+    await page1.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+    await page1.getByRole("button", {name: "Sign up"}).click();
+
+    const {oneTimePassword: oneTimePassword1} = await waitForExpect(() => {
+        expect(services.getOneTimePasswords().length).toBe(1);
+        return services.getOneTimePasswords()[0]!;
+    });
+
+    await page1.getByPlaceholder("Anthony Mose").click();
+    await page1.getByPlaceholder("Anthony Mose").fill("Test Testerson");
+    await page1.getByRole("button", {name: "Sign up"}).click();
+    await page1.getByLabel("Passcode").click();
+    await page1.getByLabel("Passcode").fill(oneTimePassword1);
+
+    if (isMobile) {
+        await expect(page1.getByText("Also try Alpine on a computer")).toBeVisible();
+        await page1.getByRole("button", {name: "Continue"}).click();
+        await expect(page1.getByText("Also try Alpine on a computer")).toBeHidden();
+    }
+
+    await expect(page1.getByText("Welcome to Alpine")).toBeVisible();
+
+    const browserContext2 = await browser.newContext();
+    const page2 = await browserContext2.newPage();
+    await page2.goto(`/auth/sign-up?to=${encodeURIComponent("/create-space")}`);
+
+    await page2.getByPlaceholder("name@company.com").click();
+    await page2.getByPlaceholder("name@company.com").fill(`test.${emailId}@gmail.com`);
+
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+
+    await page2.getByRole("button", {name: "Sign up"}).click();
+
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeVisible();
+
+    await page2.getByRole("link", {name: "signing in", exact: true}).click();
+
+    await expect(page2.getByText("Couldn’t sign up. The email")).toBeHidden();
+    await expect(page2.getByRole("button", {name: "Sign in"})).toBeVisible();
+
+    await expect(page2).toHaveURL(/\/auth\/sign-in(?:\?|$)/);
+    await expect(page2).toHaveURL(/(?:\?|&)to=%2Fcreate-space(?:&|$)/);
+
+    await page2.close();
+});

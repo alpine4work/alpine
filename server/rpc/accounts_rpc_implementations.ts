@@ -162,6 +162,7 @@ export default implementRpcs(definitions, {
             const {accountId, hasNotSignedUp} = await regenerateOneTimePasswordSignIn(
                 context,
                 input.emailAddress,
+                {toSearchParam: input.toSearchParam},
             );
             return {accountId, hasNotSignedUp};
         },
@@ -170,7 +171,9 @@ export default implementRpcs(definitions, {
     signUpAccountWithEmailAddress: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const accountId = await signUpAccountWithEmailAddress(context, input.emailAddress);
+            const accountId = await signUpAccountWithEmailAddress(context, input.emailAddress, {
+                toSearchParam: input.toSearchParam,
+            });
             return {accountId};
         },
     },
