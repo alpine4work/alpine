@@ -332,7 +332,7 @@ function SpacePeopleSettingsRouteAccounts({
                                 {account.name}
                             </Box>
                             <Box flexGrow="1" />
-                            {account.space.role === "Owner" || !hasAdminAccess ? (
+                            {account.space.role === "Owner" || !hasAdminAccess || account.botId ? (
                                 <Box flexShrink="0">{account.space.role}</Box>
                             ) : (
                                 <Box flexShrink="0" marginRight="-2">
