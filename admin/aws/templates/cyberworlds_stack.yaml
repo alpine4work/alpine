@@ -6611,7 +6611,7 @@ Resources:
                             - - "arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:FileProcessorServiceSecrets
-            MemorySize: 4096
+            MemorySize: 6144
             PackageType: Image
             Role:
                 Fn::GetAtt:
@@ -6846,7 +6846,7 @@ Resources:
                     - Version
             Name: latest
             ProvisionedConcurrencyConfig:
-                ProvisionedConcurrentExecutions: 1
+                ProvisionedConcurrentExecutions: 2
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/ResizeAvatarLambda/Function/Aliaslatest/Resource
     FileProcessorServiceResizeAvatarLambdaFunctionAliaslatestInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HY610C724B:
@@ -7051,7 +7051,7 @@ Resources:
                     - Version
             Name: latest
             ProvisionedConcurrencyConfig:
-                ProvisionedConcurrentExecutions: 1
+                ProvisionedConcurrentExecutions: 2
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorLight/Function/Aliaslatest/Resource
     FileProcessorServiceFileProcessorLightFunctionAliaslatestSqsEventSourceCyberworldsStackSqsFileProcessorLightJobQueue7C2FCC182898A523:
@@ -7188,31 +7188,31 @@ Resources:
                         - Arn
             Environment:
                 Variables:
-                    SECRET_ARN:
-                        Fn::Join:
-                            - ""
-                            - - "arn:aws:secretsmanager:us-east-1:"
-                              - Ref: AWS::AccountId
-                              - :secret:FileProcessorServiceSecrets
-                    NODE_ENV: production
                     CLOUDFLARE_ACCOUNT_ID: d496846050bfc973d24617456c59242b
-                    JOB_QUEUE_URL:
-                        Ref: SqsJobQueue62388F96
+                    EDGE_SERVICE_URL: https://alpine.inc
+                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
+                        Ref: SqsFileProcessorHeavyJobQueueA7996724
                     FILE_PROCESSOR_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorJobQueue551DBCF8
                     FILE_PROCESSOR_LIGHT_JOB_QUEUE_URL:
                         Ref: SqsFileProcessorLightJobQueueDC9222EF
-                    FILE_PROCESSOR_HEAVY_JOB_QUEUE_URL:
-                        Ref: SqsFileProcessorHeavyJobQueueA7996724
-                    EDGE_SERVICE_URL: https://alpine.inc
-                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     HONEYCOMB_API_KEY:
                         Fn::Join:
                             - ""
                             - - "{{resolve:secretsmanager:arn:aws:secretsmanager:us-east-1:"
                               - Ref: AWS::AccountId
                               - :secret:FileProcessorServiceSecrets:SecretString:honeycombApiKey::}}
+                    JOB_QUEUE_URL:
+                        Ref: SqsJobQueue62388F96
+                    NODE_ENV: production
+                    RESOURCE_SERVICE_URL: https://resources.alpine.inc
                     RUNFILES: /var/task/server/files/processor/process_file/process_file_lambda_binary.runfiles
+                    SECRET_ARN:
+                        Fn::Join:
+                            - ""
+                            - - "arn:aws:secretsmanager:us-east-1:"
+                              - Ref: AWS::AccountId
+                              - :secret:FileProcessorServiceSecrets
             MemorySize: 10240
             PackageType: Image
             Role:
@@ -7240,7 +7240,28 @@ Resources:
             RetentionInDays: 7
         Metadata:
             aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/LogRetention/Resource
-    FileProcessorServiceFileProcessorHeavyFunctionSqsEventSourceCyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D6977736E68D:
+    FileProcessorServiceFileProcessorHeavyFunctionCurrentVersionLatest:
+        Type: AWS::Lambda::Version
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/CurrentVersion/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionAliaslatestC4A48EAC:
+        Type: AWS::Lambda::Alias
+        Properties:
+            FunctionName:
+                Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+            FunctionVersion:
+                Fn::GetAtt:
+                    - FileProcessorServiceFileProcessorHeavyFunctionCurrentVersionLatest
+                    - Version
+            Name: latest
+            ProvisionedConcurrencyConfig:
+                ProvisionedConcurrentExecutions: 1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/Aliaslatest/Resource
+    FileProcessorServiceFileProcessorHeavyFunctionAliaslatestSqsEventSourceCyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D697306EA5D3:
         Type: AWS::Lambda::EventSourceMapping
         Properties:
             BatchSize: 1
@@ -7249,12 +7270,19 @@ Resources:
                     - SqsFileProcessorHeavyJobQueueA7996724
                     - Arn
             FunctionName:
-                Ref: FileProcessorServiceFileProcessorHeavyFunctionDEA5E401
+                Fn::Join:
+                    - ""
+                    - - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                  - ":"
+                                  - Ref: FileProcessorServiceFileProcessorHeavyFunctionAliaslatestC4A48EAC
+                      - :latest
             FunctionResponseTypes:
                 - ReportBatchItemFailures
             MaximumBatchingWindowInSeconds: 0
         Metadata:
-            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/SqsEventSource:CyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D697/Resource
+            aws:cdk:path: CyberworldsStack/FileProcessorService/FileProcessorHeavy/Function/Aliaslatest/SqsEventSource:CyberworldsStackSqsFileProcessorHeavyJobQueueB1C3D697/Resource
     FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433:
         Type: AWS::EC2::SecurityGroup
         Properties:
