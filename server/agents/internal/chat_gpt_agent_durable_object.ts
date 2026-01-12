@@ -168,7 +168,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             // TODO(imjoshin, #ai): Usage limits and recording should be handled
             // in the parent class before we call _webhook.
             getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
-                accountId: request.accountId,
+                accountId: request.event.authorId,
                 currentTimestamp: currentTime.getTime(),
             }),
         ]);
@@ -185,7 +185,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
 
         const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
-            request.accountId,
+            request.event.authorId,
             agentUsageLimitWindows,
         );
 
@@ -217,7 +217,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         );
 
         await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-            accountId: request.accountId,
+            accountId: request.event.authorId,
             spaceId: request.spaceId,
             requestUsedMillicents: response.usedMillicents,
             currentTimestamp: currentTime.getTime(),
