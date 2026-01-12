@@ -505,7 +505,7 @@ function getResizeFileLambda(
         cloudflareAccountId,
         // NOTE(#deploy-lambdas-without-vpc)
         vpc: null,
-        memorySize: 4096, // 4GB RAM (~2 vCPUs)
+        memorySize: 6144, // 6GB RAM (~3-4 vCPUs)
         // Intentionally short timeout to ensure that the lambda is killed
         // if it's not able to complete the resize operation.
         timeout: Duration.seconds(30),
@@ -555,8 +555,7 @@ function getResizeAvatarLambda(
         // if it's not able to complete the resize operation.
         timeout: Duration.seconds(30),
         secret,
-        // TODO(#launch) When we're ready to launch, we should set this to 2
-        provisionedConcurrentExecutions: 1,
+        provisionedConcurrentExecutions: 2,
     });
 
     // Needs access in order to fetch the session
@@ -768,8 +767,7 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 4096, // 4GB RAM (~2 vCPUs)
                 queue: sqs.getFileProcessorLightJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
-                // TODO(#launch) When we're ready to launch, we should set this to 2
-                provisionedConcurrentExecutions: 1,
+                provisionedConcurrentExecutions: 2,
             } as const;
         }
         case "Heavy": {
@@ -778,8 +776,7 @@ function getFileProcessorLambdaConfiguration(type: "Light" | "Heavy", sqs: AwsSq
                 memorySize: 10240, // 10GB RAM (~6 vCPUs)
                 queue: sqs.getFileProcessorHeavyJobQueue(),
                 timeout: Duration.millis(fileProcessorTimeoutMs),
-                // TODO(#launch) When we're ready to launch, we should set this to 1
-                provisionedConcurrentExecutions: 0,
+                provisionedConcurrentExecutions: 1,
             } as const;
         }
     }
