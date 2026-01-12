@@ -1407,7 +1407,9 @@ I need help with this
 
 <human name="Alice">
 First message
+</human>
 
+<human name="Alice">
 <blockquote cite="Bob">
 Bob's message
 </blockquote>

@@ -82,14 +82,16 @@ export function printAgentMessagesIntoMarkdownTree(
 
         // If there are consecutive messages from the same author, we put them
         // within the same <human> or <bot> tag IF:
-        // 1. They're less than 10 minutes apart.
-        // 2. The author did not switch timezones.
+        // 1. The current message is not a reply to a previous message.
+        // 2. They're less than 10 minutes apart.
+        // 3. The author did not switch timezones.
         //
         // Importantly, a user can change Olson Timezones without changing the actual
         // standardized timezone. e.g. America/New_York and America/Toronto both format to
         // EST, so we shouldn't show the timezone attribute if a user takes a flight from
         // NYC to Toronto.
         const shouldContinueBlock =
+            message.parent === null &&
             currentBlock !== null &&
             currentBlock.authorId === message.author.id &&
             currentBlock.formattedTimeZone === currentMessageFormattedTimeZone &&
