@@ -4,6 +4,7 @@ import escapeHtml from "escape-html";
 import {RootContent} from "mdast";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
+import {ApiMessageContentPayloadParentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -200,6 +201,12 @@ export function printAgentMessagesIntoMarkdownTree(
         });
 
         for (const message of currentBlock.messages) {
+            for (const element of getMessageParentHtml(message.parent)) {
+                if (element === null) continue;
+
+                children.push(element);
+            }
+
             for (const elements of message.markdownContent) {
                 children.push(elements);
             }
@@ -208,4 +215,34 @@ export function printAgentMessagesIntoMarkdownTree(
         children.push({type: "html", value: currentBlock.closingTag});
         currentBlock = null;
     }
+}
+
+function* getMessageParentHtml(
+    parent: (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>}) | null,
+): IterableIterator<RootContent | null> {
+    if (parent === null) return null;
+
+    // eslint-disable-next-line string-quotes
+    yield {type: "html", value: `<blockquote cite="${escapeHtml(parent.author.name)}">`};
+
+    for (const element of parent.markdownContent.slice(0, -1)) {
+        yield element;
+    }
+
+    const lastElement = parent.markdownContent[parent.markdownContent.length - 1]!;
+
+    if (!parent.contentSnippet.isTruncated) {
+        yield lastElement;
+    } else {
+        const truncatedTextElement = {type: "text", value: " […]"} as const;
+
+        if (lastElement.type === "paragraph") {
+            lastElement.children.push(truncatedTextElement);
+            yield lastElement;
+        } else {
+            yield {type: "paragraph", children: [truncatedTextElement]};
+        }
+    }
+
+    yield {type: "html", value: "</blockquote>"};
 }

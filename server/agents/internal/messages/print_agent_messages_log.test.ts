@@ -4,7 +4,11 @@ import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
 import {AgentMessage} from "~/server/agents/internal/messages/agent_message.js";
 import {printAgentMessagesLog} from "~/server/agents/internal/messages/print_agent_messages_log.js";
-import {ApiContentResponse} from "~/shared/api/types/api_specification_convenience_types.js";
+import {
+    ApiAccount,
+    ApiContentResponse,
+    ApiMessageContentPayloadParentContentSnippet,
+} from "~/shared/api/types/api_specification_convenience_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone, assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -27,11 +31,16 @@ function createTestAgentMessage({
     createdTime,
     content,
     createdTimeZone,
+    parent,
 }: {
     author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
     createdTime: Date;
     content: ApiContentResponse | string;
     createdTimeZone?: TimeZone;
+    parent?: {
+        author: "Alice" | "Assistant" | {id: AccountId; name: string; botId?: BotId};
+        contentSnippet: ApiMessageContentPayloadParentContentSnippet;
+    };
 }) {
     return storage.transaction(transaction => {
         if (author === "Alice") {
@@ -51,6 +60,36 @@ function createTestAgentMessage({
             };
         }
 
+        let parentPayload: {
+            type: "Message";
+            author: ApiAccount;
+            index: number;
+            contentSnippet: ApiMessageContentPayloadParentContentSnippet;
+        } | null = null;
+
+        if (parent) {
+            let parentAuthor = parent.author;
+            if (parentAuthor === "Alice") {
+                parentAuthor = {id: humanAccountId, name: "Alice"};
+            } else if (parentAuthor === "Assistant") {
+                parentAuthor = {id: botAccountId, name: "Assistant", botId};
+            }
+
+            parentPayload = {
+                type: "Message",
+                author: {
+                    ...parentAuthor,
+                    shortName: parentAuthor.name,
+                    space: {
+                        role: "Member",
+                        addedTime: assertDateString("2025-09-06T20:34:58.604Z"),
+                    },
+                },
+                index: 0,
+                contentSnippet: parent.contentSnippet,
+            };
+        }
+
         return AgentMessage.new(transaction, {
             spaceId,
             index: 0,
@@ -64,7 +103,7 @@ function createTestAgentMessage({
             },
             createdTime: serializeDateString(createdTime),
             createdTimeZone: createdTimeZone ?? defaultTimeZone,
-            payload: {type: "Content", content},
+            payload: {type: "Content", content, parent: parentPayload ?? undefined},
         });
     });
 }
@@ -1110,4 +1149,336 @@ First
 Second
 </human>
 `);
+});
+
+describe("messages with parents", () => {
+    test("human message replying to another human", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "This is my reply",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Original message from Bob"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Bob">
+Original message from Bob
+</blockquote>
+
+This is my reply
+</human>
+`);
+    });
+
+    test("human message replying to a bot", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "Thanks for the help!",
+                parent: {
+                    author: "Assistant",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Here is the answer to your question"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Assistant">
+Here is the answer to your question
+</blockquote>
+
+Thanks for the help!
+</human>
+`);
+    });
+
+    test("bot message replying to a human", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Assistant",
+                createdTime: baseTime,
+                content: "Let me address your question",
+                parent: {
+                    author: "Alice",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Can you help me with this?"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<bot name="Assistant">
+<blockquote cite="Alice">
+Can you help me with this?
+</blockquote>
+
+Let me address your question
+</bot>
+`);
+    });
+
+    test("message with truncated parent content shows truncated text with ellipsis", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "I agree with this part",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [
+                            {type: "Text", text: "This is just a snippet of a much longer message"},
+                        ],
+                        isTruncated: true,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Bob">
+This is just a snippet of a much longer message […]
+</blockquote>
+
+I agree with this part
+</human>
+`);
+    });
+
+    test("message with non-truncated parent does not show completeness attribute", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "Reply",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Short message"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        const result = printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone});
+        expect(result).not.toContain("completeness");
+    });
+
+    test("HTML escaping in parent author name", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "My reply",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: 'Bob & Carol\'s "Account"'},
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Original message"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Bob &amp; Carol&#39;s &quot;Account&quot;">
+Original message
+</blockquote>
+
+My reply
+</human>
+`);
+    });
+
+    test("multiple messages with parents in a conversation", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "Hello!",
+            }),
+            createTestAgentMessage({
+                author: "Assistant",
+                createdTime: new Date(baseTime.getTime() + 2 * 60 * 1000),
+                content: "Hi there! How can I help?",
+            }),
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: new Date(baseTime.getTime() + 5 * 60 * 1000),
+                content: "I need help with this",
+                parent: {
+                    author: "Assistant",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Hi there! How can I help?"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+Hello!
+</human>
+
+<bot name="Assistant">
+Hi there! How can I help?
+</bot>
+
+<human name="Alice">
+<blockquote cite="Assistant">
+Hi there! How can I help?
+</blockquote>
+
+I need help with this
+</human>
+`);
+    });
+
+    test("grouped messages where one has a parent", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "First message",
+            }),
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: new Date(baseTime.getTime() + 2 * 60 * 1000), // 2 minutes later
+                content: "Second message with reply",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "Bob's message"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+First message
+
+<blockquote cite="Bob">
+Bob's message
+</blockquote>
+
+Second message with reply
+</human>
+`);
+    });
+
+    test("message replying to self", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "Follow-up to my own message",
+                parent: {
+                    author: "Alice",
+                    contentSnippet: {
+                        elements: [{type: "Text", text: "My earlier point"}],
+                        isTruncated: false,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Alice">
+My earlier point
+</blockquote>
+
+Follow-up to my own message
+</human>
+`);
+    });
+
+    test("message with truncated parent content ending with code element", async () => {
+        const baseTime = new Date("2024-01-01T12:00:00Z");
+        const messages = await runAllPromises([
+            createTestAgentMessage({
+                author: "Alice",
+                createdTime: baseTime,
+                content: "That looks interesting",
+                parent: {
+                    author: {id: generateId<AccountId>(), name: "Bob"},
+                    contentSnippet: {
+                        elements: [
+                            {type: "Text", text: "Try running "},
+                            {type: "Text", text: "npm install", marks: [{type: "Code"}]},
+                        ],
+                        isTruncated: true,
+                    },
+                },
+            }),
+        ]);
+
+        expect(printAgentMessagesLog(messages, {time: baseTime, timeZone: defaultTimeZone}))
+            .toEqual(`\
+<time>January 1st at 7:00am EST</time>
+
+<human name="Alice">
+<blockquote cite="Bob">
+Try running \`npm install\` […]
+</blockquote>
+
+That looks interesting
+</human>
+`);
+    });
 });

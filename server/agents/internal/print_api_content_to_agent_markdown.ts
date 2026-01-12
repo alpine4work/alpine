@@ -143,7 +143,10 @@ export function printAgentContentMarkdownTree(markdownRoot: Root): string {
 
     return markdownString
         .replaceAll(/^(<(?:human|bot)(?:>| [^>]*>))\n/gm, "$1")
-        .replaceAll(/\n(<\/(?:human|bot)(?:>| [^>]*>))$/gm, "$1");
+        .replaceAll(/\n(<\/(?:human|bot)(?:>| [^>]*>))$/gm, "$1")
+        .replaceAll(/^(<(?:blockquote)(?:>| [^>]*>))\n/gm, "$1")
+        .replaceAll(/\n(<\/(?:blockquote)(?:>| [^>]*>))$/gm, "$1")
+        .replaceAll(/\\(\[…\])$/gm, "$1");
 }
 
 function createAgentLinkForApiMentionPath(

@@ -5,9 +5,11 @@ import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print
 import {visitApiContent} from "~/server/agents/internal/visit_api_content.js";
 import {
     ApiContent,
+    ApiMessageContentPayloadParentResponse,
     ApiMessageContentPayloadResponse,
     ApiMessageResponse,
 } from "~/shared/api/types/api_specification_convenience_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
@@ -22,6 +24,10 @@ export class AgentMessage {
     public readonly markdownContent: Array<RootContent>;
 
     public readonly content: ApiContent;
+
+    public readonly parent:
+        | (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>})
+        | null;
 
     private _tokenCount: number | null = null;
 
@@ -40,6 +46,9 @@ export class AgentMessage {
             payload: ApiMessageContentPayloadResponse;
         },
         markdownContent: Array<RootContent>,
+        parent:
+            | (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>})
+            | null,
     ) {
         this.index = index;
         this.author = author;
@@ -47,6 +56,7 @@ export class AgentMessage {
         this.createdTimeZone = createdTimeZone;
         this.content = payload.content;
         this.markdownContent = markdownContent;
+        this.parent = parent;
     }
 
     public static async new(
@@ -60,15 +70,28 @@ export class AgentMessage {
             payload: ApiMessageContentPayloadResponse;
         },
     ) {
-        const markdownTree = await printApiContentToAgentMarkdownTree(
-            transaction,
-            message.payload.content,
-            {
+        const [markdownTree, parentWithMarkdownContent] = await runAllPromises([
+            printApiContentToAgentMarkdownTree(transaction, message.payload.content, {
                 spaceId: message.spaceId,
-            },
-        );
+            }),
+            (async () => {
+                if (!message.payload.parent) return null;
 
-        return new AgentMessage(message, markdownTree.children);
+                const {parent} = message.payload;
+
+                const {children} = await printApiContentToAgentMarkdownTree(
+                    transaction,
+                    {
+                        elements: [{type: "Paragraph", elements: parent.contentSnippet.elements}],
+                    },
+                    {spaceId: message.spaceId},
+                );
+
+                return {...parent, markdownContent: children};
+            })(),
+        ]);
+
+        return new AgentMessage(message, markdownTree.children, parentWithMarkdownContent);
     }
 
     public estimateTokenCount() {
