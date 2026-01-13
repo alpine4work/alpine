@@ -216,6 +216,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
         });
 
         const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
+            span,
             request.event.authorId,
             agentUsageLimitWindows,
         );
@@ -1217,6 +1218,7 @@ async function getOpenAiModelAndNotifyUserOfDowngradeIfNeeded(
     },
 ): Promise<SupportedAgentModels["openai"]> {
     const shouldDowngradeModelResult = await shouldDowngradeModelForAgentUsageLimit(
+        span,
         request.agentUsageDatabase.get(),
         agentUsageLimitWindows,
         downgradeModelAtPercent,

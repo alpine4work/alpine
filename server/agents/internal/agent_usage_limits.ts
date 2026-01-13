@@ -13,6 +13,7 @@ import {DataLossError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -159,6 +160,25 @@ async function getOrCreateAgentUsageWindow(
 }
 
 /**
+ * Find the window that triggered a limit and will last the longest
+ * For example, if both weekly and dynamic windows triggered a limit,
+ * but the dynamic window actually resets after the end of the week, we want
+ * to inform the user of the dynamic window reset time.
+ */
+function getWindowWithFurthestResetTime(
+    windows: Array<{type: AgentUsageWindowType; resetTime: number}>,
+): {type: AgentUsageWindowType; resetTime: number} {
+    const result = windows.reduce((acc, curr): {type: AgentUsageWindowType; resetTime: number} => {
+        if (acc === null) return curr;
+        if (curr.resetTime > acc.resetTime) return curr;
+
+        return acc;
+    }, null);
+
+    return assertExists(result);
+}
+
+/**
  * Get all agent usage limit windows for an account and current usage.
  * Always returns the windows, creating them if they don't currently exist.
  */
@@ -225,6 +245,7 @@ export async function getAgentUsageLimitWindows(
 }
 
 export function isAgentUsageLimitExceeded(
+    span: TracerSpan,
     accountId: AccountId,
     windows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>,
 ): {exceeded: false} | {exceeded: true; type: AgentUsageWindowType; resetTime: Date} {
@@ -251,23 +272,18 @@ export function isAgentUsageLimitExceeded(
 
     if (exceededWindows.length === 0) return {exceeded: false};
 
-    // Find the window that triggered this limit and will last the longest
-    // For example, if both weekly and dynamic windows triggered the limit,
-    // but the dynamic window actually resets after the end of the week, we want
-    // to inform the user of the dynamic window reset time.
-    const resetWindowData: {
-        type: AgentUsageWindowType;
-        resetTime: number;
-    } | null = exceededWindows.reduce(
-        (acc, curr): {type: AgentUsageWindowType; resetTime: number} => {
-            if (acc === null) return curr;
-            if (curr.resetTime > acc.resetTime) return curr;
+    const resetWindowData = getWindowWithFurthestResetTime(exceededWindows);
 
-            return acc;
+    span.addData({
+        agents: {
+            request: {
+                usageWindow: {
+                    isPastTotalUsageLimit: true,
+                    windowType: resetWindowData.type,
+                },
+            },
         },
-        null,
-    );
-    assert(resetWindowData);
+    });
 
     return {
         exceeded: true,
@@ -285,6 +301,7 @@ type DowngradeModelForAgentUsageLimitResult =
       } & ({shouldAlertUser: false} | {shouldAlertUser: true; resetTime: Date}));
 
 export async function shouldDowngradeModelForAgentUsageLimit(
+    span: TracerSpan,
     agentUsageDatabase: AgentUsageDatabase,
     windows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>,
     downgradeModelAtPercent: number,
@@ -314,6 +331,19 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         }),
     );
 
+    const downgradedWindowData = getWindowWithFurthestResetTime(triggeredByWindows);
+
+    span.addData({
+        agents: {
+            request: {
+                usageWindow: {
+                    isPastDowngradeUsageLimit: true,
+                    windowType: downgradedWindowData.type,
+                },
+            },
+        },
+    });
+
     // NOTE(ifitzsimmons, #ai): If the user has already been downgraded for this window,
     // we do not continue to alert them that they've been downgraded. We only alert them
     // the first time that they exceed the downgrade threshold.
@@ -341,11 +371,7 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         // plan. If they've already purchased lifetime access, I don't think we should
         // alert them of downgraded models – there's nothing they can do to change it.
         shouldAlertUser: plan !== "LifetimeAccess",
-        // Find the window that triggered this downgrade and will last the longest
-        // For example, if both weekly and dynamic windows triggered the downgrade,
-        // but the dynamic window actually resets after the end of the week, we want
-        // to inform the user of the dynamic window reset time.
-        resetTime: new Date(Math.max(...triggeredByWindows.map(window => window.resetTime))),
+        resetTime: new Date(downgradedWindowData.resetTime),
     };
 }
 

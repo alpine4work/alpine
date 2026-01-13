@@ -57,6 +57,8 @@ function intoUsageWindowWithWindowLimitsAndUsedMillicents(
     });
 }
 
+const {span} = testTracer.getRoot().startSpan("test-span");
+
 describe("getAgentUsageLimitWindows", () => {
     beforeAll(() => {
         jest.useFakeTimers();
@@ -106,12 +108,10 @@ describe("getAgentUsageLimitWindows", () => {
             .mockResolvedValueOnce(15000) // weekly usage
             .mockResolvedValueOnce(8000); // dynamic usage
 
-        const result = await testTracer.withSpan("test", async span =>
-            getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            }),
-        );
+        const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+            accountId,
+            currentTimestamp,
+        });
 
         expect(result).toEqual(
             intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
@@ -157,13 +157,10 @@ describe("getAgentUsageLimitWindows", () => {
             wasModelDowngraded: false,
         });
 
-        const result = await testTracer.withSpan("test", async span =>
-            getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            }),
-        );
-
+        const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+            accountId,
+            currentTimestamp,
+        });
         expect(result).toEqual(
             intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                 {
@@ -239,12 +236,15 @@ describe("getAgentUsageLimitWindows", () => {
                         wasModelDowngraded: false,
                     });
 
-                    const result = await testTracer.withSpan("test", async span =>
-                        getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                    const result = await getAgentUsageLimitWindows(
+                        span,
+                        mockAgentUsageDatabaseClass,
+                        {
                             accountId,
                             currentTimestamp,
-                        }),
+                        },
                     );
+
                     expect(result).toEqual(
                         intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                             {
@@ -323,12 +323,10 @@ describe("getAgentUsageLimitWindows", () => {
                     });
                 }
 
-                const result = await testTracer.withSpan("test", async span =>
-                    getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                        accountId,
-                        currentTimestamp,
-                    }),
-                );
+                const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                    accountId,
+                    currentTimestamp,
+                });
 
                 if (shouldReset) {
                     expect(result).toEqual(
@@ -399,12 +397,10 @@ describe("getAgentUsageLimitWindows", () => {
 
         // Should not throw, but may have incomplete results
         await expect(
-            testTracer.withSpan("test", async span =>
-                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                    accountId,
-                    currentTimestamp,
-                }),
-            ),
+            getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                accountId,
+                currentTimestamp,
+            }),
         ).rejects.toThrow("Database error");
     });
 
@@ -448,12 +444,10 @@ describe("getAgentUsageLimitWindows", () => {
                 .mockResolvedValueOnce(15000) // weekly usage
                 .mockResolvedValueOnce(8000); // dynamic usage
 
-            const result = await testTracer.withSpan("test", async span =>
-                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                    accountId,
-                    currentTimestamp,
-                }),
-            );
+            const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                accountId,
+                currentTimestamp,
+            });
 
             expect(result).toEqual(
                 intoUsageWindowWithWindowLimitsAndUsedMillicents(
@@ -506,12 +500,10 @@ describe("getAgentUsageLimitWindows", () => {
                 .mockResolvedValueOnce(15000) // weekly usage
                 .mockResolvedValueOnce(8000); // dynamic usage
 
-            const result = await testTracer.withSpan("test", async span =>
-                getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                    accountId,
-                    currentTimestamp,
-                }),
-            );
+            const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
+                accountId,
+                currentTimestamp,
+            });
 
             expect(result).toEqual(
                 intoUsageWindowWithWindowLimitsAndUsedMillicents(
@@ -613,7 +605,8 @@ describe("isAgentUsageLimitExceeded", () => {
                     weekly: {usage: weeklyUsage},
                     dynamic: {usage: dynamicUsage},
                 });
-                const result = isAgentUsageLimitExceeded(accountId, windows);
+
+                const result = isAgentUsageLimitExceeded(span, accountId, windows);
                 expect(result).toEqual({exceeded: false});
             });
         });
@@ -628,7 +621,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 dynamic: {usage: dynamicLimit - 500},
             });
 
-            const result = isAgentUsageLimitExceeded(accountId, windows);
+            const result = isAgentUsageLimitExceeded(span, accountId, windows);
 
             expect(result).toEqual({
                 exceeded: true,
@@ -645,7 +638,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 dynamic: {usage: dynamicLimit + 1000},
             });
 
-            const result = isAgentUsageLimitExceeded(accountId, windows);
+            const result = isAgentUsageLimitExceeded(span, accountId, windows);
 
             expect(result).toEqual({
                 exceeded: true,
@@ -663,7 +656,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 dynamic: {usage: dynamicLimit + 1000},
             });
 
-            const result = isAgentUsageLimitExceeded(accountId, windows);
+            const result = isAgentUsageLimitExceeded(span, accountId, windows);
 
             // Weekly window lasts 7 days, dynamic lasts 8 hours, so weekly should be returned
             expect(result).toEqual({
@@ -700,7 +693,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 },
             ];
 
-            const result = isAgentUsageLimitExceeded(accountId, windows);
+            const result = isAgentUsageLimitExceeded(span, accountId, windows);
 
             expect(result).toEqual({
                 exceeded: true,
@@ -719,7 +712,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 dynamic: {usage: dynamicLimit * 10},
             });
 
-            const result = isAgentUsageLimitExceeded(alpioneerAccountId, windows);
+            const result = isAgentUsageLimitExceeded(span, alpioneerAccountId, windows);
 
             expect(result).toEqual({exceeded: false});
         });
@@ -733,7 +726,7 @@ describe("isAgentUsageLimitExceeded", () => {
                 dynamic: {usage: dynamicLimit * 5},
             });
 
-            const result = isAgentUsageLimitExceeded(anotherAlpioneer, windows);
+            const result = isAgentUsageLimitExceeded(span, anotherAlpioneer, windows);
 
             expect(result).toEqual({exceeded: false});
         });
@@ -814,6 +807,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
                 });
 
                 const result = await shouldDowngradeModelForAgentUsageLimit(
+                    span,
                     mockAgentUsageDatabaseClass,
                     windows,
                     downgradeThreshold,
@@ -834,6 +828,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -859,6 +854,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -884,6 +880,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -913,6 +910,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -934,6 +932,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -960,6 +959,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
 
             const result = await shouldDowngradeModelForAgentUsageLimit(
+                span,
                 mockAgentUsageDatabaseClass,
                 windows,
                 0.75,
@@ -1011,6 +1011,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
                 });
 
                 const result = await shouldDowngradeModelForAgentUsageLimit(
+                    span,
                     mockAgentUsageDatabaseClass,
                     windows,
                     threshold,

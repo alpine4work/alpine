@@ -1728,9 +1728,16 @@ export type TracerEventData = {
                 readonly usedMillicents?: number;
 
                 /**
-                 * Whether or not the agent usage limit has been exceeded.
+                 * Whether or not the total agent usage limit has been exceeded.
+                 * (now or in a previous request)
                  */
-                readonly exceededLimit?: boolean;
+                readonly isPastTotalUsageLimit?: boolean;
+
+                /**
+                 * Whether or not the downgraded agent usage limit has been exceeded.
+                 * (now or in a previous request)
+                 */
+                readonly isPastDowngradeUsageLimit?: boolean;
 
                 /**
                  * The type of window being checked
@@ -1761,11 +1768,6 @@ export type TracerEventData = {
                  * The amount of millicents used in the previous usage window.
                  */
                 readonly previousUsedMillicents?: number;
-
-                /**
-                 * If the request was downgraded to a lower model due to usage limits.
-                 */
-                readonly downgradedModel?: boolean;
             };
         };
     };
