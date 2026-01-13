@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Tags} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
     InstanceClass,
@@ -130,6 +130,8 @@ export class AwsTaskRealtimeService extends Construct {
             // client devices to connect directly to our `TaskRealtimeService` AWS servers.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
+
+        Tags.of(this.autoScalingGroup).add("CloudWatchAgent", "true");
 
         this.securityGroup = launchTemplateSecurityGroup;
 

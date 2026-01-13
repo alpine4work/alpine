@@ -311,6 +311,46 @@ Resources:
                 Version: 2012-10-17
         Metadata:
             aws:cdk:path: CyberworldsStack/LoggingService/Bucket/Policy/Resource
+    LoggingServiceCloudWatchAgentConfigParam818B7C7C:
+        Type: AWS::SSM::Parameter
+        Properties:
+            Name: AmazonCloudWatch-linux
+            Tier: Standard
+            Type: String
+            Value: '{"agent":{"metrics_collection_interval":30},"metrics":{"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}","InstanceId":"${aws:InstanceId}","InstanceType":"${aws:InstanceType}","ImageId":"${aws:ImageId}"},"metrics_collected":{"mem":{"measurement":["total","used","used_percent"],"metrics_collection_interval":5},"cpu":{"measurement":["usage_idle","usage_iowait","usage_system","usage_user"],"metrics_collection_interval":5},"disk":{"measurement":["total","used","used_percent","inodes_used","inodes_total"],"metrics_collection_interval":60},"swap":{"measurement":["free","used","used_percent"]},"diskio":{"measurement":["reads","writes","io_time","read_time","write_time"]},"processes":{"measurement":["running","blocked","dead","idle","sleeping","total","total_threads"],"metrics_collection_interval":5}}},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/var/log/messages","log_group_name":"/ec2/{instance_id}/messages","timezone":"UTC"},{"file_path":"/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log","log_group_name":"/ec2/{instance_id}/amazon-cloudwatch-agent","timezone":"UTC"}]}}}}'
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/CloudWatchAgentConfigParam/Resource
+    LoggingServiceInstallCloudWatchAgent031D99C6:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AWS-ConfigureAWSPackage
+            Parameters:
+                action: Install
+                name: AmazonCloudWatchAgent
+            Targets:
+                - Key: tag:CloudWatchAgent
+                  Values:
+                      - "true"
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/InstallCloudWatchAgent
+    LoggingServiceConfigureAndStartCloudWatchAgent7110D921:
+        Type: AWS::SSM::Association
+        Properties:
+            Name: AmazonCloudWatch-ManageAgent
+            Parameters:
+                action: configure
+                mode: ec2
+                optionalConfigurationLocation:
+                    Ref: LoggingServiceCloudWatchAgentConfigParam818B7C7C
+                optionalRestart: yes
+            Targets:
+                - Key: tag:CloudWatchAgent
+                  Values:
+                      - "true"
+        DependsOn:
+            - LoggingServiceInstallCloudWatchAgent031D99C6
+        Metadata:
+            aws:cdk:path: CyberworldsStack/LoggingService/ConfigureAndStartCloudWatchAgent
     EcsClusterFB9B21B5:
         Type: AWS::ECS::Cluster
         Metadata:
@@ -2150,6 +2190,10 @@ Resources:
             MaxSize: "8"
             MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: CloudWatchAgent
+                  PropagateAtLaunch: true
+                  Value: "true"
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -2872,6 +2916,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/LaunchTemplateRole/Resource
     AppServiceLaunchTemplateRoleDefaultPolicyFACB455B:
@@ -2961,6 +3010,8 @@ Resources:
                 ImageId:
                     Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
+                Monitoring:
+                    Enabled: true
                 SecurityGroupIds:
                     - Fn::GetAtt:
                           - AppServiceLaunchTemplateSecurityGroup25142A6C
@@ -3013,6 +3064,10 @@ Resources:
             MaxSize: "16"
             MinSize: "8"
             NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: CloudWatchAgent
+                  PropagateAtLaunch: true
+                  Value: "true"
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -3960,6 +4015,11 @@ Resources:
                       - - "arn:"
                         - Ref: AWS::Partition
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/CloudWatchAgentServerPolicy
         Metadata:
             aws:cdk:path: CyberworldsStack/ApiService/LaunchTemplateRole/Resource
     ApiServiceLaunchTemplateRoleDefaultPolicy20B3AFAE:
@@ -4049,6 +4109,8 @@ Resources:
                 ImageId:
                     Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
                 InstanceType: c8g.large
+                Monitoring:
+                    Enabled: true
                 SecurityGroupIds:
                     - Fn::GetAtt:
                           - ApiServiceLaunchTemplateSecurityGroup96FC5ABE
@@ -4101,6 +4163,10 @@ Resources:
             MaxSize: "4"
             MinSize: "2"
             NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: CloudWatchAgent
+                  PropagateAtLaunch: true
+                  Value: "true"
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -5087,6 +5153,10 @@ Resources:
             MaxSize: "8"
             MinSize: "4"
             NewInstancesProtectedFromScaleIn: true
+            Tags:
+                - Key: CloudWatchAgent
+                  PropagateAtLaunch: true
+                  Value: "true"
             VPCZoneIdentifier:
                 - Ref: VpcPublicSubnet1Subnet5C2D37C4
                 - Ref: VpcPublicSubnet2Subnet691E08A3

@@ -1,4 +1,4 @@
-import {ArnFormat, Duration, Stack} from "aws-cdk-lib";
+import {ArnFormat, Duration, Stack, Tags} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
     InstanceSize,
@@ -90,6 +90,8 @@ export class AwsJobQueueService extends Construct {
             // API calls through a NAT gateway can get expensive.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
+
+        Tags.of(autoScalingGroup).add("CloudWatchAgent", "true");
 
         // Add the ability to connect to our EC2 instances with Session Manager.
         // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html

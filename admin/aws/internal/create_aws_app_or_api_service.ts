@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Tags} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -103,8 +103,14 @@ export function createAwsAppOrApiService(
         machineImage: EcsOptimizedImage.amazonLinux2(AmiHardwareType.ARM),
         role: new Role(parentConstruct, "LaunchTemplateRole", {
             assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
+
             managedPolicies: [
+                // Add the ability to connect to our EC2 instances with Session Manager.
+                // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
                 ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+                // Add the ability to send logs to CloudWatch.
+                //https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/prerequisites.html
+                ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
             ],
         }),
         securityGroup: new SecurityGroup(parentConstruct, "LaunchTemplateSecurityGroup", {
@@ -112,6 +118,7 @@ export function createAwsAppOrApiService(
             allowAllOutbound: true,
         }),
         userData: UserData.forLinux(),
+        detailedMonitoring: true,
     });
 
     const autoScalingGroup = new AutoScalingGroup(parentConstruct, "AutoScalingGroup", {
@@ -161,11 +168,7 @@ export function createAwsAppOrApiService(
         vpcSubnets: {subnetType: SubnetType.PUBLIC},
     });
 
-    // Add the ability to connect to our EC2 instances with Session Manager.
-    // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
-    autoScalingGroup.role.addManagedPolicy(
-        ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
-    );
+    Tags.of(autoScalingGroup).add("CloudWatchAgent", "true");
 
     opensearch.allowConnectionsFrom(autoScalingGroup);
 
