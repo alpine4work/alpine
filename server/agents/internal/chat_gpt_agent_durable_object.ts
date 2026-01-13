@@ -105,6 +105,30 @@ const defaultModel: SupportedAgentModels["openai"] = "gpt-5.1";
 const downgradedModel: SupportedAgentModels["openai"] = "gpt-5-mini";
 const downgradeModelAtPercent = 0.75;
 
+// NOTE(ifitzsimmons, 2026-01-12): Normally, I'm pretty opposed to global state. In
+// this very specific case, I think it's justifiable. The
+// `updateAgentMessageStreamMutex` is used to coordinate updates to the agent
+// message stream which is now mutated in multiple places. The `pingInterval` is
+// initialized very early on // in the call stack and cleaned up later. I'm happy to
+// thread these properties down the call stack but that almost feels more confusing
+// than defining them here and stating that they are process-wide (because they are).
+//
+// Furthermore, durable objects DO NOT RUN CONCURRENTLY, so there's no risk that
+// we'd lock ourselves out of the agent message stream in one process while another
+// is ongoing.
+const updateAgentMessageStreamMutex = new Mutex();
+let agentMessageStreamPingInterval: Interval | null = null;
+
+function startPingInterval(span: TracerSpan, request: AgentWebhookRequest, messageIndex: number) {
+    assert(agentMessageStreamPingInterval === null);
+
+    agentMessageStreamPingInterval = createInterval(() => {
+        void updateAgentMessageStreamMutex.withLock(async () => {
+            await pingApiMessageStream(span, request.apiClient, request.room, messageIndex);
+        });
+    }, agentMessageStreamPingIntervalMs);
+}
+
 export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAgentRoute> {
     constructor(state: DurableObjectState, env: AgentServiceEnv) {
         super("ChatGptAgentService", state, env);
@@ -162,15 +186,22 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             },
         });
 
-        const [{index: messageIndex}, agentUsageLimitWindows] = await runAllPromises([
+        const [messageIndex, agentUsageLimitWindows] = await runAllPromises([
             // Start the stream message immediately so the user sees some indicator.
-            createChatGptAgentEmptyStreamMessage(span, request),
+            (async () => {
+                const {index} = await createChatGptAgentEmptyStreamMessage(span, request);
+                startPingInterval(span, request, index);
+
+                return index;
+            })(),
             // TODO(imjoshin, #ai): Usage limits and recording should be handled
             // in the parent class before we call _webhook.
-            getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
-                accountId: request.event.authorId,
-                currentTimestamp: currentTime.getTime(),
-            }),
+            span.withSpan("Get agent usage limit windows", async span =>
+                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                    accountId: request.event.authorId,
+                    currentTimestamp: currentTime.getTime(),
+                }),
+            ),
         ]);
 
         const agentMessageStream = new AgentMessageStream({
@@ -545,32 +576,18 @@ async function createChatGptAgentMessage(
 
     const updateThrottleMs = 100;
     let updateTimeout: Timeout | null = null;
-    const updateMutex = new Mutex();
-
-    let pingInterval: Interval | null = null;
-    startPingInterval();
-
-    function startPingInterval() {
-        assert(pingInterval === null);
-
-        pingInterval = createInterval(() => {
-            void updateMutex.withLock(async () => {
-                await pingApiMessageStream(span, request.apiClient, request.room, messageIndex);
-            });
-        }, agentMessageStreamPingIntervalMs);
-    }
 
     const update = (
         newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
     ) => {
-        void updateMutex.withLock(async () => {
+        void updateAgentMessageStreamMutex.withLock(async () => {
             const putParts = await agentMessageStream.update(newPartPayloads);
             if (putParts.length === 0) return;
 
             // Calling `putApiMessageStreamPart()` also pings the message stream. So cancel
             // our current interval and re-schedule it after we've finished updating.
-            pingInterval?.clear();
-            pingInterval = null;
+            agentMessageStreamPingInterval?.clear();
+            agentMessageStreamPingInterval = null;
 
             try {
                 // TODO(calebmer): We should consider adding a batch `PUT` API. That would be
@@ -603,7 +620,7 @@ async function createChatGptAgentMessage(
             } finally {
                 // Start the ping timeout schedule again since we cleared the timeout earlier.
                 if (!isCompleted) {
-                    startPingInterval();
+                    startPingInterval(span, request, messageIndex);
                 }
             }
         });
@@ -669,10 +686,8 @@ async function createChatGptAgentMessage(
     } finally {
         isCompleted = true;
 
-        // @ts-expect-error: TypeScript is dumb and doesn't realize we may have set
-        // `pingTimeout` to a value.
-        pingInterval?.clear();
-        pingInterval = null;
+        agentMessageStreamPingInterval?.clear();
+        agentMessageStreamPingInterval = null;
 
         // @ts-expect-error: TypeScript is dumb and doesn't realize
         // `createChatGptAgentResponse()` may call `messageState.pushText()` and set
@@ -681,7 +696,7 @@ async function createChatGptAgentMessage(
         updateTimeout = null;
         update();
 
-        await updateMutex.waitForUnlock();
+        await updateAgentMessageStreamMutex.waitForUnlock();
 
         await completeApiMessageStream(span, request.apiClient, request.room, messageIndex);
     }
