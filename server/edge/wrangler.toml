@@ -17,6 +17,11 @@ zone_name = "alpine.inc"
 enabled = true
 head_sampling_rate = 1
 
+[observability.logs]
+enabled = true
+destinations = [ "honeycomb-logs" ]
+head_sampling_rate = 1
+
 [[r2_buckets]]
 binding = "AppStaticBucket"
 bucket_name = "cyberworlds-app-static"
