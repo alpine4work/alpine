@@ -108,12 +108,16 @@ describe("getAgentUsageLimitWindows", () => {
             .mockResolvedValueOnce(15000) // weekly usage
             .mockResolvedValueOnce(8000); // dynamic usage
 
-        const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-            accountId,
-            currentTimestamp,
-        });
+        const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
+            span,
+            mockAgentUsageDatabaseClass,
+            {
+                accountId,
+                currentTimestamp,
+            },
+        );
 
-        expect(result).toEqual(
+        expect(agentUsageLimitWindows).toEqual(
             intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                 {
                     type: "Weekly",
@@ -157,11 +161,15 @@ describe("getAgentUsageLimitWindows", () => {
             wasModelDowngraded: false,
         });
 
-        const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-            accountId,
-            currentTimestamp,
-        });
-        expect(result).toEqual(
+        const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
+            span,
+            mockAgentUsageDatabaseClass,
+            {
+                accountId,
+                currentTimestamp,
+            },
+        );
+        expect(agentUsageLimitWindows).toEqual(
             intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                 {
                     type: "Weekly",
@@ -236,7 +244,7 @@ describe("getAgentUsageLimitWindows", () => {
                         wasModelDowngraded: false,
                     });
 
-                    const result = await getAgentUsageLimitWindows(
+                    const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
                         span,
                         mockAgentUsageDatabaseClass,
                         {
@@ -244,8 +252,7 @@ describe("getAgentUsageLimitWindows", () => {
                             currentTimestamp,
                         },
                     );
-
-                    expect(result).toEqual(
+                    expect(agentUsageLimitWindows).toEqual(
                         intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                             {
                                 type: "Weekly",
@@ -323,13 +330,17 @@ describe("getAgentUsageLimitWindows", () => {
                     });
                 }
 
-                const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                    accountId,
-                    currentTimestamp,
-                });
+                const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
+                    span,
+                    mockAgentUsageDatabaseClass,
+                    {
+                        accountId,
+                        currentTimestamp,
+                    },
+                );
 
                 if (shouldReset) {
-                    expect(result).toEqual(
+                    expect(agentUsageLimitWindows).toEqual(
                         intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                             {
                                 type: "Weekly",
@@ -352,7 +363,7 @@ describe("getAgentUsageLimitWindows", () => {
                         false,
                     );
                 } else {
-                    expect(result).toEqual(
+                    expect(agentUsageLimitWindows).toEqual(
                         intoUsageWindowWithWindowLimitsAndUsedMillicents(accountId, [
                             {
                                 type: "Weekly",
@@ -444,12 +455,16 @@ describe("getAgentUsageLimitWindows", () => {
                 .mockResolvedValueOnce(15000) // weekly usage
                 .mockResolvedValueOnce(8000); // dynamic usage
 
-            const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            });
+            const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
+                span,
+                mockAgentUsageDatabaseClass,
+                {
+                    accountId,
+                    currentTimestamp,
+                },
+            );
 
-            expect(result).toEqual(
+            expect(agentUsageLimitWindows).toEqual(
                 intoUsageWindowWithWindowLimitsAndUsedMillicents(
                     accountId,
                     [
@@ -500,12 +515,16 @@ describe("getAgentUsageLimitWindows", () => {
                 .mockResolvedValueOnce(15000) // weekly usage
                 .mockResolvedValueOnce(8000); // dynamic usage
 
-            const result = await getAgentUsageLimitWindows(span, mockAgentUsageDatabaseClass, {
-                accountId,
-                currentTimestamp,
-            });
+            const {agentUsageLimitWindows} = await getAgentUsageLimitWindows(
+                span,
+                mockAgentUsageDatabaseClass,
+                {
+                    accountId,
+                    currentTimestamp,
+                },
+            );
 
-            expect(result).toEqual(
+            expect(agentUsageLimitWindows).toEqual(
                 intoUsageWindowWithWindowLimitsAndUsedMillicents(
                     accountId,
                     [
@@ -527,8 +546,8 @@ describe("getAgentUsageLimitWindows", () => {
             );
 
             // Verify higher limits are applied
-            expect(result[0]!.limitDollars).toBe(4); // Weekly: LifetimeAccess limit
-            expect(result[1]!.limitDollars).toBe(2); // Dynamic: LifetimeAccess limit
+            expect(agentUsageLimitWindows[0]!.limitDollars).toBe(4); // Weekly: LifetimeAccess limit
+            expect(agentUsageLimitWindows[1]!.limitDollars).toBe(2); // Dynamic: LifetimeAccess limit
 
             expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(accountId);
         });

@@ -186,7 +186,7 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             },
         });
 
-        const [messageIndex, agentUsageLimitWindows] = await runAllPromises([
+        const [messageIndex, {agentUsageLimitWindows, plan}] = await runAllPromises([
             // Start the stream message immediately so the user sees some indicator.
             (async () => {
                 const {index} = await createChatGptAgentEmptyStreamMessage(span, request);
@@ -227,26 +227,39 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
                 messageIndex,
                 resetTime: new Date(isAgentUsageLimitExceededResult.resetTime),
                 currentTime,
+                shouldUpsell: shouldSendMessagingWithUpsellLink(plan),
             });
         }
 
-        const model = await getOpenAiModelAndNotifyUserOfDowngradeIfNeeded(span, request, {
+        const {model, downgradedMessageData} = await getOpenAiModel(
+            span,
+            request,
             agentUsageLimitWindows,
-            agentMessageStream,
-            currentTime,
-            messageIndex,
-        });
+        );
 
         // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
         // message while the agent is responding to a previous request?
-        const response = await requestChatGptAgent(
-            span,
-            request,
+        const response = await requestChatGptAgent(span, request, {
             agentMessageStream,
-            this._env,
+            env: this._env,
             model,
-            messageIndex,
-        );
+            newMessageIndex: messageIndex,
+            sendDowngradeWarningMessageIfNeeded: async () => {
+                // NOTE(ifitzsimmons, 2026-01-12): We only send downgraded messaging to "upsell"
+                // the user. If the user can't be upselled (they already have the max token usage),
+                // we shouldn't send the downgraded messaging. There's nothing they can do.
+                if (!shouldSendMessagingWithUpsellLink(plan) || !downgradedMessageData) {
+                    return;
+                }
+
+                await sendDowngradeWarningMessage(span, request, {
+                    agentMessageStream,
+                    messageIndex,
+                    resetTime: downgradedMessageData.resetTime,
+                    currentTime,
+                });
+            },
+        });
 
         await recordAgentUsage(span, request.agentUsageDatabase.get(), {
             accountId: request.event.authorId,
@@ -356,15 +369,22 @@ async function sendLimitErrorMessage(
         messageIndex,
         resetTime,
         currentTime,
+        shouldUpsell,
     }: {
         agentMessageStream: AgentMessageStream;
         messageIndex: number;
         resetTime: Date;
         currentTime: Date;
+        shouldUpsell: boolean;
     },
 ): Promise<void> {
     agentMessageStream.pushText(
-        getAgentTokenLimitExceededMessage(resetTime, currentTime, request.event.createdTimeZone),
+        getAgentTokenLimitExceededMessage(
+            resetTime,
+            currentTime,
+            request.event.createdTimeZone,
+            shouldUpsell,
+        ),
     );
     const parts = await agentMessageStream.update();
 
@@ -425,10 +445,19 @@ async function sendDowngradeWarningMessage(
 async function requestChatGptAgent(
     span: TracerSpan,
     request: AgentWebhookRequest,
-    agentMessageStream: AgentMessageStream,
-    env: AgentServiceEnv,
-    model: SupportedAgentModels["openai"],
-    newMessageIndex: number,
+    {
+        agentMessageStream,
+        env,
+        model,
+        newMessageIndex,
+        sendDowngradeWarningMessageIfNeeded,
+    }: {
+        agentMessageStream: AgentMessageStream;
+        env: AgentServiceEnv;
+        model: SupportedAgentModels["openai"];
+        newMessageIndex: number;
+        sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
+    },
 ): Promise<ChatAgentGptResponse> {
     // Make sure we have the latest messages from the messaging room in
     // conversation history.
@@ -437,14 +466,13 @@ async function requestChatGptAgent(
     await ensureMessagesInChatGptAgentConversation(span, request, newMessageIndex);
 
     // Send a message from ChatGPT.
-    return createChatGptAgentMessage(
-        span,
-        request,
+    return createChatGptAgentMessage(span, request, {
         agentMessageStream,
         env,
         model,
-        newMessageIndex,
-    );
+        messageIndex: newMessageIndex,
+        sendDowngradeWarningMessageIfNeeded,
+    });
 }
 
 async function ensureMessagesInChatGptAgentConversation(
@@ -568,10 +596,19 @@ type ChatGptAgentMessageState = {
 async function createChatGptAgentMessage(
     span: TracerSpan,
     request: AgentWebhookRequest,
-    agentMessageStream: AgentMessageStream,
-    env: AgentServiceEnv,
-    model: SupportedAgentModels["openai"],
-    messageIndex: number,
+    {
+        agentMessageStream,
+        env,
+        model,
+        messageIndex,
+        sendDowngradeWarningMessageIfNeeded,
+    }: {
+        agentMessageStream: AgentMessageStream;
+        env: AgentServiceEnv;
+        model: SupportedAgentModels["openai"];
+        messageIndex: number;
+        sendDowngradeWarningMessageIfNeeded: () => Promise<void>;
+    },
 ): Promise<ChatAgentGptResponse> {
     let isCompleted = false;
 
@@ -698,6 +735,8 @@ async function createChatGptAgentMessage(
         update();
 
         await updateAgentMessageStreamMutex.waitForUnlock();
+
+        await sendDowngradeWarningMessageIfNeeded();
 
         await completeApiMessageStream(span, request.apiClient, request.room, messageIndex);
     }
@@ -1202,21 +1241,14 @@ function getReasoningSummaryForModel(model: SupportedAgentModels["openai"]): "co
     }
 }
 
-async function getOpenAiModelAndNotifyUserOfDowngradeIfNeeded(
+async function getOpenAiModel(
     span: TracerSpan,
     request: AgentWebhookRequest,
-    {
-        agentUsageLimitWindows,
-        agentMessageStream,
-        currentTime,
-        messageIndex,
-    }: {
-        agentUsageLimitWindows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>;
-        agentMessageStream: AgentMessageStream;
-        currentTime: Date;
-        messageIndex: number;
-    },
-): Promise<SupportedAgentModels["openai"]> {
+    agentUsageLimitWindows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>,
+): Promise<{
+    model: SupportedAgentModels["openai"];
+    downgradedMessageData: {resetTime: Date} | null;
+}> {
     const shouldDowngradeModelResult = await shouldDowngradeModelForAgentUsageLimit(
         span,
         request.agentUsageDatabase.get(),
@@ -1237,14 +1269,26 @@ async function getOpenAiModelAndNotifyUserOfDowngradeIfNeeded(
         },
     });
 
-    if (shouldDowngradeModelResult.shouldDowngrade && shouldDowngradeModelResult.shouldAlertUser) {
-        await sendDowngradeWarningMessage(span, request, {
-            agentMessageStream,
-            messageIndex,
-            resetTime: shouldDowngradeModelResult.resetTime,
-            currentTime,
-        });
-    }
+    const shouldSendDowngradedMessage =
+        shouldDowngradeModelResult.shouldDowngrade && shouldDowngradeModelResult.shouldAlertUser;
 
-    return model;
+    return {
+        model,
+        downgradedMessageData: shouldSendDowngradedMessage
+            ? {
+                  resetTime: shouldDowngradeModelResult.resetTime,
+              }
+            : null,
+    };
+}
+
+function shouldSendMessagingWithUpsellLink(plan: "Free" | "LifetimeAccess"): boolean {
+    switch (plan) {
+        case "Free":
+            return true;
+        case "LifetimeAccess":
+            return false;
+        default:
+            throw exhaustive(plan);
+    }
 }

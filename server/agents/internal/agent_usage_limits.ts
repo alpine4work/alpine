@@ -189,7 +189,10 @@ export async function getAgentUsageLimitWindows(
         accountId: AccountId;
         currentTimestamp: number;
     },
-): Promise<Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>> {
+): Promise<{
+    agentUsageLimitWindows: Array<AgentUsageWindowWithWindowLimitsAndUsedMillicents>;
+    plan: "Free" | "LifetimeAccess";
+}> {
     const {accountId, currentTimestamp} = params;
 
     const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(accountId);
@@ -198,7 +201,7 @@ export async function getAgentUsageLimitWindows(
 
     // NOTE(ifitzsimmons, #ai): We use `Promise.all` here instead of `runAllPromises`
     // because we want to ensure that the windows are created in the correct order.
-    return Promise.all(
+    const agentUsageLimitWindows = await Promise.all(
         agentUsageWindowLimits.map(async windowLimit => {
             const {type} = windowLimit;
 
@@ -242,6 +245,8 @@ export async function getAgentUsageLimitWindows(
             });
         }),
     );
+
+    return {agentUsageLimitWindows, plan: plan ?? "Free"};
 }
 
 export function isAgentUsageLimitExceeded(
@@ -356,21 +361,9 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         };
     }
 
-    // NOTE(ifitzsimmons, 2026-01-11): We only ever send the downgraded message once per window.
-    // So while this may seem expensive, we'll call this at most once per day per account.
-    const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(
-        triggeredByWindows[0]!.accountId,
-    );
-    const plan = accountEntitlements?.plan ?? null;
-    assert(plan === null || plan === "LifetimeAccess", "Unhandled agent plan type");
-
     return {
         shouldDowngrade: true,
-        // NOTE(ifitzsimmons, 2026-01-11): We send users a message when the model is
-        // downgraded because it's an opportunity to upsell them on the LifetimeAccess
-        // plan. If they've already purchased lifetime access, I don't think we should
-        // alert them of downgraded models – there's nothing they can do to change it.
-        shouldAlertUser: plan !== "LifetimeAccess",
+        shouldAlertUser: true,
         resetTime: new Date(downgradedWindowData.resetTime),
     };
 }
