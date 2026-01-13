@@ -16292,6 +16292,66 @@ export function testMessagingImplementation<RoomKey extends string>(
                 expect(authorId).toEqual(session1.account.id);
             });
 
+            test("can get content for Message parent if parent is a Message stream", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const session2 = await space.createSession();
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: session2.account.id},
+                    {accountId: botAccount.id},
+                ]);
+                const parentMessage = await createMessage(
+                    botAccount.action(getRoomBotScope(room.key)),
+                    {
+                        roomKey: room.key,
+                        parent: null,
+                        fileIds: [],
+                        isStream: true,
+                        content: assertMessageContent(doc(paragraph(text("Paragraph 1")))),
+                    },
+                );
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: parentMessage.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(doc(paragraph(text("Paragraph 2")))),
+                    },
+                });
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: parentMessage.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                const {content, authorId} = await getMessageParentContent(session1.action(), {
+                    roomKey: room.key,
+                    parent: {type: "Message", index: parentMessage.index},
+                });
+
+                expect(content).toEqual(
+                    doc(
+                        paragraph(text("Paragraph 1")),
+                        paragraph(text("Paragraph 2")),
+                        paragraph(text("Paragraph 3")),
+                    ),
+                );
+                expect(authorId).toEqual(botAccount.id);
+            });
+
             test("can get content for MessagesRange parent type including deleted messages", async () => {
                 const space = await TestSpace.create(context);
                 const [session1, session2] = await space.createSessions(2);

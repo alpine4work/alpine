@@ -160,6 +160,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
+import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
 import {getTruncatedParentMessagesRangeContentWithoutReferences} from "~/shared/messaging/get_truncated_parent_message_range_content_with_references.js";
 import {
     MessageContent,
@@ -6926,8 +6927,9 @@ export async function getDocumentCommentParentContent(
             return {
                 authorId: commentItem.authorId,
                 content:
-                    commentItem.payload.content ??
-                    createSimpleMessageContent(`Deleted ${messageNoun}`),
+                    commentItem.payload.type === "Content"
+                        ? cutMessageContentPayload(commentItem)
+                        : createSimpleMessageContent(`Deleted ${messageNoun}`),
             };
         }
         case "MessagesRange": {
