@@ -19,8 +19,9 @@ import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_co
 import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {createLifetimeAccessCheckoutUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {createLifetimeAccessCheckoutSessionUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -222,12 +223,25 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                                   label: "Purchase lifetime access",
                                   pressErrorTitle: "Couldn’t open purchase page",
                                   onPress: async () => {
-                                      const {url} = await createLifetimeAccessCheckoutUrl(context, {
-                                          currentPathname: window.location.pathname,
-                                      });
+                                      const {result} = await createLifetimeAccessCheckoutSessionUrl(
+                                          context,
+                                          {
+                                              currentPathname: window.location.pathname,
+                                          },
+                                      );
 
-                                      // eslint-disable-next-line react-compiler/react-compiler
-                                      window.location.href = url;
+                                      if (result.ok) {
+                                          // eslint-disable-next-line react-compiler/react-compiler
+                                          window.location.href = result.url;
+                                      } else {
+                                          switch (result.reason) {
+                                              case "AlreadyPurchased":
+                                                  await rootNavigate(`/?purchased=lifetime-access`);
+                                                  break;
+                                              default:
+                                                  throw exhaustive(result.reason);
+                                          }
+                                      }
                                   },
                               },
                           ]

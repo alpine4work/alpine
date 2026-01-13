@@ -119,14 +119,21 @@ export const updateAccountReactionCharacter = defineRpc({
     },
 });
 
-export const createLifetimeAccessCheckoutUrl = defineRpc({
-    name: "createLifetimeAccessCheckoutUrl",
+export const createLifetimeAccessCheckoutSessionUrl = defineRpc({
+    name: "createLifetimeAccessCheckoutSessionUrl",
     isIdempotent: false,
     input: {
         currentPathname: Schema.string,
     },
     output: {
-        url: Schema.string,
+        result: Schema.result(
+            Schema.object({ok: Schema.value(true), url: Schema.string}),
+            Schema.object({
+                ok: Schema.value(false),
+                reason: Schema.enum(["AlreadyPurchased"]),
+                message: Schema.string,
+            }),
+        ),
     },
 });
 

@@ -6,8 +6,7 @@ import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {FailedPreconditionError, UnknownError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -42,7 +41,7 @@ export class BillingContextModule extends BillingContextModuleBase {
     async createLifetimeAccessCheckoutSessionUrl(
         this: BillingContextModule & ContextModuleBase<ServerSessionActionContextModules>,
         currentPathname: string,
-    ): Promise<string> {
+    ): Promise<{ok: true; url: string} | {ok: false; reason: "AlreadyPurchased"; message: string}> {
         return this._context.tracer.withSpan(
             "Create lifetime access checkout session",
             async (context, span) => {
@@ -56,12 +55,11 @@ export class BillingContextModule extends BillingContextModuleBase {
                 ]);
 
                 if (account.initialData.plan === "LifetimeAccess") {
-                    throw new FailedPreconditionError(
-                        "Account has already purchased lifetime access",
-                        {
-                            displayMessage: errorDisplayMessage`You’ve already purchased lifetime access.`,
-                        },
-                    );
+                    return {
+                        ok: false,
+                        reason: "AlreadyPurchased",
+                        message: "You’ve already purchased lifetime access.",
+                    };
                 }
 
                 let session: Stripe.Response<Stripe.Checkout.Session>;
@@ -88,7 +86,7 @@ export class BillingContextModule extends BillingContextModuleBase {
                     throw new UnknownError(`Stripe Checkout session URL is missing`);
                 }
 
-                return session.url;
+                return {ok: true, url: session.url};
             },
         );
     }

@@ -13,7 +13,9 @@ export abstract class BillingContextModuleBase<
         tracer: TracerContextModule;
     },
 > extends ContextModuleBase<Modules> {
-    abstract createLifetimeAccessCheckoutSessionUrl(currentPathname: string): Promise<string>;
+    abstract createLifetimeAccessCheckoutSessionUrl(
+        currentPathname: string,
+    ): Promise<{ok: true; url: string} | {ok: false; reason: "AlreadyPurchased"; message: string}>;
     abstract processStripeWebhook(request: Request, span: TracerSpan): Promise<void>;
     abstract fork(): ForkableContextModuleBase;
 }

@@ -19,8 +19,11 @@ export class BillingNoopDevelopmentContextModule extends BillingContextModuleBas
     async createLifetimeAccessCheckoutSessionUrl(
         this: BillingNoopDevelopmentContextModule &
             ContextModuleBase<ServerSessionActionContextModules>,
-    ): Promise<string> {
-        return `${this._context.constants.edgeServiceUrl}/#noop-checkout-session`;
+    ): Promise<{ok: true; url: string} | {ok: false; reason: "AlreadyPurchased"; message: string}> {
+        return {
+            ok: true,
+            url: `${this._context.constants.edgeServiceUrl}/#noop-checkout-session`,
+        };
     }
 
     async processStripeWebhook(): Promise<void> {

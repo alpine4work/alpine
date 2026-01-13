@@ -143,16 +143,16 @@ export default implementRpcs(definitions, {
         },
     },
 
-    createLifetimeAccessCheckoutUrl: {
+    createLifetimeAccessCheckoutSessionUrl: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const sessionContext = context.actor.authorizeSession();
 
-            return {
-                url: await sessionContext.billing.createLifetimeAccessCheckoutSessionUrl(
-                    input.currentPathname,
-                ),
-            };
+            const result = await sessionContext.billing.createLifetimeAccessCheckoutSessionUrl(
+                input.currentPathname,
+            );
+
+            return {result};
         },
     },
 
