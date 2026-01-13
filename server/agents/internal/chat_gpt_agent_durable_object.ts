@@ -56,6 +56,7 @@ import {
     ApiMessageRoomPathObject,
     getApiMentionPathIfExists,
     isApiMessageRoomPathObject,
+    parseApiBotWebhookEventIntoMessageRoomPath,
     parseApiMessageRoomPath,
     parseApiPath,
 } from "~/shared/api/parse_api_path.js";
@@ -821,7 +822,10 @@ async function createChatGptAgentResponse(
         stream: true,
         model,
         // https://platform.openai.com/docs/guides/prompt-caching
-        prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.roomPath),
+        prompt_cache_key: getRoomPathForPromptCacheKey(
+            request.spaceId,
+            parseApiBotWebhookEventIntoMessageRoomPath(request.event),
+        ),
         safety_identifier: request.event.authorId,
         // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search [1] tool to
         // our agent but decided against it for several reasons:

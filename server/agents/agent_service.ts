@@ -89,7 +89,7 @@ async function handleFetch(
                     return fetchFromDurableObject(
                         span,
                         env.ChatGptAgentDurableObjectNamespace,
-                        `${requestBody.accountId}:${requestBody.event.roomPath}`,
+                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
                         new Request(newUrl, {
                             method: request.method,
                             headers: request.headers,
@@ -152,7 +152,7 @@ async function handleFetch(
                     return fetchFromDurableObject(
                         span,
                         env.MockAgentDurableObjectNamespace,
-                        `${requestBody.accountId}:${requestBody.event.roomPath}`,
+                        getDurableObjectIdFromApiBotWebhookEvent(requestBody),
                         new Request(newUrl, {
                             method: request.method,
                             headers: request.headers,
@@ -224,6 +224,15 @@ function fetchFromDurableObjectWithId(
     addTracerPropagationContextHeader(request.headers, span);
 
     return durableObjectStub.fetch(request);
+}
+
+function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
+    switch (request.event.type) {
+        case "NewMessage":
+            return `${request.accountId}:${request.event.roomPath}`;
+        case "NewPost":
+            return `${request.accountId}:${request.event.postId}`;
+    }
 }
 
 // eslint-disable-next-line import/no-default-export

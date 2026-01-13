@@ -2432,10 +2432,12 @@ components:
         BotWebhookEvent:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookNewMessageEvent"
+                - $ref: "#/components/schemas/BotWebhookNewPostEvent"
             discriminator:
                 propertyName: type
                 mapping:
                     NewMessage: "#/components/schemas/BotWebhookNewMessageEvent"
+                    NewPost: "#/components/schemas/BotWebhookNewPostEvent"
 
         BotWebhookNewMessageEvent:
             type: object
@@ -2449,6 +2451,22 @@ components:
                 index:
                     type: integer
                     minimum: 0
+                authorId:
+                    $ref: "#/components/schemas/AccountId"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                wasMentioned:
+                    type: boolean
+
+        BotWebhookNewPostEvent:
+            type: object
+            required: [type, postId, authorId, createdTimeZone]
+            additionalProperties: false
+            properties:
+                type:
+                    const: NewPost
+                postId:
+                    $ref: "#/components/schemas/PostId"
                 authorId:
                     $ref: "#/components/schemas/AccountId"
                 createdTimeZone:

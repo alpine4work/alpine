@@ -14,7 +14,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {isTestNodeEnvOrAdminScenariosScript} from "~/server/helpers/node/is_test_node_env_or_admin_scenarios_script.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {parseApiBotWebhookEventIntoMessageRoomPathObject} from "~/shared/api/parse_api_path.js";
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
@@ -738,7 +738,7 @@ async function actuallyCallBotWebhook(
     const attemptNumber = eventItem.attempt.number;
     const botWebhookUrl = new URL(webhookUrl);
 
-    const roomPathObject = parseApiMessageRoomPath(job.event.roomPath);
+    const roomPathObject = parseApiBotWebhookEventIntoMessageRoomPathObject(job.event);
 
     let scope: BotTokenPayloadScope;
 

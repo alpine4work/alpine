@@ -19,9 +19,22 @@ export async function initializeMessagesInAgentConversation(options: {
 
     const content = await loadMessagesListLinkContent(options);
 
+    const getConversationMessageIndex = () => {
+        switch (request.event.type) {
+            case "NewMessage": {
+                return request.event.index;
+            }
+            case "NewPost": {
+                // We don't want to store 0 for the piece of state that represents the last
+                // loaded message index since it wasn't actually loaded yet.
+                return -1;
+            }
+        }
+    };
+
     await conversation.insertMessages(
         options.transaction,
-        request.event.index,
+        getConversationMessageIndex(),
         printAgentContentMarkdownTree(content),
     );
 }
@@ -32,10 +45,28 @@ export async function loadMessagesListLinkContent(options: {
     request: AgentWebhookRequest;
     conversation: AgentConversationStore;
 }) {
+    const {event} = options.request;
+
+    const getCursorForEvent = () => {
+        switch (event.type) {
+            case "NewMessage": {
+                return event.index + 1;
+            }
+            case "NewPost": {
+                // Has to be 1 for a valid api call to get messages from end since it's
+                // range exclusive.
+                return 1;
+            }
+            default: {
+                throw exhaustive(event);
+            }
+        }
+    };
+
     const commonLinkOptions = {
         paginationType: "page",
         pageNumber: 1,
-        pageInfo: {from: "End", cursor: options.request.event.index + 1},
+        pageInfo: {from: "End", cursor: getCursorForEvent()},
         tokenLimitForPage: agentInitializeMessagesTokenLimit,
         rootMessage: null,
         isMessageRoomPage: true,

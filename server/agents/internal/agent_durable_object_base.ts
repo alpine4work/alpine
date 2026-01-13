@@ -15,7 +15,10 @@ import {OpenAiClient} from "~/server/agents/internal/open_ai_client.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {ApiMessageRoomPathObject, parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
+import {
+    ApiMessageRoomPathObject,
+    parseApiBotWebhookEventIntoMessageRoomPathObject,
+} from "~/shared/api/parse_api_path.js";
 import {
     ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
@@ -283,7 +286,7 @@ export abstract class AgentDurableObjectBase<Route> {
                     spaceId,
                     accountId,
                     event,
-                    room: parseApiMessageRoomPath(event.roomPath),
+                    room: parseApiBotWebhookEventIntoMessageRoomPathObject(event),
                     apiClient: createApiClient({
                         baseUrl: assertExists(
                             this._env.API_SERVICE_URL,

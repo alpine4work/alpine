@@ -181,9 +181,18 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
             {clientRequestToken, initialInboxItemIfExists: inboxItem},
         );
     },
-    getBotWebhookEvent: () => {
-        // TODO(calebmer, #api): Implement bot mentioned in post.
-        return null;
+    getBotWebhookEvent: (event, {accountId}) => {
+        // Don't send a webhook event to the AgentService for EVERY newly created post.
+        const wasMentionedInPost = event.mentionedAccountIds.has(accountId);
+        if (!wasMentionedInPost) return null;
+
+        return {
+            type: "NewPost",
+            postId: event.postId,
+            authorId: event.authorId,
+            createdTimeZone: event.createdTimeZone,
+            wasMentioned: wasMentionedInPost,
+        };
     },
     getAlertContent: async (context, event, {accountId}) => {
         const [author, channel, body] = await runAllPromises([

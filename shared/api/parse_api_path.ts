@@ -1,4 +1,5 @@
 import {
+    ApiBotWebhookEvent,
     ApiMentionPath,
     ApiMentionTarget,
     ApiMentionTargetResponse,
@@ -520,6 +521,38 @@ export function isApiMessageRoomPathObject(
     pathObject: ApiPathObject,
 ): pathObject is ApiMessageRoomPathObject {
     return apiMessageRoomPathObjectTypes.has(pathObject.type);
+}
+
+export function parseApiBotWebhookEventIntoMessageRoomPathObject(
+    event: ApiBotWebhookEvent,
+): ApiMessageRoomPathObject {
+    switch (event.type) {
+        case "NewMessage": {
+            return parseApiMessageRoomPath(event.roomPath);
+        }
+        case "NewPost": {
+            return {type: "Post", id: event.postId};
+        }
+        default: {
+            throw exhaustive(event);
+        }
+    }
+}
+
+export function parseApiBotWebhookEventIntoMessageRoomPath(
+    event: ApiBotWebhookEvent,
+): ApiMessageRoomPath {
+    switch (event.type) {
+        case "NewMessage": {
+            return event.roomPath;
+        }
+        case "NewPost": {
+            return `/posts/${event.postId}`;
+        }
+        default: {
+            throw exhaustive(event);
+        }
+    }
 }
 
 export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomPathObject {

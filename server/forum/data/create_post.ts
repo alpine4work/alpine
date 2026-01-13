@@ -382,6 +382,7 @@ function afterCreatePost(
             mentionedAccountIds,
             isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
             contentSnippet,
+            createdTimeZone: postItem.createdTimeZone,
         },
     });
 

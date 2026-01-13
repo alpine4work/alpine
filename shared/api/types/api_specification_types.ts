@@ -2074,7 +2074,9 @@ export namespace ApiSpecification {
                 readonly type: "Search";
                 readonly query: string;
             };
-            readonly BotWebhookEvent: components["schemas"]["BotWebhookNewMessageEvent"];
+            readonly BotWebhookEvent:
+                | components["schemas"]["BotWebhookNewMessageEvent"]
+                | components["schemas"]["BotWebhookNewPostEvent"];
             readonly BotWebhookNewMessageEvent: {
                 /**
                  * @description discriminator enum property added by openapi-typescript
@@ -2083,6 +2085,17 @@ export namespace ApiSpecification {
                 readonly type: "NewMessage";
                 readonly roomPath: components["schemas"]["MessageRoomPath"];
                 readonly index: number;
+                readonly authorId: components["schemas"]["AccountId"];
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly wasMentioned?: boolean;
+            };
+            readonly BotWebhookNewPostEvent: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript
+                 * @enum {string}
+                 */
+                readonly type: "NewPost";
+                readonly postId: components["schemas"]["PostId"];
                 readonly authorId: components["schemas"]["AccountId"];
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
                 readonly wasMentioned?: boolean;

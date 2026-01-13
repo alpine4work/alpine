@@ -61,6 +61,7 @@ const NotificationCreatePostEventSchema = Schema.object({
     channelId: Schema.id<ChannelId>(),
     postId: Schema.id<PostId>(),
     createdTime: Schema.date,
+    createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
