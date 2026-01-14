@@ -91,8 +91,8 @@ export function FeedWelcomeEntryView({entry}: {entry: FeedWelcomeEntryModel}) {
                 <Box className={paragraphClassName}>
                     Let us know what you think about Alpine:{" "}
                     <FeedWelcomeEntryViewLink
-                        href="mailto:feedback@alpine.com"
-                        label="feedback@alpine.com"
+                        href="mailto:feedback@alpine.inc"
+                        label="feedback@alpine.inc"
                     />
                 </Box>
                 <Box className={paragraphClassName}>
