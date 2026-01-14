@@ -10,14 +10,17 @@ import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js"
 import {useNavigationState} from "~/client/web/navigation/navigation_state_context.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {useNavigate, useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {
+    searchFavoriteEntityIconColor,
+    searchFavoriteEntityIconPressedColor,
+} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {usePreloadSearchByAffinity} from "~/client/web/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/web/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceSideBarSpacing} from "~/client/web/spaces/route_metadata.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/web/spaces/space_context.js";
-import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
-import {colors} from "~/shared/design/core/colors.js";
+import {spaceLayoutStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
@@ -219,7 +222,18 @@ function SpaceLayoutSideBarAccountButton({currentAccount}: {currentAccount: Acco
                     ...(currentAccount.initialData.plan !== "LifetimeAccess"
                         ? [
                               {
-                                  icon: <Star weight="fill" color={colors["yellow-50"]} />,
+                                  icon: ({isPressed}: {isPressed: boolean}) => (
+                                      <Star
+                                          weight="fill"
+                                          className={sprinkles({
+                                              // Re-use the search favorite icon colors for the
+                                              // lifetime access purchase icon since they fit well.
+                                              fill: isPressed
+                                                  ? searchFavoriteEntityIconPressedColor
+                                                  : searchFavoriteEntityIconColor,
+                                          })}
+                                      />
+                                  ),
                                   label: "Purchase lifetime access",
                                   pressErrorTitle: "Couldn’t open purchase page",
                                   onPress: async () => {

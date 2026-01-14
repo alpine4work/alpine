@@ -1,9 +1,11 @@
+import {Star} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
 import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
+import {Button} from "~/client/web/design/button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
@@ -13,13 +15,19 @@ import {
     InlineEditorToolbarRef,
 } from "~/client/web/messaging/inline_editor_toolbar.js";
 import {ReactionCharacterCarouselSelector} from "~/client/web/reactions/reaction_character_carousel_selector.js";
+import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
+import {searchFavoriteEntityIconColor} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/web/spaces/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {updateOurAccountName} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {
+    createLifetimeAccessCheckoutSessionUrl,
+    updateOurAccountName,
+} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export default function SpaceProfileSettingsRoute() {
@@ -27,6 +35,7 @@ export default function SpaceProfileSettingsRoute() {
     const {currentAccount} = useSpaceContext();
     const account = assertExists(currentAccount);
     const accountRegistry = useAccountRegistry();
+    const rootNavigate = useRootNavigate();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const nameInlineEditorToolbarRef = useRef<InlineEditorToolbarRef>(null);
@@ -36,6 +45,8 @@ export default function SpaceProfileSettingsRoute() {
 
     const [name, setName] = useState<string | null>(null);
     const [shouldShowConfirmSaveNameDialog, setShouldShowConfirmSaveNameDialog] = useState(false);
+
+    const hasLifetimeAccess = account.initialData.plan === "LifetimeAccess";
 
     const handleSaveName = async () => {
         if (name === null) return;
@@ -181,6 +192,62 @@ export default function SpaceProfileSettingsRoute() {
                     </Box>
                     <Box marginY="-2">
                         <ReactionCharacterCarouselSelector />
+                    </Box>
+                </Box>
+                <Box display="flex" gap="4" alignItems="center" justifyContent="space-between">
+                    <Box display="flex" flexDirection="column" gap="1">
+                        <Box userSelect="text" display="flex" alignItems="center" gap="2">
+                            <Box display="inline" fontSize="100" fontStyle="semi-bold">
+                                Lifetime access{" "}
+                            </Box>
+                            <Star
+                                weight="fill"
+                                className={sprinkles({
+                                    // Re-use the search favorite icon colors for the
+                                    // lifetime access purchase icon since they fit well.
+                                    fill: searchFavoriteEntityIconColor,
+                                })}
+                                size={20}
+                            />
+                        </Box>
+                        <Box display="flex" flexDirection="row" gap="4">
+                            <Box fontSize="75" color="grey-60" userSelect="text">
+                                Support Alpine’s four person team by buying lifetime access for $250
+                                (limited availability, eventually we’ll switch to subscription
+                                pricing)
+                            </Box>
+                        </Box>
+                    </Box>
+                    <Box marginLeft="24">
+                        <Button
+                            variant="accent"
+                            isDisabled={hasLifetimeAccess}
+                            pressErrorTitle="Couldn’t purchase lifetime access"
+                            onPress={async () => {
+                                const {result} = await createLifetimeAccessCheckoutSessionUrl(
+                                    context,
+                                    {
+                                        currentPathname: window.location.pathname,
+                                    },
+                                );
+
+                                if (result.ok) {
+                                    window.location.href = result.url;
+                                } else {
+                                    switch (result.reason) {
+                                        case "AlreadyPurchased":
+                                            await rootNavigate(`/?purchased=lifetime-access`);
+                                            break;
+                                        default:
+                                            throw exhaustive(result.reason);
+                                    }
+                                }
+                            }}
+                        >
+                            <Box display="flex" alignItems="center" gap="1">
+                                {hasLifetimeAccess ? "Purchased" : "Purchase"}
+                            </Box>
+                        </Button>
                     </Box>
                 </Box>
             </Box>
