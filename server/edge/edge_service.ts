@@ -254,6 +254,11 @@ async function handleFetch(
             routeString = "/files/:spaceId/:fileId";
             route = {type: "File", spaceId: pathSegments[0], fileId: pathSegments[1]};
         }
+    } else if (url.pathname === "/meet-caleb") {
+        // NOTE(calebmer, 2026-01-14): Temporary route we can send people to book a
+        // meeting on my calendar. Eventually we'll probably want to delete this.
+        routeString = "/meet-caleb";
+        route = {type: "MeetCaleb"};
     } else if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
     } else if (url.pathname === "/api/ip-address") {
@@ -389,12 +394,6 @@ async function handleFetch(
             routeString = `/api/avatar/${printAvatarEntityObjectIntoTracerRoute(path)}`;
             route = {type: "UploadAvatar", avatarEntityPath: path};
         }
-    }
-    // NOTE(calebmer, 2026-01-14): Temporary route we can send people to book a
-    // meeting on my calendar. Eventually we'll probably want to delete this.
-    else if (url.pathname === "/meet-caleb") {
-        routeString = "/meet-caleb";
-        route = {type: "MeetCaleb"};
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
