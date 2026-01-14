@@ -325,8 +325,10 @@ Resources:
         Properties:
             Name: AWS-ConfigureAWSPackage
             Parameters:
-                action: Install
-                name: AmazonCloudWatchAgent
+                action:
+                    - Install
+                name:
+                    - AmazonCloudWatchAgent
             Targets:
                 - Key: tag:CloudWatchAgent
                   Values:
@@ -338,11 +340,14 @@ Resources:
         Properties:
             Name: AmazonCloudWatch-ManageAgent
             Parameters:
-                action: configure
-                mode: ec2
+                action:
+                    - configure
+                mode:
+                    - ec2
                 optionalConfigurationLocation:
-                    Ref: LoggingServiceCloudWatchAgentConfigParam818B7C7C
-                optionalRestart: yes
+                    - Ref: LoggingServiceCloudWatchAgentConfigParam818B7C7C
+                optionalRestart:
+                    - yes
             Targets:
                 - Key: tag:CloudWatchAgent
                   Values:

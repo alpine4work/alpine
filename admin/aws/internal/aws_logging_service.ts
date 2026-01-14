@@ -39,8 +39,8 @@ export class AwsLoggingService extends Construct {
                 },
             ],
             parameters: {
-                action: "Install",
-                name: "AmazonCloudWatchAgent",
+                action: ["Install"],
+                name: ["AmazonCloudWatchAgent"],
             },
         });
 
@@ -56,10 +56,10 @@ export class AwsLoggingService extends Construct {
                     },
                 ],
                 parameters: {
-                    action: "configure",
-                    mode: "ec2",
-                    optionalConfigurationLocation: cloudwatchAgentConfigParameter.parameterName,
-                    optionalRestart: "yes",
+                    action: ["configure"],
+                    mode: ["ec2"],
+                    optionalConfigurationLocation: [cloudwatchAgentConfigParameter.parameterName],
+                    optionalRestart: ["yes"],
                 },
             },
         );
