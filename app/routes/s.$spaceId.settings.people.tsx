@@ -285,6 +285,14 @@ function SpacePeopleSettingsRouteAccounts({
         setModalState({type: "ConfirmDelete", accountData: accountData});
     };
 
+    const getRoleOptionsForAccount = (account: AccountModelData) => {
+        if (account.botId) {
+            return [];
+        }
+
+        return roleOptions;
+    };
+
     return (
         <Box display="flex" flexDirection="column" gap="10">
             <Box display="flex" flexDirection="column" gap="6">
@@ -332,22 +340,22 @@ function SpacePeopleSettingsRouteAccounts({
                                 {account.name}
                             </Box>
                             <Box flexGrow="1" />
-                            {account.space.role === "Owner" || !hasAdminAccess || account.botId ? (
+                            {account.space.role === "Owner" || !hasAdminAccess ? (
                                 <Box flexShrink="0">{account.space.role}</Box>
                             ) : (
                                 <Box flexShrink="0" marginRight="-2">
                                     <MenuButton
                                         placement="bottom-end"
                                         actions={[
-                                            [
-                                                ...roleOptions.map(roleOption => ({
+                                            ...getRoleOptionsForAccount(account).map(
+                                                roleOption => ({
                                                     isSelected: roleOption === account.space.role,
                                                     label: roleOption,
                                                     onPress: async () =>
                                                         await handleRoleChange(account, roleOption),
                                                     pressErrorTitle: "Can’t change role",
-                                                })),
-                                            ],
+                                                }),
+                                            ),
                                             [
                                                 {
                                                     label: "Remove from space",
