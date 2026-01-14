@@ -84,7 +84,8 @@ type EdgeServiceRoute =
     | {type: "CompleteFileMultipartUpload"; spaceId: SpaceId; fileId: FileId}
     | {type: "File"; spaceId: SpaceId; fileId: FileId}
     | {type: "FileCorsProxy"; url: string}
-    | {type: "UploadAvatar"; avatarEntityPath: AvatarEntityPath};
+    | {type: "UploadAvatar"; avatarEntityPath: AvatarEntityPath}
+    | {type: "MeetCaleb"};
 
 async function handleFetch(
     request: Request,
@@ -388,6 +389,12 @@ async function handleFetch(
             routeString = `/api/avatar/${printAvatarEntityObjectIntoTracerRoute(path)}`;
             route = {type: "UploadAvatar", avatarEntityPath: path};
         }
+    }
+    // NOTE(calebmer, 2026-01-14): Temporary route we can send people to book a
+    // meeting on my calendar. Eventually we'll probably want to delete this.
+    else if (url.pathname === "/meet-caleb") {
+        routeString = "/meet-caleb";
+        route = {type: "MeetCaleb"};
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
@@ -917,6 +924,12 @@ async function actuallyHandleFetch(
                 }
 
                 return response;
+            }
+            case "MeetCaleb": {
+                return new Response(null, {
+                    status: 302,
+                    headers: {location: "https://calendar.app.google/ciE2PUEXvqcBE9iu5"},
+                });
             }
             default:
                 throw exhaustive(route);
