@@ -30,53 +30,58 @@ export async function refreshAccountEntitlements(
     accountId: AccountId,
     options?: {fetch?: typeof fetch},
 ) {
-    const fetchPlanUrl = new URL(`/api/internal/accounts/${accountId}/plan`, env.EDGE_SERVICE_URL);
+    return tracer.withSpan("Refresh account entitlements", async span => {
+        const fetchPlanUrl = new URL(
+            `/api/internal/accounts/${accountId}/plan`,
+            env.EDGE_SERVICE_URL,
+        );
 
-    // This is unauthenticated route, besides a hardcoded secret token. Be very careful with this.
-    const plan = await retryWithExponentialBackoff(
-        retry =>
-            fetchWithTracer(
-                tracer,
-                fetchPlanUrl,
-                {
-                    serviceName: "EdgeService",
-                    method: "GET",
-                    route: "/api/internal/accounts/:accountId/plan",
-                    headers: {
-                        "content-type": "application/json",
-                        authorization: `Bearer ${appServiceAccountPlanSecretToken}`,
+        // This is unauthenticated route, besides a hardcoded secret token. Be very careful with this.
+        const plan = await retryWithExponentialBackoff(
+            retry =>
+                fetchWithTracer(
+                    tracer,
+                    fetchPlanUrl,
+                    {
+                        serviceName: "EdgeService",
+                        method: "GET",
+                        route: "/api/internal/accounts/:accountId/plan",
+                        headers: {
+                            "content-type": "application/json",
+                            authorization: `Bearer ${appServiceAccountPlanSecretToken}`,
+                        },
+                        ...(options?.fetch && {fetch: options.fetch}),
                     },
-                    ...(options?.fetch && {fetch: options.fetch}),
-                },
-                async response => {
-                    // If the request failed, then throw an error. We want to mark this span as
-                    // failed and we don't want to handle errors inline.
-                    if (!response.ok) {
-                        if (response.status >= 500) {
-                            const error = new InternalError("API request failed", {
-                                cause: {
-                                    status: response.status,
-                                    responseText: await response.text(),
-                                },
-                            });
+                    async response => {
+                        // If the request failed, then throw an error. We want to mark this span as
+                        // failed and we don't want to handle errors inline.
+                        if (!response.ok) {
+                            if (response.status >= 500) {
+                                const error = new InternalError("API request failed", {
+                                    cause: {
+                                        status: response.status,
+                                        responseText: await response.text(),
+                                    },
+                                });
 
-                            throw retry(error);
+                                throw retry(error);
+                            }
                         }
-                    }
 
-                    const body = await response.json();
+                        const body = await response.json();
 
-                    return (body.plan || undefined) as AccountEntitlements["plan"];
-                },
-            ),
-        // Generally, we don't want to set a limit and allow retries to happen within
-        // retryWithExponentialBackoff. However, this function is called by processStripeWebhook,
-        // which could fail due to transient errors. Since that call also retries, there could be a
-        // very small chance of this call retrying max times and the agent call retrying max times.
-        // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
-        // we limit this to 5 and 5, for 25 total.
-        {maxAttemptCount: 5},
-    );
+                        return (body.plan || undefined) as AccountEntitlements["plan"];
+                    },
+                ),
+            // Generally, we don't want to set a limit and allow retries to happen within
+            // retryWithExponentialBackoff. However, this function is called by processStripeWebhook,
+            // which could fail due to transient errors. Since that call also retries, there could be a
+            // very small chance of this call retrying max times and the agent call retrying max times.
+            // We don't want to DOS ourselves, so instead of 144 total potential retries (12*12),
+            // we limit this to 5 and 5, for 25 total.
+            {maxAttemptCount: 5},
+        );
 
-    await database.setAccountEntitlements(accountId, {plan});
+        await database.setAccountEntitlements(span, accountId, {plan});
+    });
 }

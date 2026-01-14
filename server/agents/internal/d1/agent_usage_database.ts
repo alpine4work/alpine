@@ -14,16 +14,22 @@ import {
     agentUsageWindowsTable,
 } from "~/server/agents/internal/d1/agent_usage_schema.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * In case of transient D1 errors, retry the action a few times.
  * See https://developers.cloudflare.com/d1/best-practices/retry-queries/.
  */
-function retryD1Error<T>(action: () => Promise<T>): Promise<T> {
+function retryD1ErrorAndWrapInSpan<T>(
+    span: TracerSpan,
+    name: string,
+    action: () => Promise<T>,
+): Promise<T> {
     return retryWithExponentialBackoff(async retry => {
         try {
-            const response = await action();
-            return response;
+            return span.withSpan(`D1 ${name}`, () => {
+                return action();
+            });
         } catch (error) {
             // These error message matchings seem weird. I agree.
             // But they are taken from Cloudflare's own documentation.
@@ -44,24 +50,35 @@ function retryD1Error<T>(action: () => Promise<T>): Promise<T> {
 }
 
 export interface AgentUsageDatabaseInterface {
-    createAgentRequest(request: AgentRequest): Promise<void>;
+    createAgentRequest(span: TracerSpan, request: AgentRequest): Promise<void>;
     getUsedMillicentsByAccountIdSinceTimestamp(
+        span: TracerSpan,
         accountId: string,
         sinceTimestamp: number,
     ): Promise<number>;
     getWindowByAccountIdAndType(
+        span: TracerSpan,
         accountId: string,
         type: AgentUsageWindowType,
     ): Promise<AgentUsageWindow | null>;
     setWindowByAccountIdAndType(
+        span: TracerSpan,
         accountId: string,
         type: AgentUsageWindowType,
         startedTime: number,
         wasModelDowngraded?: boolean,
     ): Promise<AgentUsageWindow>;
-    downgradeModelForWindow(accountId: string, type: AgentUsageWindowType): Promise<void>;
-    getAccountEntitlements(accountId: string): Promise<AccountEntitlements | null>;
+    downgradeModelForWindow(
+        span: TracerSpan,
+        accountId: string,
+        type: AgentUsageWindowType,
+    ): Promise<void>;
+    getAccountEntitlements(
+        span: TracerSpan,
+        accountId: string,
+    ): Promise<AccountEntitlements | null>;
     setAccountEntitlements(
+        span: TracerSpan,
         accountId: string,
         entitlements: Partial<Omit<AccountEntitlements, "accountId">>,
     ): Promise<void>;
@@ -75,41 +92,49 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
         });
     }
 
-    async createAgentRequest(request: AgentRequest): Promise<void> {
-        await retryD1Error(() => this.database.insert(agentRequestsTable).values(request));
+    async createAgentRequest(span: TracerSpan, request: AgentRequest): Promise<void> {
+        await retryD1ErrorAndWrapInSpan(span, "createAgentRequest", () =>
+            this.database.insert(agentRequestsTable).values(request),
+        );
     }
 
     async getUsedMillicentsByAccountIdSinceTimestamp(
+        span: TracerSpan,
         accountId: string,
         sinceTimestamp: number,
     ): Promise<number> {
-        return retryD1Error(async () => {
-            const [row] = await this.database
-                .select({
-                    totalUsedMillicents: sum(agentRequestsTable.usedMillicents),
-                })
-                .from(agentRequestsTable)
-                .where(
-                    Conditions.and(
-                        Conditions.eq(agentRequestsTable.accountId, accountId),
-                        Conditions.gte(agentRequestsTable.createdTime, sinceTimestamp),
-                    ),
-                );
+        return retryD1ErrorAndWrapInSpan(
+            span,
+            "getUsedMillicentsByAccountIdSinceTimestamp",
+            async () => {
+                const [row] = await this.database
+                    .select({
+                        totalUsedMillicents: sum(agentRequestsTable.usedMillicents),
+                    })
+                    .from(agentRequestsTable)
+                    .where(
+                        Conditions.and(
+                            Conditions.eq(agentRequestsTable.accountId, accountId),
+                            Conditions.gte(agentRequestsTable.createdTime, sinceTimestamp),
+                        ),
+                    );
 
-            if (!row || row.totalUsedMillicents === null) return 0;
+                if (!row || row.totalUsedMillicents === null) return 0;
 
-            return parseInt(row.totalUsedMillicents, 10);
-        });
+                return parseInt(row.totalUsedMillicents, 10);
+            },
+        );
     }
 
     /**
      * Get window information for an account and type.
      */
     async getWindowByAccountIdAndType(
+        span: TracerSpan,
         accountId: string,
         type: AgentUsageWindowType,
     ): Promise<AgentUsageWindow | null> {
-        return retryD1Error(async () => {
+        return retryD1ErrorAndWrapInSpan(span, "getWindowByAccountIdAndType", async () => {
             const [row] = await this.database
                 .select()
                 .from(agentUsageWindowsTable)
@@ -135,12 +160,13 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
      * Set window information for an account and type.
      */
     async setWindowByAccountIdAndType(
+        span: TracerSpan,
         accountId: string,
         type: AgentUsageWindowType,
         startedTime: number,
         wasModelDowngraded: boolean = false,
     ): Promise<AgentUsageWindow> {
-        await retryD1Error(() =>
+        await retryD1ErrorAndWrapInSpan(span, "setWindowByAccountIdAndType", () =>
             this.database
                 .insert(agentUsageWindowsTable)
                 .values({
@@ -161,8 +187,12 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
     /**
      * Update the downgraded model flag for a window.
      */
-    async downgradeModelForWindow(accountId: string, type: AgentUsageWindowType): Promise<void> {
-        await retryD1Error(() =>
+    async downgradeModelForWindow(
+        span: TracerSpan,
+        accountId: string,
+        type: AgentUsageWindowType,
+    ): Promise<void> {
+        await retryD1ErrorAndWrapInSpan(span, "downgradeModelForWindow", () =>
             this.database
                 .update(agentUsageWindowsTable)
                 .set({wasModelDowngraded: true})
@@ -178,8 +208,11 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
     /**
      * Get account entitlements for an account.
      */
-    async getAccountEntitlements(accountId: string): Promise<AccountEntitlements | null> {
-        return retryD1Error(async () => {
+    async getAccountEntitlements(
+        span: TracerSpan,
+        accountId: string,
+    ): Promise<AccountEntitlements | null> {
+        return retryD1ErrorAndWrapInSpan(span, "getAccountEntitlements", async () => {
             const results = await this.database
                 .select()
                 .from(accountEntitlements)
@@ -193,10 +226,11 @@ export class AgentUsageDatabase implements AgentUsageDatabaseInterface {
      * Set entitlements for an account.
      */
     async setAccountEntitlements(
+        span: TracerSpan,
         accountId: string,
         entitlements: Partial<Omit<AccountEntitlements, "accountId">>,
     ): Promise<void> {
-        await retryD1Error(() =>
+        await retryD1ErrorAndWrapInSpan(span, "setAccountEntitlements", () =>
             this.database
                 .insert(accountEntitlements)
                 .values({

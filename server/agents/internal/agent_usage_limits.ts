@@ -102,6 +102,7 @@ async function getOrCreateAgentUsageWindow(
 
             // Get or create weekly window
             const existingWindow = await agentUsageDatabase.getWindowByAccountIdAndType(
+                span,
                 accountId,
                 windowLimit.type,
             );
@@ -110,6 +111,7 @@ async function getOrCreateAgentUsageWindow(
 
             // Create or reset weekly window for this week
             return agentUsageDatabase.setWindowByAccountIdAndType(
+                span,
                 accountId,
                 windowLimit.type,
                 weekStart,
@@ -118,6 +120,7 @@ async function getOrCreateAgentUsageWindow(
         }
         case "Dynamic": {
             const existingWindow = await agentUsageDatabase.getWindowByAccountIdAndType(
+                span,
                 accountId,
                 windowLimit.type,
             );
@@ -147,6 +150,7 @@ async function getOrCreateAgentUsageWindow(
 
             // Window needs reset - set new start time and reset downgrade status
             return agentUsageDatabase.setWindowByAccountIdAndType(
+                span,
                 accountId,
                 windowLimit.type,
                 currentTimestamp,
@@ -195,7 +199,10 @@ export async function getAgentUsageLimitWindows(
 }> {
     const {accountId, currentTimestamp} = params;
 
-    const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(accountId);
+    const accountEntitlements = await agentUsageDatabase.getAccountEntitlements(
+        parentSpan,
+        accountId,
+    );
     const plan = accountEntitlements?.plan ?? null;
     assert(plan === null || plan === "LifetimeAccess", "Unhandled agent plan type");
 
@@ -216,6 +223,7 @@ export async function getAgentUsageLimitWindows(
                     window.startedTime === currentTimestamp
                         ? 0
                         : await agentUsageDatabase.getUsedMillicentsByAccountIdSinceTimestamp(
+                              span,
                               accountId,
                               window.startedTime,
                           );
@@ -332,7 +340,7 @@ export async function shouldDowngradeModelForAgentUsageLimit(
         filterMapArray(triggeredByWindows, async window => {
             if (window.wasModelDowngraded) return null;
 
-            return agentUsageDatabase.downgradeModelForWindow(window.accountId, window.type);
+            return agentUsageDatabase.downgradeModelForWindow(span, window.accountId, window.type);
         }),
     );
 
@@ -396,7 +404,7 @@ export async function recordAgentUsage<SupportedAgentProvider extends SupportedA
 
         try {
             // Create agent request record - this is the only storage we need
-            await agentUsageDatabase.createAgentRequest({
+            await agentUsageDatabase.createAgentRequest(span, {
                 accountId,
                 spaceId,
                 traceId: span.traceId,

@@ -357,6 +357,7 @@ describe("getAgentUsageLimitWindows", () => {
                         ]),
                     );
                     expect(mockAgentUsageDatabase.setWindowByAccountIdAndType).toHaveBeenCalledWith(
+                        expect.anything(),
                         accountId,
                         "Dynamic",
                         currentTimestamp,
@@ -485,7 +486,10 @@ describe("getAgentUsageLimitWindows", () => {
                 ), // false means using default limits
             );
 
-            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(accountId);
+            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(
+                span,
+                accountId,
+            );
         });
 
         test("uses higher limits for LifetimeAccess plan", async () => {
@@ -549,7 +553,10 @@ describe("getAgentUsageLimitWindows", () => {
             expect(agentUsageLimitWindows[0]!.limitDollars).toBe(4); // Weekly: LifetimeAccess limit
             expect(agentUsageLimitWindows[1]!.limitDollars).toBe(2); // Dynamic: LifetimeAccess limit
 
-            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(accountId);
+            expect(mockAgentUsageDatabase.getAccountEntitlements).toHaveBeenCalledWith(
+                span,
+                accountId,
+            );
         });
     });
 });
@@ -859,6 +866,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
                 resetTime: new Date(weeklyStartTime + weeklyWindowLimit.durationMs),
             });
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                span,
                 accountId,
                 "Weekly",
             );
@@ -885,6 +893,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
                 resetTime: new Date(dynamicStartTime + dynamicWindowLimit.durationMs),
             });
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                span,
                 accountId,
                 "Dynamic",
             );
@@ -911,10 +920,12 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
                 resetTime: new Date(weeklyStartTime + weeklyWindowLimit.durationMs),
             });
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                span,
                 accountId,
                 "Weekly",
             );
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                span,
                 accountId,
                 "Dynamic",
             );
@@ -964,6 +975,7 @@ describe("shouldDowngradeModelForAgentUsageLimit", () => {
             });
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledTimes(1);
             expect(mockAgentUsageDatabase.downgradeModelForWindow).toHaveBeenCalledWith(
+                span,
                 accountId,
                 "Dynamic",
             );
@@ -1066,16 +1078,19 @@ describe("recordAgentUsage", () => {
                 model,
             });
 
-            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-                accountId,
-                spaceId,
-                traceId: expect.any(String),
-                spanId: expect.any(String),
-                createdTime: currentTime,
-                provider,
-                model,
-                usedMillicents: 500,
-            });
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
+                expect.anything(),
+                {
+                    accountId,
+                    spaceId,
+                    traceId: expect.any(String),
+                    spanId: expect.any(String),
+                    createdTime: currentTime,
+                    provider,
+                    model,
+                    usedMillicents: 500,
+                },
+            );
         });
 
         test("handles fractional millicents by flooring", async () => {
@@ -1090,16 +1105,19 @@ describe("recordAgentUsage", () => {
                 model,
             });
 
-            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-                accountId,
-                spaceId,
-                traceId: expect.any(String),
-                spanId: expect.any(String),
-                createdTime: currentTime,
-                provider,
-                model,
-                usedMillicents: 500, // Should be floored
-            });
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
+                expect.anything(),
+                {
+                    accountId,
+                    spaceId,
+                    traceId: expect.any(String),
+                    spanId: expect.any(String),
+                    createdTime: currentTime,
+                    provider,
+                    model,
+                    usedMillicents: 500, // Should be floored
+                },
+            );
         });
 
         test("handles zero usage", async () => {
@@ -1114,16 +1132,19 @@ describe("recordAgentUsage", () => {
                 model,
             });
 
-            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-                accountId,
-                spaceId,
-                traceId: expect.any(String),
-                spanId: expect.any(String),
-                createdTime: currentTime,
-                provider,
-                model,
-                usedMillicents: 0,
-            });
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
+                expect.anything(),
+                {
+                    accountId,
+                    spaceId,
+                    traceId: expect.any(String),
+                    spanId: expect.any(String),
+                    createdTime: currentTime,
+                    provider,
+                    model,
+                    usedMillicents: 0,
+                },
+            );
         });
 
         test("handles large usage amounts", async () => {
@@ -1139,16 +1160,19 @@ describe("recordAgentUsage", () => {
                 model,
             });
 
-            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith({
-                accountId,
-                spaceId,
-                traceId: expect.any(String),
-                spanId: expect.any(String),
-                createdTime: currentTime,
-                provider,
-                model,
-                usedMillicents: 999999, // Floored
-            });
+            expect(mockAgentUsageDatabase.createAgentRequest).toHaveBeenCalledWith(
+                expect.anything(),
+                {
+                    accountId,
+                    spaceId,
+                    traceId: expect.any(String),
+                    spanId: expect.any(String),
+                    createdTime: currentTime,
+                    provider,
+                    model,
+                    usedMillicents: 999999, // Floored
+                },
+            );
         });
     });
 

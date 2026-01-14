@@ -80,9 +80,13 @@ describe("refreshAccountEntitlements", () => {
             );
 
             expect(mockFetch).toHaveBeenCalledTimes(1);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: undefined,
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: undefined,
+                },
+            );
         });
 
         test("retrieves and sets LifetimeAccess plan for account with plan", async () => {
@@ -106,9 +110,13 @@ describe("refreshAccountEntitlements", () => {
             );
 
             expect(mockFetch).toHaveBeenCalledTimes(1);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: "LifetimeAccess",
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: "LifetimeAccess",
+                },
+            );
         });
 
         test("handles null plan value as undefined", async () => {
@@ -131,9 +139,13 @@ describe("refreshAccountEntitlements", () => {
                 {fetch: mockFetch as typeof fetch},
             );
 
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: undefined,
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: undefined,
+                },
+            );
         });
     });
 
@@ -182,9 +194,13 @@ describe("refreshAccountEntitlements", () => {
             await refreshPromise;
 
             expect(mockFetch).toHaveBeenCalledTimes(2);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: "LifetimeAccess",
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: "LifetimeAccess",
+                },
+            );
         });
 
         test("retries on 502 Bad Gateway and eventually succeeds", async () => {
@@ -229,9 +245,13 @@ describe("refreshAccountEntitlements", () => {
             await refreshPromise;
 
             expect(mockFetch).toHaveBeenCalledTimes(3);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: undefined,
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: undefined,
+                },
+            );
         });
 
         test("does not retry on 4xx client errors", async () => {
@@ -264,9 +284,13 @@ describe("refreshAccountEntitlements", () => {
             );
 
             expect(mockFetch).toHaveBeenCalledTimes(1);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: undefined,
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: undefined,
+                },
+            );
         });
 
         test("fails after max retry attempts with 5xx errors", async () => {
@@ -337,9 +361,13 @@ describe("refreshAccountEntitlements", () => {
             await refreshPromise;
 
             expect(mockFetch).toHaveBeenCalledTimes(2);
-            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(accountId, {
-                plan: "LifetimeAccess",
-            });
+            expect(mockAgentUsageDatabase.setAccountEntitlements).toHaveBeenCalledWith(
+                expect.anything(),
+                accountId,
+                {
+                    plan: "LifetimeAccess",
+                },
+            );
         });
     });
 
