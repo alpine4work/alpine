@@ -1,4 +1,4 @@
-import {Star} from "phosphor-react";
+import {CaretDown, Star} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -6,9 +6,11 @@ import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/web/design/use_confirm_save_after_losing_focus.js";
+import {setColorScheme, useColorScheme} from "~/client/web/helpers/color_scheme.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     InlineEditorToolbar,
@@ -47,6 +49,14 @@ export default function SpaceProfileSettingsRoute() {
     const [shouldShowConfirmSaveNameDialog, setShouldShowConfirmSaveNameDialog] = useState(false);
 
     const hasLifetimeAccess = account.initialData.plan === "LifetimeAccess";
+
+    const {colorScheme, isSystemPreference} = useColorScheme();
+
+    const themeSettingLabel = isSystemPreference
+        ? "System"
+        : colorScheme === "light"
+          ? "Light"
+          : "Dark";
 
     const handleSaveName = async () => {
         if (name === null) return;
@@ -193,6 +203,44 @@ export default function SpaceProfileSettingsRoute() {
                     <Box marginY="-2">
                         <ReactionCharacterCarouselSelector />
                     </Box>
+                </Box>
+                <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
+                    <Box>
+                        <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
+                            Theme
+                        </Box>
+                        <Box paddingTop="1" fontSize="75" color="grey-60" userSelect="text">
+                            Choose your preferred color scheme
+                        </Box>
+                    </Box>
+                    {colorScheme !== null && (
+                        <Box marginRight="-2">
+                            <MenuButton
+                                placement="bottom-end"
+                                actions={[
+                                    {
+                                        label: "System",
+                                        isSelected: !!isSystemPreference,
+                                        onPress: () => setColorScheme("system"),
+                                    },
+                                    {
+                                        label: "Light",
+                                        isSelected: !isSystemPreference && colorScheme === "light",
+                                        onPress: () => setColorScheme("light"),
+                                    },
+                                    {
+                                        label: "Dark",
+                                        isSelected: !isSystemPreference && colorScheme === "dark",
+                                        onPress: () => setColorScheme("dark"),
+                                    },
+                                ]}
+                            >
+                                <Button variant="quiet" icon={<CaretDown />} iconPlacement="end">
+                                    {themeSettingLabel}
+                                </Button>
+                            </MenuButton>
+                        </Box>
+                    )}
                 </Box>
                 <Box display="flex" gap="4" alignItems="center" justifyContent="space-between">
                     <Box display="flex" flexDirection="column" gap="1">

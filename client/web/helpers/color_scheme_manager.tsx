@@ -37,7 +37,10 @@ export function ColorSchemeManager() {
             if (colorScheme !== document.documentElement.getAttribute("data-color")) {
                 document.documentElement.setAttribute("data-color", colorScheme);
 
-                colorSchemeEventEmitter.emit(colorScheme);
+                colorSchemeEventEmitter.emit({
+                    colorScheme,
+                    isSystemPreference: !colorSchemeString,
+                });
             }
         };
 

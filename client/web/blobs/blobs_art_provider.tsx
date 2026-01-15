@@ -18,7 +18,7 @@ declare global {
  * other scripts to call it without needing to hold a copy.
  */
 export function BlobsArtProvider() {
-    const colorScheme = useColorScheme();
+    const {colorScheme} = useColorScheme();
 
     // If our color scheme changes, redraw the blobs.
     // Some blobs may not be drawn in a react context, so we handle the color scheme here.

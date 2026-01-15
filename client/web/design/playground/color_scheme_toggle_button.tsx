@@ -8,7 +8,7 @@ import {
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function ColorSchemeToggleButton() {
-    const colorScheme = useColorScheme();
+    const {colorScheme} = useColorScheme();
 
     let description: string;
     switch (colorScheme) {

@@ -14,15 +14,48 @@ export function getColorSchemeWithoutListeningIfBrowser(): ColorScheme | null {
     return document.documentElement.getAttribute("data-color") === "dark" ? "dark" : "light";
 }
 
-export function setColorScheme(colorScheme: ColorScheme) {
-    assert(typeof document !== "undefined", "Can not set color scheme on the server");
-
-    document.documentElement.setAttribute("data-color", colorScheme);
-    localStorage.setItem("colorScheme", colorScheme);
-    colorSchemeEventEmitter.emit(colorScheme);
+/**
+ * Get whether the color scheme was set by the system preference.
+ */
+function getIsSystemPreferenceIfBrowser(): boolean | null {
+    if (typeof localStorage === "undefined") return null;
+    return !localStorage.getItem("colorScheme");
 }
 
-export function subscribeToColorSchemeChange(listener: (colorScheme: ColorScheme) => void) {
+export function setColorScheme(colorScheme: ColorScheme | "system") {
+    assert(typeof document !== "undefined", "Can not set color scheme on the server");
+
+    const darkColorSchemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const resolvedColorScheme =
+        colorScheme === "system"
+            ? darkColorSchemeMediaQuery.matches
+                ? "dark"
+                : "light"
+            : colorScheme;
+
+    document.documentElement.setAttribute("data-color", resolvedColorScheme);
+
+    if (colorScheme === "system") {
+        localStorage.removeItem("colorScheme");
+    } else {
+        localStorage.setItem("colorScheme", colorScheme);
+    }
+
+    colorSchemeEventEmitter.emit({
+        colorScheme: resolvedColorScheme,
+        isSystemPreference: colorScheme === "system",
+    });
+}
+
+export function subscribeToColorSchemeChange(
+    listener: ({
+        colorScheme,
+        isSystemPreference,
+    }: {
+        colorScheme: ColorScheme;
+        isSystemPreference: boolean;
+    }) => void,
+) {
     return colorSchemeEventEmitter.subscribe(listener);
 }
 
@@ -48,20 +81,31 @@ export function toggleColorScheme() {
  *
  * Will return null when rendering on the server.
  */
-export function useColorScheme(): ColorScheme | null {
+export function useColorScheme(): {
+    colorScheme: ColorScheme | null;
+    isSystemPreference: boolean | null;
+} {
     const isInitialAppRender = useIsInitialAppRender();
-    const [colorScheme, setColorScheme] = useState<ColorScheme | null>(
-        isInitialAppRender ? null : getColorSchemeWithoutListeningIfBrowser(),
-    );
+    const [colorSchemeState, setColorSchemeState] = useState<{
+        colorScheme: ColorScheme | null;
+        isSystemPreference: boolean | null;
+    }>({
+        colorScheme: isInitialAppRender ? getColorSchemeWithoutListeningIfBrowser() : null,
+        isSystemPreference: isInitialAppRender ? getIsSystemPreferenceIfBrowser() : null,
+    });
 
     useEffect(() => {
-        setColorScheme(getColorSchemeWithoutListeningIfBrowser());
+        setColorSchemeState({
+            colorScheme: getColorSchemeWithoutListeningIfBrowser(),
+            isSystemPreference: getIsSystemPreferenceIfBrowser(),
+        });
 
-        const unsubscribe = subscribeToColorSchemeChange(setColorScheme);
+        const unsubscribe = subscribeToColorSchemeChange(setColorSchemeState);
+
         return () => {
             unsubscribe();
         };
     }, []);
 
-    return colorScheme;
+    return colorSchemeState;
 }

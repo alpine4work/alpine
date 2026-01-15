@@ -91,6 +91,23 @@ export function SpaceProfileSettingsRouteShimmer() {
                     </Box>
                 </Box>
 
+                {/* Theme shimmer */}
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box width="full">
+                        <TextShimmer fontSize="100" width="16" />
+                        <Spacer space="1" />
+                        <TextShimmer fontSize="75" width="48" />
+                    </Box>
+                    <Box
+                        marginLeft="-12"
+                        className={pulseAnimationClassName}
+                        width="24"
+                        height="8"
+                        backgroundColor="grey-10"
+                        borderRadius={spaceAvatarBorderRadius}
+                    />
+                </Box>
+
                 {/* Lifetime Access shimmer */}
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                     <Box width="full">
