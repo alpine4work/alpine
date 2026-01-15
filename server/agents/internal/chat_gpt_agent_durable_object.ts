@@ -187,89 +187,96 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<ChatGptAge
             },
         });
 
-        const [messageIndex, {agentUsageLimitWindows, plan}] = await runAllPromises([
-            // Start the stream message immediately so the user sees some indicator.
-            (async () => {
-                const {index} = await createChatGptAgentEmptyStreamMessage(span, request);
-                startPingInterval(span, request, index);
+        try {
+            const [messageIndex, {agentUsageLimitWindows, plan}] = await runAllPromises([
+                // Start the stream message immediately so the user sees some indicator.
+                (async () => {
+                    const {index} = await createChatGptAgentEmptyStreamMessage(span, request);
+                    startPingInterval(span, request, index);
 
-                return index;
-            })(),
-            // TODO(imjoshin, #ai): Usage limits and recording should be handled
-            // in the parent class before we call _webhook.
-            span.withSpan("Get agent usage limit windows", async span =>
-                getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
-                    accountId: request.event.authorId,
-                    currentTimestamp: currentTime.getTime(),
-                }),
-            ),
-        ]);
+                    return index;
+                })(),
+                // TODO(imjoshin, #ai): Usage limits and recording should be handled
+                // in the parent class before we call _webhook.
+                span.withSpan("Get agent usage limit windows", async span =>
+                    getAgentUsageLimitWindows(span, request.agentUsageDatabase.get(), {
+                        accountId: request.event.authorId,
+                        currentTimestamp: currentTime.getTime(),
+                    }),
+                ),
+            ]);
 
-        const agentMessageStream = new AgentMessageStream({
-            spaceId: request.spaceId,
-            getTargetPathIfExists: async linkPath => {
-                const agentLink = await getAgentLink(request.storage, linkPath);
+            const agentMessageStream = new AgentMessageStream({
+                spaceId: request.spaceId,
+                getTargetPathIfExists: async linkPath => {
+                    const agentLink = await getAgentLink(request.storage, linkPath);
 
-                if (!agentLink) return null;
+                    if (!agentLink) return null;
 
-                return printApiPathForAgentLink(agentLink);
-            },
-        });
-
-        const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
-            span,
-            request.event.authorId,
-            agentUsageLimitWindows,
-        );
-
-        if (isAgentUsageLimitExceededResult.exceeded) {
-            return sendLimitErrorMessage(span, request, {
-                agentMessageStream,
-                messageIndex,
-                resetTime: new Date(isAgentUsageLimitExceededResult.resetTime),
-                currentTime,
-                shouldUpsell: shouldSendMessagingWithUpsellLink(plan),
+                    return printApiPathForAgentLink(agentLink);
+                },
             });
-        }
 
-        const {model, downgradedMessageData} = await getOpenAiModel(
-            span,
-            request,
-            agentUsageLimitWindows,
-        );
+            const isAgentUsageLimitExceededResult = isAgentUsageLimitExceeded(
+                span,
+                request.event.authorId,
+                agentUsageLimitWindows,
+            );
 
-        // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
-        // message while the agent is responding to a previous request?
-        const response = await requestChatGptAgent(span, request, {
-            agentMessageStream,
-            env: this._env,
-            model,
-            newMessageIndex: messageIndex,
-            sendDowngradeWarningMessageIfNeeded: async () => {
-                // NOTE(ifitzsimmons, 2026-01-12): We only send downgraded messaging to "upsell"
-                // the user. If the user can't be upselled (they already have the max token usage),
-                // we shouldn't send the downgraded messaging. There's nothing they can do.
-                if (!shouldSendMessagingWithUpsellLink(plan) || !downgradedMessageData) {
-                    return;
-                }
-
-                await sendDowngradeWarningMessage(span, request, {
+            if (isAgentUsageLimitExceededResult.exceeded) {
+                return sendLimitErrorMessage(span, request, {
                     agentMessageStream,
                     messageIndex,
-                    resetTime: downgradedMessageData.resetTime,
+                    resetTime: new Date(isAgentUsageLimitExceededResult.resetTime),
                     currentTime,
+                    shouldUpsell: shouldSendMessagingWithUpsellLink(plan),
                 });
-            },
-        });
+            }
 
-        await recordAgentUsage(span, request.agentUsageDatabase.get(), {
-            accountId: request.event.authorId,
-            spaceId: request.spaceId,
-            requestUsedMillicents: response.usedMillicents,
-            currentTimestamp: currentTime.getTime(),
-            provider: "openai",
-            model,
-        });
+            const {model, downgradedMessageData} = await getOpenAiModel(
+                span,
+                request,
+                agentUsageLimitWindows,
+            );
+
+            // TODO(calebmer, #ai): Implement interruption. What happens if a user sends a
+            // message while the agent is responding to a previous request?
+            const response = await requestChatGptAgent(span, request, {
+                agentMessageStream,
+                env: this._env,
+                model,
+                newMessageIndex: messageIndex,
+                sendDowngradeWarningMessageIfNeeded: async () => {
+                    // NOTE(ifitzsimmons, 2026-01-12): We only send downgraded messaging to "upsell"
+                    // the user. If the user can't be upselled (they already have the max token usage),
+                    // we shouldn't send the downgraded messaging. There's nothing they can do.
+                    if (!shouldSendMessagingWithUpsellLink(plan) || !downgradedMessageData) {
+                        return;
+                    }
+
+                    await sendDowngradeWarningMessage(span, request, {
+                        agentMessageStream,
+                        messageIndex,
+                        resetTime: downgradedMessageData.resetTime,
+                        currentTime,
+                    });
+                },
+            });
+
+            await recordAgentUsage(span, request.agentUsageDatabase.get(), {
+                accountId: request.event.authorId,
+                spaceId: request.spaceId,
+                requestUsedMillicents: response.usedMillicents,
+                currentTimestamp: currentTime.getTime(),
+                provider: "openai",
+                model,
+            });
+        } finally {
+            agentMessageStreamPingInterval?.clear();
+            agentMessageStreamPingInterval = null;
+
+            await updateAgentMessageStreamMutex.waitForUnlock();
+        }
     }
 
     private async _fetchConversationState(
