@@ -400,7 +400,7 @@ async function handleFetch(
         try {
             // Important to `await` here so that our try/catch catches any errors
             // asynchronously thrown by this function.
-            const response = await actuallyHandleFetch(
+            const initialResponse = await actuallyHandleFetch(
                 request,
                 env,
                 executionContext,
@@ -409,6 +409,30 @@ async function handleFetch(
                 route,
                 span,
             );
+
+            const responseHeaders = new Headers(initialResponse.headers);
+
+            // Only allow our pages to be embedded on our own origin.
+            responseHeaders.set("x-frame-options", "sameorigin");
+
+            if (process.env.NODE_ENV === "production") {
+                // Tell browsers to enforce HTTPS for all requests.
+                responseHeaders.set("strict-transport-security", "max-age=3600; includeSubDomains");
+            }
+
+            // If the initial response is a WebSocket, return a new response with the WebSocket and a null body.
+            const response = initialResponse.webSocket
+                ? new Response(null, {
+                      status: initialResponse.status,
+                      statusText: initialResponse.statusText,
+                      headers: responseHeaders,
+                      webSocket: initialResponse.webSocket,
+                  })
+                : new Response(initialResponse.body, {
+                      status: initialResponse.status,
+                      statusText: initialResponse.statusText,
+                      headers: responseHeaders,
+                  });
 
             return response;
         } catch (error) {
