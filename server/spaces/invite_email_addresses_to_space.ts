@@ -3,22 +3,42 @@ import {getAccountIdByEmailAddressIfExists} from "~/server/accounts/get_account_
 import {getOwnAccount} from "~/server/accounts/get_own_account.js";
 import {
     ServerActionContext,
+    ServerSessionActionContext,
     ServerSessionActionContextWithEmail,
 } from "~/server/context/server_action_context.js";
+import {maxLabelStringForDynamoKeyAttribute} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {createAccountModelFromItem} from "~/server/spaces/internal/create_account_model_from_item.js";
 import {getAddSpaceAccountTransactionEntries} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
+import {
+    SpaceInviteRateLimitBucketItem,
+    SpacesTable,
+} from "~/server/spaces/internal/spaces_table.js";
+import {genericEmailAddressDomains} from "~/shared/accounts/generic_email_address_domains.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {EmailAddress, isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+
+/**
+ * The number of invites to a space that can be sent per hour for email addresses outside
+ * of the space's organization.
+ */
+const nonDomainInviteRateLimit = 50;
+const nonDomainInviteWindowLength = 60 * 60 * 1000; // 60 minutes
 
 /**
  * Invite a list of email addresses to a space.
@@ -64,6 +84,8 @@ export async function inviteEmailAddressesToSpace(
         const invalidEmailAddresses = new Set<string>();
         const rejectedAsSpamEmailAddresses = new Set<string>();
         const alreadyMemberEmailAddresses = new Set<string>();
+
+        await validateEmailAddressInvitesAreNotRateLimited(context, spaceId, emailAddresses);
 
         // NOTE(imjoshin): We don't do any transaction or validation here because
         // it would be too difficult to rollback at this point in time. If we do want
@@ -192,7 +214,11 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
             ...transactionEntries,
         ]);
 
-        const acceptInviteUrl = `${context.constants.edgeServiceUrl}/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(`/s/${spaceId}/invite/accept`)}`;
+        const acceptInviteUrl = `${
+            context.constants.edgeServiceUrl
+        }/auth/sign-in?email=${encodeURIComponent(emailAddress)}&to=${encodeURIComponent(
+            `/s/${spaceId}/invite/accept`,
+        )}`;
         const rejectInviteAndMarkAsSpamUrl = `${context.constants.edgeServiceUrl}/s/${spaceId}/invite/reject-and-mark-as-spam`;
 
         if (process.env.NODE_ENV === "development" || process.env.PLAYWRIGHT_TEST_PATH) {
@@ -201,9 +227,7 @@ async function inviteEmailAddressToSpaceWithoutRetryTransaction(
 
             // eslint-disable-next-line no-console
             console.log(
-                quote`Accept the invite for ${emailAddress} in ${
-                    spaceItem.name
-                } here: ${acceptInviteUrl}`,
+                quote`Accept the invite for ${emailAddress} in ${spaceItem.name} here: ${acceptInviteUrl}`,
             );
         }
 
@@ -340,4 +364,146 @@ async function validateInviteEmailAddressToSpace(
             });
         },
     };
+}
+
+async function validateEmailAddressInvitesAreNotRateLimited(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    emailAddresses: ReadonlyArray<string>,
+): Promise<void> {
+    const consistency = "StrongWithinCache" as const;
+
+    const [spaceAutoAddAccountsFromEmailDomains, currentSpaceInviteRateLimitBucket] =
+        await runAllPromises([
+            arrayFromAsyncIterable(
+                mapAsyncIterableIterator(
+                    SpacesTable.query(context, {
+                        limit: "All",
+                        consistency,
+                        partitionKey: {
+                            partitionType: "Space",
+                            spaceId,
+                        },
+                        startSortKey: {
+                            sortRangeType: "AutoAddAccountsFromEmailDomain",
+                            emailDomain: minLabelString,
+                        },
+                        endSortKey: {
+                            sortRangeType: "AutoAddAccountsFromEmailDomain",
+                            emailDomain: maxLabelStringForDynamoKeyAttribute,
+                        },
+                    }),
+                    item => item.emailDomain,
+                ),
+            ),
+            getCurrentSpaceInviteRateLimitBucket(context, spaceId, {consistency}),
+        ]);
+
+    const spaceAutoAddDomainsSet = new Set(spaceAutoAddAccountsFromEmailDomains);
+
+    const emailAddressInvitesOutsideOfOrganizationDomain = filterMapArray(
+        emailAddresses,
+        emailAddress =>
+            isEmailAddressOutsideOfOrganizationDomain(emailAddress, spaceAutoAddDomainsSet)
+                ? emailAddress
+                : undefined,
+    );
+
+    // If all email address in the batch are domain invites, do not rate limit.
+    if (emailAddressInvitesOutsideOfOrganizationDomain.length === 0) {
+        return;
+    }
+
+    const consumedInviteCountForCurrentRequest =
+        emailAddressInvitesOutsideOfOrganizationDomain.length;
+
+    const remainingInviteCountAfterRequest =
+        currentSpaceInviteRateLimitBucket.bucket.remainingInviteCount -
+        consumedInviteCountForCurrentRequest;
+
+    // NOTE(ifitzsimmons, 2026-01-14): If there are more than 50 invites to emails
+    // outside of the organization, throw an error. This kind of stinks because if they
+    // invite 60 people outside of their organization in one batch request, we'll fail
+    // all 60. I think this is fine, because the people doing this are most likely
+    // trying to spam.
+    if (remainingInviteCountAfterRequest < 0) {
+        throw new FailedPreconditionError("Invite email rate limit exceeded", {
+            displayMessage: errorDisplayMessage`You have reached the maximum number of invites \
+            for accounts outside of your organization. Please try again later. \
+            You can continue inviting people within your organization.`,
+        });
+    }
+
+    const newItem = {
+        ...currentSpaceInviteRateLimitBucket,
+        bucket: {
+            ...currentSpaceInviteRateLimitBucket.bucket,
+            remainingInviteCount: remainingInviteCountAfterRequest,
+        },
+    };
+
+    // This will throw an exception if the `updateLockVersion` has changed since we last read the item.
+    await SpacesTable.directlyUpdateItem(context, newItem);
+}
+
+async function getCurrentSpaceInviteRateLimitBucket(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<SpaceInviteRateLimitBucketItem> {
+    const currentTime = new Date(Date.now());
+
+    const bucketItem = await SpacesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "SpaceInviteRateLimitBucket",
+            spaceId,
+        },
+        {consistency},
+    );
+
+    if (!bucketItem) {
+        return {
+            partitionType: "Space",
+            sortRangeType: "SpaceInviteRateLimitBucket",
+            spaceId,
+            bucket: {
+                startTime: currentTime,
+                remainingInviteCount: nonDomainInviteRateLimit,
+            },
+        };
+    }
+
+    const currentWindowEndTime = new Date(
+        bucketItem.bucket.startTime.getTime() + nonDomainInviteWindowLength,
+    );
+
+    if (currentTime > currentWindowEndTime) {
+        // Reset the bucket starting at time now.
+        return {
+            ...bucketItem,
+            bucket: {
+                startTime: currentTime,
+                remainingInviteCount: nonDomainInviteRateLimit,
+            },
+        };
+    }
+
+    // Return the current and active bucket
+    return bucketItem;
+}
+
+function isEmailAddressOutsideOfOrganizationDomain(
+    emailAddress: string,
+    autoAddDomains: Set<string>,
+): boolean {
+    const domain = emailAddress.split("@", 2)[1];
+    const emailAddressBeforeFirstDot = domain?.split(".", 2)[0];
+
+    const isGeneric = genericEmailAddressDomains
+        .get()
+        .beforeFirstDotSet.has(emailAddressBeforeFirstDot?.toLowerCase() ?? "");
+
+    return isGeneric || !autoAddDomains.has(domain ?? "");
 }

@@ -1,10 +1,14 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
+import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {generateEmailAddressForTest} from "~/server/spaces/test_helpers/generate_email_address_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 
@@ -214,4 +218,258 @@ test(`kitchen sink invite test`, async () => {
     );
 
     expect(removedAccount?.state?.type).toEqual("InvitePending");
+});
+
+describe("rate limiting", () => {
+    function generateGenericEmailAddress() {
+        return `test.${generateId()}@gmail.com`;
+    }
+
+    function generateOrganizationEmailAddress(emailDomain: string) {
+        return `test.${generateId()}@${emailDomain}`;
+    }
+
+    function generateOrganizationEmailDomain() {
+        return `company-${generateId()}.com`;
+    }
+
+    async function createSpaceWithOrganizationDomain(emailDomain: string) {
+        const space = await TestSpace.create(context);
+
+        await SpacesTable.createItem(context, {
+            partitionType: "Space",
+            sortRangeType: "AutoAddAccountsFromEmailDomain",
+            spaceId: space.id,
+            emailDomain,
+        });
+
+        await SpacesTable.createItem(context, {
+            partitionType: "AutoAddAccountsFromEmailDomain",
+            sortRangeType: "Space",
+            emailDomain,
+            spaceId: space.id,
+            isEnabled: true,
+        });
+
+        return space;
+    }
+
+    test("invites to organization domain emails are not rate limited", async () => {
+        const emailDomain = generateOrganizationEmailDomain();
+        const space = await createSpaceWithOrganizationDomain(emailDomain);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // Generate 60 organization domain email addresses (more than the rate limit of 50)
+        const emailAddresses = createArrayWithLength(60, () =>
+            generateOrganizationEmailAddress(emailDomain),
+        );
+
+        // Should succeed without hitting rate limit
+        const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+            spaceId: space.id,
+            emailAddresses,
+        });
+
+        expect(result.accounts).toHaveLength(60);
+        expect(result.invalidEmailAddresses).toHaveLength(0);
+    });
+
+    test("batch of more than 50 generic emails throws rate limit error", async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // Generate 51 generic email addresses
+        const emailAddresses = createArrayWithLength(51, generateGenericEmailAddress);
+
+        await expect(
+            inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses,
+            }),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("cumulative generic email invites exceeding rate limit throws error", async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // First batch: 30 generic emails (under limit)
+        const firstBatch = createArrayWithLength(30, generateGenericEmailAddress);
+        const firstResult = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+            spaceId: space.id,
+            emailAddresses: firstBatch,
+        });
+        expect(firstResult.accounts).toHaveLength(30);
+
+        // Second batch: 25 generic emails (would exceed limit: 30 + 25 = 55 > 50)
+        const secondBatch = createArrayWithLength(25, generateGenericEmailAddress);
+        await expect(
+            inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses: secondBatch,
+            }),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("rate limit applies to non-organization emails even if not generic", async () => {
+        const organizationDomain = generateOrganizationEmailDomain();
+        const space = await createSpaceWithOrganizationDomain(organizationDomain);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // Generate emails from a different company domain (not generic, but not organization)
+        const otherCompanyDomain = generateOrganizationEmailDomain();
+        const emailAddresses = createArrayWithLength(51, () =>
+            generateOrganizationEmailAddress(otherCompanyDomain),
+        );
+
+        await expect(
+            inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses,
+            }),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("mixed batch with organization and generic emails only counts generic against limit", async () => {
+        const emailDomain = generateOrganizationEmailDomain();
+        const space = await createSpaceWithOrganizationDomain(emailDomain);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // 40 organization emails + 40 generic emails
+        // Only the 40 generic should count against the limit of 50
+        const organizationEmails = createArrayWithLength(40, () =>
+            generateOrganizationEmailAddress(emailDomain),
+        );
+        const genericEmails = createArrayWithLength(40, generateGenericEmailAddress);
+
+        const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+            spaceId: space.id,
+            emailAddresses: [...organizationEmails, ...genericEmails],
+        });
+
+        expect(result.accounts).toHaveLength(80);
+    });
+
+    test("rate limit counter decrements correctly", async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        // First batch: exactly 50 generic emails (at limit)
+        const firstBatch = createArrayWithLength(50, generateGenericEmailAddress);
+        const firstResult = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+            spaceId: space.id,
+            emailAddresses: firstBatch,
+        });
+        expect(firstResult.accounts).toHaveLength(50);
+
+        // Any additional generic email should fail
+        const oneMoreEmail = [generateGenericEmailAddress()];
+        await expect(
+            inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses: oneMoreEmail,
+            }),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("rate limits are per-space", async () => {
+        const spaceA = await TestSpace.create(context);
+        const spaceB = await TestSpace.create(context);
+        const ownerSessionA = await spaceA.createSession({role: "Owner"});
+        const ownerSessionB = await spaceB.createSession({role: "Owner"});
+
+        // Use up rate limit in space A
+        const emailsForSpaceA = createArrayWithLength(50, generateGenericEmailAddress);
+        await inviteEmailAddressesToSpace(context.action(ownerSessionA), {
+            spaceId: spaceA.id,
+            emailAddresses: emailsForSpaceA,
+        });
+
+        // Space B should still have its own rate limit available
+        const emailsForSpaceB = createArrayWithLength(50, generateGenericEmailAddress);
+        const result = await inviteEmailAddressesToSpace(context.action(ownerSessionB), {
+            spaceId: spaceB.id,
+            emailAddresses: emailsForSpaceB,
+        });
+
+        expect(result.accounts).toHaveLength(50);
+    });
+
+    test("rate limits are reset when the window ends", async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        const originalTime = Date.now();
+        const originalDateNow = Date.now;
+
+        let currentTime = originalTime;
+        Date.now = () => currentTime;
+
+        try {
+            // First batch: 30 generic emails (under limit)
+            const firstBatch = createArrayWithLength(30, generateGenericEmailAddress);
+            const firstResult = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses: firstBatch,
+            });
+            expect(firstResult.accounts).toHaveLength(30);
+
+            currentTime += 50 * 60 * 1000; // 50 minutes
+
+            // Second batch: 25 generic emails (would exceed limit: 30 + 25 = 55 > 50)
+            const secondBatch = createArrayWithLength(25, generateGenericEmailAddress);
+            await expect(
+                inviteEmailAddressesToSpace(context.action(ownerSession), {
+                    spaceId: space.id,
+                    emailAddresses: secondBatch,
+                }),
+            ).rejects.toThrow(FailedPreconditionError);
+
+            currentTime += 5 * 60 * 1000; // 5 minutes
+
+            // Second batch fails again at T55
+            await expect(
+                inviteEmailAddressesToSpace(context.action(ownerSession), {
+                    spaceId: space.id,
+                    emailAddresses: secondBatch,
+                }),
+            ).rejects.toThrow(FailedPreconditionError);
+
+            currentTime += 10 * 60 * 1000; // 10 minutes
+
+            // second batch should succeed at T65
+            const result = await inviteEmailAddressesToSpace(context.action(ownerSession), {
+                spaceId: space.id,
+                emailAddresses: secondBatch,
+            });
+            expect(result.accounts).toHaveLength(25);
+        } finally {
+            Date.now = originalDateNow;
+        }
+    });
+
+    test("Concurrent batches fail due to condition check error", async () => {
+        const space = await TestSpace.create(context);
+        const ownerSession = await space.createSession({role: "Owner"});
+
+        const firstBatch = createArrayWithLength(45, generateGenericEmailAddress);
+        const secondBatch = createArrayWithLength(45, generateGenericEmailAddress);
+
+        await expect(
+            runAllPromises([
+                inviteEmailAddressesToSpace(context.action(ownerSession), {
+                    spaceId: space.id,
+                    emailAddresses: firstBatch,
+                }),
+                inviteEmailAddressesToSpace(context.action(ownerSession), {
+                    spaceId: space.id,
+                    emailAddresses: secondBatch,
+                }),
+            ]),
+        ).rejects.toThrow(
+            new FailedPreconditionError(
+                "DynamoDB ConditionalCheckFailedException: The conditional request failed",
+            ),
+        );
+    });
 });

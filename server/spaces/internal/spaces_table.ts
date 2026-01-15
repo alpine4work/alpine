@@ -219,6 +219,48 @@ export const SpacesTable = DynamoTableSchema.new({
                     },
                     attributes: Schema.object({}),
                 },
+
+                /**
+                 * Currently used to rate limit the number of invites to a space.
+                 *
+                 * The day after we launched, there was an incident where a bad actor tried
+                 * inviting > 30K emails to their space via the bulk invite UI [1].
+                 *
+                 * To prevent this from happening again, we rate limit invites to email addresses
+                 * according to the following rules:
+                 * 1. If the space has one or more `AutoAddAccountsFromEmailDomain`s, we will not
+                 *    throttle invites to emails that belong to those domains. For example, if a
+                 *    user in the "Amazon" space wants to invite their organization of 500 Amazon
+                 *    employees, they should be able to do so. All other emails will be throttled
+                 * 2. If the space does not have any `AutoAddAccountsFromEmailDomain`s, we'll
+                 *    consider it to be a "personal space". There aren't currently any strong use
+                 *    cases for bulk inviting tons of users into a "personal space" so we will rate
+                 *    limit all invites to 50 per hour.
+                 * 3. If the request pushes the total number of invites "outside of the organization"
+                 *    past the rate limit, ALL EMAIL ADDRESSES IN THE BATCH WILL BE REJECTED. The user
+                 *    will still be able to invite members of their organization, but they'll have
+                 *    to remove the offending email addresses before trying again.
+                 *
+                 * The naming of this sort range is generic and not bound to the implementation
+                 * of rate limiting (e.g. it says nothing about rate limiting only non-organization
+                 * emails addresses). This way, we can change the implementation later if needed.
+                 *
+                 * As of writing, we allow up to 50 invites to email addresses that are not part of
+                 * the space's organization every hour. This may change. You can see the implementation
+                 * of the rate limiting in the `inviteEmailAddressesToSpace` function.
+                 *
+                 * [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/posts/yjhp5g4cm7s3nphhprcspp7tc0
+                 */
+                {
+                    name: "SpaceInviteRateLimitBucket",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        bucket: Schema.object({
+                            startTime: Schema.date,
+                            remainingInviteCount: Schema.integer,
+                        }),
+                    }),
+                },
             ],
         },
 
@@ -345,6 +387,12 @@ export type SpaceWelcomePackageItem = DynamoTableItemType<
     typeof SpacesTable,
     "Space",
     "WelcomePackage"
+>;
+
+export type SpaceInviteRateLimitBucketItem = DynamoTableItemType<
+    typeof SpacesTable,
+    "Space",
+    "SpaceInviteRateLimitBucket"
 >;
 
 export type AccountSpacesItem = DynamoTableItemType<typeof SpacesTable, "Account", "Spaces">;
