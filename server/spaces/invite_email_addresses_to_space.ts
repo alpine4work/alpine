@@ -430,7 +430,7 @@ async function validateEmailAddressInvitesAreNotRateLimited(
         throw new FailedPreconditionError("Invite email rate limit exceeded", {
             displayMessage: errorDisplayMessage`You have reached the maximum number of invites \
             for accounts outside of your organization. Please try again later. \
-            You can continue inviting people within your organization.`,
+            You can continue inviting people within your organization. To raise the invite limit, contact ${errorDisplayMessage.supportLink}.`,
         });
     }
 

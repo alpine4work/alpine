@@ -32,42 +32,81 @@ async function inviteEmailAddressesAndGetResults(
         const errorLocator = page.getByTestId("InviteErroredEmailAddresses");
         const errorText = await errorLocator.textContent();
 
-        const unexpectedFailuresRegex = /[\s]+([^\s]+)\s+failed due to an unexpected error/g;
-        const unexpectedMatches = errorText?.matchAll(unexpectedFailuresRegex);
+        const errorTextSentences = errorText?.split(". ");
+
+        const unexpectedFailuresRegex = /(?:^|\. )(.+?) (failed due to an unexpected error)\b/g;
+        const unexpectedMatches = errorTextSentences?.flatMap(sentence =>
+            Array.from(sentence.matchAll(unexpectedFailuresRegex)),
+        );
         if (unexpectedMatches) {
             for (const match of unexpectedMatches) {
                 if (match[1]) {
-                    errors.unexpectedFailure.push(match[1].trim());
+                    const [firstPart, secondPart] = match[1].split("and");
+                    const addresses = firstPart?.split(",") ?? [];
+                    for (const address of addresses) {
+                        errors.unexpectedFailure.push(address.trim());
+                    }
+                    if (secondPart) {
+                        errors.unexpectedFailure.push(secondPart.trim());
+                    }
                 }
             }
         }
 
-        const invalidRegex = /[\s]+([^\s]+)\s+isn’t a valid email address/g;
-        const invalidMatches = errorText?.matchAll(invalidRegex);
+        const invalidRegex =
+            /(?:^|\. )(.+?) (?:aren’t valid email addresses|isn’t a valid email address)\b/g;
+        const invalidMatches = errorTextSentences?.flatMap(sentence =>
+            Array.from(sentence.matchAll(invalidRegex)),
+        );
         if (invalidMatches) {
             for (const match of invalidMatches) {
                 if (match[1]) {
-                    errors.invalid.push(match[1].trim());
+                    const [firstPart, secondPart] = match[1].split("and");
+                    const addresses = firstPart?.split(",") ?? [];
+                    for (const address of addresses) {
+                        errors.invalid.push(address.trim());
+                    }
+                    if (secondPart) {
+                        errors.invalid.push(secondPart.trim());
+                    }
                 }
             }
         }
 
-        const rejectedPreviousInviteRegex = /[\s]+([^\s]+)\s+rejected a previous invite/g;
-        const rejectedPreviousInviteMatches = errorText?.matchAll(rejectedPreviousInviteRegex);
+        const rejectedPreviousInviteRegex = /(?:^|\. )(.+?) (rejected a previous invite)\b/g;
+        const rejectedPreviousInviteMatches = errorTextSentences?.flatMap(sentence =>
+            Array.from(sentence.matchAll(rejectedPreviousInviteRegex)),
+        );
         if (rejectedPreviousInviteMatches) {
             for (const match of rejectedPreviousInviteMatches) {
                 if (match[1]) {
-                    errors.rejectedPreviousInvite.push(match[1].trim());
+                    const [firstPart, secondPart] = match[1].split("and");
+                    const addresses = firstPart?.split(",") ?? [];
+                    for (const address of addresses) {
+                        errors.rejectedPreviousInvite.push(address.trim());
+                    }
+                    if (secondPart) {
+                        errors.rejectedPreviousInvite.push(secondPart.trim());
+                    }
                 }
             }
         }
 
-        const alreadyMemberRegex = /[\s]+([^\s]+)\s+is already a member of the space/g;
-        const alreadyMemberMatches = errorText?.matchAll(alreadyMemberRegex);
+        const alreadyMemberRegex = /(?:^|\. )(.+?) (?:is already a member|are already members)\b/g;
+        const alreadyMemberMatches = errorTextSentences?.flatMap(sentence =>
+            Array.from(sentence.matchAll(alreadyMemberRegex)),
+        );
         if (alreadyMemberMatches) {
             for (const match of alreadyMemberMatches) {
                 if (match[1]) {
-                    errors.alreadyMember.push(match[1].trim());
+                    const [firstPart, secondPart] = match[1].split("and");
+                    const addresses = firstPart?.split(",") ?? [];
+                    for (const address of addresses) {
+                        errors.alreadyMember.push(address.trim());
+                    }
+                    if (secondPart) {
+                        errors.alreadyMember.push(secondPart.trim());
+                    }
                 }
             }
         }
