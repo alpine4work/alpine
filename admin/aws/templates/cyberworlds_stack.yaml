@@ -982,10 +982,10 @@ Resources:
                           - s3:PutObjectVersionTagging
                       Effect: Allow
                       Resource:
-                          - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceLoggingBucket71E4E617Arn102DF671
+                          - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityLoggingBucketC446D7D1ArnDA3B976C
                           - Fn::Join:
                                 - ""
-                                - - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceLoggingBucket71E4E617Arn102DF671
+                                - - Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityLoggingBucketC446D7D1ArnDA3B976C
                                   - /*
                     - Action:
                           - logs:CreateLogStream
@@ -1027,7 +1027,7 @@ Resources:
             DeliveryStreamType: DirectPut
             ExtendedS3DestinationConfiguration:
                 BucketARN:
-                    Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceLoggingBucket71E4E617Arn102DF671
+                    Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityLoggingBucketC446D7D1ArnDA3B976C
                 CloudWatchLoggingOptions:
                     Enabled: true
                     LogGroupName:
@@ -2349,7 +2349,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
             PolicyName: TaskRealtimeServiceTaskDefinitionTaskRoleDefaultPolicyAC8A2E5A
             Roles:
@@ -3229,7 +3229,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -3785,14 +3785,14 @@ Resources:
                   Value: "true"
                 - Key: access_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: access_logs.s3.prefix
                   Value: $logs/appService
                 - Key: connection_logs.s3.enabled
                   Value: "true"
                 - Key: connection_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: connection_logs.s3.prefix
                   Value: logs/appService
             Name: cyberworlds-app
@@ -4333,7 +4333,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action:
                           - ec2:DescribeNetworkInterfaces
                           - ecs:DescribeContainerInstances
@@ -4809,14 +4809,14 @@ Resources:
                   Value: "true"
                 - Key: access_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: access_logs.s3.prefix
                   Value: $logs/apiService
                 - Key: connection_logs.s3.enabled
                   Value: "true"
                 - Key: connection_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: connection_logs.s3.prefix
                   Value: logs/apiService
             Name: cyberworlds-api
@@ -5381,7 +5381,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
             Roles:
                 - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
@@ -6076,7 +6076,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
             PolicyName: MigrationServiceTaskDefinitionTaskRoleDefaultPolicy0D3E0F49
             Roles:
@@ -6368,14 +6368,14 @@ Resources:
                   Value: "true"
                 - Key: access_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: access_logs.s3.prefix
                   Value: logs/fileProcessorService
                 - Key: connection_logs.s3.enabled
                   Value: "true"
                 - Key: connection_logs.s3.bucket
                   Value:
-                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefLoggingServiceLoggingBucket71E4E6173C280304
+                      Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: connection_logs.s3.prefix
                   Value: logs/fileProcessorService
             Name: cyberworlds-files
@@ -6490,7 +6490,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -6685,7 +6685,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -6881,7 +6881,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -7094,7 +7094,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -7841,7 +7841,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:

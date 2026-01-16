@@ -37,13 +37,14 @@ export class AwsObservability {
         this.loggingBucket = loggingBucket;
         this.tracerEventStream = tracerEventStream;
 
+        // Make our static properties accessible to the instance.
         this.logsBucketPrefix = AwsObservability._logsBucketPrefix;
         this.tracerEventBucketPrefix = AwsObservability._tracerEventBucketPrefix;
         this.tracerEventStreamName = AwsObservability._tracerEventStreamName;
     }
 
     public static new(parentConstruct: Construct): AwsObservability {
-        const construct = new Construct(parentConstruct, "LoggingService");
+        const construct = new Construct(parentConstruct, "AwsObservability");
 
         const loggingBucket = new Bucket(construct, "LoggingBucket", {
             bucketName: "cyberworlds-observability-logs",

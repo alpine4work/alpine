@@ -92,7 +92,8 @@ export interface AwsLambdaBaseOptions extends Omit<
     readonly honeycombApiKey: string | null;
 
     /**
-     * The observability service to use for the Lambda function.
+     * The observability construct to use for the Lambda function. You should always provide this
+     * unless there is a specific reason you don't want to write tracer events or logs.
      *
      * If not provided, the Lambda function will not be able to write to the tracer event stream.
      */

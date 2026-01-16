@@ -1359,7 +1359,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                 Version: 2012-10-17
             PolicyName: GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8
             Roles:
@@ -2371,7 +2371,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sts:AssumeRole
                       Effect: Allow
                       Resource:
@@ -4617,7 +4617,7 @@ Resources:
                           - firehose:PutRecordBatch
                       Effect: Allow
                       Resource:
-                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttAwsObservabilityTracerHoneycombFirehoseDeliveryStreamCE491F1EArn9D0D9D4D
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
