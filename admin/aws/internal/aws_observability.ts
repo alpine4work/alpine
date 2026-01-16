@@ -56,7 +56,7 @@ export class AwsObservability {
             construct,
             "CloudWatchAgentConfigParam",
             {
-                parameterName: "AmazonCloudWatch-linux",
+                parameterName: "AmazonCloudWatch-linux-config",
                 stringValue: cloudwatchAgentConfig,
                 tier: ParameterTier.STANDARD,
             },
