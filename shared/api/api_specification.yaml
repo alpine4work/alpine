@@ -2249,30 +2249,15 @@ components:
                 content:
                     $ref: "#/components/schemas/Content"
 
-        # NOTE(ifitzsimmons, #public-api): We don't currently support replying to Posts
-        # (via ranges) through the API, but we *can* return reply ranges when fetching
-        # messages. So we create a response specialization in order to return reply ranges
-        # when fetching messages without exposing the creation flow.
-        #
-        # I'm not actually convinced that we *should* enable replying to ranges via the
-        # API. If we do, we can probably remove this specialization.
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent"
             discriminator:
                 propertyName: type
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent"
-
-        MessageContentPayloadParent_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent"
 
         # TODO(calebmer, #api): Files? How do we get AI to read any attached files?
 
@@ -2289,13 +2274,11 @@ components:
 
         MessageContentPayloadMessageParent_Response:
             type: object
-            required: [type, author, index, contentSnippet]
+            required: [type, index, author, contentSnippet]
             additionalProperties: false
             properties:
                 type:
                     const: Message
-                author:
-                    $ref: "#/components/schemas/Account"
                 index:
                     type: integer
                     minimum: 0
@@ -2306,8 +2289,18 @@ components:
                 endIndex:
                     type: integer
                     minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+
+        MessageContentPayloadPostParent:
+            type: object
+            required: [type, author, contentSnippet]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
 
         # TODO(ifitzsimmons, #public-api): We don't actually return the range information for
         # now. In order for a client to use the actual range, we need to return the start

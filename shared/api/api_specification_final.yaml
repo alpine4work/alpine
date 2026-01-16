@@ -2341,19 +2341,12 @@ components:
         MessageContentPayloadParent:
             oneOf:
                 - $ref: "#/components/schemas/MessageContentPayloadMessageParent"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent"
             discriminator:
                 propertyName: type
                 mapping:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent"
-        MessageContentPayloadParent_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
-                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent"
         MessageContentPayloadMessageParent:
             type: object
             required:
@@ -2370,23 +2363,33 @@ components:
             type: object
             required:
                 - type
-                - author
                 - index
+                - author
                 - contentSnippet
             additionalProperties: false
             properties:
                 type:
                     const: Message
-                author:
-                    $ref: "#/components/schemas/Account"
                 index:
                     type: integer
                     minimum: 0
                 endIndex:
                     type: integer
                     minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
+        MessageContentPayloadPostParent:
+            type: object
+            required:
+                - type
+                - author
+                - contentSnippet
+            additionalProperties: false
+            properties:
+                type:
+                    const: Post
         MessageContentPayloadPostParent_Response:
             type: object
             required:
@@ -2949,19 +2952,15 @@ components:
                     Text: "#/components/schemas/ContentTextInlineElement"
                     Break: "#/components/schemas/ContentBreakInlineElement"
                     Mention: "#/components/schemas/ContentMentionInlineElement_Response"
-        MessageContentPayload_Response:
-            type: object
-            required:
-                - type
-                - content
-            additionalProperties: false
-            properties:
-                type:
-                    const: Content
-                parent:
-                    $ref: "#/components/schemas/MessageContentPayloadParent_Response"
-                content:
-                    $ref: "#/components/schemas/Content_Response"
+        MessageContentPayloadParent_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                - $ref: "#/components/schemas/MessageContentPayloadPostParent_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Message: "#/components/schemas/MessageContentPayloadMessageParent_Response"
+                    Post: "#/components/schemas/MessageContentPayloadPostParent_Response"
         MessageStreamToolCallPartPayloadReadCall_Response:
             type: object
             required:
@@ -3004,15 +3003,19 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentInlineElement_Response"
-        MessagePayload_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageContentPayload_Response"
-                - $ref: "#/components/schemas/MessageDeletedPayload"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Content: "#/components/schemas/MessageContentPayload_Response"
-                    Deleted: "#/components/schemas/MessageDeletedPayload"
+        MessageContentPayload_Response:
+            type: object
+            required:
+                - type
+                - content
+            additionalProperties: false
+            properties:
+                type:
+                    const: Content
+                parent:
+                    $ref: "#/components/schemas/MessageContentPayloadParent_Response"
+                content:
+                    $ref: "#/components/schemas/Content_Response"
         MessageStreamToolCallPartPayloadCall_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
@@ -3106,27 +3109,15 @@ components:
                     CheckList: "#/components/schemas/ContentCheckListBlockElement_Response"
                     Quote: "#/components/schemas/ContentQuoteBlockElement_Response"
                     Code: "#/components/schemas/ContentCodeBlockElement"
-        Message_Response:
-            type: object
-            required:
-                - index
-                - author
-                - createdTime
-                - createdTimeZone
-                - payload
-            additionalProperties: false
-            properties:
-                index:
-                    type: integer
-                    minimum: 0
-                author:
-                    $ref: "#/components/schemas/Account"
-                createdTime:
-                    $ref: "#/components/schemas/DateTime"
-                createdTimeZone:
-                    $ref: "#/components/schemas/TimeZone"
-                payload:
-                    $ref: "#/components/schemas/MessagePayload_Response"
+        MessagePayload_Response:
+            oneOf:
+                - $ref: "#/components/schemas/MessageContentPayload_Response"
+                - $ref: "#/components/schemas/MessageDeletedPayload"
+            discriminator:
+                propertyName: type
+                mapping:
+                    Content: "#/components/schemas/MessageContentPayload_Response"
+                    Deleted: "#/components/schemas/MessageDeletedPayload"
         MessageStreamToolCallPartPayload_Response:
             type: object
             required:
@@ -3217,6 +3208,27 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/ContentTableBlockElementCellBlockElement_Response"
+        Message_Response:
+            type: object
+            required:
+                - index
+                - author
+                - createdTime
+                - createdTimeZone
+                - payload
+            additionalProperties: false
+            properties:
+                index:
+                    type: integer
+                    minimum: 0
+                author:
+                    $ref: "#/components/schemas/Account"
+                createdTime:
+                    $ref: "#/components/schemas/DateTime"
+                createdTimeZone:
+                    $ref: "#/components/schemas/TimeZone"
+                payload:
+                    $ref: "#/components/schemas/MessagePayload_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"
