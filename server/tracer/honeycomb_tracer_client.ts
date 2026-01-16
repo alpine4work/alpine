@@ -1,4 +1,4 @@
-import {DataLossError, UnknownError} from "~/shared/error/error.js";
+import {DataLossError, UnavailableError, UnknownError} from "~/shared/error/error.js";
 import {debugRedactedString} from "~/shared/error/render_debug_error_display_message.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -222,11 +222,16 @@ export class HoneycombTracerClient {
         const body = await response.json();
 
         if (response.status !== 201) {
-            throw new UnknownError(
-                `Couldn’t create Honeycomb marker${
-                    isObject(body) && typeof body.error === "string" ? `: ${body.error}` : ""
-                } (status code: ${response.status})`,
-            );
+            const message = `Couldn’t create Honeycomb marker${
+                isObject(body) && typeof body.error === "string" ? `: ${body.error}` : ""
+            } (status code: ${response.status})`;
+
+            // 5xx errors are transient and should be retried. 4xx errors are our fault.
+            if (response.status >= 500) {
+                throw new UnavailableError(message);
+            } else {
+                throw new UnknownError(message);
+            }
         }
     }
 }

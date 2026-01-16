@@ -18,7 +18,8 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnavailableError, UnknownError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -265,12 +266,24 @@ async function actuallyDeploy(
 
     const deployEndTime = new Date();
 
-    await honeycombClient.createMarker({
-        type: "deploy",
-        message: `Deploy #${workflowRunNumber}`,
-        url: `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${workflowRunId}`,
-        startTime: deployStartTime,
-        endTime: deployEndTime,
+    // We've seen occasional transient failures when creating Honeycomb markers.
+    // Retry 5xx errors (which throw UnavailableError) but not 4xx errors.
+    await retryWithExponentialBackoff(async retry => {
+        try {
+            await honeycombClient.createMarker({
+                type: "deploy",
+                message: `Deploy #${workflowRunNumber}`,
+                url: `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${workflowRunId}`,
+                startTime: deployStartTime,
+                endTime: deployEndTime,
+            });
+        } catch (error) {
+            if (error instanceof UnavailableError) {
+                throw retry(error);
+            }
+
+            throw error;
+        }
     });
 
     await cleanupDeploy(context, {
