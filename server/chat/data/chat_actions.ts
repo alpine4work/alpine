@@ -3275,7 +3275,10 @@ export async function getChatMessageParentContent(
                 authorId: message.authorId,
                 content:
                     message.payload.type === "Content"
-                        ? cutMessageContentPayload(message)
+                        ? cutMessageContentPayload({
+                              payload: message.payload,
+                              stream: message.stream,
+                          })
                         : createSimpleMessageContent(`Deleted ${messageNoun}`),
             };
         }

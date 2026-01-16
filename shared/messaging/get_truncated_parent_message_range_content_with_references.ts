@@ -79,7 +79,11 @@ export function getTruncatedParentMessagesRangeContentWithReferences({
                 startPayload = {
                     type: "Content",
                     content: {
-                        doc: cutMessageContentPayload(startMessage, actualStartPos, actualEndPos),
+                        doc: cutMessageContentPayload(
+                            {payload: startMessage.payload, stream: startMessage.stream},
+                            actualStartPos,
+                            actualEndPos,
+                        ),
                         references:
                             startMessage.payload.content.references ?? emptyContentReferences,
                     },
@@ -106,7 +110,10 @@ export function getTruncatedParentMessagesRangeContentWithReferences({
                 startPayload = {
                     type: "Content",
                     content: {
-                        doc: cutMessageContentPayload(startMessage, pos),
+                        doc: cutMessageContentPayload(
+                            {payload: startMessage.payload, stream: startMessage.stream},
+                            pos,
+                        ),
                         references:
                             startMessage.payload.content.references ?? emptyContentReferences,
                     },
@@ -133,7 +140,11 @@ export function getTruncatedParentMessagesRangeContentWithReferences({
                 endPayload = {
                     type: "Content",
                     content: {
-                        doc: cutMessageContentPayload(endMessage, 0, pos),
+                        doc: cutMessageContentPayload(
+                            {payload: endMessage.payload, stream: endMessage.stream},
+                            0,
+                            pos,
+                        ),
                         references: endMessage.payload.content.references ?? emptyContentReferences,
                     },
                 };

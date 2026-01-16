@@ -111,7 +111,10 @@ export function getTruncatedMessageContentForReplyPreview(
         case "Content": {
             return getTruncatedMessageContentForReplyPreviewBase(get, {
                 content: {
-                    doc: cutMessageContentPayload(message),
+                    doc: cutMessageContentPayload({
+                        payload: message.payload,
+                        stream: message.stream,
+                    }),
                     references: message.payload.content.references,
                 },
                 accountRegistry,

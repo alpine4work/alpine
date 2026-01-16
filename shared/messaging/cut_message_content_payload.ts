@@ -1,7 +1,6 @@
 import {Node} from "prosemirror-model";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     MessageContent,
@@ -17,21 +16,17 @@ import {MessageStream} from "~/shared/messaging/message_schema.js";
  */
 export function cutMessageContentPayload(
     message: {
-        payload:
-            | {
-                  type: "Content";
-                  content:
-                      | MessageContentWithReferences
-                      | (MessageContent & {doc?: undefined; references?: undefined});
-              }
-            | {type: "Deleted"};
+        payload: {
+            type: "Content";
+            content:
+                | MessageContentWithReferences
+                | (MessageContent & {doc?: undefined; references?: undefined});
+        };
         stream: MessageStream | null;
     },
     from?: number,
     to?: number,
 ): MessageContent {
-    assert(message.payload.type === "Content");
-
     const {payload, stream} = message;
 
     const content = payload.content.doc ?? payload.content;

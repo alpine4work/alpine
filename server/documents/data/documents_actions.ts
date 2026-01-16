@@ -6928,7 +6928,10 @@ export async function getDocumentCommentParentContent(
                 authorId: commentItem.authorId,
                 content:
                     commentItem.payload.type === "Content"
-                        ? cutMessageContentPayload(commentItem)
+                        ? cutMessageContentPayload({
+                              payload: commentItem.payload,
+                              stream: commentItem.stream,
+                          })
                         : createSimpleMessageContent(`Deleted ${messageNoun}`),
             };
         }
