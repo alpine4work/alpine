@@ -111,9 +111,22 @@ export class OpenAiClient {
             const responseStream = await retryWithExponentialBackoff(
                 async retry => {
                     try {
-                        return this._client.responses.create(body);
+                        return this._client.responses.create(body, {
+                            // NOTE(ifitzsimmons, 2026-01-13): We've had several instances where the agent
+                            // ran for 15 minutes [1] while stuck waiting for a response from OpenAI (which
+                            // allegedly sets a default of 10 minutes). Ultimately, OpenAI connection timeouts
+                            // will lead to "dropped" requests because the maximum durable object execution time
+                            // is 15 minutes (e.g. the durable object dies while waiting on a response from
+                            // OpenAI).
+                            //
+                            // By adding a hard 2 minute timeout, we can avoid this issue. If OpenAI doesn't
+                            // respond within 2 minutes, it will throw a retryable `APIConnectionTimeoutError`
+                            //
+                            // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/9edwdyz9r9h7aeqpnbd152a0y0
+                            timeout: 120_000, // 2 minutes
+                        });
                     } catch (error) {
-                        if (error instanceof OpenAi.APIError && isRetryableApiError(error)) {
+                        if (error instanceof APIError && isRetryableApiError(error)) {
                             throw retry(error);
                         }
 
