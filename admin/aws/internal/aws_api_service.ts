@@ -2,7 +2,7 @@ import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
@@ -19,7 +19,7 @@ export class AwsApiService extends Construct {
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
             taskRealtimeService: AwsTaskRealtimeService;
-            loggingService: AwsLoggingService;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "ApiService");

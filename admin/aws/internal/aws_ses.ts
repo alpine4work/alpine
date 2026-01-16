@@ -1,7 +1,7 @@
 import {Stack} from "aws-cdk-lib";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {DeliveryStream, S3Bucket, StreamEncryption} from "aws-cdk-lib/aws-kinesisfirehose";
-import {Bucket} from "aws-cdk-lib/aws-s3";
+import {IBucket} from "aws-cdk-lib/aws-s3";
 import {
     ConfigurationSet,
     DkimIdentity,
@@ -17,7 +17,7 @@ export class AwsSes extends Construct {
     private readonly _alpineIdentity: IEmailIdentity;
     private readonly _configurationSet: ConfigurationSet;
 
-    constructor(parentConstruct: Construct, loggingBucket: Bucket) {
+    constructor(parentConstruct: Construct, loggingBucket: IBucket) {
         super(parentConstruct, "Ses");
 
         this._configurationSet = new ConfigurationSet(this, "ConfigurationSet", {

@@ -13,6 +13,7 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,11 +26,13 @@ export class AwsGithubRunners extends Construct {
             cloudflareAccountId,
             dynamo,
             sqs,
+            observability,
         }: {
             vpc: IVpc;
             cloudflareAccountId: string;
             dynamo: AwsDynamo;
             sqs: AwsSqs;
+            observability: AwsObservability;
         },
     ) {
         super(parentScope, "GithubRunners");
@@ -308,6 +311,9 @@ export class AwsGithubRunners extends Construct {
         // job queue.
         sqs.grantSendJobQueueMessages(testRunnerProvider);
 
+        // Allow writing to the tracer event stream.
+        observability.grantPutToTracerEventStream(testRunnerProvider);
+
         const deployImageBuilder = Ec2RunnerProvider.imageBuilder(
             this,
             "DeployRunnerImageBuilder",
@@ -411,6 +417,9 @@ export class AwsGithubRunners extends Construct {
 
         // Allow reading/writing to the deploy DynamoDB table.
         dynamo.grantReadWriteDataForTable(deployRunnerProvider, "Deploy");
+
+        // Allow writing to the tracer event stream.
+        observability.grantPutToTracerEventStream(deployRunnerProvider);
 
         deployRunnerProvider.grantPrincipal.addToPrincipalPolicy(
             new PolicyStatement({

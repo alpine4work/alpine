@@ -10,8 +10,8 @@ import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsFileProcessorService} from "~/admin/aws/internal/aws_file_processor_service.js";
 import {AwsGithubRunners} from "~/admin/aws/internal/aws_github_runners.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
-import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
 import {AwsMigrationService} from "~/admin/aws/internal/aws_migration_service.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
@@ -25,8 +25,17 @@ export async function createAwsApp() {
 
     const app = new App({autoSynth: false});
 
+    // Resources related to shared observability for our infrastructure and services live in this stack.
+    const observabilityStack = new Stack(app, "CyberworldsObservabilityStack", {
+        env: {region: "us-east-1"},
+    });
+    const observability = AwsObservability.new(observabilityStack);
+
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    const {importDynamo, importSqs} = await addAwsResources(stack, {cloudflareAccountId});
+    const {importDynamo, importSqs} = await addAwsResources(stack, {
+        cloudflareAccountId,
+        observability,
+    });
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -38,6 +47,7 @@ export async function createAwsApp() {
         cloudflareAccountId,
         importDynamo,
         importSqs,
+        observability,
     });
 
     return app;
@@ -45,19 +55,24 @@ export async function createAwsApp() {
 
 async function addAwsResources(
     stack: Stack,
-    {cloudflareAccountId}: {cloudflareAccountId: string},
+    {
+        cloudflareAccountId,
+        observability,
+    }: {
+        cloudflareAccountId: string;
+        observability: AwsObservability;
+    },
 ): Promise<{
     importVpc: (stack: Stack) => AwsVpc;
     importDynamo: (stack: Stack) => AwsDynamo;
     importSqs: (stack: Stack) => AwsSqs;
 }> {
     const vpc = new AwsVpc(stack);
-    const loggingService = new AwsLoggingService(stack);
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
     const opensearch = await AwsOpensearch.new(stack, vpc);
     const sqs = AwsSqs.new(stack);
-    const ses = new AwsSes(stack, loggingService.loggingBucket);
+    const ses = new AwsSes(stack, observability.loggingBucket);
 
     new AwsCronJobs(stack, sqs);
 
@@ -69,6 +84,7 @@ async function addAwsResources(
         dynamo,
         opensearch,
         sqs,
+        observability,
     });
 
     new AwsAppService(stack, {
@@ -80,7 +96,7 @@ async function addAwsResources(
         sqs,
         ses,
         taskRealtimeService,
-        loggingService,
+        observability,
     });
 
     new AwsApiService(stack, {
@@ -91,7 +107,7 @@ async function addAwsResources(
         opensearch,
         sqs,
         taskRealtimeService,
-        loggingService,
+        observability,
     });
 
     new AwsJobQueueService(stack, {
@@ -103,6 +119,7 @@ async function addAwsResources(
         sqs,
         ses,
         taskRealtimeService,
+        observability,
     });
 
     new AwsMigrationService(stack, {
@@ -111,6 +128,7 @@ async function addAwsResources(
         dynamo,
         opensearch,
         sqs,
+        observability,
     });
 
     new AwsFileProcessorService(stack, {
@@ -119,7 +137,7 @@ async function addAwsResources(
         cloudflareAccountId,
         dynamo,
         sqs,
-        loggingService,
+        observability,
     });
 
     // Create our schedule deploy lambda and allow our CI credentials to invoke it
@@ -134,9 +152,11 @@ async function addAwsResources(
         timeout: Duration.seconds(30),
         honeycombApiKey: null,
         environment: {},
+        observability,
     });
 
     sqs.grantSendJobQueueMessages(scheduleDeployLambda.executionRole);
+    observability.grantPutToTracerEventStream(scheduleDeployLambda.executionRole);
 
     const ciScheduleDeployIam = aws_iam.User.fromUserArn(
         stack,
@@ -172,10 +192,12 @@ function addAwsLifecycleResources(
         cloudflareAccountId,
         importDynamo,
         importSqs,
+        observability,
     }: {
         cloudflareAccountId: string;
         importDynamo: (stack: Stack) => AwsDynamo;
         importSqs: (stack: Stack) => AwsSqs;
+        observability: AwsObservability;
     },
 ) {
     const dynamo = importDynamo(stack);
@@ -204,6 +226,7 @@ function addAwsLifecycleResources(
         cloudflareAccountId,
         dynamo,
         sqs,
+        observability,
     });
 
     // Create our send alert lambda
@@ -232,6 +255,7 @@ function addAwsLifecycleResources(
                 .unsafeUnwrap(),
             ALPINE_API_KEY: sendAlertSecrets.secretValueFromJson("alpineAPIKey").unsafeUnwrap(),
         },
+        observability,
     });
 
     // Add a Function URL to the send alert lambda for external webhook access

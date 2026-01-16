@@ -35,7 +35,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsApplicationLoadBalancerFromCloudflare} from "~/admin/aws/internal/constructs/aws_application_load_balancer_from_cloudflare.js";
 import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js";
@@ -103,14 +103,14 @@ export class AwsFileProcessorService extends Construct {
             cloudflareAccountId,
             dynamo,
             sqs,
-            loggingService,
+            observability,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             cloudflareAccountId: string;
             dynamo: AwsDynamo;
             sqs: AwsSqs;
-            loggingService: AwsLoggingService;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "FileProcessorService");
@@ -131,12 +131,12 @@ export class AwsFileProcessorService extends Construct {
             },
         ).applicationLoadBalancer;
         this.fileProcessorServiceLoadBalancer.logAccessLogs(
-            loggingService.loggingBucket,
-            "fileProcessorService",
+            observability.loggingBucket,
+            `${observability.logsBucketPrefix}fileProcessorService`,
         );
         this.fileProcessorServiceLoadBalancer.logConnectionLogs(
-            loggingService.loggingBucket,
-            "fileProcessorService",
+            observability.loggingBucket,
+            `${observability.logsBucketPrefix}fileProcessorService`,
         );
 
         // TODO(ifitzsimmons, 2025-07-30, ##file-processor-service-migration):
@@ -151,6 +151,7 @@ export class AwsFileProcessorService extends Construct {
             secret,
             sqs,
             cloudflareAccountId,
+            observability,
         });
         this.resizeLambda = resizeFileLambda;
         this.resizeFileTargetGroup = resizeFileTargetGroup;
@@ -161,6 +162,7 @@ export class AwsFileProcessorService extends Construct {
             secret,
             sqs,
             cloudflareAccountId,
+            observability,
         });
         this.resizeAvatarLambda = resizeAvatarLambda;
         this.resizeAvatarTargetGroup = resizeAvatarTargetGroup;
@@ -171,6 +173,7 @@ export class AwsFileProcessorService extends Construct {
             dynamo,
             sqs,
             cloudflareAccountId,
+            observability,
         });
         this.fileProcessorHeavyLambda = getFileProcessorLambda(this, {
             type: "Heavy",
@@ -178,6 +181,7 @@ export class AwsFileProcessorService extends Construct {
             dynamo,
             sqs,
             cloudflareAccountId,
+            observability,
         });
 
         // TODO(ifitzsimmons, 2025-07-30, #file-processor-service-migration): Delete this
@@ -493,12 +497,14 @@ function getResizeFileLambda(
         secret,
         sqs,
         cloudflareAccountId,
+        observability,
     }: {
         vpc: Vpc;
         dynamo: AwsDynamo;
         secret: ISecret;
         sqs: AwsSqs;
         cloudflareAccountId: string;
+        observability: AwsObservability;
     },
 ) {
     const resizeFileLambda = new AwsHttpLambda(scope, "ResizeFileLambda", {
@@ -516,6 +522,7 @@ function getResizeFileLambda(
         timeout: Duration.seconds(30),
         secret,
         provisionedConcurrentExecutions: 5,
+        observability,
     });
     dynamo.grantReadDataForTable(resizeFileLambda.executionRole, "Files", {
         disallowQuery: true,
@@ -538,12 +545,14 @@ function getResizeAvatarLambda(
         dynamo,
         sqs,
         cloudflareAccountId,
+        observability,
     }: {
         vpc: Vpc;
         secret: ISecret;
         dynamo: AwsDynamo;
         sqs: AwsSqs;
         cloudflareAccountId: string;
+        observability: AwsObservability;
     },
 ) {
     const resizeAvatarLambda = new AwsHttpLambda(scope, "ResizeAvatarLambda", {
@@ -561,6 +570,7 @@ function getResizeAvatarLambda(
         timeout: Duration.seconds(30),
         secret,
         provisionedConcurrentExecutions: 2,
+        observability,
     });
 
     // Needs access in order to fetch the session
@@ -590,12 +600,14 @@ function getFileProcessorLambda(
         dynamo,
         sqs,
         cloudflareAccountId,
+        observability,
     }: {
         type: "Light" | "Heavy";
         secret: ISecret;
         dynamo: AwsDynamo;
         sqs: AwsSqs;
         cloudflareAccountId: string;
+        observability: AwsObservability;
     },
 ) {
     const lambdaOptions = getFileProcessorLambdaConfiguration(type, sqs);
@@ -609,6 +621,7 @@ function getFileProcessorLambda(
             bazelTarget: "//server/files/processor/process_file:process_file_lambda",
             handlerFilePath: "process_file_lambda",
         },
+        observability,
     });
 
     // IMPORTANT: Only grant `FileProcessorService` access to the tables it uses.

@@ -13,6 +13,7 @@ import {
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -89,6 +90,13 @@ export interface AwsLambdaBaseOptions extends Omit<
     //
     // You can set this to `null` if you don't need tracing from Lambda startup.
     readonly honeycombApiKey: string | null;
+
+    /**
+     * The observability service to use for the Lambda function.
+     *
+     * If not provided, the Lambda function will not be able to write to the tracer event stream.
+     */
+    readonly observability: AwsObservability | null;
 }
 
 /**
@@ -112,6 +120,9 @@ export class AwsLambdaBase extends Construct {
                 ),
             ],
         });
+
+        // Allow the Lambda function to write to the tracer event stream.
+        options.observability?.grantPutToTracerEventStream(this._executionRole);
 
         this._lambdaFunction = (() => {
             const deploymentType = options.deploymentType ?? "container";

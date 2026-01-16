@@ -4,7 +4,7 @@ import {PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
@@ -23,7 +23,7 @@ export class AwsAppService extends Construct {
             sqs: AwsSqs;
             ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
-            loggingService: AwsLoggingService;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "AppService");

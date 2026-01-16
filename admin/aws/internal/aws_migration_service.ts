@@ -11,6 +11,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
@@ -25,12 +26,14 @@ export class AwsMigrationService extends Construct {
             dynamo,
             opensearch,
             sqs,
+            observability,
         }: {
             vpc: AwsVpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "MigrationService");
@@ -100,6 +103,7 @@ export class AwsMigrationService extends Construct {
 
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
+        observability.grantPutToTracerEventStream(taskDefinition.taskRole);
 
         // Create a security group for migration service. This security group's ID must
         // be explicitly provided to the [ECS `RunTask`][1] action used to start a

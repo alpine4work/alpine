@@ -60,6 +60,9 @@ export class AwsHttpLambda extends AwsLambdaBase {
         // Grant the Lambda function permission to read the secret
         options.secret.grantRead(this.executionRole);
 
+        // Allow the Lambda function to write to the tracer event stream.
+        options.observability?.grantPutToTracerEventStream(this.executionRole);
+
         this._lambdaFunctionAlias = this._lambdaFunction.addAlias("latest", {
             provisionedConcurrentExecutions: options.provisionedConcurrentExecutions,
         });

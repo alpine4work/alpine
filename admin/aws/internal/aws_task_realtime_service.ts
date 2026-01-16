@@ -1,4 +1,4 @@
-import {Duration, Tags} from "aws-cdk-lib";
+import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
     InstanceClass,
@@ -29,6 +29,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
@@ -49,12 +50,14 @@ export class AwsTaskRealtimeService extends Construct {
             dynamo,
             opensearch,
             sqs,
+            observability,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "TaskRealtimeService");
@@ -131,7 +134,7 @@ export class AwsTaskRealtimeService extends Construct {
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
-        Tags.of(this.autoScalingGroup).add("CloudWatchAgent", "true");
+        observability.installCloudWatchAgent(this.autoScalingGroup);
 
         this.securityGroup = launchTemplateSecurityGroup;
 
@@ -382,6 +385,7 @@ export class AwsTaskRealtimeService extends Construct {
         dynamo.grantReadWriteData(this.taskDefinition.taskRole);
         opensearch.grantReadWriteData(this.taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
+        observability.grantPutToTracerEventStream(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
             new AwsTaskRealtimeServicePartition(this, {

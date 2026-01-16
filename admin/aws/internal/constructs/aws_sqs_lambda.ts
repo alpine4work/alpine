@@ -63,6 +63,9 @@ export class AwsSqsLambdaSubscriber extends AwsLambdaBase {
             honeycombApiKey: options.secret.secretValueFromJson("honeycombApiKey").unsafeUnwrap(),
         });
 
+        // Allow the Lambda function to write to the tracer event stream.
+        options.observability?.grantPutToTracerEventStream(this.executionRole);
+
         const eventHandler = options.provisionedConcurrentExecutions
             ? this._lambdaFunction.addAlias("latest", {
                   provisionedConcurrentExecutions: options.provisionedConcurrentExecutions,

@@ -1354,6 +1354,12 @@ Resources:
                       Resource:
                           - Fn::ImportValue: CyberworldsStack:FileProcessorJobQueueArn
                           - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                    - Action:
+                          - firehose:PutRecord
+                          - firehose:PutRecordBatch
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
                 Version: 2012-10-17
             PolicyName: GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8
             Roles:
@@ -2360,6 +2366,12 @@ Resources:
                                 - ""
                                 - - Fn::ImportValue: CyberworldsStack:DeployTableArn
                                   - /index/*
+                    - Action:
+                          - firehose:PutRecord
+                          - firehose:PutRecordBatch
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
                     - Action: sts:AssumeRole
                       Effect: Allow
                       Resource:
@@ -4600,6 +4612,12 @@ Resources:
         Properties:
             PolicyDocument:
                 Statement:
+                    - Action:
+                          - firehose:PutRecord
+                          - firehose:PutRecordBatch
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputFnGetAttLoggingServiceTracerHoneycombFirehoseDeliveryStream850D34D7ArnFB4EC4A1
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:

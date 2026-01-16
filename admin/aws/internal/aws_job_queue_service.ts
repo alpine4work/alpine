@@ -1,4 +1,4 @@
-import {ArnFormat, Duration, Stack, Tags} from "aws-cdk-lib";
+import {ArnFormat, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {
     InstanceSize,
@@ -26,6 +26,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
@@ -45,6 +46,7 @@ export class AwsJobQueueService extends Construct {
             sqs,
             ses,
             taskRealtimeService,
+            observability,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
@@ -54,6 +56,7 @@ export class AwsJobQueueService extends Construct {
             sqs: AwsSqs;
             ses: AwsSes;
             taskRealtimeService: AwsTaskRealtimeService;
+            observability: AwsObservability;
         },
     ) {
         super(parentConstruct, "JobQueueService");
@@ -91,7 +94,7 @@ export class AwsJobQueueService extends Construct {
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
 
-        Tags.of(autoScalingGroup).add("CloudWatchAgent", "true");
+        observability.installCloudWatchAgent(autoScalingGroup);
 
         // Add the ability to connect to our EC2 instances with Session Manager.
         // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
@@ -340,6 +343,9 @@ export class AwsJobQueueService extends Construct {
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
         ses.grantSendEmailFromAlpineIdentity(taskDefinition.taskRole);
+
+        // Allow writing to the tracer event stream.
+        observability.grantPutToTracerEventStream(taskDefinition.taskRole);
 
         // `JobQueueService` needs to check what tasks ECS is running to appropriately
         // route task requests to the right `TaskRealtimeService`.

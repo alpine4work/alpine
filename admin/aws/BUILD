@@ -125,6 +125,7 @@ js_run_binary(
     outs = [
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsStack.template.json",
+        "output_lite/CyberworldsObservabilityStack.template.json",
     ],
     args = [
         "synth",
@@ -146,14 +147,17 @@ js_run_binary(
     srcs = [
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsStack.template.json",
+        "output_lite/CyberworldsObservabilityStack.template.json",
     ],
     outs = [
         "output_lite/CyberworldsLifecycleStack.template.yaml",
         "output_lite/CyberworldsStack.template.yaml",
+        "output_lite/CyberworldsObservabilityStack.template.yaml",
     ],
     args = [
         "output_lite/CyberworldsLifecycleStack.template.json",
         "output_lite/CyberworldsStack.template.json",
+        "output_lite/CyberworldsObservabilityStack.template.json",
     ],
     chdir = "admin/aws",
     progress_message = "Formatting AWS templates",
@@ -175,6 +179,7 @@ write_source_files(
     files = {
         "templates/cyberworlds_lifecycle_stack.yaml": "output_lite/CyberworldsLifecycleStack.template.yaml",
         "templates/cyberworlds_stack.yaml": "output_lite/CyberworldsStack.template.yaml",
+        "templates/cyberworlds_observability_stack.yaml": "output_lite/CyberworldsObservabilityStack.template.yaml",
     },
 )
 

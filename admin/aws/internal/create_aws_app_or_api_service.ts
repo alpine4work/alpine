@@ -1,4 +1,4 @@
-import {Duration, Tags} from "aws-cdk-lib";
+import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
 import {
@@ -31,7 +31,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsLoggingService} from "~/admin/aws/internal/aws_logging_service.js";
+import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
@@ -52,7 +52,7 @@ export function createAwsAppOrApiService(
         dynamo,
         opensearch,
         taskRealtimeService,
-        loggingService,
+        observability,
         ecsCluster,
         sqs,
         vpc,
@@ -63,7 +63,7 @@ export function createAwsAppOrApiService(
         opensearch: AwsOpensearch;
         sqs: AwsSqs;
         taskRealtimeService: AwsTaskRealtimeService;
-        loggingService: AwsLoggingService;
+        observability: AwsObservability;
         vpc: Vpc;
         cloudflareAccountId: string;
     },
@@ -168,7 +168,7 @@ export function createAwsAppOrApiService(
         vpcSubnets: {subnetType: SubnetType.PUBLIC},
     });
 
-    Tags.of(autoScalingGroup).add("CloudWatchAgent", "true");
+    observability.installCloudWatchAgent(autoScalingGroup);
 
     opensearch.allowConnectionsFrom(autoScalingGroup);
 
@@ -390,6 +390,9 @@ export function createAwsAppOrApiService(
     opensearch.grantReadWriteData(taskDefinition.taskRole);
     sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
 
+    // Allow the task to write to the tracer event stream.
+    observability.grantPutToTracerEventStream(taskDefinition.taskRole);
+
     // `AppService` needs to check what tasks ECS is running to appropriately route
     // task requests to the right `TaskRealtimeService`.
     taskDefinition.addToTaskRolePolicy(
@@ -440,10 +443,13 @@ export function createAwsAppOrApiService(
         },
     );
 
-    loadBalancer.logAccessLogs(loggingService.loggingBucket, `${serviceName.toLowerCase()}Service`);
+    loadBalancer.logAccessLogs(
+        observability.loggingBucket,
+        `$${observability.logsBucketPrefix}${serviceName.toLowerCase()}Service`,
+    );
     loadBalancer.logConnectionLogs(
-        loggingService.loggingBucket,
-        `${serviceName.toLowerCase()}Service`,
+        observability.loggingBucket,
+        `${observability.logsBucketPrefix}${serviceName.toLowerCase()}Service`,
     );
 
     // Make sure the load balancer can make requests against our service.
