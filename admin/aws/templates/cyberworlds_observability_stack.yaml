@@ -167,8 +167,6 @@ Resources:
                     - ssm
                 optionalConfigurationLocation:
                     - Ref: AwsObservabilityCloudWatchAgentConfigParam4EEE987B
-                optionalRestart:
-                    - yes
             Targets:
                 - Key: tag:CloudWatchAgent
                   Values:

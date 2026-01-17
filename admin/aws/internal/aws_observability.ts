@@ -80,7 +80,6 @@ export class AwsObservability {
                 isConfigure: ["true"],
                 optionalConfigurationSource: ["ssm"],
                 optionalConfigurationLocation: [cloudwatchAgentConfigParameter.parameterName],
-                optionalRestart: ["yes"],
             },
         });
 
