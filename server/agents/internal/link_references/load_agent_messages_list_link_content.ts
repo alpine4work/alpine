@@ -23,7 +23,6 @@ import {getAgentMessagesFromEndUntilLimitTokenCount} from "~/server/agents/inter
 import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/internal/messages/get_agent_messages_from_start_until_token_limit_count.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/internal/print_api_content_to_agent_markdown.js";
 import {visitDraftApiContent} from "~/server/agents/internal/visit_and_produce_api_content.js";
-import {normalizeDraftApiContent} from "~/server/api/markdown/normalize_api_content.js";
 import {parseApiMessageRoomPath} from "~/shared/api/parse_api_path.js";
 import {
     ApiContentResponse,
@@ -356,8 +355,6 @@ function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
                 }
             },
         });
-
-        normalizeDraftApiContent(content);
     });
 }
 
