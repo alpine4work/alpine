@@ -445,7 +445,7 @@ export function createAwsAppOrApiService(
 
     loadBalancer.logAccessLogs(
         observability.loggingBucket,
-        `$${observability.logsBucketPrefix}${serviceName.toLowerCase()}Service`,
+        `${observability.logsBucketPrefix}${serviceName.toLowerCase()}Service`,
     );
     loadBalancer.logConnectionLogs(
         observability.loggingBucket,

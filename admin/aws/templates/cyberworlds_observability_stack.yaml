@@ -31,7 +31,7 @@ Resources:
                               - - Fn::GetAtt:
                                       - AwsObservabilityLoggingBucketC446D7D1
                                       - Arn
-                                - /$logs/appService/AWSLogs/
+                                - /logs/appService/AWSLogs/
                                 - Ref: AWS::AccountId
                                 - /*
                     - Action: s3:PutObject
@@ -42,22 +42,6 @@ Resources:
                       Principal:
                           Service: delivery.logs.amazonaws.com
                       Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - AwsObservabilityLoggingBucketC446D7D1
-                                        - Arn
-                                  - /$logs/apiService/AWSLogs/
-                                  - Ref: AWS::AccountId
-                                  - /*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - AwsObservabilityLoggingBucketC446D7D1
-                                        - Arn
-                                  - /$logs/appService/AWSLogs/
-                                  - Ref: AWS::AccountId
-                                  - /*
                           - Fn::Join:
                                 - ""
                                 - - Fn::GetAtt:
@@ -90,32 +74,6 @@ Resources:
                           Fn::GetAtt:
                               - AwsObservabilityLoggingBucketC446D7D1
                               - Arn
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - AwsObservabilityLoggingBucketC446D7D1
-                                      - Arn
-                                - /logs/appService/AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - AwsObservabilityLoggingBucketC446D7D1
-                                      - Arn
-                                - /$logs/apiService/AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
                     - Action: s3:PutObject
                       Effect: Allow
                       Principal:

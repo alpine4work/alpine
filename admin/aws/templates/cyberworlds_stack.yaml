@@ -3787,7 +3787,7 @@ Resources:
                   Value:
                       Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: access_logs.s3.prefix
-                  Value: $logs/appService
+                  Value: logs/appService
                 - Key: connection_logs.s3.enabled
                   Value: "true"
                 - Key: connection_logs.s3.bucket
@@ -4811,7 +4811,7 @@ Resources:
                   Value:
                       Fn::ImportValue: CyberworldsObservabilityStack:ExportsOutputRefAwsObservabilityLoggingBucketC446D7D1C2D1E43D
                 - Key: access_logs.s3.prefix
-                  Value: $logs/apiService
+                  Value: logs/apiService
                 - Key: connection_logs.s3.enabled
                   Value: "true"
                 - Key: connection_logs.s3.bucket
