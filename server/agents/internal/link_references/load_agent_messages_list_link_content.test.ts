@@ -930,7 +930,9 @@ ${"Long message content.".repeat(100)}
                                     text: "myFunction()",
                                     marks: [{type: "Code"}],
                                 },
-                                {type: "Text", text: " inline code."},
+                                {type: "Text", text: " inline code. "},
+                                {type: "Mention", target: {type: "Account", id: aliceAccount.id, path: `/accounts/${aliceAccount.id}`}, title: aliceAccount.name},
+                                {type: "Text", text: " is going to take care of this!!."},
                             ],
                         },
                     ],
@@ -983,11 +985,13 @@ ${"Long message content.".repeat(100)}
             });
 
             expect(printAgentContentMarkdownTree(result)).toEqual(`\
-This is a comment thread on the document [Code Review](/document/code-review). The following is a preview of the document near the comment. The specific text this comment was left on is wrapped in \`<comment></comment>\`.
+This is a comment thread on the document [Code Review](/document/code-review). The following is a \
+preview of the document near the comment. The specific text this comment was left on is wrapped in \
+\`<comment></comment>\`.
 
 <document_preview>
 
-This is **bold** and *italic* and \`myFunction()\` inline code.
+This is **bold** and *italic* and \`myFunction()\` inline code. [Alice](/account/alice) is going to take care of this!!.
 
 </document_preview>
 
