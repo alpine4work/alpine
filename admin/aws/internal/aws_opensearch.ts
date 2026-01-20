@@ -93,7 +93,7 @@ export class AwsOpensearch {
                 handler: opensearchDeployScriptLambdaHandler,
                 vpc,
                 vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
-                timeout: Duration.seconds(60),
+                timeout: Duration.seconds(120),
                 // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
                 // runtime.
                 // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html

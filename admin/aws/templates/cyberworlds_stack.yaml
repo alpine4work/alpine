@@ -580,7 +580,7 @@ Resources:
                     - OpensearchDeployScriptServiceRoleFC0ECCBE
                     - Arn
             Runtime: nodejs18.x
-            Timeout: 60
+            Timeout: 120
             VpcConfig:
                 SecurityGroupIds:
                     - Fn::GetAtt:
