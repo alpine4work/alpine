@@ -931,7 +931,15 @@ ${"Long message content.".repeat(100)}
                                     marks: [{type: "Code"}],
                                 },
                                 {type: "Text", text: " inline code. "},
-                                {type: "Mention", target: {type: "Account", id: aliceAccount.id, path: `/accounts/${aliceAccount.id}`}, title: aliceAccount.name},
+                                {
+                                    type: "Mention",
+                                    target: {
+                                        type: "Account",
+                                        id: aliceAccount.id,
+                                        path: `/accounts/${aliceAccount.id}`,
+                                    },
+                                    title: aliceAccount.name,
+                                },
                                 {type: "Text", text: " is going to take care of this!!."},
                             ],
                         },
