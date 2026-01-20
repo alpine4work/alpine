@@ -575,6 +575,7 @@ Resources:
                             - OpensearchDomainCED7C974
                             - DomainEndpoint
             Handler: cyberworlds/admin/aws/empty_lambda.handler
+            MemorySize: 1024
             Role:
                 Fn::GetAtt:
                     - OpensearchDeployScriptServiceRoleFC0ECCBE

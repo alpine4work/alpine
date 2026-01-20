@@ -103,6 +103,7 @@ export class AwsOpensearch {
                 },
                 // Don't retain deploy script logs forever.
                 logRetention: RetentionDays.ONE_MONTH,
+                memorySize: 1024,
             });
 
             domain.connections.allowFrom(deployScript, Port.tcp(443));
