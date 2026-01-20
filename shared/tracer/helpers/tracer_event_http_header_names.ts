@@ -54,6 +54,7 @@ type TracerEventHttpHeaderNameMap = {
     expires: true;
     "last-modified": true;
     "preference-applied": true;
+    referer: true;
     "retry-after": true;
     server: true;
     "strict-transport-security": true;
@@ -151,6 +152,7 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     expires: true,
     "last-modified": true,
     "preference-applied": true,
+    referer: true,
     "retry-after": true,
     server: true,
     "strict-transport-security": true,
