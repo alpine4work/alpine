@@ -1938,13 +1938,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 // Load all non-file references. To load files we need to know the origin
                 // `fileAttachmentTarget` which may be different for each file.
-                const referencesPromise = !isEmptyContentReferencedIds({
-                    ...referencedIds,
-                    fileIds: emptySet,
-                })
+                const referencedIdsWithoutFiles = {...referencedIds, fileIds: emptySet};
+                const referencesPromise = !isEmptyContentReferencedIds(referencedIdsWithoutFiles)
                     ? getContentReferencesWithoutFiles(context, {
                           spaceId,
-                          referencedIds,
+                          referencedIds: referencedIdsWithoutFiles,
                       }).then(({references}) => references)
                     : emptyContentReferences;
 
