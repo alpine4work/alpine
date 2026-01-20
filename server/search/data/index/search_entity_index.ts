@@ -421,12 +421,16 @@ export function getSearchEntityIndexesForTest() {
  * May only be called in a production environment. Should only be called by our
  * deployment scripts.
  */
-export async function deploySearchEntityIndexes(tracer: TracerBase, client: OpensearchClient) {
+export async function deploySearchEntityIndexes(
+    tracer: TracerBase,
+    client: OpensearchClient,
+    abortController: AbortController,
+) {
     assert(process.env.NODE_ENV === "production");
 
     await runAllPromises([
-        client.deployIndex(tracer, SearchEntityKeywordIndex),
-        client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex),
+        client.deployIndex(tracer, SearchEntityKeywordIndex, abortController),
+        client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex, abortController),
     ]);
 }
 

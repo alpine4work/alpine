@@ -6,6 +6,7 @@ ts_project(
     name = "deploy_script_lib",
     deps = [
         "//:node_modules/@types/aws-lambda",
+        "//server/lambda",
         "//server/opensearch",
         "//server/search/data/index",
         "//server/tasks/data",

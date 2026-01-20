@@ -242,12 +242,16 @@ export async function ensureLocalTaskIndexesIfEnabled(context: TaskRealtimeActio
  * May only be called in a production environment. Should only be called by our
  * deployment scripts.
  */
-export async function deployTaskIndexes(tracer: TracerBase, client: OpensearchClient) {
+export async function deployTaskIndexes(
+    tracer: TracerBase,
+    client: OpensearchClient,
+    abortController: AbortController,
+) {
     assert(process.env.NODE_ENV === "production");
 
     await runAllPromises([
-        client.deployIndex(tracer, TaskIndex),
-        client.deployIndex(tracer, TaskCollectionIndex),
+        client.deployIndex(tracer, TaskIndex, abortController),
+        client.deployIndex(tracer, TaskCollectionIndex, abortController),
     ]);
 }
 

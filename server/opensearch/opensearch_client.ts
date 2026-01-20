@@ -862,7 +862,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 }
             }
 
-            await this._deployIndex(tracer, index);
+            await this._deployIndex(tracer, index, new AbortController());
 
             await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
             await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
@@ -920,10 +920,11 @@ export class OpensearchClient implements OpensearchClientInterface {
     >(
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>,
+        abortController: AbortController,
     ) {
         assert(process.env.NODE_ENV === "production");
 
-        return this._deployIndex(tracer, index);
+        return this._deployIndex(tracer, index, abortController);
     }
 
     /**
@@ -946,6 +947,7 @@ export class OpensearchClient implements OpensearchClientInterface {
     >(
         tracer: TracerBase,
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>,
+        abortController: AbortController,
     ) {
         return tracer.withSpan("Deploy OpenSearch index", async tracer => {
             await retryWithExponentialBackoff(async retry => {
@@ -957,6 +959,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         serviceName: "OpenSearch",
                         route: `/${index.name}`,
                         method: "GET",
+                        signal: abortController.signal,
                     },
                     async response => {
                         // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1003,6 +1006,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 method: "PUT",
                                 headers: requestHeaders,
                                 body: requestBody,
+                                signal: abortController.signal,
                             },
                             async response => {
                                 // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1120,6 +1124,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 sign: this._signer.sign,
                                 serviceName: "OpenSearch",
                                 route: "/_cluster/state",
+                                signal: abortController.signal,
                             },
                             async response => {
                                 if (!response.ok) {
@@ -1193,6 +1198,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: requestHeaders,
                                     body: requestBody,
+                                    signal: abortController.signal,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1232,6 +1238,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: requestHeaders,
                                     body: requestBody,
+                                    signal: abortController.signal,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond

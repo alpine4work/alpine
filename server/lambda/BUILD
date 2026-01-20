@@ -5,6 +5,7 @@ ts_project(
     visibility = [
         "//server:__subpackages__",
         "//admin/lambda:__subpackages__",
+        "//admin/opensearch/deploy_script:__subpackages__",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-secrets-manager",
