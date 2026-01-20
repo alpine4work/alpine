@@ -27,7 +27,13 @@ export class TaskCommentModel
         return this.taskId;
     }
 
-    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
-        return `/s/${spaceId}/tasks/${this.taskId}/comments/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    public getSeeReactionsUrl(
+        spaceId: SpaceId,
+        contentVersion: number,
+        pos: number | "Files",
+    ): string {
+        const baseUrl = `/s/${spaceId}/tasks/${this.taskId}/comments/${this.index}/reactions`;
+        const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
+        return `${baseUrl}?at=${at}`;
     }
 }

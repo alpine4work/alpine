@@ -245,7 +245,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         },
     ) {
@@ -268,7 +268,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
         },
     ) {
         await deleteDocumentCommentReaction(context, {

@@ -350,7 +350,7 @@ export class TestTask extends TestCommentRoomBase {
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         },
     ) {
@@ -372,7 +372,7 @@ export class TestTask extends TestCommentRoomBase {
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
         },
     ) {
         await deleteTaskCommentReaction(context, {

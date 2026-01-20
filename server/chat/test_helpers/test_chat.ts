@@ -203,7 +203,7 @@ export class TestChat extends TestMessageRoomBase {
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         },
     ) {

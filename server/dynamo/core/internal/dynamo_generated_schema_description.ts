@@ -1915,6 +1915,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": true
+                                                        },
+                                                        "filesReactions": {
+                                                            "valueSchema": {
+                                                                "type": "Bytes"
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },

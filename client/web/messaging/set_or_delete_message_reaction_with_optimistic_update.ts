@@ -13,7 +13,7 @@ export type OnSetMessageReactionFunction<RoomKey extends string> = (
     input: {
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) => Promise<void>;
@@ -23,7 +23,7 @@ export type OnDeleteMessageReactionFunction<RoomKey extends string> = (
     input: {
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) => Promise<void>;
 
@@ -61,7 +61,7 @@ export function setMessageReactionWithOptimisticUpdate<
     roomKey: RoomKey;
     messageIndex: number;
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
     reaction: Reaction | "GenericLike";
     onSetMessageReaction: OnSetMessageReactionFunction<RoomKey>;
     onUpdateMessagesOptimistically: OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>;
@@ -91,6 +91,39 @@ export function setMessageReactionWithOptimisticUpdate<
         if (promiseValue) return messages;
 
         return messages.updateMessage(messageIndex, message => {
+            if (originalPos === "Files") {
+                if (message.payload.type !== "Content") return message;
+
+                // If the reaction is already set, don't update the message. This'll happen
+                // after we get the realtime message from the server adding the reaction. Which
+                // will happen before `promise` resolves.
+                if (
+                    areReactionsEqual(
+                        message.payload.filesReactions.get().get(currentAccountId),
+                        reaction,
+                    )
+                ) {
+                    return message;
+                }
+
+                const newFilesReactions = new Map(message.payload.filesReactions.get());
+                newFilesReactions.set(currentAccountId, reaction);
+
+                return message.clone({
+                    // In the optimistic update code path we increment the version to simulate
+                    // what the server will do. When the promise resolves this function will
+                    // re-run with a `promiseValue` that's not undefined and we'll NOT run this
+                    // optimistic code path since we will have received a message from the
+                    // WebSocket with the correct message at the correct version.
+                    version: message.version + 1,
+
+                    payload: {
+                        ...message.payload,
+                        filesReactions: new ReactionSet(newFilesReactions),
+                    },
+                });
+            }
+
             const result = findMessageReactionPosIfPossible({
                 message: {
                     payload: fromMessagePayloadModel(message.payload),
@@ -158,7 +191,7 @@ export function deleteMessageReactionWithOptimisticUpdate<
     roomKey: RoomKey;
     messageIndex: number;
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
     onDeleteMessageReaction: OnDeleteMessageReactionFunction<RoomKey>;
     onUpdateMessagesOptimistically: OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>;
 }) {
@@ -179,6 +212,34 @@ export function deleteMessageReactionWithOptimisticUpdate<
         if (promiseValue) return messages;
 
         return messages.updateMessage(messageIndex, message => {
+            if (originalPos === "Files") {
+                if (message.payload.type !== "Content") return message;
+
+                // If the reaction is already deleted, don't update the message. This'll happen
+                // after we get the realtime message from the server deleting the reaction.
+                // Which will happen before `promise` resolves.
+                if (!message.payload.filesReactions.get().has(currentAccountId)) {
+                    return message;
+                }
+
+                const newFilesReactions = new Map(message.payload.filesReactions.get());
+                newFilesReactions.delete(currentAccountId);
+
+                return message.clone({
+                    // In the optimistic update code path we increment the version to simulate
+                    // what the server will do. When the promise resolves this function will
+                    // re-run with a `promiseValue` that's not undefined and we'll NOT run this
+                    // optimistic code path since we will have received a message from the
+                    // WebSocket with the correct message at the correct version.
+                    version: message.version + 1,
+
+                    payload: {
+                        ...message.payload,
+                        filesReactions: new ReactionSet(newFilesReactions),
+                    },
+                });
+            }
+
             const result = findMessageReactionPosIfPossible({
                 message: {
                     payload: fromMessagePayloadModel(message.payload),

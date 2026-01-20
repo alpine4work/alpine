@@ -269,6 +269,7 @@ const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> =
                 assertExists(references.fileById.get(fileId)),
             ),
             reactionsByPos: message.payload.reactionsByPos,
+            filesReactions: message.payload.filesReactions,
         },
         stream: message.stream,
     });

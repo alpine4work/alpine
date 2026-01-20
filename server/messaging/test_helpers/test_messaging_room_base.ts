@@ -134,7 +134,7 @@ export abstract class TestMessagingRoomBase {
         options: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         },
     ): Promise<void>;
@@ -146,7 +146,7 @@ export abstract class TestMessagingRoomBase {
         options: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
         },
     ): Promise<void>;
 
@@ -351,6 +351,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
     public async setReaction(
         session: TestSession,
         reaction: Reaction | "GenericLike" | ReactionEmotion = "GenericLike",
+        pos?: number | "Files",
     ) {
         const message = await this.room._getMessage(
             // Use a system action since if there's a `PermissionDeniedError` we want it
@@ -369,7 +370,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
             {
                 messageIndex: this.index,
                 contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
-                pos: message.payload.content.doc.content.size,
+                pos: pos ?? message.payload.content.doc.content.size,
                 reaction:
                     reaction === "GenericLike" || isObject(reaction)
                         ? reaction
@@ -381,7 +382,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         );
     }
 
-    public async deleteReaction(session: TestSession) {
+    public async deleteReaction(session: TestSession, pos?: number | "Files") {
         const message = await this.room._getMessage(
             // Use a system action since if there's a `PermissionDeniedError` we want it
             // thrown from `_setMessageReaction()` instead of `_getMessage()`.
@@ -394,7 +395,7 @@ export class TestMessage<Room extends TestMessagingRoomBase = TestMessagingRoomB
         return this.room._deleteMessageReaction(session.action(), {
             messageIndex: this.index,
             contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
-            pos: message.payload.content.doc.content.size,
+            pos: pos ?? message.payload.content.doc.content.size,
         });
     }
 }

@@ -121,6 +121,7 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
@@ -847,6 +848,7 @@ function sendChatMessageForAccount(
                             fileIds,
                             clerical,
                             reactionsByPos: emptyMap,
+                            filesReactions: emptyReactionSet,
                         },
                     },
                     // Retry in case of a race condition where another process writes to this
@@ -2399,7 +2401,7 @@ export function setChatMessageReaction(
         chatId: ChatId;
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) {
@@ -2473,7 +2475,7 @@ export function deleteChatMessageReaction(
         chatId: ChatId;
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) {
     return context.dynamo.retryTransaction(async context => {

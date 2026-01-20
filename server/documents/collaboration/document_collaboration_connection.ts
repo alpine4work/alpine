@@ -74,6 +74,7 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     authorizeDocumentAccess,
     backfillDocumentComments,
@@ -1210,6 +1211,7 @@ export class DocumentCollaborationConnection {
                 contentUpdate: null,
                 files,
                 reactionsByPos: emptyMap,
+                filesReactions: emptyReactionSet,
             },
             stream: null,
         });
@@ -1282,6 +1284,7 @@ const createMessageModel: CreateMessageModelFunction<
                 assertExists(references.fileById.get(fileId)),
             ),
             reactionsByPos: message.payload.reactionsByPos,
+            filesReactions: message.payload.filesReactions,
         },
         stream: message.stream,
     });

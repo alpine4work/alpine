@@ -5,7 +5,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
-import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;
@@ -213,7 +213,16 @@ export const MessageContentPayloadSchema = Schema.object({
      * their new location. Based on how the message was updated.
      */
     reactionsByPos: Schema.map(Schema.integer, ReactionSet.schema).default(emptyMap),
-});
+
+    /**
+     * Reactions on the files attached to the message. Should be empty if `fileIds`
+     * is empty.
+     */
+    filesReactions: ReactionSet.schema.default(emptyReactionSet),
+}).validation(
+    "If `fileIds` is empty then `filesReactions` should be empty",
+    payload => payload.fileIds.length > 0 || payload.filesReactions.get().size === 0,
+);
 
 const MessageDeletedPayloadSchema: Schema<{
     readonly type: "Deleted";

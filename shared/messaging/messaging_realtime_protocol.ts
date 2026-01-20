@@ -10,6 +10,7 @@ import {
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageContentPayloadParent,
     MessageContentPayloadParentSchema,
@@ -71,14 +72,14 @@ export type DeleteMessageProcedure = (input: {messageIndex: number}) => Promise<
 export type SetMessageReactionProcedure = (input: {
     messageIndex: number;
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
     reaction: Reaction | "GenericLike";
 }) => Promise<{}>;
 
 export type DeleteMessageReactionProcedure = (input: {
     messageIndex: number;
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
 }) => Promise<{}>;
 
 export type StartTypingInMessageInputProcedure = (input: {}) => Promise<{}>;
@@ -116,6 +117,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
                 clientMessageCount: Schema.integer,
                 newMessageLimit: Schema.integer,
             },
+
             /**
              * Response to a backfill call. Contains the actual message count and an array
              * of new messages we should load.
@@ -185,7 +187,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
             input: {
                 messageIndex: Schema.integer,
                 contentVersion: Schema.integer,
-                pos: Schema.integer,
+                pos: MessagePosOrFilesSchema,
                 reaction: ReactionOrGenericLikeSchema,
             },
             output: {},
@@ -198,7 +200,7 @@ export function createMessagingRealtimeProcedureSchemas<Message extends MessageM
             input: {
                 messageIndex: Schema.integer,
                 contentVersion: Schema.integer,
-                pos: Schema.integer,
+                pos: MessagePosOrFilesSchema,
             },
             output: {},
         },

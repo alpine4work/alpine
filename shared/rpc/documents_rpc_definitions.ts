@@ -27,6 +27,7 @@ import {
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
+import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
@@ -296,7 +297,7 @@ export const setDocumentCommentReaction = defineRpc({
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         commentIndex: Schema.integer,
         contentVersion: Schema.integer,
-        pos: Schema.integer,
+        pos: MessagePosOrFilesSchema,
         reaction: ReactionOrGenericLikeSchema,
     },
     output: {
@@ -312,7 +313,7 @@ export const deleteDocumentCommentReaction = defineRpc({
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         commentIndex: Schema.integer,
         contentVersion: Schema.integer,
-        pos: Schema.integer,
+        pos: MessagePosOrFilesSchema,
     },
     output: {
         version: Schema.integer,

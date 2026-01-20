@@ -101,6 +101,7 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
@@ -258,6 +259,7 @@ export async function createPostComment(
                         fileIds,
                         clerical: isStream ? {type: "Stream"} : undefined,
                         reactionsByPos: emptyMap,
+                        filesReactions: emptyReactionSet,
                     },
                 },
                 // Retry in case of a race condition where another process writes to this
@@ -1274,7 +1276,7 @@ export function setPostCommentReaction(
         postId: PostId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) {
@@ -1352,7 +1354,7 @@ export function deletePostCommentReaction(
         postId: PostId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) {
     return context.dynamo.retryTransaction(async context => {

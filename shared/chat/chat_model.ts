@@ -45,7 +45,13 @@ export class ChatMessageModel
         return this.chatId;
     }
 
-    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
-        return `/s/${spaceId}/chat/${this.chatId}/messages/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    public getSeeReactionsUrl(
+        spaceId: SpaceId,
+        contentVersion: number,
+        pos: number | "Files",
+    ): string {
+        const baseUrl = `/s/${spaceId}/chat/${this.chatId}/messages/${this.index}/reactions`;
+        const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
+        return `${baseUrl}?at=${at}`;
     }
 }

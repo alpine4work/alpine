@@ -33,9 +33,22 @@ export function computeSetMessageReaction({
         stream: MessageStream | null;
     };
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
     reaction: Reaction | "GenericLike";
 }): MessageContentPayload {
+    if (clientPos === "Files") {
+        if (message.payload.type !== "Content") {
+            throw new FailedPreconditionError(
+                "Can’t set reaction on messages with a non-content payload",
+            );
+        }
+
+        const newFilesReactions = new Map(message.payload.filesReactions.get());
+        newFilesReactions.set(actorAccountId, reaction);
+
+        return {...message.payload, filesReactions: new ReactionSet(newFilesReactions)};
+    }
+
     const {payload, pos} = unwrapResult(
         findMessageReactionPosIfPossible({
             message,

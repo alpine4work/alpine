@@ -66,8 +66,14 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
             // serialized/deserialized data so `expect().toEqual()` never shows uncached
             // data as the reason why two objects don't match. Seeing the cached data can
             // also help determine the difference in a diff.
+            //
+            // We also normalize `_serializedValue` by recomputing it from the deserialized
+            // value. This ensures consistent comparison in tests regardless of how the
+            // instance was created (from deserialized value vs from serialized value that
+            // went through JSON round-trip).
             if (import.meta.jest) {
                 this.get();
+                this._serializedValue = uninitializedSymbol;
                 this.serialize();
             }
         }

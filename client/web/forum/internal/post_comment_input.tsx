@@ -71,13 +71,13 @@ export type PostRealtimeProcedures = {
     setCommentReaction: (input: {
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     }) => Promise<{}>;
     deleteCommentReaction: (input: {
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     }) => Promise<{}>;
 };
 

@@ -5,6 +5,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,
     MessageReferencesSchema,
@@ -112,7 +113,7 @@ export const setChatMessageReaction = defineRpc({
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
         contentVersion: Schema.integer,
-        pos: Schema.integer,
+        pos: MessagePosOrFilesSchema,
         reaction: ReactionOrGenericLikeSchema,
     },
     output: {
@@ -127,7 +128,7 @@ export const deleteChatMessageReaction = defineRpc({
         chatId: Schema.id<ChatId>(),
         messageIndex: Schema.integer,
         contentVersion: Schema.integer,
-        pos: Schema.integer,
+        pos: MessagePosOrFilesSchema,
     },
     output: {
         version: Schema.integer,

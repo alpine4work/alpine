@@ -1,6 +1,8 @@
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
+import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";
 
 test("serializes message content payload with null `parent` and null `contentUpdate`", () => {
     const serializedMessage = MessageContentPayloadSchema.serialize({
@@ -10,6 +12,7 @@ test("serializes message content payload with null `parent` and null `contentUpd
         contentUpdate: null,
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 
     expect(serializedMessage).toEqual({
@@ -19,9 +22,11 @@ test("serializes message content payload with null `parent` and null `contentUpd
         contentUpdatedTime: null,
         fileIds: [],
         reactionsByPos: [],
+        filesReactions: new JsonStringifiableUint8Array(0),
     });
 
-    expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
+    const deserialized = MessageContentPayloadSchema.deserialize(serializedMessage);
+    expect(deserialized).toMatchObject({
         type: "Content",
         parent: null,
         content: createSimpleMessageContent("Hello, world!"),
@@ -29,6 +34,7 @@ test("serializes message content payload with null `parent` and null `contentUpd
         fileIds: [],
         reactionsByPos: emptyMap,
     });
+    expect(deserialized.filesReactions.get()).toEqual(emptyReactionSet.get());
 });
 
 test("serializes message content payload with message `parent` and null `contentUpdate`", () => {
@@ -39,6 +45,7 @@ test("serializes message content payload with message `parent` and null `content
         contentUpdate: null,
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 
     expect(serializedMessage).toEqual({
@@ -49,9 +56,11 @@ test("serializes message content payload with message `parent` and null `content
         contentUpdatedTime: null,
         fileIds: [],
         reactionsByPos: [],
+        filesReactions: new JsonStringifiableUint8Array(0),
     });
 
-    expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
+    const deserialized = MessageContentPayloadSchema.deserialize(serializedMessage);
+    expect(deserialized).toMatchObject({
         type: "Content",
         parent: {type: "Message", index: 42},
         content: createSimpleMessageContent("Hello, world!"),
@@ -59,6 +68,7 @@ test("serializes message content payload with message `parent` and null `content
         fileIds: [],
         reactionsByPos: emptyMap,
     });
+    expect(deserialized.filesReactions.get()).toEqual(emptyReactionSet.get());
 });
 
 test("serializes message content payload with message range `parent` and null `contentUpdate`", () => {
@@ -77,6 +87,7 @@ test("serializes message content payload with message range `parent` and null `c
         contentUpdate: null,
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 
     expect(serializedMessage).toEqual({
@@ -94,9 +105,11 @@ test("serializes message content payload with message range `parent` and null `c
         contentUpdatedTime: null,
         fileIds: [],
         reactionsByPos: [],
+        filesReactions: new JsonStringifiableUint8Array(0),
     });
 
-    expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
+    const deserialized = MessageContentPayloadSchema.deserialize(serializedMessage);
+    expect(deserialized).toMatchObject({
         type: "Content",
         parent: {
             type: "MessagesRange",
@@ -112,6 +125,7 @@ test("serializes message content payload with message range `parent` and null `c
         fileIds: [],
         reactionsByPos: emptyMap,
     });
+    expect(deserialized.filesReactions.get()).toEqual(emptyReactionSet.get());
 });
 
 test("serializes message content payload with null `parent` and some `contentUpdate`", () => {
@@ -124,6 +138,7 @@ test("serializes message content payload with null `parent` and some `contentUpd
         contentUpdate: {time: currentTime, mappings: []},
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 
     expect(serializedMessage).toEqual({
@@ -134,9 +149,11 @@ test("serializes message content payload with null `parent` and some `contentUpd
         contentUpdate: {mappings: []},
         fileIds: [],
         reactionsByPos: [],
+        filesReactions: new JsonStringifiableUint8Array(0),
     });
 
-    expect(MessageContentPayloadSchema.deserialize(serializedMessage)).toEqual({
+    const deserialized = MessageContentPayloadSchema.deserialize(serializedMessage);
+    expect(deserialized).toMatchObject({
         type: "Content",
         parent: null,
         content: createSimpleMessageContent("Hello, world!"),
@@ -144,6 +161,7 @@ test("serializes message content payload with null `parent` and some `contentUpd
         fileIds: [],
         reactionsByPos: emptyMap,
     });
+    expect(deserialized.filesReactions.get()).toEqual(emptyReactionSet.get());
 });
 
 test("deserializes message content payload with missing `parentMessageIndex` and some `contentUpdatedTime`", () => {
@@ -167,6 +185,7 @@ test("deserializes message content payload with missing `parentMessageIndex` and
         },
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 });
 
@@ -185,6 +204,7 @@ test("deserializes message content payload with null `parentMessageIndex` and mi
         contentUpdate: null,
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 });
 
@@ -201,5 +221,6 @@ test("deserializes message content payload with missing `parentMessageIndex`, mi
         contentUpdate: null,
         fileIds: [],
         reactionsByPos: emptyMap,
+        filesReactions: emptyReactionSet,
     });
 });

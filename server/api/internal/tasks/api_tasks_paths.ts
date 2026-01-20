@@ -31,6 +31,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     TaskQueryCollectionsNormalizedFilter,
     TaskQueryDisplayStatusNormalizedFilter,
@@ -238,6 +239,7 @@ export const apiTasksPaths: Pick<
                 contentUpdate: null,
                 fileIds: [],
                 reactionsByPos: emptyMap,
+                filesReactions: emptyReactionSet,
             };
 
             // If this broadcast fails (or it's never sent, say if the process dies) then

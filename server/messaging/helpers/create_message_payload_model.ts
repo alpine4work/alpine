@@ -62,6 +62,7 @@ export async function createMessagePayloadModel(
                 files,
                 clerical: payload.clerical,
                 reactionsByPos: payload.reactionsByPos,
+                filesReactions: payload.filesReactions,
             };
         }
         default:

@@ -189,6 +189,7 @@ import {
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -5514,7 +5515,7 @@ export function setTaskCommentReaction(
         taskId: TaskId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) {
@@ -5587,7 +5588,7 @@ export function deleteTaskCommentReaction(
         taskId: TaskId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) {
     return context.dynamo.retryTransaction(async context => {
@@ -5772,6 +5773,7 @@ export async function createTaskComment(
                         fileIds,
                         clerical: isStream ? {type: "Stream"} : undefined,
                         reactionsByPos: emptyMap,
+                        filesReactions: emptyReactionSet,
                     },
                 },
                 // Retry in case of a race condition where another process writes to this

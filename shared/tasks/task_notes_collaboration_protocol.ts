@@ -5,6 +5,7 @@ import {
     MessageContentSchema,
     MessageContentStepSchema,
 } from "~/shared/messaging/message_content_schema.js";
+import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
     MessagingTypingStateSchema,
@@ -129,7 +130,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
             input: {
                 commentIndex: Schema.integer,
                 contentVersion: Schema.integer,
-                pos: Schema.integer,
+                pos: MessagePosOrFilesSchema,
                 reaction: ReactionOrGenericLikeSchema,
             },
             output: {},
@@ -139,7 +140,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
             input: {
                 commentIndex: Schema.integer,
                 contentVersion: Schema.integer,
-                pos: Schema.integer,
+                pos: MessagePosOrFilesSchema,
             },
             output: {},
         },

@@ -4,7 +4,17 @@ import classNames from "classnames";
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {animate} from "motion";
 import {ArrowArcLeft, ArrowArcRight, Link as LinkIcon, Trash} from "phosphor-react";
-import {Fragment, Memo, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    Fragment,
+    Memo,
+    RefObject,
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {AccountAvatar} from "~/client/web/accounts/account_avatar.js";
 import {
     getAccountRegistry,
@@ -69,7 +79,10 @@ import {
     JumpToMessageRangeOptions,
 } from "~/client/web/messaging/use_jump_to_message_range.js";
 import {JumpToPostRangeOptions} from "~/client/web/messaging/use_jump_to_post_range.js";
-import {ContentViewWithReactionParties} from "~/client/web/reactions/content_view_with_reaction_parties.js";
+import {
+    ContentViewReactionParty,
+    ContentViewWithReactionParties,
+} from "~/client/web/reactions/content_view_with_reaction_parties.js";
 import {reactionButtonContextMenuActionKey} from "~/client/web/reactions/reaction_button.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
@@ -142,6 +155,7 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -941,6 +955,61 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         return message.payload.reactionsByPos;
     }, [message.payload, message.author.id, isLastMessage, currentAccountId]);
 
+    const handleSetReaction = useCallback(
+        (pos: number | "Files", reaction: Reaction | "GenericLike") => {
+            if (message.isOptimistic) return;
+            if (!currentAccountId) return;
+            setMessageReactionWithOptimisticUpdate({
+                reporter,
+                currentAccountId,
+                messageNoun,
+                roomKey: message.getRoomKey(),
+                messageIndex: message.index,
+                contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+                pos,
+                reaction,
+                onSetMessageReaction,
+                onUpdateMessagesOptimistically,
+                inboxContext,
+            });
+        },
+        [
+            currentAccountId,
+            inboxContext,
+            message,
+            messageNoun,
+            onSetMessageReaction,
+            onUpdateMessagesOptimistically,
+            reporter,
+        ],
+    );
+
+    const handleDeleteReaction = useCallback(
+        (pos: number | "Files") => {
+            if (message.isOptimistic) return;
+            if (!currentAccountId) return;
+            deleteMessageReactionWithOptimisticUpdate({
+                reporter,
+                currentAccountId,
+                messageNoun,
+                roomKey: message.getRoomKey(),
+                messageIndex: message.index,
+                contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
+                pos,
+                onDeleteMessageReaction,
+                onUpdateMessagesOptimistically,
+            });
+        },
+        [
+            currentAccountId,
+            message,
+            messageNoun,
+            onDeleteMessageReaction,
+            onUpdateMessagesOptimistically,
+            reporter,
+        ],
+    );
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
@@ -1054,40 +1123,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
                     jumpAnimation={jumpAnimation}
                     reactionsByPos={reactionsByPos}
-                    onSetReaction={(pos, reaction) => {
-                        if (message.isOptimistic) return;
-                        if (!currentAccountId) return;
-
-                        setMessageReactionWithOptimisticUpdate({
-                            reporter,
-                            currentAccountId,
-                            messageNoun,
-                            roomKey: message.getRoomKey(),
-                            messageIndex: message.index,
-                            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
-                            pos,
-                            reaction,
-                            onSetMessageReaction,
-                            onUpdateMessagesOptimistically,
-                            inboxContext,
-                        });
-                    }}
-                    onDeleteReaction={pos => {
-                        if (message.isOptimistic) return;
-                        if (!currentAccountId) return;
-
-                        deleteMessageReactionWithOptimisticUpdate({
-                            reporter,
-                            currentAccountId,
-                            messageNoun,
-                            roomKey: message.getRoomKey(),
-                            messageIndex: message.index,
-                            contentVersion: message.payload.contentUpdate?.mappings.length ?? 0,
-                            pos,
-                            onDeleteMessageReaction,
-                            onUpdateMessagesOptimistically,
-                        });
-                    }}
+                    onSetReaction={handleSetReaction}
+                    onDeleteReaction={handleDeleteReaction}
                     onPressSeeReactions={async pos => {
                         if (message.isOptimistic) return;
                         if (!currentAccountId) return;
@@ -1107,17 +1144,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         canPrimaryInputHover,
         currentAccountId,
         events.getClipboardSerializerPrefix,
-        inboxContext,
+        handleDeleteReaction,
+        handleSetReaction,
         jumpAnimation,
         message,
-        messageNoun,
         messageTextForBigEmojiMessage,
         navigate,
-        onDeleteMessageReaction,
-        onSetMessageReaction,
-        onUpdateMessagesOptimistically,
         reactionsByPos,
-        reporter,
         space.id,
     ]);
 
@@ -1541,28 +1574,65 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 )}
                                 {message.payload.type === "Content" &&
                                     message.payload.files.length > 0 && (
-                                        <MessageViewFiles
-                                            attachmentTarget={fileAttachmentTarget}
-                                            files={message.payload.files}
-                                            paddingTop={
-                                                contentPayloadNode !== null
-                                                    ? // It feels like too much space when we have a single line of text over a file.
-                                                      // So special case a single non-standalone margin node above a file and in this
-                                                      // case use paragraph margins instead of standalone block margins.
-                                                      message.payload.content.doc.childCount ===
-                                                          1 &&
-                                                      !hasStandaloneMarginByContentBlockNodeTypeName[
-                                                          message.payload.content.doc.firstChild!
-                                                              .type.name
-                                                      ]
-                                                        ? contentStyles.paragraphMargin
-                                                        : message.payload.content.doc.lastChild!
-                                                                .type.name === "divider"
-                                                          ? contentStyles.messageDividerMargin
-                                                          : contentStyles.standaloneBlockMargin
-                                                    : undefined
-                                            }
-                                        />
+                                        <>
+                                            <MessageViewFiles
+                                                attachmentTarget={fileAttachmentTarget}
+                                                files={message.payload.files}
+                                                paddingTop={
+                                                    contentPayloadNode !== null
+                                                        ? // It feels like too much space when we have a single line of text over a file.
+                                                          // So special case a single non-standalone margin node above a file and in this
+                                                          // case use paragraph margins instead of standalone block margins.
+                                                          message.payload.content.doc.childCount ===
+                                                              1 &&
+                                                          !hasStandaloneMarginByContentBlockNodeTypeName[
+                                                              message.payload.content.doc
+                                                                  .firstChild!.type.name
+                                                          ]
+                                                            ? contentStyles.paragraphMargin
+                                                            : message.payload.content.doc.lastChild!
+                                                                    .type.name === "divider"
+                                                              ? contentStyles.messageDividerMargin
+                                                              : contentStyles.standaloneBlockMargin
+                                                        : undefined
+                                                }
+                                            />
+                                            {(message.payload.filesReactions.get().size > 0 ||
+                                                // If this is the last message and the message is from a user other than our
+                                                // own then we want to render the party even if there are no reactions so you
+                                                // can leave a quick reaction.
+                                                (isLastMessage &&
+                                                    message.author.id !== currentAccountId)) && (
+                                                <div className={sprinkles({marginTop: "2"})}>
+                                                    <ContentViewReactionParty
+                                                        pos="Files"
+                                                        reactions={message.payload.filesReactions}
+                                                        onSetReaction={handleSetReaction}
+                                                        onDeleteReaction={handleDeleteReaction}
+                                                        onPressSeeReactions={async () => {
+                                                            if (message.isOptimistic) return;
+                                                            if (!currentAccountId) return;
+
+                                                            await navigate(
+                                                                message.getSeeReactionsUrl(
+                                                                    space.id,
+                                                                    message.payload.contentUpdate
+                                                                        ?.mappings.length ?? 0,
+                                                                    "Files",
+                                                                ),
+                                                            );
+                                                        }}
+                                                        randomSeed={
+                                                            message.isOptimistic
+                                                                ? `MessageViewFiles:optimistic`
+                                                                : `MessageViewFiles:${message.getRoomKey()}-${
+                                                                      message.index
+                                                                  }`
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                             </div>
                             {isMessageHighlightedFromContextMenu && (

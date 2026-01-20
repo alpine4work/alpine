@@ -522,6 +522,7 @@ const createMessageModel: CreateMessageModelFunction<TaskId, TaskCommentModel> =
                 assertExists(references.fileById.get(fileId)),
             ),
             reactionsByPos: message.payload.reactionsByPos,
+            filesReactions: message.payload.filesReactions,
         },
         stream: message.stream,
     });

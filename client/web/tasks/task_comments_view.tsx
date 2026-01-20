@@ -273,7 +273,7 @@ export function TaskCommentsView({
         (input: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         }) => {
             return procedures.setCommentReaction({
@@ -287,7 +287,7 @@ export function TaskCommentsView({
     );
 
     const deleteMessageReaction = useCallback(
-        (input: {messageIndex: number; contentVersion: number; pos: number}) => {
+        (input: {messageIndex: number; contentVersion: number; pos: number | "Files"}) => {
             return procedures.deleteCommentReaction({
                 commentIndex: input.messageIndex,
                 contentVersion: input.contentVersion,

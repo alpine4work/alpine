@@ -18,7 +18,7 @@ import {
     MessagePayload,
     MessageStream,
 } from "~/shared/messaging/message_schema.js";
-import {ReactionSet} from "~/shared/reactions/reaction_set.js";
+import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -98,7 +98,7 @@ export interface MessageModel<RoomKey extends string = string> extends MessageMo
      * Get the URL to navigate to for viewing the reactions for a position in a
      * message.
      */
-    getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string;
+    getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number | "Files"): string;
 
     /**
      * Clone the model object, replacing any values with those provided in the
@@ -170,6 +170,7 @@ const MessageContentPayloadModelSchema = Schema.object({
     files: Schema.array(MessageContentPayloadModelFileSchema).default([]),
     clerical: MessageContentPayloadClericalSchema.optional(),
     reactionsByPos: Schema.map(Schema.integer, ReactionSet.schema).default(emptyMap),
+    filesReactions: ReactionSet.schema.default(emptyReactionSet),
 });
 
 const MessageDeletedPayloadModelSchema: Schema<{
@@ -229,6 +230,7 @@ export function areMessagePayloadModelsEqual(
                 | "files"
                 | "clerical"
                 | "reactionsByPos"
+                | "filesReactions"
             >();
 
             if (!isDeepEqual(payload1.parent, payload2.parent)) return false;
@@ -276,6 +278,9 @@ export function areMessagePayloadModelsEqual(
 
                 if (!isDeepEqual(reactionsByPos1, reactionsByPos2)) return false;
             }
+
+            if (!isDeepEqual(payload1.filesReactions.get(), payload2.filesReactions.get()))
+                return false;
 
             return true;
         }

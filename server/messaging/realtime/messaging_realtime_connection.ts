@@ -39,6 +39,7 @@ import {
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -100,7 +101,7 @@ export type SetMessageReactionFunction<RoomKey extends string> = (
         roomKey: RoomKey;
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) => Promise<{
@@ -116,7 +117,7 @@ export type DeleteMessageReactionFunction<RoomKey extends string> = (
         roomKey: RoomKey;
         messageIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) => Promise<{
     version: number;
@@ -572,6 +573,7 @@ export class MessagingRealtimeConnection<
                 contentUpdate: null,
                 fileIds,
                 reactionsByPos: emptyMap,
+                filesReactions: emptyReactionSet,
             };
 
             const message: MessagingRealtimeEventStubNewMessage = {
@@ -701,7 +703,7 @@ export class MessagingRealtimeConnection<
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
             reaction: Reaction | "GenericLike";
         },
     ): Promise<{}> {
@@ -744,7 +746,7 @@ export class MessagingRealtimeConnection<
         }: {
             messageIndex: number;
             contentVersion: number;
-            pos: number;
+            pos: number | "Files";
         },
     ): Promise<{}> {
         assert(this.accountId === context.actor.getAccountId());

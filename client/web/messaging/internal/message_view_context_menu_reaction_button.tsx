@@ -52,7 +52,7 @@ export function MessageViewContextMenuReactionButton<
     roomKey: RoomKey;
     messageIndex: number;
     contentVersion: number;
-    pos: number;
+    pos: number | "Files";
     reactions: ReactionSet;
     onSetMessageReaction: Memo<OnSetMessageReactionFunction<RoomKey>>;
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;

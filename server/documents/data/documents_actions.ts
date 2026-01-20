@@ -187,6 +187,7 @@ import {
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 /**
@@ -3219,6 +3220,7 @@ export async function updateDocumentContent(
                             contentUpdate: null,
                             fileIds: createCommentThread.initialCommentFileIds,
                             reactionsByPos: emptyMap,
+                            filesReactions: emptyReactionSet,
                         },
                     },
                     {
@@ -4668,6 +4670,7 @@ export async function createDocumentComment(
                         fileIds,
                         clerical: isStream ? {type: "Stream"} : undefined,
                         reactionsByPos: emptyMap,
+                        filesReactions: emptyReactionSet,
                     },
                 },
                 // Retry in case of a race condition where another process writes to this
@@ -5719,7 +5722,7 @@ export function setDocumentCommentReaction(
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
         reaction: Reaction | "GenericLike";
     },
 ) {
@@ -5808,7 +5811,7 @@ export function deleteDocumentCommentReaction(
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
         contentVersion: number;
-        pos: number;
+        pos: number | "Files";
     },
 ) {
     return context.dynamo.retryTransaction(async context => {

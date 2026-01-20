@@ -89,8 +89,14 @@ export class DocumentCommentModel
         return encodeDocumentCommentRoomKey(this.documentId, this.commentThreadId);
     }
 
-    public getSeeReactionsUrl(spaceId: SpaceId, contentVersion: number, pos: number): string {
-        return `/s/${spaceId}/documents/${this.documentId}/comments/${this.commentThreadId}/${this.index}/reactions?at=${pos}@${contentVersion}`;
+    public getSeeReactionsUrl(
+        spaceId: SpaceId,
+        contentVersion: number,
+        pos: number | "Files",
+    ): string {
+        const baseUrl = `/s/${spaceId}/documents/${this.documentId}/comments/${this.commentThreadId}/${this.index}/reactions`;
+        const at = pos === "Files" ? "files" : `${pos}@${contentVersion}`;
+        return `${baseUrl}?at=${at}`;
     }
 }
 

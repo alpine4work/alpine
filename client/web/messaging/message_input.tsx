@@ -61,6 +61,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
+import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -334,6 +335,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     }
                 }),
                 reactionsByPos: emptyMap,
+                filesReactions: emptyReactionSet,
             },
             stream: null,
         };

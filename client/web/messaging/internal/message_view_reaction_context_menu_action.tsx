@@ -40,12 +40,13 @@ export function messageViewReactionContextMenuAction<
         // picker.
         onPress: () => ({withoutClose: true}),
         renderWithStructure: ({isPressed, renderStructure, onCloseMenuWithAnimation}) => {
-            let pos: number;
+            let pos: number | "Files";
 
             // The context menu will add a reaction to the end of the message. Find the
             // position at the end of the message.
-            // TODO(imjoshin): Handle Files here, next PR
-            if (message.stream === null) {
+            if (payload.files.length > 0) {
+                pos = "Files";
+            } else if (message.stream === null) {
                 pos = payload.content.doc.content.size;
             } else {
                 pos = 0;
@@ -67,7 +68,10 @@ export function messageViewReactionContextMenuAction<
                 }
             }
 
-            const reactions = payload.reactionsByPos.get(pos) ?? emptyReactionSet;
+            const reactions =
+                pos === "Files"
+                    ? payload.filesReactions
+                    : (payload.reactionsByPos.get(pos) ?? emptyReactionSet);
 
             return (
                 <MessageViewContextMenuReactionButton
